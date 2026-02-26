@@ -29,7 +29,7 @@ describe("projects schema", () => {
     }
   });
 
-  it("does NOT have an embedding column (embeddings in content_embeddings)", () => {
+  it("does NOT have an embedding column (embeddings in embeddings)", () => {
     const columns = Object.keys(getTableColumns(projects));
     expect(columns).not.toContain("qwen4bFp16Embedding");
     expect(columns).not.toContain("embedding");

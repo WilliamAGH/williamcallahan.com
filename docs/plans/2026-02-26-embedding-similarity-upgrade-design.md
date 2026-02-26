@@ -26,7 +26,7 @@ The site has three problems:
 
 ## Goals
 
-1. **Unified `content_embeddings` table** — one HNSW index for all domains; same model + same dimensions = one table
+1. **Unified `embeddings` table** — one HNSW index for all domains; same model + same dimensions = one table
 2. **All content in PostgreSQL** — per-domain tables for domain-specific columns + FTS/trigram; embeddings in unified table
 3. **One hybrid search path** (3-CTE: FTS + trigram + pgvector) for all domains — eliminates MiniSearch
 4. **Embedding-based related content** — single-query cross-domain cosine similarity; eliminates heuristic engine
@@ -49,7 +49,7 @@ The site has three problems:
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│  content_embeddings                                           │
+│  embeddings                                           │
 ├───────────────────────────────────────────────────────────────┤
 │  domain           text NOT NULL  ('bookmark','thought',...)   │
 │  entity_id        text NOT NULL                               │
@@ -81,7 +81,7 @@ The site has three problems:
 
 ### Layer 2: Per-Domain Tables (Text Search Only)
 
-Per-domain tables store domain-specific columns and text search infrastructure. **No embedding columns** — embeddings are in `content_embeddings`.
+Per-domain tables store domain-specific columns and text search infrastructure. **No embedding columns** — embeddings are in `embeddings`.
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -116,7 +116,7 @@ FTS weights are genuinely domain-specific — bookmarks weight title/description
 
 ### Layer 3: Per-Domain Embedding Input Construction
 
-Each domain defines a `build<Domain>EmbeddingInput()` function. All write to `content_embeddings`.
+Each domain defines a `build<Domain>EmbeddingInput()` function. All write to `embeddings`.
 
 | Domain      | Embedding Input Fields (priority order)                                                       |
 | ----------- | --------------------------------------------------------------------------------------------- |
@@ -129,13 +129,13 @@ Each domain defines a `build<Domain>EmbeddingInput()` function. All write to `co
 
 ### Layer 4: Unified Hybrid Search
 
-A **generic hybrid search builder** using the 3-CTE pattern. The FTS/trigram CTEs query the domain table; the semantic CTE queries `content_embeddings`.
+A **generic hybrid search builder** using the 3-CTE pattern. The FTS/trigram CTEs query the domain table; the semantic CTE queries `embeddings`.
 
 ```
 Query
   → embedTextsWithEndpointCompatibleModel(query)
   → ┌─ CTE: keyword_results (domain_table.search_vector @@ tsquery + title % query)
-    ├─ CTE: semantic_results (content_embeddings.embedding <=> query_vec WHERE domain = ?)
+    ├─ CTE: semantic_results (embeddings.embedding <=> query_vec WHERE domain = ?)
     └─ CTE: combined (FULL OUTER JOIN on entity_id, weighted: FTS*2.0 + trgm*0.5 + vector*10.0)
   → JOIN domain_table → hydrate full rows → ranked results
 ```
@@ -145,7 +145,7 @@ Query
 ```sql
 SELECT domain, entity_id, title,
   1.0 - (qwen_4b_fp16_embedding <=> $1) AS similarity
-FROM content_embeddings
+FROM embeddings
 WHERE qwen_4b_fp16_embedding IS NOT NULL
 ORDER BY qwen_4b_fp16_embedding <=> $1
 LIMIT 20;
@@ -161,13 +161,13 @@ Replaces the heuristic `findMostSimilar()` in `build.ts` with a single pgvector 
 
 For each content item with a stored embedding:
 
-1. Read the item's embedding from `content_embeddings`
-2. Query `content_embeddings` for nearest neighbors (excluding self) — **one query, one index scan**:
+1. Read the item's embedding from `embeddings`
+2. Query `embeddings` for nearest neighbors (excluding self) — **one query, one index scan**:
 
 ```sql
 SELECT domain, entity_id, title, content_date,
   1.0 - (qwen_4b_fp16_embedding <=> $source_embedding) AS similarity
-FROM content_embeddings
+FROM embeddings
 WHERE NOT (domain = $src_domain AND entity_id = $src_id)
   AND qwen_4b_fp16_embedding IS NOT NULL
 ORDER BY qwen_4b_fp16_embedding <=> $source_embedding
@@ -198,7 +198,7 @@ LIMIT 30;  -- fetch extra for diversity re-ranking
 
 | Current System                              | File(s)                                   | Replaced By                                           |
 | ------------------------------------------- | ----------------------------------------- | ----------------------------------------------------- |
-| Per-domain embedding columns + HNSW indexes | 4 schema files                            | Unified `content_embeddings` table                    |
+| Per-domain embedding columns + HNSW indexes | 4 schema files                            | Unified `embeddings` table                            |
 | MiniSearch in-memory indexes                | `search-content.ts`, `search-factory.ts`  | PostgreSQL hybrid search on all domains               |
 | `rerankScoredResultsWithEmbeddings()`       | `search-content.ts:172`                   | Native pgvector in 3-CTE query                        |
 | Heuristic `calculateSimilarity()`           | `content-similarity/index.ts`             | Pre-computed pgvector cosine + blended scoring        |
@@ -217,7 +217,7 @@ LIMIT 30;  -- fetch extra for diversity re-ranking
 **Source:** MDX files in `data/blog/posts/*.mdx`
 **Strategy:** Parse frontmatter + raw content at seed/sync time, store in PostgreSQL. MDX files remain the authoring source; a sync script populates the DB.
 
-**Schema columns (no embedding — that goes in content_embeddings):**
+**Schema columns (no embedding — that goes in embeddings):**
 
 - `id` (text PK, `"mdx-{slug}"`)
 - `slug` (text, unique, not null)
@@ -288,10 +288,10 @@ LIMIT 30;  -- fetch extra for diversity re-ranking
 
 ### Phase 1: Unified Embeddings Table & Migration
 
-1. **Create `content_embeddings` table** with HNSW index — the foundation for everything
-2. **Migrate existing embeddings** from bookmarks, thoughts, ai_analysis_latest, opengraph_metadata into content_embeddings
-3. **Update hybrid-search.ts** — semantic CTE queries content_embeddings instead of domain table
-4. **Update bookmark-embeddings.ts** — backfill writes to content_embeddings
+1. **Create `embeddings` table** with HNSW index — the foundation for everything
+2. **Migrate existing embeddings** from bookmarks, thoughts, ai_analysis_latest, opengraph_metadata into embeddings
+3. **Update hybrid-search.ts** — semantic CTE queries embeddings instead of domain table
+4. **Update bookmark-embeddings.ts** — backfill writes to embeddings
 5. **Remove embedding columns** from existing domain tables (after verifying all queries work)
 
 ### Phase 2: Domain Migrations
@@ -303,22 +303,22 @@ Each domain migration is independent. Order by impact:
 3. **Books** — normalize JSONB blob to individual rows
 4. **Blog posts** — MDX sync pipeline
 
-Each migration includes: Drizzle schema (FTS + trigram, no embedding column), migration SQL, seed/sync script, data access layer, embedding input builder (writes to content_embeddings), tests.
+Each migration includes: Drizzle schema (FTS + trigram, no embedding column), migration SQL, seed/sync script, data access layer, embedding input builder (writes to embeddings), tests.
 
 ### Phase 3: Unified Hybrid Search
 
 Replace MiniSearch with PostgreSQL hybrid search for all domains:
 
-1. **Generic hybrid search builder** — FTS/trigram on domain table + semantic on content_embeddings
+1. **Generic hybrid search builder** — FTS/trigram on domain table + semantic on embeddings
 2. **Per-domain search functions** — wire each domain through the builder
-3. **Cross-domain search** — single query on content_embeddings for `/api/search/all`
+3. **Cross-domain search** — single query on embeddings for `/api/search/all`
 4. **Remove MiniSearch** — delete search indexes, search-factory, rerank layer
 
 ### Phase 4: Embedding-Based Related Content
 
 Replace heuristic similarity with pgvector cosine queries:
 
-1. **Single-query similarity function** — query content_embeddings for nearest neighbors
+1. **Single-query similarity function** — query embeddings for nearest neighbors
 2. **Blended scoring** — cosine (0.70) + recency (0.10) + diversity (0.10) + quality (0.10)
 3. **Update `buildContentGraph`** — replace `findMostSimilar()` with pgvector queries
 4. **Remove heuristic engine** — delete content-similarity/, tag-ontology.ts, aggregator.ts
@@ -337,20 +337,20 @@ Replace heuristic similarity with pgvector cosine queries:
 
 ## Risk Mitigation
 
-| Risk                                                    | Mitigation                                                                                                |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Embedding server unavailable during content graph build | Fallback: skip items without embeddings; log warnings; don't overwrite existing pre-computed results      |
-| HNSW post-filtering on `WHERE domain = ?` misses rows   | At ~500 total items, post-filtering is trivially fast; partition by domain later if scale demands it      |
-| Migration breaks existing pages during transition       | Semantic CTE queries content_embeddings immediately after data migration; old columns kept until verified |
-| Blog MDX sync creates drift between files and DB        | MDX files remain authoritative; sync script is idempotent and runs on content change                      |
-| Books ABS API changes                                   | Existing transform layer handles shape changes; DB schema is independent                                  |
+| Risk                                                    | Mitigation                                                                                           |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Embedding server unavailable during content graph build | Fallback: skip items without embeddings; log warnings; don't overwrite existing pre-computed results |
+| HNSW post-filtering on `WHERE domain = ?` misses rows   | At ~500 total items, post-filtering is trivially fast; partition by domain later if scale demands it |
+| Migration breaks existing pages during transition       | Semantic CTE queries embeddings immediately after data migration; old columns kept until verified    |
+| Blog MDX sync creates drift between files and DB        | MDX files remain authoritative; sync script is idempotent and runs on content change                 |
+| Books ABS API changes                                   | Existing transform layer handles shape changes; DB schema is independent                             |
 
 ---
 
 ## Success Criteria
 
-1. All embeddings in one `content_embeddings` table with one HNSW index
-2. All 6 content domains have rows in `content_embeddings`
+1. All embeddings in one `embeddings` table with one HNSW index
+2. All 6 content domains have rows in `embeddings`
 3. Site-wide search uses a single hybrid search path (no MiniSearch)
 4. Related content uses embedding-based cosine similarity (no heuristic engine)
 5. Cross-domain similarity is a single pgvector query (no UNION ALL)

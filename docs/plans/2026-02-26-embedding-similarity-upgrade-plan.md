@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Consolidate all embeddings into a unified `content_embeddings` table, migrate all content domains to PostgreSQL with FTS/trigram schemas, replace MiniSearch with unified hybrid search, and replace heuristic related-content with embedding-based cosine similarity.
+**Goal:** Consolidate all embeddings into a unified `embeddings` table, migrate all content domains to PostgreSQL with FTS/trigram schemas, replace MiniSearch with unified hybrid search, and replace heuristic related-content with embedding-based cosine similarity.
 
-**Architecture:** One `content_embeddings` table with a single HNSW index for all domains. Per-domain PostgreSQL tables with `tsvector` + `gin_trgm_ops` for text search. Unified 3-CTE hybrid search (FTS/trigram on domain table + semantic on content_embeddings). Pre-computed cross-domain related content via single-query pgvector cosine ANN.
+**Architecture:** One `embeddings` table with a single HNSW index for all domains. Per-domain PostgreSQL tables with `tsvector` + `gin_trgm_ops` for text search. Unified 3-CTE hybrid search (FTS/trigram on domain table + semantic on embeddings). Pre-computed cross-domain related content via single-query pgvector cosine ANN.
 
 **Tech Stack:** Drizzle ORM 0.45+, pgvector (halfvec, HNSW), PostgreSQL FTS (tsvector, ts_rank_cd), pg_trgm, postgres.js driver, Vitest, Qwen3-Embedding-4B (2560-d FP16)
 
@@ -19,12 +19,12 @@
 
 This phase creates the foundation — the single embeddings table — and migrates existing data into it. All subsequent work depends on this.
 
-### Task 1: Create `content_embeddings` Table
+### Task 1: Create `embeddings` Table
 
 **Files:**
 
 - Create: `src/lib/db/schema/content-embeddings.ts`
-- Modify: `drizzle.config.ts` (add `"content_embeddings"` to `tablesFilter`)
+- Modify: `drizzle.config.ts` (add `"embeddings"` to `tablesFilter`)
 - Test: `__tests__/lib/db/schema/content-embeddings.test.ts`
 
 **Step 1: Write the Drizzle schema**
@@ -38,7 +38,7 @@ import { bigint, customType, halfvec, index, pgTable, primaryKey, text } from "d
 export const CONTENT_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-4B" as const;
 export const CONTENT_EMBEDDING_DIMENSIONS = 2560 as const;
 
-/** Valid domain values for content_embeddings */
+/** Valid domain values for embeddings */
 export const CONTENT_EMBEDDING_DOMAINS = [
   "bookmark",
   "thought",
@@ -51,8 +51,8 @@ export const CONTENT_EMBEDDING_DOMAINS = [
 ] as const;
 export type ContentEmbeddingDomain = (typeof CONTENT_EMBEDDING_DOMAINS)[number];
 
-export const contentEmbeddings = pgTable(
-  "content_embeddings",
+export const embeddings = pgTable(
+  "embeddings",
   {
     domain: text("domain").$type<ContentEmbeddingDomain>().notNull(),
     entityId: text("entity_id").notNull(),
@@ -66,18 +66,15 @@ export const contentEmbeddings = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.domain, table.entityId] }),
-    index("idx_content_embeddings_hnsw").using(
-      "hnsw",
-      table.qwen4bFp16Embedding.op("halfvec_cosine_ops"),
-    ),
-    index("idx_content_embeddings_domain").on(table.domain),
+    index("idx_embeddings_hnsw").using("hnsw", table.qwen4bFp16Embedding.op("halfvec_cosine_ops")),
+    index("idx_embeddings_domain").on(table.domain),
   ],
 );
 ```
 
 **Step 2: Add to drizzle.config.ts tablesFilter**
 
-Add `"content_embeddings"` to the `tablesFilter` array.
+Add `"embeddings"` to the `tablesFilter` array.
 
 **Step 3: Generate migration**
 
@@ -101,12 +98,12 @@ Expected: PASS
 
 ```bash
 git add src/lib/db/schema/content-embeddings.ts drizzle.config.ts drizzle/ __tests__/lib/db/schema/content-embeddings.test.ts
-git commit -m "feat(db): add unified content_embeddings table with single HNSW index"
+git commit -m "feat(db): add unified embeddings table with single HNSW index"
 ```
 
 ---
 
-### Task 2: Migrate Existing Embeddings into content_embeddings
+### Task 2: Migrate Existing Embeddings into embeddings
 
 Move embedding data from bookmarks, thoughts, ai_analysis_latest, and opengraph_metadata into the unified table.
 
@@ -121,7 +118,7 @@ Create `scripts/migrate-embeddings-to-unified.node.mjs` using raw postgres.js (n
 ```javascript
 // For each existing domain with embeddings:
 // 1. Read rows where qwen_4b_fp16_embedding IS NOT NULL
-// 2. INSERT INTO content_embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
+// 2. INSERT INTO embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
 //    ON CONFLICT (domain, entity_id) DO UPDATE SET ...
 
 // Bookmarks: domain='bookmark', entity_id=id, title=title, content_date=date_bookmarked
@@ -133,7 +130,7 @@ Create `scripts/migrate-embeddings-to-unified.node.mjs` using raw postgres.js (n
 The script copies the halfvec column directly — no re-embedding needed:
 
 ```sql
-INSERT INTO content_embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
+INSERT INTO embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
 SELECT 'bookmark', id, title, date_bookmarked, qwen_4b_fp16_embedding, extract(epoch from now())::bigint
 FROM bookmarks
 WHERE qwen_4b_fp16_embedding IS NOT NULL
@@ -150,7 +147,7 @@ Add: `"embeddings:migrate-to-unified": "node scripts/migrate-embeddings-to-unifi
 **Step 3: Verify row counts after running**
 
 ```sql
-SELECT domain, count(*) FROM content_embeddings GROUP BY domain ORDER BY domain;
+SELECT domain, count(*) FROM embeddings GROUP BY domain ORDER BY domain;
 ```
 
 Expected: matching counts from each source table.
@@ -164,7 +161,7 @@ git commit -m "feat(db): add migration script for existing embeddings to unified
 
 ---
 
-### Task 3: Update Hybrid Search to Query content_embeddings
+### Task 3: Update Hybrid Search to Query embeddings
 
 Modify the existing hybrid search queries to read embeddings from the unified table instead of per-domain columns.
 
@@ -188,18 +185,18 @@ To:
 
 ```sql
 SELECT entity_id AS id, 1.0 - (qwen_4b_fp16_embedding <=> ...) AS vec_score
-FROM content_embeddings
+FROM embeddings
 WHERE domain = 'bookmark' AND qwen_4b_fp16_embedding IS NOT NULL
 ORDER BY qwen_4b_fp16_embedding <=> ... LIMIT 50
 ```
 
 **Step 2: Update hybridSearchThoughts**
 
-Same change for the thoughts semantic CTE (lines 244-251): query `content_embeddings WHERE domain = 'thought'` instead of `thoughts.qwen_4b_fp16_embedding`.
+Same change for the thoughts semantic CTE (lines 244-251): query `embeddings WHERE domain = 'thought'` instead of `thoughts.qwen_4b_fp16_embedding`.
 
 **Step 3: Update semanticSearchBookmarks**
 
-Change to query `content_embeddings WHERE domain = 'bookmark'`.
+Change to query `embeddings WHERE domain = 'bookmark'`.
 
 **Step 4: Update imports**
 
@@ -215,12 +212,12 @@ Expected: PASS
 
 ```bash
 git add src/lib/db/queries/hybrid-search.ts
-git commit -m "refactor(search): query content_embeddings table for semantic search layer"
+git commit -m "refactor(search): query embeddings table for semantic search layer"
 ```
 
 ---
 
-### Task 4: Update Bookmark Embedding Backfill to Write to content_embeddings
+### Task 4: Update Bookmark Embedding Backfill to Write to embeddings
 
 **Files:**
 
@@ -244,7 +241,7 @@ To:
 
 ```typescript
 await db
-  .insert(contentEmbeddings)
+  .insert(embeddings)
   .values({
     domain: "bookmark",
     entityId: row.id,
@@ -254,7 +251,7 @@ await db
     updatedAt: Date.now(),
   })
   .onConflictDoUpdate({
-    target: [contentEmbeddings.domain, contentEmbeddings.entityId],
+    target: [embeddings.domain, embeddings.entityId],
     set: {
       qwen4bFp16Embedding: sql.raw(buildHalfvecLiteral(embedding)),
       title: row.title,
@@ -263,20 +260,20 @@ await db
   });
 ```
 
-Also update `readMissingEmbeddingRows` to LEFT JOIN content_embeddings to find bookmarks without embeddings:
+Also update `readMissingEmbeddingRows` to LEFT JOIN embeddings to find bookmarks without embeddings:
 
 ```sql
 SELECT b.* FROM bookmarks b
-LEFT JOIN content_embeddings ce ON ce.domain = 'bookmark' AND ce.entity_id = b.id
+LEFT JOIN embeddings ce ON ce.domain = 'bookmark' AND ce.entity_id = b.id
 WHERE ce.entity_id IS NULL
 ```
 
 **Step 2: Update the Node.js backfill script**
 
-In `scripts/backfill-domain-embeddings.node.mjs`, change all UPDATE targets from domain tables to `content_embeddings`:
+In `scripts/backfill-domain-embeddings.node.mjs`, change all UPDATE targets from domain tables to `embeddings`:
 
 ```javascript
-await sqlClient`INSERT INTO content_embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
+await sqlClient`INSERT INTO embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
 VALUES ('thought', ${row.id}, ${row.title}, ${row.created_at}, ${serializeHalfvec(embedding)}::halfvec(2560), ${Date.now()})
 ON CONFLICT (domain, entity_id) DO UPDATE
 SET qwen_4b_fp16_embedding = ${serializeHalfvec(embedding)}::halfvec(2560), updated_at = ${Date.now()}`;
@@ -290,14 +287,14 @@ Update `__tests__/lib/db/mutations/bookmark-embeddings.test.ts` if it exists.
 
 ```bash
 git add src/lib/db/mutations/bookmark-embeddings.ts scripts/backfill-domain-embeddings.node.mjs
-git commit -m "refactor(embeddings): write all embeddings to unified content_embeddings table"
+git commit -m "refactor(embeddings): write all embeddings to unified embeddings table"
 ```
 
 ---
 
 ### Task 5: Remove Embedding Columns from Existing Domain Tables
 
-After verifying hybrid search and backfill work against content_embeddings.
+After verifying hybrid search and backfill work against embeddings.
 
 **Files:**
 
@@ -337,14 +334,14 @@ Expected: PASS
 
 ```bash
 git add src/lib/db/schema/ drizzle/
-git commit -m "refactor(db): remove per-domain embedding columns, consolidate to content_embeddings"
+git commit -m "refactor(db): remove per-domain embedding columns, consolidate to embeddings"
 ```
 
 ---
 
 ## Phase 2: Domain Migrations
 
-Each domain migration creates a new PostgreSQL table with FTS + trigram (no embedding column). Embedding input builders write to `content_embeddings`.
+Each domain migration creates a new PostgreSQL table with FTS + trigram (no embedding column). Embedding input builders write to `embeddings`.
 
 ### Task 6: Investments Schema, Seed & Data Access
 
@@ -368,7 +365,7 @@ Create `src/lib/db/schema/investments.ts`:
 - `tsvector` custom type (local definition, same as bookmarks.ts:36-40)
 - Table columns: id, name, slug (unique), description, type, stage, category, status, operating_status, invested_year, location, website, logo, metrics (jsonb), details (jsonb)
 - `search_vector` tsvector GENERATED ALWAYS: A=name, B=description, C=category+stage
-- **No embedding column** — embeddings are in content_embeddings
+- **No embedding column** — embeddings are in embeddings
 - Indexes: GIN on search_vector, gin_trgm_ops on name, unique on slug
 
 **Step 2: Add to drizzle.config.ts, generate migration**
@@ -388,11 +385,11 @@ Create `src/lib/db/schema/investments.ts`:
 `src/lib/db/mutations/investment-embeddings.ts`:
 
 - `buildInvestmentEmbeddingInput(row): string` — Name, Description, Category, Stage, Status, Location
-- Writes to `content_embeddings` with `domain = 'investment'`
+- Writes to `embeddings` with `domain = 'investment'`
 
 **Step 6: Add investments handler to backfill script**
 
-Add `backfillInvestments()` and `--investments` CLI flag to `scripts/backfill-domain-embeddings.node.mjs`. Reads from `investments` table, writes embeddings to `content_embeddings`.
+Add `backfillInvestments()` and `--investments` CLI flag to `scripts/backfill-domain-embeddings.node.mjs`. Reads from `investments` table, writes embeddings to `embeddings`.
 
 **Step 7: Write tests**
 
@@ -464,7 +461,7 @@ Modify `src/lib/books/books-data-access.server.ts`: change `readBooksFromDb()` t
 
 **Step 4: Write embedding input builder**
 
-`buildBookEmbeddingInput(row)`: Title, Subtitle, Authors, Genres, Publisher, Description, AiSummary, Thoughts (last). Writes to `content_embeddings` with `domain = 'book'`.
+`buildBookEmbeddingInput(row)`: Title, Subtitle, Authors, Genres, Publisher, Description, AiSummary, Thoughts (last). Writes to `embeddings` with `domain = 'book'`.
 
 **Step 5: Tests, commit**
 
@@ -503,7 +500,7 @@ Table `blog_posts`. Columns: id (`"mdx-{slug}"`), slug (unique), title, excerpt,
 
 **Step 3: Write embedding input builder**
 
-`buildBlogPostEmbeddingInput(row)`: Title, Excerpt, Tags, Author, RawContent (last). Writes to `content_embeddings` with `domain = 'blog'`.
+`buildBlogPostEmbeddingInput(row)`: Title, Excerpt, Tags, Author, RawContent (last). Writes to `embeddings` with `domain = 'blog'`.
 
 **Step 4: Tests, commit**
 
@@ -526,7 +523,7 @@ Manual/operational task — execute against production.
 **Step 7:** Verify:
 
 ```sql
-SELECT domain, count(*) FROM content_embeddings GROUP BY domain ORDER BY domain;
+SELECT domain, count(*) FROM embeddings GROUP BY domain ORDER BY domain;
 ```
 
 Expected: all domains populated with embeddings.
@@ -537,7 +534,7 @@ Expected: all domains populated with embeddings.
 
 ### Task 11: Generic Hybrid Search Builder
 
-Extract the 3-CTE pattern into a reusable module. FTS/trigram on domain table, semantic on content_embeddings.
+Extract the 3-CTE pattern into a reusable module. FTS/trigram on domain table, semantic on embeddings.
 
 **Files:**
 
@@ -549,7 +546,7 @@ Extract the 3-CTE pattern into a reusable module. FTS/trigram on domain table, s
 ```typescript
 export interface HybridSearchConfig {
   domainTable: PgTable; // the domain-specific table (for FTS + trigram)
-  domainName: ContentEmbeddingDomain; // for content_embeddings WHERE domain = ?
+  domainName: ContentEmbeddingDomain; // for embeddings WHERE domain = ?
   searchVectorColumn: PgColumn; // domain_table.search_vector
   titleColumn: PgColumn; // domain_table.title (for trigram)
   idColumn: PgColumn; // domain_table.id (for joining)
@@ -567,13 +564,13 @@ export async function hybridSearch(
 The SQL follows the existing pattern from `hybrid-search.ts` but parameterized:
 
 - CTE 1 (`keyword_results`): FTS + trigram on `config.domainTable`
-- CTE 2 (`semantic_results`): cosine distance on `content_embeddings WHERE domain = config.domainName`
+- CTE 2 (`semantic_results`): cosine distance on `embeddings WHERE domain = config.domainName`
 - CTE 3 (`combined`): FULL OUTER JOIN, weighted score (FTS×2.0 + trgm×0.5 + vec×10.0)
 
 **Step 3: Tests and commit**
 
 ```bash
-git commit -m "feat(search): add generic hybrid search builder (FTS+trigram on domain, semantic on content_embeddings)"
+git commit -m "feat(search): add generic hybrid search builder (FTS+trigram on domain, semantic on embeddings)"
 ```
 
 ---
@@ -727,7 +724,7 @@ The SQL is a single query — no UNION ALL:
 ```sql
 SELECT domain, entity_id, title, content_date,
   1.0 - (qwen_4b_fp16_embedding <=> $source_vec) AS similarity
-FROM content_embeddings
+FROM embeddings
 WHERE NOT (domain = $src_domain AND entity_id = $src_id)
   AND qwen_4b_fp16_embedding IS NOT NULL
 ORDER BY qwen_4b_fp16_embedding <=> $source_vec
@@ -741,7 +738,7 @@ LIMIT $limit;
 - Sorted by similarity descending
 
 ```bash
-git commit -m "feat(similarity): add single-query cross-domain similarity on content_embeddings"
+git commit -m "feat(similarity): add single-query cross-domain similarity on embeddings"
 ```
 
 ---
@@ -782,7 +779,7 @@ git commit -m "feat(similarity): add blended scoring with cosine, recency, and d
 
 Replace the `aggregateAllContent()` + `findMostSimilar()` loop (lines 126-198) with:
 
-1. Read all rows from `content_embeddings` that have embeddings
+1. Read all rows from `embeddings` that have embeddings
 2. For each row, call `findSimilarContent()` with the stored embedding
 3. Apply `applyBlendedScoring()`
 4. Store in `relatedContentMappings` using same `"<type>:<id>"` key format
@@ -812,7 +809,7 @@ git commit -m "feat(content-graph): replace heuristic similarity with single-que
 **Step 2: Simplify the server component**
 
 - Use `hydrateRelatedContentItems()` instead of `aggregateAllContent()` + lazy content map
-- Replace heuristic fallback (lines 370-414) with `findSimilarContent()` using source item's embedding from content_embeddings
+- Replace heuristic fallback (lines 370-414) with `findSimilarContent()` using source item's embedding from embeddings
 
 ```bash
 git commit -m "refactor(related-content): hydrate from domain tables, remove aggregator dependency"
@@ -848,8 +845,8 @@ git commit -m "refactor: remove heuristic content-similarity engine (replaced by
 
 **Modify:**
 
-- `docs/features/search.md` — rewrite for unified hybrid search + content_embeddings architecture
-- `docs/architecture/README.md` — add content_embeddings table, new domain tables
+- `docs/features/search.md` — rewrite for unified hybrid search + embeddings architecture
+- `docs/architecture/README.md` — add embeddings table, new domain tables
 - `docs/file-map.md` — add new files, remove deleted files
 
 **Delete:**
@@ -900,12 +897,12 @@ git commit -m "chore: fix validation issues from embedding similarity upgrade"
 
 ## Summary
 
-| Phase                       | Tasks       | Key Outcome                                                                    |
-| --------------------------- | ----------- | ------------------------------------------------------------------------------ |
-| Phase 1: Unified Embeddings | Tasks 1-5   | `content_embeddings` table, existing data migrated, per-domain columns removed |
-| Phase 2: Domain Migrations  | Tasks 6-10  | Investments, projects, books, blog posts in PostgreSQL with FTS/trigram        |
-| Phase 3: Hybrid Search      | Tasks 11-16 | Unified 3-CTE search, MiniSearch removed                                       |
-| Phase 4: Related Content    | Tasks 17-21 | Single-query pgvector cosine similarity, heuristic engine removed              |
-| Phase 5: Cleanup            | Tasks 22-24 | Docs updated, all checks pass, quality verified                                |
+| Phase                       | Tasks       | Key Outcome                                                             |
+| --------------------------- | ----------- | ----------------------------------------------------------------------- |
+| Phase 1: Unified Embeddings | Tasks 1-5   | `embeddings` table, existing data migrated, per-domain columns removed  |
+| Phase 2: Domain Migrations  | Tasks 6-10  | Investments, projects, books, blog posts in PostgreSQL with FTS/trigram |
+| Phase 3: Hybrid Search      | Tasks 11-16 | Unified 3-CTE search, MiniSearch removed                                |
+| Phase 4: Related Content    | Tasks 17-21 | Single-query pgvector cosine similarity, heuristic engine removed       |
+| Phase 5: Cleanup            | Tasks 22-24 | Docs updated, all checks pass, quality verified                         |
 
 **Total: 24 tasks across 5 phases.**

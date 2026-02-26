@@ -2,7 +2,7 @@
  * Investments PostgreSQL Schema
  *
  * Static investment portfolio data with FTS + trigram indexes.
- * Embeddings live in content_embeddings (domain = 'investment').
+ * Embeddings live in embeddings (domain = 'investment').
  *
  * Source data: data/investments.ts (seeded via scripts/seed-investments.node.mjs)
  * Type definition: src/types/investment.ts (Investment interface)

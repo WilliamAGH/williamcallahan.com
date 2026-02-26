@@ -1,5 +1,5 @@
 -- Migration: Drop per-domain embedding columns and HNSW indexes.
--- Embeddings now live exclusively in the unified content_embeddings table.
+-- Embeddings now live exclusively in the unified embeddings table.
 -- See: 0013_content-embeddings.sql (created the unified table)
 
 -- Bookmarks: drop HNSW index, then column

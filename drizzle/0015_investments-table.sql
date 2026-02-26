@@ -1,5 +1,5 @@
 -- Migration: Create investments table with FTS + trigram indexes.
--- Embeddings live in content_embeddings (domain = 'investment').
+-- Embeddings live in embeddings (domain = 'investment').
 
 CREATE TABLE IF NOT EXISTS "investments" (
   "id" text PRIMARY KEY NOT NULL,
