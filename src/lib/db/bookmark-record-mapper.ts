@@ -8,6 +8,12 @@ const toUndefined = <T>(value: T | null): T | undefined => {
   return value;
 };
 
+/** Convert a nullable string to a valid URL or undefined. Silently drops non-URL values. */
+const toUrlOrUndefined = (value: string | null): string | undefined => {
+  if (!value) return undefined;
+  return URL.canParse(value) ? value : undefined;
+};
+
 export function mapBookmarkRowToUnifiedBookmark(row: BookmarkRow): UnifiedBookmark {
   return unifiedBookmarkSchema.parse({
     id: row.id,
@@ -16,7 +22,7 @@ export function mapBookmarkRowToUnifiedBookmark(row: BookmarkRow): UnifiedBookma
     description: row.description,
     slug: row.slug,
     tags: row.tags,
-    ogImage: toUndefined(row.ogImage),
+    ogImage: toUrlOrUndefined(row.ogImage),
     dateBookmarked: row.dateBookmarked,
     datePublished: row.datePublished,
     dateCreated: toUndefined(row.dateCreated),

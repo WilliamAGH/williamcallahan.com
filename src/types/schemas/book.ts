@@ -89,8 +89,8 @@ export const bookSchema = z.object({
   audioDurationSeconds: z.number().optional(),
   audioChapterCount: z.number().optional(),
 
-  // Cover
-  coverUrl: z.url().optional(),
+  // Cover (relative URL via /api/cache/images proxy, not an absolute URL)
+  coverUrl: z.string().optional(),
   /** Base64-encoded blur data URL for cover placeholder (LQIP) */
   coverBlurDataURL: z.string().optional(),
 
@@ -115,7 +115,7 @@ export const bookListItemSchema = z.object({
   id: z.string(),
   title: z.string(),
   authors: z.array(z.string()).optional(),
-  coverUrl: z.url().optional(),
+  coverUrl: z.string().optional(),
   /** Base64-encoded blur data URL for cover placeholder (LQIP) */
   coverBlurDataURL: z.string().optional(),
 });
