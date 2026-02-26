@@ -8,7 +8,6 @@
  */
 
 import { Readable } from "node:stream";
-import { writeJsonS3 } from "@/lib/s3/json";
 import { writeBinaryS3 } from "@/lib/s3/binary";
 import { putObject } from "@/lib/s3/objects";
 import { debug, isDebug } from "@/lib/utils/debug";
@@ -77,21 +76,6 @@ export async function persistToS3(
   }
 
   await putObject(s3Key, data, { contentType, acl });
-}
-
-/**
- * Persist JSON data to S3 (always public-read for this application)
- *
- * @param s3Key - The S3 object key
- * @param data - The JSON data to persist
- */
-export async function persistJsonToS3<T>(s3Key: string, data: T): Promise<void> {
-  if (isDebug) {
-    debug(`[S3 Persistence] Writing JSON to ${s3Key} with public-read ACL`);
-  }
-
-  // writeJsonS3 already sets public-read ACL
-  await writeJsonS3(s3Key, data);
 }
 
 /**
