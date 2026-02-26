@@ -33,7 +33,8 @@ function readRequiredEnv(name) {
 function resolveWriteEnvironment() {
   const deploymentEnv = process.env.DEPLOYMENT_ENV?.trim();
   if (deploymentEnv) {
-    const normalized = deploymentEnv.toLowerCase() === "prod" ? PRODUCTION_ENVIRONMENT : deploymentEnv.toLowerCase();
+    const normalized =
+      deploymentEnv.toLowerCase() === "prod" ? PRODUCTION_ENVIRONMENT : deploymentEnv.toLowerCase();
     return { environment: normalized, source: "DEPLOYMENT_ENV" };
   }
   const nodeEnv = process.env.NODE_ENV?.trim();
@@ -71,7 +72,9 @@ const DRY_RUN = hasFlag("--dry-run");
 const FORCE = hasFlag("--force");
 const IDS_RAW = readFlagValue("--ids");
 const TARGET_IDS = IDS_RAW
-  ? IDS_RAW.split(",").map((id) => id.trim()).filter((id) => id.length > 0)
+  ? IDS_RAW.split(",")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0)
   : null;
 
 // ---------------------------------------------------------------------------
@@ -169,7 +172,9 @@ async function main() {
       htmlMap.set(bm.id, htmlContent);
     }
   }
-  console.log(`[normalize] ${htmlMap.size}/${apiBookmarks.length} bookmarks have htmlContent from API`);
+  console.log(
+    `[normalize] ${htmlMap.size}/${apiBookmarks.length} bookmarks have htmlContent from API`,
+  );
 
   // 3. Connect to PostgreSQL and read current state
   const sql = postgres(databaseUrl);
