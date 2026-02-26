@@ -2,7 +2,7 @@
  * Mock for GitHub data access module
  */
 
-import type { UserActivityView } from "@/types/github";
+import type { StoredGithubActivityRecord, UserActivityView } from "@/types/github";
 
 // Export S3 key constants that other modules may import
 export const GITHUB_ACTIVITY_S3_KEY_DIR = "github-activity";
@@ -14,40 +14,31 @@ export const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR = `${GITHUB_ACTIVITY_S3_KEY_DIR}/r
 export const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/aggregated_weekly_activity-test.json`;
 
 const mockActivity: UserActivityView = {
+  source: "db-store",
   trailingYearData: {
-    contributionCalendar: {
-      totalContributions: 1234,
-      weeks: [],
-    },
-    commitsByMonth: [],
-    committedRepoNames: [],
-    contributionsCollection: {
-      totalCommitContributions: 1000,
-      totalIssueContributions: 100,
-      totalPullRequestContributions: 50,
-      totalPullRequestReviewContributions: 84,
-    },
+    data: [{ date: "2026-01-01", count: 12, level: 2 }],
+    totalContributions: 1234,
+    linesAdded: 321,
+    linesRemoved: 123,
+    dataComplete: true,
   },
-  allTimeData: {
-    contributionCalendar: {
-      totalContributions: 5678,
-      weeks: [],
-    },
-    commitsByMonth: [],
-    committedRepoNames: [],
-    contributionsCollection: {
-      totalCommitContributions: 5000,
-      totalIssueContributions: 500,
-      totalPullRequestContributions: 100,
-      totalPullRequestReviewContributions: 78,
-    },
+  allTimeStats: {
+    totalContributions: 5678,
+    linesAdded: 4321,
+    linesRemoved: 2100,
   },
-  longTermActivitySegments: [],
-  linesOfCodeByQuarter: [],
-  aggregatedWeeklyActivity: [],
-  languages: {},
-  totalLinesOfCode: 0,
 };
+
+function toStoredRecord(segment: UserActivityView["trailingYearData"]): StoredGithubActivityRecord {
+  return {
+    source: "api",
+    data: segment.data,
+    totalContributions: segment.totalContributions,
+    linesAdded: segment.linesAdded,
+    linesRemoved: segment.linesRemoved,
+    dataComplete: segment.dataComplete,
+  };
+}
 
 let cacheInvalidated = false;
 
@@ -62,8 +53,15 @@ export function invalidateAllGitHubCaches(): void {
 
 export function refreshGitHubActivityDataFromApi() {
   return Promise.resolve({
-    trailingYearData: mockActivity.trailingYearData,
-    allTimeData: mockActivity.allTimeData,
+    trailingYearData: toStoredRecord(mockActivity.trailingYearData),
+    allTimeData: {
+      source: "api",
+      data: mockActivity.trailingYearData.data,
+      totalContributions: mockActivity.allTimeStats.totalContributions,
+      linesAdded: mockActivity.allTimeStats.linesAdded,
+      linesRemoved: mockActivity.allTimeStats.linesRemoved,
+      dataComplete: true,
+    } satisfies StoredGithubActivityRecord,
   });
 }
 
