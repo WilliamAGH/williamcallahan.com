@@ -2,12 +2,12 @@
  * Embedding types shared across schema definitions, mutations, and contracts.
  *
  * CONTENT_EMBEDDING_DOMAINS is the single source of truth for valid domain
- * values in the content_embeddings table. ContentEmbeddingDomain is the
+ * values in the embeddings table. ContentEmbeddingDomain is the
  * union type derived from it. EmbeddingFieldSpec defines per-domain field
  * contracts for deterministic embedding text generation.
  */
 
-/** Valid domain values for content_embeddings rows. */
+/** Valid domain values for embeddings rows. */
 export const CONTENT_EMBEDDING_DOMAINS = [
   "bookmark",
   "thought",

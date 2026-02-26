@@ -48,7 +48,8 @@ async function run() {
   const sql = postgres(dbUrl, { ssl: "require", max: 1, connect_timeout: 10 });
 
   try {
-    const latestRows = await sql`SELECT snapshot_checksum FROM books_latest WHERE id = 'current' LIMIT 1`;
+    const latestRows =
+      await sql`SELECT snapshot_checksum FROM books_latest WHERE id = 'current' LIMIT 1`;
     if (latestRows.length === 0) {
       console.log(`${P} No books_latest pointer found. Run generate-books first.`);
       return;
@@ -56,7 +57,8 @@ async function run() {
     const checksum = latestRows[0].snapshot_checksum;
     console.log(`${P} Using snapshot checksum: ${checksum}`);
 
-    const snapshotRows = await sql`SELECT payload FROM books_snapshots WHERE checksum = ${checksum} LIMIT 1`;
+    const snapshotRows =
+      await sql`SELECT payload FROM books_snapshots WHERE checksum = ${checksum} LIMIT 1`;
     if (snapshotRows.length === 0) {
       console.log(`${P} Snapshot not found for checksum: ${checksum}`);
       return;

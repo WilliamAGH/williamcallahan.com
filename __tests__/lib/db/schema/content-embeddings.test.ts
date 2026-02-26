@@ -3,7 +3,7 @@ import {
   CONTENT_EMBEDDING_DIMENSIONS,
   CONTENT_EMBEDDING_DOMAINS,
   CONTENT_EMBEDDING_MODEL,
-  contentEmbeddings,
+  embeddings,
 } from "@/lib/db/schema/content-embeddings";
 
 describe("content-embeddings schema", () => {
@@ -33,7 +33,7 @@ describe("content-embeddings schema", () => {
   });
 
   it("defines expected columns on the table", () => {
-    const columns = getTableColumns(contentEmbeddings);
+    const columns = getTableColumns(embeddings);
     const columnNames = Object.keys(columns);
 
     expect(columnNames).toContain("domain");

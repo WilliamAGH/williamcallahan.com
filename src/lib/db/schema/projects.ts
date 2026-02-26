@@ -2,7 +2,7 @@
  * Projects PostgreSQL Schema
  *
  * Static project portfolio data with FTS + trigram indexes.
- * Embeddings live in content_embeddings (domain = 'project').
+ * Embeddings live in embeddings (domain = 'project').
  *
  * Source data: data/projects.ts (seeded via scripts/seed-projects.node.mjs)
  * Type definition: src/types/project.ts (Project interface)

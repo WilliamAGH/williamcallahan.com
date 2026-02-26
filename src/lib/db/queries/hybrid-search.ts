@@ -108,7 +108,7 @@ async function hybridSearchWithEmbedding(
     semantic_results AS (
       SELECT entity_id AS id,
         1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
-      FROM content_embeddings
+      FROM embeddings
       WHERE domain = 'bookmark'
         AND qwen_4b_fp16_embedding IS NOT NULL
       ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
@@ -184,7 +184,7 @@ export async function semanticSearchBookmarks(
   }>(sql`
     SELECT entity_id,
       1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
-    FROM content_embeddings
+    FROM embeddings
     WHERE domain = 'bookmark'
       AND qwen_4b_fp16_embedding IS NOT NULL
     ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
@@ -259,7 +259,7 @@ export async function hybridSearchThoughts(options: {
       semantic_results AS (
         SELECT entity_id AS id,
           1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
-        FROM content_embeddings
+        FROM embeddings
         WHERE domain = 'thought'
           AND qwen_4b_fp16_embedding IS NOT NULL
         ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}

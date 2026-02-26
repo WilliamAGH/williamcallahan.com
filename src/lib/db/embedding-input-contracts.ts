@@ -1,7 +1,7 @@
 /**
  * Embedding Input Contracts — types, builder utility, and domain registry.
  *
- * This file + embedding-field-specs.ts form the SINGLE SOURCE OF TRUTH
+ * This file + embedding-field-specs-{content,entities}.ts form the SINGLE SOURCE OF TRUTH
  * for what fields go into embedding text sent to Qwen3-Embedding-4B.
  * Every `build*EmbeddingInput()` function must follow these contracts.
  *
@@ -19,15 +19,17 @@
 import type { ContentEmbeddingDomain, EmbeddingFieldSpec } from "@/types/db/embeddings";
 export type { EmbeddingFieldSpec } from "@/types/db/embeddings";
 import {
-  AI_ANALYSIS_EMBEDDING_FIELDS,
   BLOG_POST_EMBEDDING_FIELDS,
   BOOK_EMBEDDING_FIELDS,
   BOOKMARK_EMBEDDING_FIELDS,
+  THOUGHT_EMBEDDING_FIELDS,
+} from "@/lib/db/embedding-field-specs-content";
+import {
+  AI_ANALYSIS_EMBEDDING_FIELDS,
   INVESTMENT_EMBEDDING_FIELDS,
   OPENGRAPH_EMBEDDING_FIELDS,
   PROJECT_EMBEDDING_FIELDS,
-  THOUGHT_EMBEDDING_FIELDS,
-} from "@/lib/db/embedding-field-specs";
+} from "@/lib/db/embedding-field-specs-entities";
 
 /** Maps each content domain to its ordered embedding field specification. */
 export const EMBEDDING_FIELD_CONTRACTS: Record<

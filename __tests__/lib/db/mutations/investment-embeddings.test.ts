@@ -1,5 +1,5 @@
 import { buildEmbeddingText } from "@/lib/db/embedding-input-contracts";
-import { INVESTMENT_EMBEDDING_FIELDS } from "@/lib/db/embedding-field-specs";
+import { INVESTMENT_EMBEDDING_FIELDS } from "@/lib/db/embedding-field-specs-entities";
 
 describe("investment embedding input", () => {
   it("produces canonical labels for a full investment record", () => {

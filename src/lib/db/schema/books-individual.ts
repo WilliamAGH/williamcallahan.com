@@ -3,7 +3,7 @@
  *
  * Normalized per-book rows with FTS + trigram indexes.
  * Source data: books_snapshots.payload (JSONB blob, normalized at seed time).
- * Embeddings live in content_embeddings (domain = 'book').
+ * Embeddings live in embeddings (domain = 'book').
  *
  * Complements (does not replace) books.ts which stores the snapshot blob.
  * Type definition: src/types/schemas/book.ts (bookSchema)

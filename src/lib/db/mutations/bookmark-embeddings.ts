@@ -3,9 +3,9 @@ import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatibl
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { buildEmbeddingText } from "@/lib/db/embedding-input-contracts";
-import { BOOKMARK_EMBEDDING_FIELDS } from "@/lib/db/embedding-field-specs";
+import { BOOKMARK_EMBEDDING_FIELDS } from "@/lib/db/embedding-field-specs-content";
 import {
-  contentEmbeddings,
+  embeddings as embeddingsTable,
   CONTENT_EMBEDDING_DIMENSIONS,
 } from "@/lib/db/schema/content-embeddings";
 import { bookmarkContentSchema } from "@/types/schemas/bookmark";
@@ -105,7 +105,7 @@ function normalizeBookmarkIds(bookmarkIds?: string[]): string[] | undefined {
 }
 
 /**
- * Find bookmarks that don't yet have a row in content_embeddings.
+ * Find bookmarks that don't yet have a row in embeddings.
  * Uses LEFT JOIN instead of checking a per-domain embedding column.
  */
 async function readMissingEmbeddingRows(
@@ -116,7 +116,7 @@ async function readMissingEmbeddingRows(
     SELECT b.id, b.url, b.title, b.description, b.summary, b.note,
            b.domain, b.scraped_content_text, b.tags, b.content
     FROM bookmarks b
-    LEFT JOIN content_embeddings ce
+    LEFT JOIN embeddings ce
       ON ce.domain = 'bookmark' AND ce.entity_id = b.id
     WHERE ce.entity_id IS NULL
   `;
@@ -158,7 +158,7 @@ async function countMissingEmbeddings(bookmarkIds?: string[]): Promise<number> {
   const rows = await db.execute<{ cnt: number }>(sql`
     SELECT count(*)::int AS cnt
     FROM bookmarks b
-    LEFT JOIN content_embeddings ce
+    LEFT JOIN embeddings ce
       ON ce.domain = 'bookmark' AND ce.entity_id = b.id
     WHERE ce.entity_id IS NULL${idFilter}
   `);
@@ -232,7 +232,7 @@ export async function backfillBookmarkEmbeddings(
 
       const embeddingText = buildBookmarkEmbeddingInput(row);
       await db
-        .insert(contentEmbeddings)
+        .insert(embeddingsTable)
         .values({
           domain: "bookmark",
           entityId: row.id,
@@ -243,7 +243,7 @@ export async function backfillBookmarkEmbeddings(
           updatedAt: Date.now(),
         })
         .onConflictDoUpdate({
-          target: [contentEmbeddings.domain, contentEmbeddings.entityId],
+          target: [embeddingsTable.domain, embeddingsTable.entityId],
           set: {
             title: row.title,
             embeddingText,

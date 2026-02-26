@@ -1,8 +1,8 @@
 /**
- * Investment embedding backfill — generates embeddings and writes to content_embeddings.
+ * Investment embedding backfill — generates embeddings and writes to embeddings.
  *
  * Uses canonical embedding input contract: INVESTMENT_EMBEDDING_FIELDS
- * from embedding-field-specs.ts. Writes to content_embeddings with
+ * from embedding-field-specs-entities.ts. Writes to embeddings with
  * domain = 'investment'.
  *
  * @module lib/db/mutations/investment-embeddings
@@ -13,9 +13,9 @@ import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatibl
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { buildEmbeddingText } from "@/lib/db/embedding-input-contracts";
-import { INVESTMENT_EMBEDDING_FIELDS } from "@/lib/db/embedding-field-specs";
+import { INVESTMENT_EMBEDDING_FIELDS } from "@/lib/db/embedding-field-specs-entities";
 import {
-  contentEmbeddings,
+  embeddings as embeddingsTable,
   CONTENT_EMBEDDING_DIMENSIONS,
 } from "@/lib/db/schema/content-embeddings";
 import type {
@@ -75,7 +75,7 @@ async function readMissingEmbeddingRows(limit: number): Promise<InvestmentEmbedd
     SELECT i.id, i.name, i.description, i.category, i.stage, i.status,
            i.operating_status, i.location, i.type, i.invested_year, i.accelerator
     FROM investments i
-    LEFT JOIN content_embeddings ce
+    LEFT JOIN embeddings ce
       ON ce.domain = 'investment' AND ce.entity_id = i.id
     WHERE ce.entity_id IS NULL
     ORDER BY i.id ASC LIMIT ${limit}
@@ -100,7 +100,7 @@ async function countMissingEmbeddings(): Promise<number> {
   const rows = await db.execute<{ cnt: number }>(sql`
     SELECT count(*)::int AS cnt
     FROM investments i
-    LEFT JOIN content_embeddings ce
+    LEFT JOIN embeddings ce
       ON ce.domain = 'investment' AND ce.entity_id = i.id
     WHERE ce.entity_id IS NULL
   `);
@@ -151,7 +151,7 @@ export async function backfillInvestmentEmbeddings(
 
       const embeddingText = buildInvestmentEmbeddingInput(row);
       await db
-        .insert(contentEmbeddings)
+        .insert(embeddingsTable)
         .values({
           domain: "investment",
           entityId: row.id,
@@ -162,7 +162,7 @@ export async function backfillInvestmentEmbeddings(
           updatedAt: Date.now(),
         })
         .onConflictDoUpdate({
-          target: [contentEmbeddings.domain, contentEmbeddings.entityId],
+          target: [embeddingsTable.domain, embeddingsTable.entityId],
           set: {
             title: row.name,
             embeddingText,

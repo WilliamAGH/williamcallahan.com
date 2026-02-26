@@ -16,8 +16,8 @@ export const CONTENT_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-4B" as const;
 /** FP16 halfvec dimension count (model default; do NOT truncate via MRL). */
 export const CONTENT_EMBEDDING_DIMENSIONS = 2560 as const;
 
-export const contentEmbeddings = pgTable(
-  "content_embeddings",
+export const embeddings = pgTable(
+  "embeddings",
   {
     domain: text("domain").$type<ContentEmbeddingDomain>().notNull(),
     entityId: text("entity_id").notNull(),
@@ -31,10 +31,7 @@ export const contentEmbeddings = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.domain, table.entityId] }),
-    index("idx_content_embeddings_hnsw").using(
-      "hnsw",
-      table.qwen4bFp16Embedding.op("halfvec_cosine_ops"),
-    ),
-    index("idx_content_embeddings_domain").on(table.domain),
+    index("idx_embeddings_hnsw").using("hnsw", table.qwen4bFp16Embedding.op("halfvec_cosine_ops")),
+    index("idx_embeddings_domain").on(table.domain),
   ],
 );

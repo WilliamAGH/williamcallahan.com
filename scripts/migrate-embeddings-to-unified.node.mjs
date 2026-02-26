@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Migrate existing embeddings from domain tables into unified content_embeddings.
+ * Migrate existing embeddings from domain tables into unified embeddings.
  *
  * IMPORTANT: This script MUST run under Node.js (not bun). Bun's TLS
  * implementation fails SSL negotiation with PostgreSQL. See CLAUDE.md [RT1].
@@ -49,7 +49,7 @@ async function migrateBookmarks(sql, dryRun) {
   if (dryRun || count === 0) return count;
 
   await sql`
-    INSERT INTO content_embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
+    INSERT INTO embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
     SELECT 'bookmark', id, title, date_bookmarked, qwen_4b_fp16_embedding,
            extract(epoch from now())::bigint * 1000
     FROM bookmarks
@@ -72,7 +72,7 @@ async function migrateThoughts(sql, dryRun) {
   if (dryRun || count === 0) return count;
 
   await sql`
-    INSERT INTO content_embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
+    INSERT INTO embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
     SELECT 'thought', id::text, title,
            to_char(to_timestamp(created_at / 1000.0), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
            qwen_4b_fp16_embedding,
@@ -97,7 +97,7 @@ async function migrateAiAnalysis(sql, dryRun) {
   if (dryRun || count === 0) return count;
 
   await sql`
-    INSERT INTO content_embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
+    INSERT INTO embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
     SELECT 'ai_analysis', domain || ':' || entity_id,
            coalesce(entity_id, 'unknown'),
            generated_at,
@@ -123,7 +123,7 @@ async function migrateOpengraph(sql, dryRun) {
   if (dryRun || count === 0) return count;
 
   await sql`
-    INSERT INTO content_embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
+    INSERT INTO embeddings (domain, entity_id, title, content_date, qwen_4b_fp16_embedding, updated_at)
     SELECT 'opengraph', url_hash,
            coalesce(url, 'unknown'),
            NULL,
@@ -160,7 +160,7 @@ async function main() {
 
     if (!dryRun) {
       const verify =
-        await sql`SELECT domain, count(*) AS cnt FROM content_embeddings GROUP BY domain ORDER BY domain`;
+        await sql`SELECT domain, count(*) AS cnt FROM embeddings GROUP BY domain ORDER BY domain`;
       console.log(`${P} Verification:`);
       for (const row of verify) {
         console.log(`  ${row.domain}: ${row.cnt}`);
