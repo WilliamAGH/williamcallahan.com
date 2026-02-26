@@ -131,7 +131,7 @@ async function backfillLoop(
   while (maxRows === undefined || processed < maxRows) {
     const limit = maxRows === undefined ? batchSize : Math.min(batchSize, maxRows - processed);
     if (limit <= 0) break;
-    const offset = force ? processed : 0;
+    const offset = force || dry ? processed : 0;
     const rows = await cfg.fetch(force, limit, offset);
     if (rows.length === 0) break;
     const texts = [],
@@ -190,7 +190,7 @@ function aiAnalysisConfig(sql) {
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT domain, entity_id, payload FROM ai_analysis_latest ORDER BY domain, entity_id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT a.domain, a.entity_id, a.payload FROM ai_analysis_latest a LEFT JOIN embeddings ce ON ce.domain = 'ai_analysis' AND ce.entity_id = a.domain || ':' || a.entity_id WHERE ce.entity_id IS NULL ORDER BY a.domain, a.entity_id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT a.domain, a.entity_id, a.payload FROM ai_analysis_latest a LEFT JOIN embeddings ce ON ce.domain = 'ai_analysis' AND ce.entity_id = a.domain || ':' || a.entity_id WHERE ce.entity_id IS NULL ORDER BY a.domain, a.entity_id LIMIT ${limit} OFFSET ${offset}`,
   };
 }
 
@@ -209,7 +209,7 @@ function opengraphConfig(sql) {
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT url_hash, url, payload FROM opengraph_metadata ORDER BY url_hash LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT o.url_hash, o.url, o.payload FROM opengraph_metadata o LEFT JOIN embeddings ce ON ce.domain = 'opengraph' AND ce.entity_id = o.url_hash WHERE ce.entity_id IS NULL ORDER BY o.url_hash LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT o.url_hash, o.url, o.payload FROM opengraph_metadata o LEFT JOIN embeddings ce ON ce.domain = 'opengraph' AND ce.entity_id = o.url_hash WHERE ce.entity_id IS NULL ORDER BY o.url_hash LIMIT ${limit} OFFSET ${offset}`,
   };
 }
 
@@ -228,7 +228,7 @@ function thoughtsConfig(sql) {
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, title, content, category, tags FROM thoughts ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT t.id, t.title, t.content, t.category, t.tags FROM thoughts t LEFT JOIN embeddings ce ON ce.domain = 'thought' AND ce.entity_id = t.id::text WHERE ce.entity_id IS NULL ORDER BY t.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT t.id, t.title, t.content, t.category, t.tags FROM thoughts t LEFT JOIN embeddings ce ON ce.domain = 'thought' AND ce.entity_id = t.id::text WHERE ce.entity_id IS NULL ORDER BY t.id LIMIT ${limit} OFFSET ${offset}`,
   };
 }
 
@@ -247,7 +247,7 @@ function investmentsConfig(sql) {
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, name, description, category, stage, status, operating_status, location, type, invested_year, accelerator FROM investments ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT i.id, i.name, i.description, i.category, i.stage, i.status, i.operating_status, i.location, i.type, i.invested_year, i.accelerator FROM investments i LEFT JOIN embeddings ce ON ce.domain = 'investment' AND ce.entity_id = i.id WHERE ce.entity_id IS NULL ORDER BY i.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT i.id, i.name, i.description, i.category, i.stage, i.status, i.operating_status, i.location, i.type, i.invested_year, i.accelerator FROM investments i LEFT JOIN embeddings ce ON ce.domain = 'investment' AND ce.entity_id = i.id WHERE ce.entity_id IS NULL ORDER BY i.id LIMIT ${limit} OFFSET ${offset}`,
   };
 }
 
@@ -266,7 +266,7 @@ function booksConfig(sql) {
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, title, subtitle, authors, genres, publisher, description, ai_summary, thoughts FROM books ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT b.id, b.title, b.subtitle, b.authors, b.genres, b.publisher, b.description, b.ai_summary, b.thoughts FROM books b LEFT JOIN embeddings ce ON ce.domain = 'book' AND ce.entity_id = b.id WHERE ce.entity_id IS NULL ORDER BY b.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT b.id, b.title, b.subtitle, b.authors, b.genres, b.publisher, b.description, b.ai_summary, b.thoughts FROM books b LEFT JOIN embeddings ce ON ce.domain = 'book' AND ce.entity_id = b.id WHERE ce.entity_id IS NULL ORDER BY b.id LIMIT ${limit} OFFSET ${offset}`,
   };
 }
 
@@ -285,7 +285,7 @@ function blogPostsConfig(sql) {
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, title, excerpt, author_name, tags, raw_content FROM blog_posts WHERE draft = false ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT bp.id, bp.title, bp.excerpt, bp.author_name, bp.tags, bp.raw_content FROM blog_posts bp LEFT JOIN embeddings ce ON ce.domain = 'blog' AND ce.entity_id = bp.id WHERE bp.draft = false AND ce.entity_id IS NULL ORDER BY bp.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT bp.id, bp.title, bp.excerpt, bp.author_name, bp.tags, bp.raw_content FROM blog_posts bp LEFT JOIN embeddings ce ON ce.domain = 'blog' AND ce.entity_id = bp.id WHERE bp.draft = false AND ce.entity_id IS NULL ORDER BY bp.id LIMIT ${limit} OFFSET ${offset}`,
   };
 }
 
@@ -304,7 +304,7 @@ function projectsConfig(sql) {
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, name, description, short_summary, url, github_url, tags, tech_stack, note FROM projects ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT p.id, p.name, p.description, p.short_summary, p.url, p.github_url, p.tags, p.tech_stack, p.note FROM projects p LEFT JOIN embeddings ce ON ce.domain = 'project' AND ce.entity_id = p.id WHERE ce.entity_id IS NULL ORDER BY p.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT p.id, p.name, p.description, p.short_summary, p.url, p.github_url, p.tags, p.tech_stack, p.note FROM projects p LEFT JOIN embeddings ce ON ce.domain = 'project' AND ce.entity_id = p.id WHERE ce.entity_id IS NULL ORDER BY p.id LIMIT ${limit} OFFSET ${offset}`,
   };
 }
 
