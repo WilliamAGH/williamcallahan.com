@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Define how the application reads and writes binary assets plus compatibility artifacts to DigitalOcean Spaces / S3-compatible storage with strict memory, security, and CDN guarantees. Canonical runtime JSON persistence is PostgreSQL-first (`json_documents` and domain-specific DB tables), while S3 remains the durable store for image binaries, manifests, and selected compatibility files.
+Define how the application reads and writes binary assets plus compatibility artifacts to DigitalOcean Spaces / S3-compatible storage with strict memory, security, and CDN guarantees. Canonical runtime JSON persistence is PostgreSQL-backed (`json_documents` and domain-specific DB tables), while S3 remains the durable store for image binaries and non-JSON artifacts.
 
 ## Storage Layout
 
@@ -25,10 +25,6 @@ bucket/
 │   ├── search/indices/*.json       # prebuilt search index artifacts
 │   ├── overrides/opengraph/*.json  # manual override artifacts
 │   └── locks/                      # compatibility lock artifacts for non-bookmark jobs
-├── manifests/
-│   ├── logos.json                  # IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST
-│   ├── opengraph.json
-│   └── blog-images.json
 └── diagnostics/
     ├── rate-limits/jina-store.json
     └── blocklists/logo-domain-blocklist.json
@@ -36,13 +32,13 @@ bucket/
 
 Keys are immutable once written (content-hash suffix or deterministic domain hash). Any mutation requires writing a new key and updating the relevant manifest/map.
 
-Runtime note: production JSON reads/writes routed through `src/lib/s3/json.ts` persist to PostgreSQL (`json_documents`) instead of S3 objects; non-production keeps direct S3 JSON behavior for local/test compatibility.
+Runtime note: JSON reads/writes routed through `src/lib/s3/json.ts` persist to PostgreSQL (`json_documents`) in all environments.
 
 ## Access Layers
 
 | Layer                      | File                                                                                                                  | Highlights                                                                                                                                                                                                                                                              |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Low-level SDK wrapper      | `lib/s3/client.ts`, `lib/s3/objects.ts`, `lib/s3/json.ts`, `lib/s3/binary.ts`, `lib/s3/errors.ts`, `lib/s3/config.ts` | Lazily instantiates AWS SDK v3 `S3Client` (forcePathStyle for Spaces), uses SDK retries (`maxAttempts`, `retryMode`), enforces stream size/time boundaries, strict JSON/binary helpers, and canonical error types. `lib/s3/json.ts` is PostgreSQL-backed in production. |
+| Low-level SDK wrapper      | `lib/s3/client.ts`, `lib/s3/objects.ts`, `lib/s3/json.ts`, `lib/s3/binary.ts`, `lib/s3/errors.ts`, `lib/s3/config.ts` | Lazily instantiates AWS SDK v3 `S3Client` (forcePathStyle for Spaces), uses SDK retries (`maxAttempts`, `retryMode`), enforces stream size/time boundaries, strict JSON/binary helpers, and canonical error types. `lib/s3/json.ts` is PostgreSQL-backed across all environments. |
 | Persistence helpers        | `lib/persistence/s3-persistence.ts`                                                                                   | Categorizes writes (PublicAsset, PublicData, PrivateData, Html), sets ACLs, ensures DigitalOcean Spaces compatibility, manages OpenGraph overrides, wraps JSON/binary writes with logging.                                                                              |
 | Image-specific persistence | `lib/image-handling/image-s3-utils.ts`                                                                                | Idempotent saves, Karakeep asset handling, `handleStaleImageUrl` triggers, `persistImageToS3` streaming support.                                                                                                                                                        |
 | Server cache + Next tags   | `lib/data-access/images.server.ts`, `lib/data-access/logos.ts`, `lib/data-access/opengraph.ts`                        | Provide `"use cache"` wrappers, Next cache tags (`cacheLife`, `cacheTag`, `revalidateTag`), and S3 read short-circuiting.                                                                                                                                               |
@@ -57,7 +53,7 @@ Runtime note: production JSON reads/writes routed through `src/lib/s3/json.ts` p
 
 - **Deterministic Keys**: `hash-utils.ts` + `generateS3Key` produce predictable names; no overwrites unless `S3_FORCE_WRITE=true` (used only by sync scripts).
 - **Streaming**: `lib/services/image-streaming.ts` uses `@aws-sdk/lib-storage Upload` with timeouts and byte monitoring for large downloads; avoids buffering >5 MB in Node.
-- **Distributed Lock Utility**: `acquireDistributedLock` writes lock JSON via `lib/s3/json.ts` with `If-None-Match: "*"`. In production this is persisted in PostgreSQL (`json_documents`) and no longer depends on S3 object deletion semantics.
+- **Distributed Lock Utility**: `acquireDistributedLock` writes lock JSON via `lib/s3/json.ts` with `If-None-Match: "*"`. Locks are persisted in PostgreSQL (`json_documents`) and no longer depend on S3 object deletion semantics.
 - **Access Control**: All public assets get `x-amz-acl: public-read`; sensitive JSON lives under private prefixes and is never exposed through CDN.
 - **Retries**: AWS SDK retry strategy (configured in `lib/s3/client.ts`) is the only retry layer; no custom retry loops.
 

@@ -49,7 +49,7 @@ Example schemas:
 - ESLint project-specific rules live under `config/eslint/rules/` and are wired from `eslint.config.ts`.
 - Oxlint JS plugins live under `config/oxlint/js-plugins/` and are wired from `.oxlintrc.json` (experimental; not supported in the language server/editor integrations).
 - S3 I/O is standardized under `lib/s3/*` with SDK retries only; CDN usage is explicit at call sites (see `s3-storage.md`).
-- Runtime JSON persistence is PostgreSQL-first in production (`json_documents` plus domain tables like `github_activity_store`/`content_graph_artifacts`); `lib/s3/json.ts` preserves compatibility signatures while delegating writes/reads to DB-backed storage.
+- Runtime JSON persistence is PostgreSQL-backed across all environments (`json_documents` plus domain tables like `github_activity_store`/`content_graph_artifacts`); `lib/s3/json.ts` preserves compatibility signatures while delegating writes/reads to DB-backed storage.
 - Bookmark runtime reads and bookmark/index/tag writes are PostgreSQL-first; S3 remains only for slug mapping artifacts in bookmark paths (see `bookmarks.md`).
 - PostgreSQL bookmark runtime modules live under `src/lib/db/` and now manage `bookmarks`, `bookmark_tag_links`, `bookmark_index_state`, and `bookmark_tag_index_state` through Drizzle query/mutation modules.
 - Books use an S3-first architecture: `lib/books/generate.ts` consolidates ABS data + manual enrichments + AI summaries into versioned S3 snapshots; the web app reads from S3 via `books-data-access.server.ts`, never calling ABS directly at request time. Books generation is automated via the scheduler (daily at 6 AM PT, `--books` flag) with cache invalidation through `/api/revalidate/books`.

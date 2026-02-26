@@ -347,7 +347,7 @@ File/Path Functionality Description
   - [x] `client.ts` `s3-object-storage` - S3 client creation + retry config
   - [x] `config.ts` `s3-object-storage` - S3 configuration validation
   - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
-  - [x] `json.ts` `s3-object-storage` - JSON compatibility helpers (PostgreSQL-backed in production, direct S3 in non-production)
+  - [x] `json.ts` `s3-object-storage` - JSON compatibility helpers backed by PostgreSQL (`json_documents`) across all environments
   - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
   - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer helpers
 - [x] **seo/**

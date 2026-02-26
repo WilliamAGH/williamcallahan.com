@@ -20,3 +20,8 @@ export type LogoManifestFromSchema = z.infer<typeof logoManifestSchema>;
 export const imageManifestSchema = z.array(z.string().min(1));
 
 export type ImageManifestFromSchema = z.infer<typeof imageManifestSchema>;
+
+/** Discriminated manifest type keys for the `image_manifests` DB table. */
+export const IMAGE_MANIFEST_TYPES = ["logos", "opengraph", "blog"] as const;
+
+export type ImageManifestType = (typeof IMAGE_MANIFEST_TYPES)[number];

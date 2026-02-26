@@ -26,8 +26,8 @@ graph TD
 
 ### S3 Operations (`src/lib/s3/*`)
 
-- Purpose: shared object storage boundary for JSON and binary payloads.
-- Runtime JSON policy: production JSON persistence resolves to PostgreSQL (`json_documents`) through `src/lib/s3/json.ts`; non-production keeps direct S3 behavior for local/test compatibility.
+- Purpose: shared object storage boundary for binary payloads plus compatibility JSON APIs.
+- Runtime JSON policy: `src/lib/s3/json.ts` resolves to PostgreSQL (`json_documents`) in all environments while preserving existing key-based helper signatures.
 - Key capabilities:
   - Raw object operations in `src/lib/s3/objects.ts`
   - JSON helpers in `src/lib/s3/json.ts`
@@ -122,7 +122,7 @@ graph TD
 
 ## Performance and Reliability
 
-- Durable first: S3 or PostgreSQL state is the persistence boundary.
+- Durable first: PostgreSQL or S3 binary object state is the persistence boundary.
 - Cache Components: reduce duplicate read work in RSC/server contexts.
 - Streaming IO: large payload operations avoid unnecessary full buffering.
 - Failures degrade to durable state, not hidden in-process cache state.
