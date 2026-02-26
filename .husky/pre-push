@@ -51,7 +51,7 @@ bun run test:smoke || { echo "❌ Smoke tests failed!"; exit 1; }
 
 # Check bookmark integrity (PostgreSQL-backed runtime checks)
 echo "🔍 Checking bookmark integrity (PostgreSQL)..."
-if ! NODE_ENV=production node --input-type=module <<'EOF'
+if ! NODE_ENV=production node --env-file-if-exists=.env --input-type=module <<'EOF'
 import postgres from "postgres";
 
 const databaseUrl = process.env.DATABASE_URL;
