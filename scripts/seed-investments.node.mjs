@@ -31,13 +31,6 @@ function assertProdWrite(op) {
     throw new Error(`[write-guard] Blocked "${op}": env="${raw}".`);
 }
 
-function toSlug(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 async function run() {
   const dry = hasFlag("--dry-run");
   if (!dry) assertProdWrite("seed-investments");
@@ -78,7 +71,7 @@ async function run() {
           location, website, aventure_url, logo_only_domain, logo,
           multiple, holding_return, accelerator, details, metrics
         ) VALUES (
-          ${inv.id}, ${inv.name}, ${toSlug(inv.name)}, ${inv.description},
+          ${inv.id}, ${inv.name}, ${inv.id}, ${inv.description},
           ${inv.type}, ${inv.stage}, ${inv.category ?? null},
           ${inv.status}, ${inv.operating_status}, ${inv.invested_year},
           ${inv.founded_year ?? null}, ${inv.shutdown_year ?? null}, ${inv.acquired_year ?? null},

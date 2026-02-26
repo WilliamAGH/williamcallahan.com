@@ -11,13 +11,6 @@ import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { investments } from "@/lib/db/schema/investments";
 import type { Investment } from "@/types/investment";
 
-function investmentToSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 /**
  * Upsert a batch of investments.
  * Uses ON CONFLICT on primary key (id) for idempotent writes.
@@ -32,7 +25,7 @@ export async function upsertInvestments(data: Investment[]): Promise<number> {
       .values({
         id: item.id,
         name: item.name,
-        slug: investmentToSlug(item.name),
+        slug: item.id,
         description: item.description,
         type: item.type,
         stage: item.stage,
@@ -58,7 +51,7 @@ export async function upsertInvestments(data: Investment[]): Promise<number> {
         target: investments.id,
         set: {
           name: item.name,
-          slug: investmentToSlug(item.name),
+          slug: item.id,
           description: item.description,
           type: item.type,
           stage: item.stage,
