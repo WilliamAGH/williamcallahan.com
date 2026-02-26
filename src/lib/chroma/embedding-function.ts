@@ -14,10 +14,8 @@
 
 import { EmbeddingFunctionError } from "@/lib/chroma/embedding-error";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
-import {
-  resolveDefaultEndpointCompatibleEmbeddingConfig,
-  type EndpointCompatibleEmbeddingConfig,
-} from "@/lib/ai/openai-compatible/feature-config";
+import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
+import type { EndpointCompatibleEmbeddingConfig } from "@/types/schemas/ai-openai-compatible";
 import type { EmbeddingFunction } from "chromadb";
 
 /**

@@ -3,36 +3,15 @@ import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatibl
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { db } from "@/lib/db/connection";
 import { BOOKMARK_EMBEDDING_DIMENSIONS, bookmarks } from "@/lib/db/schema/bookmarks";
+import type {
+  BookmarkEmbeddingRow,
+  BookmarkEmbeddingBackfillOptions,
+  BookmarkEmbeddingBackfillResult,
+} from "@/types/db/bookmarks";
 
 const DEFAULT_BATCH_SIZE = 16;
 const MAX_BATCH_SIZE = 128;
 const MAX_EMBEDDING_INPUT_CHARS = 8_000;
-
-type BookmarkEmbeddingRow = {
-  id: string;
-  url: string;
-  title: string;
-  description: string;
-  summary: string | null;
-  note: string | null;
-  domain: string | null;
-  tags: unknown;
-};
-
-export type BookmarkEmbeddingBackfillOptions = {
-  batchSize?: number;
-  maxRows?: number;
-  bookmarkIds?: string[];
-  dryRun?: boolean;
-};
-
-export type BookmarkEmbeddingBackfillResult = {
-  processedRows: number;
-  updatedRows: number;
-  remainingRows: number;
-  usedModel: string;
-  dryRun: boolean;
-};
 
 function resolveBatchSize(input?: number): number {
   if (input === undefined) {

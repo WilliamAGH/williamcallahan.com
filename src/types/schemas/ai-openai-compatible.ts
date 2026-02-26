@@ -284,6 +284,13 @@ export type EndpointCompatibleEmbeddingsResponse = z.infer<
   typeof endpointCompatibleEmbeddingsResponseSchema
 >;
 
+/** Resolved config for endpoint-compatible /v1/embeddings calls. */
+export type EndpointCompatibleEmbeddingConfig = {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+};
+
 export const openAiCompatibleResponsesResponseSchema = z.object({
   id: z.string().min(1),
   output_text: z.string(),
