@@ -38,7 +38,7 @@ export class EmbeddingFunctionError extends Error {
 
     const guidance = isMuslCompatibilityError(originalMessage)
       ? "ONNX runtime requires glibc. Alpine Linux (musl) is not supported. " +
-        "Options: (1) Use Debian-based Docker image, (2) Install @chroma-core/openai for API-based embeddings"
+        "Options: (1) Use Debian-based Docker image, (2) Configure AI_DEFAULT_EMBEDDING_MODEL + AI_DEFAULT_OPENAI_BASE_URL + AI_DEFAULT_OPENAI_API_KEY for endpoint-compatible API embeddings"
       : "Failed to load embedding function. Ensure @chroma-core/default-embed is installed.";
 
     super(`[Chroma] ${guidance} Original error: ${originalMessage}`);
