@@ -5,6 +5,19 @@
  * relevant content across bookmarks, blog posts, investments, projects, and books.
  */
 
+import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
+
+/**
+ * A single cross-domain similarity result from pgvector cosine ANN search.
+ */
+export interface SimilarityCandidate {
+  domain: ContentEmbeddingDomain;
+  entityId: string;
+  title: string;
+  similarity: number;
+  contentDate: string | null;
+}
+
 /**
  * Content types that can be related/recommended
  */
