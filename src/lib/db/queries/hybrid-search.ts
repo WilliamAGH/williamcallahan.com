@@ -15,8 +15,9 @@
 
 import { desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
-import { bookmarks, BOOKMARK_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/bookmarks";
-import { thoughts, THOUGHT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/thoughts";
+import { bookmarks } from "@/lib/db/schema/bookmarks";
+import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
+import { thoughts } from "@/lib/db/schema/thoughts";
 import {
   mapBookmarkRowToUnifiedBookmark,
   mapBookmarkRowsToUnifiedBookmarks,
@@ -46,7 +47,7 @@ export async function hybridSearchBookmarks(options: {
     return [];
   }
 
-  if (embedding && embedding.length === BOOKMARK_EMBEDDING_DIMENSIONS) {
+  if (embedding && embedding.length === CONTENT_EMBEDDING_DIMENSIONS) {
     return hybridSearchWithEmbedding(normalizedQuery, embedding, limit);
   }
 
@@ -105,11 +106,12 @@ async function hybridSearchWithEmbedding(
       LIMIT ${KEYWORD_CANDIDATE_LIMIT}
     ),
     semantic_results AS (
-      SELECT id,
-        1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${BOOKMARK_EMBEDDING_DIMENSIONS})`)}) AS vec_score
-      FROM bookmarks
-      WHERE qwen_4b_fp16_embedding IS NOT NULL
-      ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${BOOKMARK_EMBEDDING_DIMENSIONS})`)}
+      SELECT entity_id AS id,
+        1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
+      FROM content_embeddings
+      WHERE domain = 'bookmark'
+        AND qwen_4b_fp16_embedding IS NOT NULL
+      ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
       LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
     ),
     combined AS (
@@ -168,30 +170,43 @@ export async function semanticSearchBookmarks(
   embedding: number[],
   limit: number = DEFAULT_LIMIT,
 ): Promise<Array<{ bookmark: UnifiedBookmark; score: number }>> {
-  if (embedding.length !== BOOKMARK_EMBEDDING_DIMENSIONS) {
+  if (embedding.length !== CONTENT_EMBEDDING_DIMENSIONS) {
     throw new Error(
-      `Embedding must have ${BOOKMARK_EMBEDDING_DIMENSIONS} dimensions, got ${embedding.length}`,
+      `Embedding must have ${CONTENT_EMBEDDING_DIMENSIONS} dimensions, got ${embedding.length}`,
     );
   }
 
   const vectorLiteral = `[${embedding.join(",")}]`;
 
-  const rows = await db
-    .select({
-      bookmark: bookmarks,
-      score: sql<number>`1.0 - (${bookmarks.qwen4bFp16Embedding} <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${BOOKMARK_EMBEDDING_DIMENSIONS})`)})`,
-    })
-    .from(bookmarks)
-    .where(sql`${bookmarks.qwen4bFp16Embedding} IS NOT NULL`)
-    .orderBy(
-      sql`${bookmarks.qwen4bFp16Embedding} <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${BOOKMARK_EMBEDDING_DIMENSIONS})`)}`,
-    )
-    .limit(limit);
+  const idRows = await db.execute<{
+    entity_id: string;
+    vec_score: number;
+  }>(sql`
+    SELECT entity_id,
+      1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
+    FROM content_embeddings
+    WHERE domain = 'bookmark'
+      AND qwen_4b_fp16_embedding IS NOT NULL
+    ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
+    LIMIT ${limit}
+  `);
 
-  return mapBookmarkRowsToUnifiedBookmarks(rows.map((r) => r.bookmark)).map((b, i) => ({
-    bookmark: b,
-    score: Number(rows[i]?.score ?? 0),
-  }));
+  if (idRows.length === 0) return [];
+
+  const ids = idRows.map((r) => r.entity_id);
+  const scoreMap = new Map(idRows.map((r) => [r.entity_id, Number(r.vec_score)]));
+
+  const bookmarkRows = await db
+    .select()
+    .from(bookmarks)
+    .where(sql`${bookmarks.id} = ANY(${ids})`);
+
+  return mapBookmarkRowsToUnifiedBookmarks(bookmarkRows)
+    .map((b) => ({
+      bookmark: b,
+      score: scoreMap.get(b.id) ?? 0,
+    }))
+    .toSorted((a, b) => b.score - a.score);
 }
 
 export async function hybridSearchThoughts(options: {
@@ -217,7 +232,7 @@ export async function hybridSearchThoughts(options: {
     return [];
   }
 
-  if (embedding && embedding.length === THOUGHT_EMBEDDING_DIMENSIONS) {
+  if (embedding && embedding.length === CONTENT_EMBEDDING_DIMENSIONS) {
     const vectorLiteral = `[${embedding.join(",")}]`;
     const tsQuery = sql`websearch_to_tsquery('english', ${normalizedQuery})`;
 
@@ -242,12 +257,12 @@ export async function hybridSearchThoughts(options: {
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
-        SELECT id,
-          1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${THOUGHT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
-        FROM thoughts
-        WHERE draft = false
+        SELECT entity_id AS id,
+          1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
+        FROM content_embeddings
+        WHERE domain = 'thought'
           AND qwen_4b_fp16_embedding IS NOT NULL
-        ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${THOUGHT_EMBEDDING_DIMENSIONS})`)}
+        ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
         LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
       ),
       combined AS (

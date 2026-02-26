@@ -1,4 +1,4 @@
-import { bigint, halfvec, index, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, index, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 
 /**
  * Cached OpenGraph metadata keyed by URL hash.
@@ -14,19 +14,8 @@ export const opengraphMetadata = pgTable(
     url: text("url").notNull(),
     payload: jsonb("payload").notNull(),
     updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
-    /**
-     * Qwen3-Embedding-4B FP16 vector (2560-d halfvec).
-     * Embeds og:title + og:description for semantic URL discovery.
-     */
-    qwen4bFp16Embedding: halfvec("qwen_4b_fp16_embedding", { dimensions: 2560 }),
   },
-  (table) => [
-    index("idx_opengraph_metadata_updated_at").on(table.updatedAt),
-    index("idx_opengraph_metadata_embedding").using(
-      "hnsw",
-      table.qwen4bFp16Embedding.op("halfvec_cosine_ops"),
-    ),
-  ],
+  (table) => [index("idx_opengraph_metadata_updated_at").on(table.updatedAt)],
 );
 
 /**

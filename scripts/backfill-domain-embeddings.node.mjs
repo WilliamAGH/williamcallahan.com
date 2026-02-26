@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Backfill Qwen3-Embedding-4B embeddings for domain tables.
+ * Backfill Qwen3-Embedding-4B embeddings into unified content_embeddings table.
  *
- * IMPORTANT: This script MUST run under Node.js (not bun). Bun's TLS
- * implementation fails SSL negotiation with PostgreSQL. See CLAUDE.md [RT1].
+ * IMPORTANT: This script MUST run under Node.js (not bun). See CLAUDE.md [RT1].
  *
- * Handles: ai_analysis_latest, opengraph_metadata, thoughts
- * Follows the same pattern as backfill-bookmark-embeddings.node.mjs.
+ * Handles: ai_analysis_latest, opengraph_metadata, thoughts, investments
+ * Write target: content_embeddings (unified table, not domain tables).
+ * Labels align with canonical contracts in embedding-field-specs.ts.
  *
  * Usage:
  *   set -a; source .env; set +a
@@ -16,7 +16,7 @@
  *   --dry-run          Show what would be written without writing
  *   --force            Regenerate ALL embeddings (not just missing)
  *   --domain X         Only backfill a specific domain
- *     Valid: ai-analysis, opengraph, thoughts
+ *     Valid: ai-analysis, opengraph, thoughts, investments
  *   --batch-size N     Texts per API call (default 16, max 128)
  *   --max-rows N       Stop after N rows
  */
@@ -51,8 +51,8 @@ function parsePositiveInt(v, label) {
 }
 function assertProdWrite(op) {
   const raw = (process.env.DEPLOYMENT_ENV || process.env.NODE_ENV || "").trim().toLowerCase();
-  const env = raw === "prod" ? PRODUCTION : raw;
-  if (env !== PRODUCTION) throw new Error(`[write-guard] Blocked "${op}": env="${env}".`);
+  if ((raw === "prod" ? PRODUCTION : raw) !== PRODUCTION)
+    throw new Error(`[write-guard] Blocked "${op}": env="${raw}".`);
 }
 function buildApiBaseUrl(baseUrl) {
   const url = new URL(baseUrl);
@@ -64,83 +64,44 @@ function buildApiBaseUrl(baseUrl) {
 }
 
 async function embedTexts(apiBaseUrl, apiKey, model, input, timeoutMs) {
-  const signal = AbortSignal.timeout(timeoutMs);
   const res = await fetch(`${apiBaseUrl}/embeddings`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model, input }),
-    signal,
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
   const json = await res.json();
   if (!json?.data || !Array.isArray(json.data)) throw new Error("Invalid response: no data array");
   const embeddings = [...json.data].toSorted((a, b) => a.index - b.index).map((d) => d.embedding);
-  if (embeddings.length !== input.length) {
+  if (embeddings.length !== input.length)
     throw new Error(`Count mismatch: expected ${input.length}, got ${embeddings.length}`);
-  }
   return embeddings;
 }
 
 function serializeHalfvec(embedding) {
-  if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
+  if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS)
     throw new Error(
       `Dimensions must be ${EMBEDDING_DIMENSIONS}, got ${Array.isArray(embedding) ? embedding.length : "non-array"}`,
     );
-  }
-  for (let i = 0; i < embedding.length; i++) {
+  for (let i = 0; i < embedding.length; i++)
     if (!Number.isFinite(Number(embedding[i]))) throw new TypeError(`Non-finite at index ${i}`);
-  }
   return `[${embedding.join(",")}]`;
 }
 
-// ─── AI Analysis ─────────────────────────────────────────
-
-function buildAiAnalysisText(row) {
-  const payload = row.payload;
-  if (!payload || typeof payload !== "object") return null;
-  const sections = [];
-  sections.push(`Domain: ${row.domain}`);
-  sections.push(`Entity: ${row.entity_id}`);
-  const analysis = payload.analysis ?? payload;
-  if (typeof analysis.summary === "string" && analysis.summary.trim()) {
-    sections.push(`Summary: ${analysis.summary.trim()}`);
-  }
-  if (typeof analysis.category === "string" && analysis.category.trim()) {
-    sections.push(`Category: ${analysis.category.trim()}`);
-  }
-  if (typeof analysis.targetAudience === "string" && analysis.targetAudience.trim()) {
-    sections.push(`Target Audience: ${analysis.targetAudience.trim()}`);
-  }
-  if (typeof analysis.idealReader === "string" && analysis.idealReader.trim()) {
-    sections.push(`Ideal Reader: ${analysis.idealReader.trim()}`);
-  }
-  const highlights = analysis.highlights ?? analysis.keyHighlights;
-  if (Array.isArray(highlights)) {
-    const items = highlights.filter((h) => typeof h === "string" && h.trim()).map((h) => h.trim());
-    if (items.length > 0) sections.push(`Highlights: ${items.join("; ")}`);
-  }
-  const themes = analysis.keyThemes ?? analysis.themes;
-  if (Array.isArray(themes)) {
-    const items = themes.filter((t) => typeof t === "string" && t.trim()).map((t) => t.trim());
-    if (items.length > 0) sections.push(`Themes: ${items.join("; ")}`);
-  }
-  const topics = analysis.topics ?? analysis.keyTopics;
-  if (Array.isArray(topics)) {
-    const items = topics.filter((t) => typeof t === "string" && t.trim()).map((t) => t.trim());
-    if (items.length > 0) sections.push(`Topics: ${items.join("; ")}`);
-  }
-  if (typeof analysis.contentType === "string" && analysis.contentType.trim()) {
-    sections.push(`Content Type: ${analysis.contentType.trim()}`);
-  }
-  if (typeof analysis.technicalLevel === "string") {
-    sections.push(`Technical Level: ${analysis.technicalLevel}`);
-  }
-  if (sections.length <= 2) return null;
-  return sections.join("\n");
+async function upsertEmbedding(sql, domain, entityId, title, embeddingText, embedding) {
+  const vec = serializeHalfvec(embedding);
+  await sql`
+    INSERT INTO content_embeddings (domain, entity_id, title, embedding_text, qwen_4b_fp16_embedding, updated_at)
+    VALUES (${domain}, ${entityId}, ${title}, ${embeddingText}, ${vec}::halfvec(2560), ${Date.now()})
+    ON CONFLICT (domain, entity_id) DO UPDATE SET
+      title = EXCLUDED.title, embedding_text = EXCLUDED.embedding_text,
+      qwen_4b_fp16_embedding = EXCLUDED.qwen_4b_fp16_embedding, updated_at = EXCLUDED.updated_at`;
 }
 
-async function backfillAiAnalysis(
-  sql,
+// ─── Generic Backfill Loop ──────────────────────────────
+
+async function backfillLoop(
   apiBaseUrl,
   apiKey,
   model,
@@ -149,11 +110,11 @@ async function backfillAiAnalysis(
   dry,
   force,
   timeoutMs,
+  cfg,
 ) {
-  const whereClause = force ? sql`` : sql`WHERE qwen_4b_fp16_embedding IS NULL`;
-  const countResult = await sql`SELECT count(*)::int as c FROM ai_analysis_latest ${whereClause}`;
+  const countResult = await cfg.count(force);
   const total = countResult[0].c;
-  console.log(`${P} ai-analysis: ${total} rows to process`);
+  console.log(`${P} ${cfg.label}: ${total} rows to process`);
   if (total === 0) return;
   let processed = 0,
     updated = 0,
@@ -161,17 +122,13 @@ async function backfillAiAnalysis(
   while (maxRows === undefined || processed < maxRows) {
     const limit = maxRows === undefined ? batchSize : Math.min(batchSize, maxRows - processed);
     if (limit <= 0) break;
-    // OFFSET 0 for non-force: updated rows drop out of WHERE IS NULL, so result set shrinks naturally.
-    // OFFSET processed for force: all rows remain in result set, need to page forward.
     const offset = force ? processed : 0;
-    const rows = await sql`
-      SELECT domain, entity_id, payload FROM ai_analysis_latest
-      ${whereClause} ORDER BY domain, entity_id LIMIT ${limit} OFFSET ${offset}`;
+    const rows = await cfg.fetch(force, limit, offset);
     if (rows.length === 0) break;
-    const texts = [];
-    const validRows = [];
+    const texts = [],
+      validRows = [];
     for (const row of rows) {
-      const text = buildAiAnalysisText(row);
+      const text = cfg.buildText(row);
       if (!text) {
         skipped++;
         continue;
@@ -186,154 +143,171 @@ async function backfillAiAnalysis(
     const embeddings = await embedTexts(apiBaseUrl, apiKey, model, texts, timeoutMs);
     processed += rows.length;
     if (dry) {
-      console.log(`${P} ai-analysis: dry-run processed=${processed}/${total}`);
+      console.log(`${P} ${cfg.label}: dry-run processed=${processed}/${total}`);
       continue;
     }
     for (let i = 0; i < validRows.length; i++) {
-      const r = validRows[i];
-      await sql`UPDATE ai_analysis_latest SET qwen_4b_fp16_embedding = ${serializeHalfvec(embeddings[i])}::halfvec(2560)
-        WHERE domain = ${r.domain} AND entity_id = ${r.entity_id}`;
+      await upsertEmbedding(
+        cfg.sql,
+        cfg.domain,
+        cfg.entityId(validRows[i]),
+        cfg.titleFn(validRows[i]),
+        texts[i],
+        embeddings[i],
+      );
       updated++;
     }
     console.log(
-      `${P} ai-analysis: processed=${processed}/${total} updated=${updated} skipped=${skipped}`,
+      `${P} ${cfg.label}: processed=${processed}/${total} updated=${updated}${skipped ? ` skipped=${skipped}` : ""}`,
     );
   }
-  console.log(`${P} ai-analysis: DONE updated=${updated} skipped=${skipped}`);
+  console.log(`${P} ${cfg.label}: DONE updated=${updated}${skipped ? ` skipped=${skipped}` : ""}`);
 }
 
-// ─── OpenGraph Metadata ──────────────────────────────────
+// ─── Text Builders (labels from embedding-field-specs.ts contracts) ──
+
+function buildAiAnalysisText(row) {
+  const payload = row.payload;
+  if (!payload || typeof payload !== "object") return null;
+  const sections = [];
+  const analysis = payload.analysis ?? payload;
+  if (typeof analysis.summary === "string" && analysis.summary.trim())
+    sections.push(`AI Analysis Summary: ${analysis.summary.trim()}`);
+  const highlights = analysis.highlights ?? analysis.keyHighlights;
+  if (Array.isArray(highlights)) {
+    const items = highlights.filter((h) => typeof h === "string" && h.trim()).map((h) => h.trim());
+    if (items.length > 0) sections.push(`AI Analysis Key Points: ${items.join("; ")}`);
+  }
+  const themes = analysis.keyThemes ?? analysis.themes;
+  if (Array.isArray(themes)) {
+    const items = themes.filter((t) => typeof t === "string" && t.trim()).map((t) => t.trim());
+    if (items.length > 0) sections.push(`AI Analysis Themes: ${items.join("; ")}`);
+  }
+  return sections.length > 0 ? sections.join("\n") : null;
+}
 
 function buildOgText(row) {
   const payload = row.payload;
   if (!payload || typeof payload !== "object") return null;
   const sections = [];
   const title = payload.title ?? payload.ogTitle;
-  if (typeof title === "string" && title.trim()) sections.push(`Title: ${title.trim()}`);
+  if (typeof title === "string" && title.trim())
+    sections.push(`OpenGraph Page Title: ${title.trim()}`);
   const desc = payload.description ?? payload.ogDescription;
-  if (typeof desc === "string" && desc.trim()) sections.push(`Description: ${desc.trim()}`);
-  const siteName = payload.siteName ?? payload.ogSiteName;
-  if (typeof siteName === "string" && siteName.trim()) sections.push(`Site: ${siteName.trim()}`);
-  if (typeof row.url === "string" && row.url.trim()) sections.push(`URL: ${row.url.trim()}`);
-  if (sections.length === 0) return null;
-  return sections.join("\n");
+  if (typeof desc === "string" && desc.trim())
+    sections.push(`OpenGraph Page Description: ${desc.trim()}`);
+  if (typeof row.url === "string" && row.url.trim()) sections.push(`Page URL: ${row.url.trim()}`);
+  return sections.length > 0 ? sections.join("\n") : null;
 }
-
-async function backfillOpengraph(
-  sql,
-  apiBaseUrl,
-  apiKey,
-  model,
-  batchSize,
-  maxRows,
-  dry,
-  force,
-  timeoutMs,
-) {
-  const whereClause = force ? sql`` : sql`WHERE qwen_4b_fp16_embedding IS NULL`;
-  const countResult = await sql`SELECT count(*)::int as c FROM opengraph_metadata ${whereClause}`;
-  const total = countResult[0].c;
-  console.log(`${P} opengraph: ${total} rows to process`);
-  if (total === 0) return;
-  let processed = 0,
-    updated = 0,
-    skipped = 0;
-  while (maxRows === undefined || processed < maxRows) {
-    const limit = maxRows === undefined ? batchSize : Math.min(batchSize, maxRows - processed);
-    if (limit <= 0) break;
-    const offset = force ? processed : 0;
-    const rows = await sql`
-      SELECT url_hash, url, payload FROM opengraph_metadata
-      ${whereClause} ORDER BY url_hash LIMIT ${limit} OFFSET ${offset}`;
-    if (rows.length === 0) break;
-    const texts = [];
-    const validRows = [];
-    for (const row of rows) {
-      const text = buildOgText(row);
-      if (!text) {
-        skipped++;
-        continue;
-      }
-      texts.push(text);
-      validRows.push(row);
-    }
-    if (texts.length === 0) {
-      processed += rows.length;
-      continue;
-    }
-    const embeddings = await embedTexts(apiBaseUrl, apiKey, model, texts, timeoutMs);
-    processed += rows.length;
-    if (dry) {
-      console.log(`${P} opengraph: dry-run processed=${processed}/${total}`);
-      continue;
-    }
-    for (let i = 0; i < validRows.length; i++) {
-      await sql`UPDATE opengraph_metadata SET qwen_4b_fp16_embedding = ${serializeHalfvec(embeddings[i])}::halfvec(2560)
-        WHERE url_hash = ${validRows[i].url_hash}`;
-      updated++;
-    }
-    console.log(`${P} opengraph: processed=${processed}/${total} updated=${updated}`);
-  }
-  console.log(`${P} opengraph: DONE updated=${updated} skipped=${skipped}`);
-}
-
-// ─── Thoughts ────────────────────────────────────────────
 
 function buildThoughtText(row) {
-  const sections = [`Title: ${row.title}`];
-  if (typeof row.category === "string" && row.category.trim()) {
-    sections.push(`Category: ${row.category.trim()}`);
-  }
-  if (Array.isArray(row.tags) && row.tags.length > 0) {
-    sections.push(`Tags: ${row.tags.filter(Boolean).join(", ")}`);
-  }
-  if (typeof row.content === "string" && row.content.trim()) {
-    sections.push(`Content: ${row.content.trim()}`);
+  const sections = [`Thought Title: ${row.title}`];
+  if (typeof row.content === "string" && row.content.trim())
+    sections.push(`Thought Full Text: ${row.content.trim()}`);
+  if (typeof row.category === "string" && row.category.trim())
+    sections.push(`Topic Category: ${row.category.trim()}`);
+  if (Array.isArray(row.tags) && row.tags.length > 0)
+    sections.push(`Topic Tags: ${row.tags.filter(Boolean).join(", ")}`);
+  return sections.join("\n");
+}
+
+function buildInvestmentText(row) {
+  const sections = [`Company Name: ${row.name}`];
+  if (typeof row.description === "string" && row.description.trim())
+    sections.push(`Company Description: ${row.description.trim()}`);
+  if (typeof row.category === "string" && row.category.trim())
+    sections.push(`Business Sector: ${row.category.trim()}`);
+  sections.push(`Funding Round at Entry: ${row.stage}`);
+  sections.push(`Investment Outcome: ${row.status}`);
+  sections.push(`Company Operating State: ${row.operating_status}`);
+  if (typeof row.location === "string" && row.location.trim())
+    sections.push(`Company Headquarters: ${row.location.trim()}`);
+  sections.push(`Investment Vehicle: ${row.type}`);
+  sections.push(`Year of Investment: ${row.invested_year}`);
+  if (row.accelerator && typeof row.accelerator === "object") {
+    if (row.accelerator.program)
+      sections.push(`Startup Accelerator Program: ${row.accelerator.program}`);
+    if (row.accelerator.batch) sections.push(`Accelerator Cohort: ${row.accelerator.batch}`);
   }
   return sections.join("\n");
 }
 
-async function backfillThoughts(
-  sql,
-  apiBaseUrl,
-  apiKey,
-  model,
-  batchSize,
-  maxRows,
-  dry,
-  force,
-  timeoutMs,
-) {
-  const whereClause = force ? sql`` : sql`WHERE qwen_4b_fp16_embedding IS NULL`;
-  const countResult = await sql`SELECT count(*)::int as c FROM thoughts ${whereClause}`;
-  const total = countResult[0].c;
-  console.log(`${P} thoughts: ${total} rows to process`);
-  if (total === 0) return;
-  let processed = 0,
-    updated = 0;
-  while (maxRows === undefined || processed < maxRows) {
-    const limit = maxRows === undefined ? batchSize : Math.min(batchSize, maxRows - processed);
-    if (limit <= 0) break;
-    const offset = force ? processed : 0;
-    const rows = await sql`
-      SELECT id, title, content, category, tags FROM thoughts
-      ${whereClause} ORDER BY id LIMIT ${limit} OFFSET ${offset}`;
-    if (rows.length === 0) break;
-    const texts = rows.map(buildThoughtText);
-    const embeddings = await embedTexts(apiBaseUrl, apiKey, model, texts, timeoutMs);
-    processed += rows.length;
-    if (dry) {
-      console.log(`${P} thoughts: dry-run processed=${processed}/${total}`);
-      continue;
-    }
-    for (let i = 0; i < rows.length; i++) {
-      await sql`UPDATE thoughts SET qwen_4b_fp16_embedding = ${serializeHalfvec(embeddings[i])}::halfvec(2560)
-        WHERE id = ${rows[i].id}`;
-      updated++;
-    }
-    console.log(`${P} thoughts: processed=${processed}/${total} updated=${updated}`);
-  }
-  console.log(`${P} thoughts: DONE updated=${updated}`);
+// ─── Domain Configs ──────────────────────────────────────
+
+function aiAnalysisConfig(sql) {
+  return {
+    sql,
+    label: "ai-analysis",
+    domain: "ai_analysis",
+    buildText: buildAiAnalysisText,
+    entityId: (r) => `${r.domain}:${r.entity_id}`,
+    titleFn: (r) => r.entity_id,
+    count: (force) =>
+      force
+        ? sql`SELECT count(*)::int as c FROM ai_analysis_latest`
+        : sql`SELECT count(*)::int as c FROM ai_analysis_latest a LEFT JOIN content_embeddings ce ON ce.domain = 'ai_analysis' AND ce.entity_id = a.domain || ':' || a.entity_id WHERE ce.entity_id IS NULL`,
+    fetch: (force, limit, offset) =>
+      force
+        ? sql`SELECT domain, entity_id, payload FROM ai_analysis_latest ORDER BY domain, entity_id LIMIT ${limit} OFFSET ${offset}`
+        : sql`SELECT a.domain, a.entity_id, a.payload FROM ai_analysis_latest a LEFT JOIN content_embeddings ce ON ce.domain = 'ai_analysis' AND ce.entity_id = a.domain || ':' || a.entity_id WHERE ce.entity_id IS NULL ORDER BY a.domain, a.entity_id LIMIT ${limit} OFFSET 0`,
+  };
+}
+
+function opengraphConfig(sql) {
+  return {
+    sql,
+    label: "opengraph",
+    domain: "opengraph",
+    buildText: buildOgText,
+    entityId: (r) => r.url_hash,
+    titleFn: (r) => r.payload?.title ?? r.payload?.ogTitle ?? r.url ?? "unknown",
+    count: (force) =>
+      force
+        ? sql`SELECT count(*)::int as c FROM opengraph_metadata`
+        : sql`SELECT count(*)::int as c FROM opengraph_metadata o LEFT JOIN content_embeddings ce ON ce.domain = 'opengraph' AND ce.entity_id = o.url_hash WHERE ce.entity_id IS NULL`,
+    fetch: (force, limit, offset) =>
+      force
+        ? sql`SELECT url_hash, url, payload FROM opengraph_metadata ORDER BY url_hash LIMIT ${limit} OFFSET ${offset}`
+        : sql`SELECT o.url_hash, o.url, o.payload FROM opengraph_metadata o LEFT JOIN content_embeddings ce ON ce.domain = 'opengraph' AND ce.entity_id = o.url_hash WHERE ce.entity_id IS NULL ORDER BY o.url_hash LIMIT ${limit} OFFSET 0`,
+  };
+}
+
+function thoughtsConfig(sql) {
+  return {
+    sql,
+    label: "thoughts",
+    domain: "thought",
+    buildText: buildThoughtText,
+    entityId: (r) => String(r.id),
+    titleFn: (r) => r.title,
+    count: (force) =>
+      force
+        ? sql`SELECT count(*)::int as c FROM thoughts`
+        : sql`SELECT count(*)::int as c FROM thoughts t LEFT JOIN content_embeddings ce ON ce.domain = 'thought' AND ce.entity_id = t.id::text WHERE ce.entity_id IS NULL`,
+    fetch: (force, limit, offset) =>
+      force
+        ? sql`SELECT id, title, content, category, tags FROM thoughts ORDER BY id LIMIT ${limit} OFFSET ${offset}`
+        : sql`SELECT t.id, t.title, t.content, t.category, t.tags FROM thoughts t LEFT JOIN content_embeddings ce ON ce.domain = 'thought' AND ce.entity_id = t.id::text WHERE ce.entity_id IS NULL ORDER BY t.id LIMIT ${limit} OFFSET 0`,
+  };
+}
+
+function investmentsConfig(sql) {
+  return {
+    sql,
+    label: "investments",
+    domain: "investment",
+    buildText: buildInvestmentText,
+    entityId: (r) => r.id,
+    titleFn: (r) => r.name,
+    count: (force) =>
+      force
+        ? sql`SELECT count(*)::int as c FROM investments`
+        : sql`SELECT count(*)::int as c FROM investments i LEFT JOIN content_embeddings ce ON ce.domain = 'investment' AND ce.entity_id = i.id WHERE ce.entity_id IS NULL`,
+    fetch: (force, limit, offset) =>
+      force
+        ? sql`SELECT id, name, description, category, stage, status, operating_status, location, type, invested_year, accelerator FROM investments ORDER BY id LIMIT ${limit} OFFSET ${offset}`
+        : sql`SELECT i.id, i.name, i.description, i.category, i.stage, i.status, i.operating_status, i.location, i.type, i.invested_year, i.accelerator FROM investments i LEFT JOIN content_embeddings ce ON ce.domain = 'investment' AND ce.entity_id = i.id WHERE ce.entity_id IS NULL ORDER BY i.id LIMIT ${limit} OFFSET 0`,
+  };
 }
 
 // ─── Main ────────────────────────────────────────────────
@@ -353,58 +327,20 @@ async function run() {
   const apiKey = readEnv("AI_DEFAULT_OPENAI_API_KEY");
   const model = readEnv("AI_DEFAULT_EMBEDDING_MODEL");
   const sql = postgres(readEnv("DATABASE_URL"), { ssl: "require", max: 1, connect_timeout: 10 });
+  const args = [apiBaseUrl, apiKey, model, batchSize, maxRows, dry, force, timeoutMs];
   console.log(
     `${P} Starting (dry=${dry}, force=${force}, domain=${domain ?? "all"}, batch=${batchSize})`,
   );
   const ok = (d) => !domain || domain === d;
   try {
-    if (ok("ai-analysis"))
-      await backfillAiAnalysis(
-        sql,
-        apiBaseUrl,
-        apiKey,
-        model,
-        batchSize,
-        maxRows,
-        dry,
-        force,
-        timeoutMs,
-      );
-    if (ok("opengraph"))
-      await backfillOpengraph(
-        sql,
-        apiBaseUrl,
-        apiKey,
-        model,
-        batchSize,
-        maxRows,
-        dry,
-        force,
-        timeoutMs,
-      );
-    if (ok("thoughts"))
-      await backfillThoughts(
-        sql,
-        apiBaseUrl,
-        apiKey,
-        model,
-        batchSize,
-        maxRows,
-        dry,
-        force,
-        timeoutMs,
-      );
-    // Final counts
-    const rows = await sql`
-      SELECT 'ai_analysis_latest' as t, count(*)::int as total, count(qwen_4b_fp16_embedding)::int as with_emb FROM ai_analysis_latest UNION ALL
-      SELECT 'opengraph_metadata', count(*)::int, count(qwen_4b_fp16_embedding)::int FROM opengraph_metadata UNION ALL
-      SELECT 'thoughts', count(*)::int, count(qwen_4b_fp16_embedding)::int FROM thoughts
-      ORDER BY t`;
-    console.log(`\n${P} Embedding coverage:`);
-    for (const r of rows) {
-      const pct = r.total > 0 ? ((r.with_emb / r.total) * 100).toFixed(1) : "N/A";
-      console.log(`  ${r.t}: ${r.with_emb}/${r.total} (${pct}%)`);
-    }
+    if (ok("ai-analysis")) await backfillLoop(...args, aiAnalysisConfig(sql));
+    if (ok("opengraph")) await backfillLoop(...args, opengraphConfig(sql));
+    if (ok("thoughts")) await backfillLoop(...args, thoughtsConfig(sql));
+    if (ok("investments")) await backfillLoop(...args, investmentsConfig(sql));
+    const rows =
+      await sql`SELECT domain, count(*)::int as cnt FROM content_embeddings GROUP BY domain ORDER BY domain`;
+    console.log(`\n${P} Embedding coverage (content_embeddings):`);
+    for (const r of rows) console.log(`  ${r.domain}: ${r.cnt}`);
   } finally {
     await sql.end({ timeout: 5 });
   }

@@ -35,7 +35,7 @@ const loadBookmarkQueryModule = async () => import("@/lib/db/queries/bookmarks")
 const loadHybridSearchModule = async () => import("@/lib/db/queries/hybrid-search");
 const loadEmbeddingModule = async () => import("@/lib/ai/openai-compatible/embeddings-client");
 const loadEmbeddingConfig = async () => import("@/lib/ai/openai-compatible/feature-config");
-const loadEmbeddingDimensions = async () => import("@/lib/db/schema/bookmarks");
+const loadEmbeddingDimensions = async () => import("@/lib/db/schema/content-embeddings");
 
 const HYBRID_CANDIDATE_LIMIT = 100;
 
@@ -104,7 +104,7 @@ async function tryHybridSearch(query: string): Promise<BookmarkFtsSearchHit[] | 
           timeoutMs: 1_500,
         });
         const vec = vectors[0];
-        if (vec && vec.length === schema.BOOKMARK_EMBEDDING_DIMENSIONS) {
+        if (vec && vec.length === schema.CONTENT_EMBEDDING_DIMENSIONS) {
           embedding = vec;
         }
       } catch {

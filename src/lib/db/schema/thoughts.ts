@@ -3,7 +3,6 @@ import {
   bigint,
   boolean,
   customType,
-  halfvec,
   index,
   pgTable,
   text,
@@ -16,8 +15,6 @@ const tsvector = customType<{ data: string }>({
     return "tsvector";
   },
 });
-
-export const THOUGHT_EMBEDDING_DIMENSIONS = 2560 as const;
 
 /**
  * Thoughts table — TIL-style short-form content stored in PostgreSQL.
@@ -48,23 +45,12 @@ export const thoughts = pgTable(
         setweight(to_tsvector('english', coalesce(${thoughts.category}, '')), 'C')
       `,
     ),
-    /**
-     * Qwen3-Embedding-4B FP16 vector (2560-d halfvec).
-     * Embeds title + content + category + tags for semantic search.
-     */
-    qwen4bFp16Embedding: halfvec("qwen_4b_fp16_embedding", {
-      dimensions: THOUGHT_EMBEDDING_DIMENSIONS,
-    }),
   },
   (table) => [
     uniqueIndex("idx_thoughts_slug").on(table.slug),
     index("idx_thoughts_category").on(table.category),
     index("idx_thoughts_created_at").on(table.createdAt),
     index("idx_thoughts_search_vector").using("gin", table.searchVector),
-    index("idx_thoughts_embedding").using(
-      "hnsw",
-      table.qwen4bFp16Embedding.op("halfvec_cosine_ops"),
-    ),
     index("idx_thoughts_title_trgm").using("gin", sql`${table.title} gin_trgm_ops`),
   ],
 );

@@ -6,7 +6,7 @@
 import type { SearchResult } from "@/types/search";
 import { PAGE_METADATA } from "@/data/metadata";
 import { hybridSearchThoughts } from "@/lib/db/queries/hybrid-search";
-import { THOUGHT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/thoughts";
+import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
@@ -33,7 +33,7 @@ async function buildThoughtQueryEmbedding(query: string): Promise<number[] | und
       timeoutMs: 1_500,
     });
     const vector = vectors[0];
-    if (!vector || vector.length !== THOUGHT_EMBEDDING_DIMENSIONS) {
+    if (!vector || vector.length !== CONTENT_EMBEDDING_DIMENSIONS) {
       return undefined;
     }
     return vector;

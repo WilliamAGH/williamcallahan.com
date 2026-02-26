@@ -12,7 +12,7 @@ import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { hybridSearchBookmarks } from "@/lib/db/queries/hybrid-search";
-import { BOOKMARK_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/bookmarks";
+import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { getBookmarksIndex, getBooksIndex } from "../loaders/dynamic-content";
@@ -43,7 +43,7 @@ async function buildBookmarkQueryEmbedding(query: string): Promise<number[] | un
       timeoutMs: 1500,
     });
     const vector = vectors[0];
-    if (!vector || vector.length !== BOOKMARK_EMBEDDING_DIMENSIONS) {
+    if (!vector || vector.length !== CONTENT_EMBEDDING_DIMENSIONS) {
       return undefined;
     }
     return vector;

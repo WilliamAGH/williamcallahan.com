@@ -26,6 +26,8 @@ export default defineConfig({
     "opengraph_overrides",
     "thoughts",
     "image_manifests",
+    "content_embeddings",
+    "investments",
   ],
   schemaFilter: "public",
   dbCredentials: {

@@ -1,37 +1,11 @@
 import { type SQL, sql } from "drizzle-orm";
-import {
-  boolean,
-  customType,
-  halfvec,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  text,
-} from "drizzle-orm/pg-core";
+import { boolean, customType, index, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import type {
   BookmarkAsset,
   BookmarkContent,
   BookmarkTag,
   BookmarkLogoData,
 } from "@/types/schemas/bookmark";
-
-/**
- * Qwen3-Embedding-4B FP16 — the single authorized embedding model for this table.
- *
- * Model: Qwen/Qwen3-Embedding-4B (4 billion parameters, Apache-2.0)
- * Precision: FP16 (half-precision float) — stored via pgvector `halfvec`
- * Dimensions: 2560 (model default; do NOT truncate via MRL)
- * GGUF source: https://huggingface.co/Qwen/Qwen3-Embedding-4B-GGUF?show_file_info=Qwen3-Embedding-4B-f16.gguf
- *
- * INVARIANT: Every vector in `qwen_4b_fp16_embedding` MUST be produced by this
- * exact model at FP16 precision. Mixing quantizations or models creates
- * non-comparable vector spaces and silently degrades retrieval quality.
- */
-export const BOOKMARK_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-4B" as const;
-export const BOOKMARK_EMBEDDING_DIMENSIONS = 2560 as const;
-export const BOOKMARK_EMBEDDING_GGUF_URL =
-  "https://huggingface.co/Qwen/Qwen3-Embedding-4B-GGUF?show_file_info=Qwen3-Embedding-4B-f16.gguf" as const;
 
 const tsvector = customType<{ data: string }>({
   dataType() {
@@ -84,20 +58,9 @@ export const bookmarks = pgTable(
         setweight(to_tsvector('english', coalesce(${bookmarks.note}, '')), 'D')
       `,
     ),
-    /**
-     * Qwen3-Embedding-4B FP16 vector (2560-d halfvec).
-     * See module-level doc for model provenance and the non-mixing invariant.
-     */
-    qwen4bFp16Embedding: halfvec("qwen_4b_fp16_embedding", {
-      dimensions: BOOKMARK_EMBEDDING_DIMENSIONS,
-    }),
   },
   (table) => [
     index("idx_bookmarks_search_vector").using("gin", table.searchVector),
-    index("idx_bookmarks_qwen_4b_fp16_embedding").using(
-      "hnsw",
-      table.qwen4bFp16Embedding.op("halfvec_cosine_ops"),
-    ),
     index("idx_bookmarks_title_trgm").using("gin", sql`${table.title} gin_trgm_ops`),
     index("idx_bookmarks_slug_trgm").using("gin", sql`${table.slug} gin_trgm_ops`),
     index("idx_bookmarks_domain").on(table.domain),

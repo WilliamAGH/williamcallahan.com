@@ -99,6 +99,27 @@
       "when": 1774891200000,
       "tag": "0012_drop-json-documents",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1774977600000,
+      "tag": "0013_content-embeddings",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1775064000000,
+      "tag": "0014_drop-domain-embedding-columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1775150400000,
+      "tag": "0015_investments-table",
+      "breakpoints": true
     }
   ]
 }
