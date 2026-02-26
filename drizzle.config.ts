@@ -26,10 +26,11 @@ export default defineConfig({
     "opengraph_overrides",
     "thoughts",
     "image_manifests",
-    "content_embeddings",
+    "embeddings",
     "investments",
     "projects",
     "books",
+    "blog_posts",
   ],
   schemaFilter: "public",
   dbCredentials: {

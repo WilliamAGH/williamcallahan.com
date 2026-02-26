@@ -134,6 +134,13 @@
       "when": 1775323200000,
       "tag": "0017_books-individual-table",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1775409600000,
+      "tag": "0018_blog-posts-table",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Backfill Qwen3-Embedding-4B embeddings into unified content_embeddings table.
+ * Backfill Qwen3-Embedding-4B embeddings into unified embeddings table.
  *
  * IMPORTANT: This script MUST run under Node.js (not bun). See CLAUDE.md [RT1].
  *
- * Handles: ai_analysis_latest, opengraph_metadata, thoughts, investments, books, projects
- * Write target: content_embeddings (unified table, not domain tables).
- * Labels align with canonical contracts in embedding-field-specs.ts.
+ * Handles: ai_analysis_latest, opengraph_metadata, thoughts, investments, books, blog_posts, projects
+ * Write target: embeddings (unified table, not domain tables).
+ * Labels align with canonical contracts in embedding-field-specs-{content,entities}.ts.
  *
  * Usage:
  *   set -a; source .env; set +a
@@ -16,7 +16,7 @@
  *   --dry-run          Show what would be written without writing
  *   --force            Regenerate ALL embeddings (not just missing)
  *   --domain X         Only backfill a specific domain
- *     Valid: ai-analysis, opengraph, thoughts, investments, books, projects
+ *     Valid: ai-analysis, opengraph, thoughts, investments, books, blog-posts, projects
  *   --batch-size N     Texts per API call (default 16, max 128)
  *   --max-rows N       Stop after N rows
  */
@@ -28,6 +28,7 @@ import {
   buildThoughtText,
   buildInvestmentText,
   buildBookText,
+  buildBlogPostText,
   buildProjectText,
 } from "./domain-embedding-text-builders.mjs";
 
@@ -100,7 +101,7 @@ function serializeHalfvec(embedding) {
 async function upsertEmbedding(sql, domain, entityId, title, embeddingText, embedding) {
   const vec = serializeHalfvec(embedding);
   await sql`
-    INSERT INTO content_embeddings (domain, entity_id, title, embedding_text, qwen_4b_fp16_embedding, updated_at)
+    INSERT INTO embeddings (domain, entity_id, title, embedding_text, qwen_4b_fp16_embedding, updated_at)
     VALUES (${domain}, ${entityId}, ${title}, ${embeddingText}, ${vec}::halfvec(2560), ${Date.now()})
     ON CONFLICT (domain, entity_id) DO UPDATE SET
       title = EXCLUDED.title, embedding_text = EXCLUDED.embedding_text,
@@ -185,11 +186,11 @@ function aiAnalysisConfig(sql) {
     count: (force) =>
       force
         ? sql`SELECT count(*)::int as c FROM ai_analysis_latest`
-        : sql`SELECT count(*)::int as c FROM ai_analysis_latest a LEFT JOIN content_embeddings ce ON ce.domain = 'ai_analysis' AND ce.entity_id = a.domain || ':' || a.entity_id WHERE ce.entity_id IS NULL`,
+        : sql`SELECT count(*)::int as c FROM ai_analysis_latest a LEFT JOIN embeddings ce ON ce.domain = 'ai_analysis' AND ce.entity_id = a.domain || ':' || a.entity_id WHERE ce.entity_id IS NULL`,
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT domain, entity_id, payload FROM ai_analysis_latest ORDER BY domain, entity_id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT a.domain, a.entity_id, a.payload FROM ai_analysis_latest a LEFT JOIN content_embeddings ce ON ce.domain = 'ai_analysis' AND ce.entity_id = a.domain || ':' || a.entity_id WHERE ce.entity_id IS NULL ORDER BY a.domain, a.entity_id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT a.domain, a.entity_id, a.payload FROM ai_analysis_latest a LEFT JOIN embeddings ce ON ce.domain = 'ai_analysis' AND ce.entity_id = a.domain || ':' || a.entity_id WHERE ce.entity_id IS NULL ORDER BY a.domain, a.entity_id LIMIT ${limit} OFFSET 0`,
   };
 }
 
@@ -204,11 +205,11 @@ function opengraphConfig(sql) {
     count: (force) =>
       force
         ? sql`SELECT count(*)::int as c FROM opengraph_metadata`
-        : sql`SELECT count(*)::int as c FROM opengraph_metadata o LEFT JOIN content_embeddings ce ON ce.domain = 'opengraph' AND ce.entity_id = o.url_hash WHERE ce.entity_id IS NULL`,
+        : sql`SELECT count(*)::int as c FROM opengraph_metadata o LEFT JOIN embeddings ce ON ce.domain = 'opengraph' AND ce.entity_id = o.url_hash WHERE ce.entity_id IS NULL`,
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT url_hash, url, payload FROM opengraph_metadata ORDER BY url_hash LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT o.url_hash, o.url, o.payload FROM opengraph_metadata o LEFT JOIN content_embeddings ce ON ce.domain = 'opengraph' AND ce.entity_id = o.url_hash WHERE ce.entity_id IS NULL ORDER BY o.url_hash LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT o.url_hash, o.url, o.payload FROM opengraph_metadata o LEFT JOIN embeddings ce ON ce.domain = 'opengraph' AND ce.entity_id = o.url_hash WHERE ce.entity_id IS NULL ORDER BY o.url_hash LIMIT ${limit} OFFSET 0`,
   };
 }
 
@@ -223,11 +224,11 @@ function thoughtsConfig(sql) {
     count: (force) =>
       force
         ? sql`SELECT count(*)::int as c FROM thoughts`
-        : sql`SELECT count(*)::int as c FROM thoughts t LEFT JOIN content_embeddings ce ON ce.domain = 'thought' AND ce.entity_id = t.id::text WHERE ce.entity_id IS NULL`,
+        : sql`SELECT count(*)::int as c FROM thoughts t LEFT JOIN embeddings ce ON ce.domain = 'thought' AND ce.entity_id = t.id::text WHERE ce.entity_id IS NULL`,
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, title, content, category, tags FROM thoughts ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT t.id, t.title, t.content, t.category, t.tags FROM thoughts t LEFT JOIN content_embeddings ce ON ce.domain = 'thought' AND ce.entity_id = t.id::text WHERE ce.entity_id IS NULL ORDER BY t.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT t.id, t.title, t.content, t.category, t.tags FROM thoughts t LEFT JOIN embeddings ce ON ce.domain = 'thought' AND ce.entity_id = t.id::text WHERE ce.entity_id IS NULL ORDER BY t.id LIMIT ${limit} OFFSET 0`,
   };
 }
 
@@ -242,11 +243,11 @@ function investmentsConfig(sql) {
     count: (force) =>
       force
         ? sql`SELECT count(*)::int as c FROM investments`
-        : sql`SELECT count(*)::int as c FROM investments i LEFT JOIN content_embeddings ce ON ce.domain = 'investment' AND ce.entity_id = i.id WHERE ce.entity_id IS NULL`,
+        : sql`SELECT count(*)::int as c FROM investments i LEFT JOIN embeddings ce ON ce.domain = 'investment' AND ce.entity_id = i.id WHERE ce.entity_id IS NULL`,
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, name, description, category, stage, status, operating_status, location, type, invested_year, accelerator FROM investments ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT i.id, i.name, i.description, i.category, i.stage, i.status, i.operating_status, i.location, i.type, i.invested_year, i.accelerator FROM investments i LEFT JOIN content_embeddings ce ON ce.domain = 'investment' AND ce.entity_id = i.id WHERE ce.entity_id IS NULL ORDER BY i.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT i.id, i.name, i.description, i.category, i.stage, i.status, i.operating_status, i.location, i.type, i.invested_year, i.accelerator FROM investments i LEFT JOIN embeddings ce ON ce.domain = 'investment' AND ce.entity_id = i.id WHERE ce.entity_id IS NULL ORDER BY i.id LIMIT ${limit} OFFSET 0`,
   };
 }
 
@@ -261,11 +262,30 @@ function booksConfig(sql) {
     count: (force) =>
       force
         ? sql`SELECT count(*)::int as c FROM books`
-        : sql`SELECT count(*)::int as c FROM books b LEFT JOIN content_embeddings ce ON ce.domain = 'book' AND ce.entity_id = b.id WHERE ce.entity_id IS NULL`,
+        : sql`SELECT count(*)::int as c FROM books b LEFT JOIN embeddings ce ON ce.domain = 'book' AND ce.entity_id = b.id WHERE ce.entity_id IS NULL`,
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, title, subtitle, authors, genres, publisher, description, ai_summary, thoughts FROM books ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT b.id, b.title, b.subtitle, b.authors, b.genres, b.publisher, b.description, b.ai_summary, b.thoughts FROM books b LEFT JOIN content_embeddings ce ON ce.domain = 'book' AND ce.entity_id = b.id WHERE ce.entity_id IS NULL ORDER BY b.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT b.id, b.title, b.subtitle, b.authors, b.genres, b.publisher, b.description, b.ai_summary, b.thoughts FROM books b LEFT JOIN embeddings ce ON ce.domain = 'book' AND ce.entity_id = b.id WHERE ce.entity_id IS NULL ORDER BY b.id LIMIT ${limit} OFFSET 0`,
+  };
+}
+
+function blogPostsConfig(sql) {
+  return {
+    sql,
+    label: "blog-posts",
+    domain: "blog",
+    buildText: buildBlogPostText,
+    entityId: (r) => r.id,
+    titleFn: (r) => r.title,
+    count: (force) =>
+      force
+        ? sql`SELECT count(*)::int as c FROM blog_posts WHERE draft = false`
+        : sql`SELECT count(*)::int as c FROM blog_posts bp LEFT JOIN embeddings ce ON ce.domain = 'blog' AND ce.entity_id = bp.id WHERE bp.draft = false AND ce.entity_id IS NULL`,
+    fetch: (force, limit, offset) =>
+      force
+        ? sql`SELECT id, title, excerpt, author_name, tags, raw_content FROM blog_posts WHERE draft = false ORDER BY id LIMIT ${limit} OFFSET ${offset}`
+        : sql`SELECT bp.id, bp.title, bp.excerpt, bp.author_name, bp.tags, bp.raw_content FROM blog_posts bp LEFT JOIN embeddings ce ON ce.domain = 'blog' AND ce.entity_id = bp.id WHERE bp.draft = false AND ce.entity_id IS NULL ORDER BY bp.id LIMIT ${limit} OFFSET 0`,
   };
 }
 
@@ -280,11 +300,11 @@ function projectsConfig(sql) {
     count: (force) =>
       force
         ? sql`SELECT count(*)::int as c FROM projects`
-        : sql`SELECT count(*)::int as c FROM projects p LEFT JOIN content_embeddings ce ON ce.domain = 'project' AND ce.entity_id = p.id WHERE ce.entity_id IS NULL`,
+        : sql`SELECT count(*)::int as c FROM projects p LEFT JOIN embeddings ce ON ce.domain = 'project' AND ce.entity_id = p.id WHERE ce.entity_id IS NULL`,
     fetch: (force, limit, offset) =>
       force
         ? sql`SELECT id, name, description, short_summary, url, github_url, tags, tech_stack, note FROM projects ORDER BY id LIMIT ${limit} OFFSET ${offset}`
-        : sql`SELECT p.id, p.name, p.description, p.short_summary, p.url, p.github_url, p.tags, p.tech_stack, p.note FROM projects p LEFT JOIN content_embeddings ce ON ce.domain = 'project' AND ce.entity_id = p.id WHERE ce.entity_id IS NULL ORDER BY p.id LIMIT ${limit} OFFSET 0`,
+        : sql`SELECT p.id, p.name, p.description, p.short_summary, p.url, p.github_url, p.tags, p.tech_stack, p.note FROM projects p LEFT JOIN embeddings ce ON ce.domain = 'project' AND ce.entity_id = p.id WHERE ce.entity_id IS NULL ORDER BY p.id LIMIT ${limit} OFFSET 0`,
   };
 }
 
@@ -316,10 +336,11 @@ async function run() {
     if (ok("thoughts")) await backfillLoop(...args, thoughtsConfig(sql));
     if (ok("investments")) await backfillLoop(...args, investmentsConfig(sql));
     if (ok("books")) await backfillLoop(...args, booksConfig(sql));
+    if (ok("blog-posts")) await backfillLoop(...args, blogPostsConfig(sql));
     if (ok("projects")) await backfillLoop(...args, projectsConfig(sql));
     const rows =
-      await sql`SELECT domain, count(*)::int as cnt FROM content_embeddings GROUP BY domain ORDER BY domain`;
-    console.log(`\n${P} Embedding coverage (content_embeddings):`);
+      await sql`SELECT domain, count(*)::int as cnt FROM embeddings GROUP BY domain ORDER BY domain`;
+    console.log(`\n${P} Embedding coverage (embeddings):`);
     for (const r of rows) console.log(`  ${r.domain}: ${r.cnt}`);
   } finally {
     await sql.end({ timeout: 5 });

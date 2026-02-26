@@ -112,6 +112,17 @@ export interface BlogPageFrontmatter {
 }
 
 // ============================================================================
+// Mutation Input Types
+// ============================================================================
+
+/** Input shape for upserting a blog post from parsed MDX frontmatter. */
+export interface BlogPostInput {
+  slug: string;
+  frontmatter: BlogPageFrontmatter;
+  rawContent: string;
+}
+
+// ============================================================================
 // Post Lookup Result Types
 // ============================================================================
 

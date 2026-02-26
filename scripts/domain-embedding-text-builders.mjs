@@ -1,7 +1,7 @@
 /**
  * Pure text builder functions for domain embedding backfill.
  *
- * Labels align with canonical contracts in embedding-field-specs.ts.
+ * Labels align with canonical contracts in embedding-field-specs-{content,entities}.ts.
  * Each function takes a raw SQL row and returns a labeled text string
  * suitable for the embedding model, or null if the row has no usable content.
  *
@@ -90,6 +90,19 @@ export function buildBookText(row) {
     sections.push(`AI-Generated Summary: ${row.ai_summary.trim()}`);
   if (typeof row.thoughts === "string" && row.thoughts.trim())
     sections.push(`Personal Reading Notes: ${row.thoughts.trim()}`);
+  return sections.join("\n");
+}
+
+export function buildBlogPostText(row) {
+  const sections = [`Article Title: ${row.title}`];
+  if (typeof row.excerpt === "string" && row.excerpt.trim())
+    sections.push(`Article Summary: ${row.excerpt.trim()}`);
+  if (Array.isArray(row.tags) && row.tags.length > 0)
+    sections.push(`Topic Tags: ${row.tags.filter(Boolean).join(", ")}`);
+  if (typeof row.author_name === "string" && row.author_name.trim())
+    sections.push(`Article Author: ${row.author_name.trim()}`);
+  if (typeof row.raw_content === "string" && row.raw_content.trim())
+    sections.push(`Article Full Text: ${row.raw_content.trim()}`);
   return sections.join("\n");
 }
 
