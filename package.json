@@ -58,7 +58,7 @@
     "validate:build": "bun run lint:ox && bun run lint:es:ci && bun run check:duplicate-types && bun run guard:runtime-json-s3-ops && bun run type-check && bun scripts/analyze-circular-deps.ts && bun run check:file-size",
     "validate:full": "bun run lint && bun run type-check && bun run format:check",
     "validate:ci": "bun run format:check && bun run lint:checks && bun run guard:runtime-json-s3-ops && bun run type-check",
-    "clean": "rm -rf .next out node_modules",
+    "clean": "rm -rf .next out node_modules bun.lock bun.lockb",
     "cleanCache": "rm -rf .next/cache",
     "test": "vitest run",
     "test:watch": "vitest",
