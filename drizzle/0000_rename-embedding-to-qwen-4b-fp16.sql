@@ -1,3 +1,7 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+--> statement-breakpoint
 CREATE TABLE "bookmark_index_state" (
 	"id" text PRIMARY KEY NOT NULL,
 	"count" integer NOT NULL,
