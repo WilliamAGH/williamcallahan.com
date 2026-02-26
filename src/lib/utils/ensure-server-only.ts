@@ -2,8 +2,7 @@
  * Utility function to ensure a module is only loaded on the server.
  * Throws an error if called in a client-side (browser) environment.
  *
- * Lightweight guard without React dependencies — safe to import from
- * server-only modules like server-cache.ts. For React-aware guards
+ * Lightweight guard without React dependencies. For React-aware guards
  * (useIsClient, assertClientOnly), see runtime-guards.ts.
  *
  * Vitest's jsdom environment defines `window`, so `process.env.VITEST`

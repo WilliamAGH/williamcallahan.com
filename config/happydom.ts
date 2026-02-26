@@ -1,8 +1,8 @@
 /**
  * @file happydom.ts
  * @description
- * This file is used to register the HappyDOM environment for testing
- * It is used to test the server-side cache by providing a mock implementation of the NodeCache class which is used in the lib/server-cache.ts file and is used to cache the results of the getLogo function
+ * This file is used to register the HappyDOM environment for testing.
+ * It provides browser-like globals (DOM, clipboard) needed by component tests.
  */
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 

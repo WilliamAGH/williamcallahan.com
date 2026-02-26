@@ -147,7 +147,6 @@ const SUPPRESSED_PATTERNS = [
   "[OG-Image]",
   "Search API",
   "[DataFetchManager]",
-  "[MemoryHealthMonitor]",
 ];
 
 const suppressedConsoleError = (...data: any[]) => {

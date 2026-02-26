@@ -248,7 +248,7 @@ export * from "./debug";
  *     defined alongside Zod schemas in `lib/` and ensures separation of concerns.
  *
  *   - 5. STRATEGIC VALIDATION PATTERN: Use Zod validation at data boundaries to eliminate "error" type inference:
- *     - Before caching external API responses (ServerCacheInstance setters)
+ *     - Before caching external API responses
  *     - Before transforming data for client components (server-to-client boundaries)
  *     - When accessing uncertain external data (OpenGraph metadata, social API responses)
  *     - Pattern: Parse → Validate → Use (rather than directly accessing unknown properties)
