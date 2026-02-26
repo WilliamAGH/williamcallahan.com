@@ -93,7 +93,7 @@ export interface FailureRecord {
 }
 
 export interface FailureTrackerOptions {
-  s3Path?: string;
+  storeKey?: string;
   maxRetries?: number;
   cooldownMs?: number;
   maxItems?: number;
@@ -109,8 +109,8 @@ export interface FailedItem<T> {
 }
 
 export interface FailureTrackerConfig {
-  /** S3 path for persistence */
-  s3Path: string;
+  /** Logical store key for persistence */
+  storeKey: string;
   /** Maximum retry attempts before marking as permanent failure */
   maxRetries?: number;
   /** Cooldown period in ms before retrying */

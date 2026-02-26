@@ -156,13 +156,13 @@ export async function loadRateLimitStore(_storeName: string, _storePath: string)
 
 /**
  * Updates the in-memory rate limit counter.
- * The `_s3Path` parameter is retained for call-site compatibility but is not used.
+ * The `_storeKey` parameter is retained for call-site compatibility but is not used.
  */
 export function incrementAndPersist(
   storeName: string,
   contextId: string,
   config: RateLimiterConfig,
-  _storePath: string,
+  _storeKey: string,
 ): boolean {
   return isOperationAllowed(storeName, contextId, config);
 }

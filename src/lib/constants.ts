@@ -52,7 +52,7 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   SLUG_SHARD_PREFIX: `json/bookmarks/slug-shards${envSuffix}/`,
 } as const;
 
-export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envSuffix}.json`;
+export const LOGO_BLOCKLIST_STORE_KEY = `rate-limit/logo-failed-domains${envSuffix}`;
 
 /**
  * S3 paths for content graph (environment-aware)
@@ -127,11 +127,8 @@ export const IMAGE_MANIFEST_S3_PATHS = {
   PROJECTS_IMAGES_MANIFEST: `json/image-data/projects/manifest${envSuffix}.json`,
 } as const;
 
-/** S3 storage paths for OpenGraph JSON data (environment-aware) */
-export const OPENGRAPH_JSON_S3_PATHS = { DIR: "json/opengraph" } as const;
-
-/** S3 storage paths for rate limiting data */
-export const RATE_LIMIT_S3_PATHS = { DIR: "json/rate-limit" } as const;
+/** S3 storage paths for OpenGraph cache artifacts (environment-aware) */
+export const OPENGRAPH_CACHE_S3_PATHS = { DIR: "cache/opengraph" } as const;
 
 /** S3 storage paths for distributed locks */
 export const LOCKS_S3_PATHS = { DIR: "locks" } as const;
@@ -289,7 +286,7 @@ export const DEFAULT_IMAGES = {
 } as const;
 
 /** OpenGraph S3 directories */
-const ogDir = OPENGRAPH_JSON_S3_PATHS.DIR;
+const ogDir = OPENGRAPH_CACHE_S3_PATHS.DIR;
 export const OPENGRAPH_S3_KEY_DIR = ogDir;
 export const OPENGRAPH_METADATA_S3_DIR = `${ogDir}/metadata`;
 export const OPENGRAPH_IMAGES_S3_DIR = IMAGE_S3_PATHS.OPENGRAPH_DIR;
@@ -397,7 +394,7 @@ export const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE !== "false";
 
 export const JINA_FETCH_STORE_NAME = "jinaFetch" as const;
 export const JINA_FETCH_CONTEXT_ID = "global" as const;
-export const JINA_FETCH_RATE_LIMIT_S3_PATH = `json/rate-limit/jina-fetch-limiter${envSuffix}.json`;
+export const JINA_FETCH_RATE_LIMIT_STORE_KEY = `rate-limit/jina-fetch-limiter${envSuffix}`;
 
 // GitHub activity re-exports for data access layer
 const ghPaths = GITHUB_ACTIVITY_S3_PATHS;

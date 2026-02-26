@@ -1,8 +1,8 @@
 /**
- * GitHub S3 Storage Schemas
+ * GitHub Activity Storage Schemas
  * @module types/schemas/github-storage
  * @description
- * Zod v4 schemas for GitHub activity data persisted in S3.
+ * Zod v4 schemas for GitHub activity data persisted in PostgreSQL.
  */
 
 import { z } from "zod/v4";

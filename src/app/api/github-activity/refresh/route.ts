@@ -25,7 +25,7 @@ import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
 
 const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
-const RATE_LIMIT_STORE_PATH = "json/rate-limits/github-refresh.json";
+const RATE_LIMIT_STORE_KEY = "rate-limits/github-refresh";
 const RATE_LIMIT_STORE_NAME = "github-refresh";
 
 // Load rate limits from the in-memory store bootstrap on startup
@@ -33,7 +33,7 @@ let rateLimitsLoaded = false;
 async function ensureRateLimitsLoaded() {
   if (!rateLimitsLoaded) {
     try {
-      await loadRateLimitStore(RATE_LIMIT_STORE_NAME, RATE_LIMIT_STORE_PATH);
+      await loadRateLimitStore(RATE_LIMIT_STORE_NAME, RATE_LIMIT_STORE_KEY);
       rateLimitsLoaded = true;
     } catch (error) {
       console.warn("[API Refresh] Failed to load rate limits from store bootstrap:", error);
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Ensure rate limits are loaded from S3
+  // Ensure rate limits are loaded into the process store
   await ensureRateLimitsLoaded();
 
   // Check for cron job authentication first
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       RATE_LIMIT_STORE_NAME,
       rateLimitKey,
       { maxRequests: RATE_LIMIT_MAX_REQUESTS, windowMs: RATE_LIMIT_WINDOW },
-      RATE_LIMIT_STORE_PATH,
+      RATE_LIMIT_STORE_KEY,
     );
 
     if (!allowed) {

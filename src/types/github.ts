@@ -22,9 +22,9 @@ export type ContributionDay = z.infer<typeof ContributionDaySchema>;
 
 /**
  * Raw GitHub activity shape returned by getGithubActivity (flat structure)
- * This represents the structure of the primary GitHub activity file stored in S3.
+ * This represents the canonical persisted activity record shape.
  */
-export interface StoredGithubActivityS3 {
+export interface StoredGithubActivityRecord {
   source: "scraping" | "api" | "api_multi_file_cache";
   data: ContributionDay[];
   totalContributions: number;
@@ -40,7 +40,7 @@ export interface StoredGithubActivityS3 {
 /**
  * Represents a segment of GitHub activity data with optional summary
  */
-export type GitHubActivitySegment = Omit<StoredGithubActivityS3, "allTimeTotalContributions">;
+export type GitHubActivitySegment = Omit<StoredGithubActivityRecord, "allTimeTotalContributions">;
 
 /**
  * Response from `/api/github-activity` with nested segments
@@ -57,7 +57,7 @@ export interface GitHubActivityApiResponse {
 }
 
 /**
- * Structure of the GitHub activity summary JSON file stored in S3
+ * Structure of the persisted GitHub activity summary record.
  */
 export interface GitHubActivitySummary {
   lastUpdatedAtPacific: string;
@@ -322,8 +322,8 @@ export interface GitHubActivityError extends ExtendedError {
  * Input for writing GitHub activity summaries
  */
 export type GitHubSummaryInput = {
-  trailingYearData: StoredGithubActivityS3;
-  allTimeData: StoredGithubActivityS3;
+  trailingYearData: StoredGithubActivityRecord;
+  allTimeData: StoredGithubActivityRecord;
   totalRepositoriesContributedTo: number;
   yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
   allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];

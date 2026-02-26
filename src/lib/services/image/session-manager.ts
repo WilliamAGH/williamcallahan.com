@@ -4,7 +4,7 @@
  */
 
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
-import { UNIFIED_IMAGE_SERVICE_CONFIG, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
+import { UNIFIED_IMAGE_SERVICE_CONFIG, LOGO_BLOCKLIST_STORE_KEY } from "@/lib/constants";
 import { FailureTracker } from "@/lib/utils/failure-tracker";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "@/lib/rate-limiter";
 import logger from "@/lib/utils/logger";
@@ -34,7 +34,7 @@ export class SessionManager {
     (domain) => domain,
     z.string().min(1),
     {
-      s3Path: LOGO_BLOCKLIST_S3_PATH,
+      storeKey: LOGO_BLOCKLIST_STORE_KEY,
       maxRetries: CONFIG.PERMANENT_FAILURE_THRESHOLD,
       cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
       maxItems: CONFIG.MAX_BLOCKLIST_SIZE,

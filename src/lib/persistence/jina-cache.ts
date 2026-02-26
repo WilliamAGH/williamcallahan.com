@@ -10,7 +10,7 @@
 import { getObject } from "@/lib/s3/objects";
 import { debug } from "@/lib/utils/debug";
 import { hashUrl, normalizeUrl } from "@/lib/utils/opengraph-utils";
-import { OPENGRAPH_JINA_HTML_S3_DIR, OPENGRAPH_JSON_S3_PATHS } from "@/lib/constants";
+import { OPENGRAPH_JINA_HTML_S3_DIR, OPENGRAPH_CACHE_S3_PATHS } from "@/lib/constants";
 import { OgError } from "@/types/opengraph";
 import { S3NotFoundError } from "@/lib/s3/errors";
 import { persistToS3 } from "./s3-persistence";
@@ -26,7 +26,7 @@ function buildJinaHtmlKey(url: string): string {
  * Build S3 key for Jina markdown content
  */
 function buildJinaMarkdownKey(url: string): string {
-  return `${OPENGRAPH_JSON_S3_PATHS.DIR}/jina-markdown/${hashUrl(normalizeUrl(url))}.md`;
+  return `${OPENGRAPH_CACHE_S3_PATHS.DIR}/jina-markdown/${hashUrl(normalizeUrl(url))}.md`;
 }
 
 /**

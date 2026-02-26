@@ -26,7 +26,7 @@ export class FailureTracker<T> {
     config: FailureTrackerConfig,
   ) {
     this.config = {
-      s3Path: config.s3Path,
+      storeKey: config.storeKey,
       maxRetries: config.maxRetries ?? 3,
       cooldownMs: config.cooldownMs ?? 24 * 60 * 60 * 1000, // 24 hours
       maxItems: config.maxItems ?? 5000,
