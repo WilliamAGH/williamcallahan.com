@@ -17,7 +17,7 @@ Chroma provides vector similarity search for semantic content discovery. Unlike 
 ```
 Content (Thoughts, Bookmarks, etc.)
          |
-   Embedding Function (all-MiniLM-L6-v2, 384D)
+   Embedding Function (endpoint-compatible Qwen or local MiniLM)
          |
    Chroma Cloud (vector storage)
          |
@@ -237,24 +237,33 @@ const results = await collection.query({
 
 ## Embedding Function
 
-### Default: all-MiniLM-L6-v2
+### Runtime Selection
 
-The `@chroma-core/default-embed` package provides:
+`src/lib/chroma/embedding-function.ts` selects one embedding runtime:
 
-- **Model**: sentence-transformers/all-MiniLM-L6-v2
-- **Dimensions**: 384
-- **Runtime**: Local ONNX (no API calls)
-- **Performance**: Fast, suitable for real-time queries
-- **Quality**: Good for general semantic similarity
+1. **Endpoint-compatible Qwen embeddings** (preferred when configured)
+   - Trigger: `AI_DEFAULT_EMBEDDING_MODEL` is set
+   - Required config: `AI_DEFAULT_OPENAI_BASE_URL`, `AI_DEFAULT_OPENAI_API_KEY`
+   - Transport: OpenAI-style `/v1/embeddings` request/response format
+2. **Local ONNX fallback** (`@chroma-core/default-embed`)
+   - Model: `sentence-transformers/all-MiniLM-L6-v2`
+   - Dimensions: 384
+   - Runtime: local ONNX (no API calls)
 
-### When to Use Custom Embeddings
+### Backfill Workflow
 
-Consider OpenAI/Cohere embeddings when:
+Bookmark embeddings in PostgreSQL can be backfilled with:
 
-- Content is domain-specific (legal, medical, etc.)
-- Higher accuracy is critical
-- Documents are very long (chunk first)
-- Multi-language support needed
+```bash
+bun run bookmarks:embeddings:backfill
+```
+
+Optional flags:
+
+- `--dry-run`
+- `--batch-size <N>`
+- `--max-rows <N>`
+- `--bookmark-ids <id1,id2,...>`
 
 ## Collection Design Patterns
 

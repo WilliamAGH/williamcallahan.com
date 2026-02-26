@@ -61,6 +61,7 @@ Example schemas:
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).
 - Image manifest warm-up is startup-critical in production: request-path logo lookups skip lazy S3 manifest fetches when warm-up fails to avoid cache-components prerender IO bailouts (see `image-handling.md`).
 - AI chat gateway contracts are SSE-only end-to-end (`/api/ai/chat/[feature]` plus `aiChat()` browser client), with shared feature identifiers/queue-key builders and upstream delta forwarding centralized in `ai-shared-services` (see `architecture/ai-services.md`).
+- Endpoint-compatible embeddings are configurable via `AI_DEFAULT_EMBEDDING_MODEL` and can be backfilled into PostgreSQL bookmarks with `bun run bookmarks:embeddings:backfill` (see `chroma.md` for embedding runtime details).
 - AI upstream pipeline tests are split by responsibility (streaming, tools, analysis validation) and share a dedicated harness module for DRY fixture/mocking (`__tests__/api/ai/upstream-pipeline-test-harness.ts`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
 - Sitemap generation is split into domain-specific collectors under `src/lib/sitemap/` (blog, bookmarks, books/thoughts, constants, date-utils) with `src/app/sitemap.ts` as a thin orchestrator owning only the runtime cache and static-page entries.
