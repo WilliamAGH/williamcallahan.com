@@ -138,41 +138,35 @@ describe.runIf(SHOULD_RUN_LIVE_TESTS)("S3 Utils Integration – read/write JSON"
   });
 });
 
-// Mocked integration path using aws-sdk-client-mock (no network)
-describe.runIf(!SHOULD_RUN_LIVE_TESTS && s3Mock !== null)(
-  "S3 Utils Integration – read/write JSON (mocked)",
-  () => {
-    const TEST_KEY = "test/integration-test.json";
-    const payload = { hello: "world", ts: 12345 };
-    const payloadSchema = z.object({ hello: z.string(), ts: z.number() });
+// Mocked integration path — writeJsonS3/readJsonS3 are now backed by PostgreSQL
+// (json_documents table), so we mock the DB layer instead of the S3 client.
+const { jsonDocStore } = vi.hoisted(() => ({
+  jsonDocStore: new Map<string, unknown>(),
+}));
 
-    it("writes JSON to S3 and reads it back via mocked client", async () => {
-      if (!s3Mock) return; // Type guard for TypeScript
+vi.mock("@/lib/db/queries/json-documents", () => ({
+  getJsonDocumentPayloadByKey: vi.fn(async (key: string) => jsonDocStore.get(key) ?? null),
+  getJsonDocumentMetadataByKey: vi.fn(async () => null),
+  listJsonDocumentKeysByPrefix: vi.fn(async () => []),
+}));
 
-      let storedBody: string | null = null;
+vi.mock("@/lib/db/mutations/json-documents", () => ({
+  upsertJsonDocument: vi.fn(async (opts: { key: string; payload: unknown }) => {
+    jsonDocStore.set(opts.key, opts.payload);
+  }),
+  deleteJsonDocumentByKey: vi.fn(async (key: string) => {
+    jsonDocStore.delete(key);
+  }),
+}));
 
-      // Mock PutObject to capture Body
-      s3Mock.on(PutObjectCommand).callsFake((input) => {
-        storedBody = typeof input.Body === "string" ? input.Body : String(input.Body);
-        return { ETag: '"test-etag"' } as any;
-      });
+describe("S3 JSON round-trip (DB-backed, mocked)", () => {
+  const TEST_KEY = "test/integration-test.json";
+  const payload = { hello: "world", ts: 12345 };
+  const payloadSchema = z.object({ hello: z.string(), ts: z.number() });
 
-      // Mock GetObject to return captured Body as Readable stream
-      s3Mock.on(GetObjectCommand).callsFake(() => {
-        const body = storedBody ?? JSON.stringify({});
-        return { Body: Readable.from([Buffer.from(body)]) } as any;
-      });
-
-      // Mock DeleteObject and ListObjects (satisfy potential calls)
-      s3Mock.on(DeleteObjectCommand).resolves({} as any);
-      s3Mock.on(ListObjectsV2Command).resolves({ Contents: [{ Key: TEST_KEY }] } as any);
-
-      await writeJsonS3(TEST_KEY, payload);
-      const readBack = await readJsonS3(TEST_KEY, payloadSchema);
-      expect(readBack).toEqual(payload);
-
-      // Exercise delete path without network
-      await deleteFromS3(TEST_KEY);
-    });
-  },
-);
+  it("writes JSON and reads it back via mocked DB layer", async () => {
+    await writeJsonS3(TEST_KEY, payload);
+    const readBack = await readJsonS3(TEST_KEY, payloadSchema);
+    expect(readBack).toEqual(payload);
+  });
+});
