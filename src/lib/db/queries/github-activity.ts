@@ -113,6 +113,26 @@ export async function readAggregatedWeeklyActivityFromDb(): Promise<
 }
 
 /**
+ * Read the CSV checksum for a repo from the csv-checksum row.
+ * Returns null when no checksum has been stored yet.
+ */
+export async function readRepoCsvChecksum(owner: string, repo: string): Promise<string | null> {
+  const qualifier = `${owner}/${repo}`;
+  const rows = await db
+    .select({ checksum: githubActivityStore.checksum })
+    .from(githubActivityStore)
+    .where(
+      and(
+        eq(githubActivityStore.dataType, "csv-checksum"),
+        eq(githubActivityStore.qualifier, qualifier),
+      ),
+    )
+    .limit(1);
+
+  return rows[0]?.checksum ?? null;
+}
+
+/**
  * List all repo-weekly-stats qualifiers (e.g. "owner/repo") stored in the DB.
  * Replaces the S3-based listRepoStatsFiles().
  */

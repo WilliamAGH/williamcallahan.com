@@ -16,12 +16,12 @@ import type {
   GitHubActivitySummary,
 } from "@/types/github";
 import { debug } from "@/lib/utils/debug";
-import { readBinaryS3 } from "@/lib/s3/binary";
-import { listRepoStatsFiles, writeAggregatedWeeklyActivityToS3 } from "./github-storage";
 import {
-  AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
-  REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
-} from "@/lib/constants";
+  listRepoStatsFiles,
+  readRepoWeeklyStatsRecord,
+  writeAggregatedWeeklyActivityRecord,
+} from "./github-storage";
+import { AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE } from "@/lib/constants";
 
 /**
  * Creates an empty category stats object for LOC tracking
@@ -220,42 +220,43 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
   let overallDataComplete = true;
   const weeklyTotals: Record<string, { added: number; removed: number }> = {};
   const today = new Date();
-  let s3StatFileKeys: string[] = [];
+  let repoStatIdentifiers: string[] = [];
   try {
-    console.log(
-      `[DataAccess/GitHub-S3] Listing objects in S3 with prefix: ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`,
-    );
-    s3StatFileKeys = await listRepoStatsFiles();
-    debug(`[DataAccess/GitHub-S3] Found ${s3StatFileKeys.length} potential stat files in S3.`);
+    repoStatIdentifiers = await listRepoStatsFiles();
+    debug(`[DataAccess/GitHub-S3] Found ${repoStatIdentifiers.length} repo stat identifiers.`);
   } catch (listError: unknown) {
     const message = listError instanceof Error ? listError.message : String(listError);
-    console.error(
-      `[DataAccess/GitHub-S3] Aggregation: Error listing S3 objects in ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/:`,
-      message,
-    );
-    await writeAggregatedWeeklyActivityToS3([]); // Write empty if listing fails
+    console.error("[DataAccess/GitHub-S3] Aggregation: Error listing repo weekly stats:", message);
+    await writeAggregatedWeeklyActivityRecord([]); // Write empty if listing fails
     return { aggregatedActivity: [], overallDataComplete: false };
   }
-  s3StatFileKeys = s3StatFileKeys.filter((key) => key.endsWith(".csv"));
-  if (s3StatFileKeys.length === 0) {
-    debug(
-      `[DataAccess/GitHub-S3] Aggregation: No raw weekly stat files found in S3 path ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/. Nothing to aggregate.`,
-    );
-    await writeAggregatedWeeklyActivityToS3([]);
+  if (repoStatIdentifiers.length === 0) {
+    debug("[DataAccess/GitHub-S3] Aggregation: No repo weekly stats found. Nothing to aggregate.");
+    await writeAggregatedWeeklyActivityRecord([]);
     return { aggregatedActivity: [], overallDataComplete: true }; // No files means data is "complete" in terms of processing what's there
   }
-  for (const repoStatS3Key of s3StatFileKeys) {
+  for (const identifier of repoStatIdentifiers) {
     try {
-      const buf = await readBinaryS3(repoStatS3Key);
-      if (!buf) {
-        debug(`[DataAccess/GitHub-S3] Aggregation: No data in ${repoStatS3Key}, skipping.`);
-        overallDataComplete = false; // Missing data for a repo means overall is not complete
+      const [owner, ...repoParts] = identifier.split("/");
+      const repo = repoParts.join("/");
+      if (!owner || !repo) {
+        debug(`[DataAccess/GitHub-S3] Aggregation: Invalid qualifier "${identifier}", skipping.`);
+        overallDataComplete = false;
         continue;
       }
-      // Use the CSV parser utility
-      const csvString = buf.toString("utf-8");
-      const stats = parseGitHubStatsCSV(csvString);
-      for (const stat of stats) {
+      const cache = await readRepoWeeklyStatsRecord(owner, repo);
+      if (!cache) {
+        debug(`[DataAccess/GitHub-S3] Aggregation: Missing DB cache for ${identifier}, skipping.`);
+        overallDataComplete = false;
+        continue;
+      }
+      if (cache.status !== "complete" && cache.status !== "empty_no_user_contribs") {
+        overallDataComplete = false;
+      }
+      if (cache.stats.length === 0) {
+        continue;
+      }
+      for (const stat of cache.stats) {
         const weekDate = unixToDate(stat.w);
         if (weekDate > today) continue; // Ignore future weeks if any
         const weekKey = weekDate.toISOString().split("T")[0];
@@ -272,14 +273,14 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
       }
     } catch (err: unknown) {
       debug(
-        `[DataAccess/GitHub-S3] Aggregation: Error reading ${repoStatS3Key}, skipping.`,
+        `[DataAccess/GitHub-S3] Aggregation: Error reading ${identifier}, skipping.`,
         err instanceof Error ? err.message : String(err),
       );
       overallDataComplete = false; // Error reading a file means overall is not complete
     }
   }
   debug(
-    `[DataAccess/GitHub-S3] Aggregation: Processed ${s3StatFileKeys.length} S3 stat files from ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}.`,
+    `[DataAccess/GitHub-S3] Aggregation: Processed ${repoStatIdentifiers.length} repo stat identifiers.`,
   );
   const aggregatedActivity: AggregatedWeeklyActivity[] = Object.entries(weeklyTotals)
     .map(([weekStartDate, totals]) => ({
@@ -288,7 +289,7 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
       linesRemoved: totals.removed,
     }))
     .toSorted((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
-  await writeAggregatedWeeklyActivityToS3(aggregatedActivity);
+  await writeAggregatedWeeklyActivityRecord(aggregatedActivity);
   console.log(
     `[DataAccess/GitHub-S3] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`,
   );

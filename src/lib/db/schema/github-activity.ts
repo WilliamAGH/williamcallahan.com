@@ -5,13 +5,14 @@ export const GITHUB_ACTIVITY_DATA_TYPES = [
   "summary",
   "aggregated-weekly",
   "repo-weekly-stats",
+  "csv-checksum",
 ] as const;
 
 /**
  * Discriminated key-value store for all GitHub activity data types.
  *
  * Each document is uniquely identified by (dataType, qualifier):
- *   - dataType: "activity" | "summary" | "aggregated-weekly" | "repo-weekly-stats"
+ *   - dataType: "activity" | "summary" | "aggregated-weekly" | "repo-weekly-stats" | "csv-checksum"
  *   - qualifier: "global" for singletons, "owner/repo" for per-repo data
  *
  * The payload column holds the validated JSON data for each document type.

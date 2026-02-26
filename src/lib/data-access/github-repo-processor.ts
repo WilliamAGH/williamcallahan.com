@@ -4,8 +4,6 @@
  */
 
 import { debug } from "@/lib/utils/debug";
-import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
-import { parseGitHubStatsCSV, generateGitHubStatsCSV } from "@/lib/utils/csv";
 import { unixToDate } from "@/lib/utils/date-format";
 import { createCategorizedError } from "@/lib/utils/error-utils";
 import { filterContributorStats } from "./github-processing";
@@ -14,7 +12,7 @@ import {
   GitHubContributorStatsPendingError,
   GitHubContributorStatsRateLimitError,
 } from "./github-api";
-import { REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants";
+import { readRepoWeeklyStatsRecord, writeRepoWeeklyStatsRecord } from "./github-storage";
 import type { RepoRawWeeklyStat, RepoWeeklyStatCache } from "@/types/github";
 import {
   isErrorOrPendingStatus,
@@ -26,7 +24,6 @@ async function fetchOrLoadRepoStats(
   repoOwner: string,
   repoName: string,
   githubRepoOwner: string,
-  s3Key: string,
 ): Promise<{ stats: RepoRawWeeklyStat[]; status: RepoWeeklyStatCache["status"] }> {
   const contributors = await fetchContributorStats(repoOwner, repoName);
   const ownerStats = filterContributorStats(contributors, githubRepoOwner);
@@ -43,44 +40,24 @@ async function fetchOrLoadRepoStats(
     }
   }
 
-  // No API data - try S3 fallback
-  const existingBuffer = await readBinaryS3(s3Key);
-  if (existingBuffer && existingBuffer.length > 0) {
-    debug(`[GitHub-Repo] Using S3 fallback for ${repoOwner}/${repoName}`);
-    const csvString = existingBuffer.toString();
-    if (csvString.length > 10 * 1024 * 1024) {
-      console.warn(`[GitHub-Repo] CSV too large for ${repoOwner}/${repoName}, truncating`);
-      return { stats: [], status: "empty_no_user_contribs" };
-    }
-    return {
-      stats: parseGitHubStatsCSV(csvString).slice(0, 1000),
-      status: "empty_no_user_contribs",
-    };
+  // No API data - use PostgreSQL cache snapshot
+  const dbCache = await readRepoWeeklyStatsRecord(repoOwner, repoName);
+  if (dbCache && Array.isArray(dbCache.stats) && dbCache.stats.length > 0) {
+    debug(`[GitHub-Repo] Using DB cache for ${repoOwner}/${repoName}`);
+    return { stats: dbCache.stats.toSorted((a, b) => a.w - b.w), status: dbCache.status };
   }
 
   return { stats: [], status: "empty_no_user_contribs" };
 }
 
-async function persistStatsToS3(
-  s3Key: string,
-  stats: RepoRawWeeklyStat[],
-  repoOwner: string,
-  repoName: string,
-): Promise<void> {
-  const validStats = stats.filter(
+function filterValidStats(stats: RepoRawWeeklyStat[]): Required<RepoRawWeeklyStat>[] {
+  return stats.filter(
     (stat): stat is Required<RepoRawWeeklyStat> =>
       typeof stat.w === "number" &&
       typeof stat.a === "number" &&
       typeof stat.d === "number" &&
       typeof stat.c === "number",
   );
-
-  if (validStats.length > 0) {
-    await writeBinaryS3(s3Key, Buffer.from(generateGitHubStatsCSV(validStats)), "text/csv");
-    debug(`[GitHub-Repo] CSV updated for ${repoOwner}/${repoName}: ${validStats.length} weeks`);
-  } else {
-    console.warn(`[GitHub-Repo] No valid stats for ${repoOwner}/${repoName}`);
-  }
 }
 
 function accumulateWeeklyStats(
@@ -123,19 +100,25 @@ export async function processSingleRepository({
 }: SingleRepoProcessingInput): Promise<SingleRepoProcessingResult> {
   const repoOwner = repo.owner.login;
   const repoName = repo.name;
-  const s3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}.csv`;
 
   let stats: RepoRawWeeklyStat[] = [];
   let status: RepoWeeklyStatCache["status"] = "fetch_error";
   let dataComplete = true;
 
   try {
-    const result = await fetchOrLoadRepoStats(repoOwner, repoName, githubRepoOwner, s3Key);
+    const result = await fetchOrLoadRepoStats(repoOwner, repoName, githubRepoOwner);
     stats = result.stats;
     status = result.status;
 
     if (stats.length > 0) {
-      await persistStatsToS3(s3Key, stats, repoOwner, repoName);
+      const validStats = filterValidStats(stats);
+      await writeRepoWeeklyStatsRecord(repoOwner, repoName, {
+        repoOwnerLogin: repoOwner,
+        repoName,
+        lastFetched: now.toISOString(),
+        status,
+        stats: validStats,
+      });
     } else if (isErrorOrPendingStatus(status)) {
       console.warn(`[GitHub-Repo] No data for ${repoOwner}/${repoName} (status: ${status})`);
       dataComplete = false;

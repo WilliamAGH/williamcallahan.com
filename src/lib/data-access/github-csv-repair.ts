@@ -4,14 +4,14 @@
  */
 
 import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
-import { readJsonS3, writeJsonS3 } from "@/lib/s3/json";
 import { waitForPermit } from "@/lib/rate-limiter";
 import { createHash } from "node:crypto";
 import { createCategorizedError } from "@/lib/utils/error-utils";
 import { retryWithDomainConfig } from "@/lib/utils/retry";
 import { generateGitHubStatsCSV } from "@/lib/utils/csv";
 import { repairCsvData, filterContributorStats } from "@/lib/data-access/github-processing";
-import { checksumRecordSchema } from "@/types/schemas/checksum";
+import { readRepoCsvChecksum } from "@/lib/db/queries/github-activity";
+import { writeRepoCsvChecksumToDb } from "@/lib/db/mutations/github-activity";
 import { ContributorStatsResponseSchema, type GithubRepoNode } from "@/types/github";
 import { GITHUB_API_RATE_LIMIT_CONFIG, REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants";
 import type { ChecksumCircuitState, CsvRepairResult } from "@/types/features/github-processing";
@@ -47,38 +47,40 @@ function recordChecksumSuccess(circuit: ChecksumCircuitState): void {
 }
 
 async function tryReadChecksum(
-  checksumKey: string,
+  repoOwner: string,
+  repoName: string,
   circuit: ChecksumCircuitState,
 ): Promise<string | null> {
   if (circuit.isOpen) {
-    return null; // Circuit is open, skip checksum operations
+    return null;
   }
 
   try {
-    const result = await readJsonS3(checksumKey, checksumRecordSchema);
+    const checksum = await readRepoCsvChecksum(repoOwner, repoName);
     recordChecksumSuccess(circuit);
-    return result?.checksum ?? null;
+    return checksum;
   } catch (error: unknown) {
     recordChecksumFailure(circuit, error);
-    throw error; // Propagate to caller
+    throw error;
   }
 }
 
 async function tryWriteChecksum(
-  checksumKey: string,
+  repoOwner: string,
+  repoName: string,
   checksum: string,
   circuit: ChecksumCircuitState,
 ): Promise<void> {
   if (circuit.isOpen) {
-    return; // Circuit is open, skip checksum operations
+    return;
   }
 
   try {
-    await writeJsonS3(checksumKey, { checksum });
+    await writeRepoCsvChecksumToDb(repoOwner, repoName, checksum);
     recordChecksumSuccess(circuit);
   } catch (error: unknown) {
     recordChecksumFailure(circuit, error);
-    throw error; // Propagate to caller
+    throw error;
   }
 }
 
@@ -86,7 +88,6 @@ async function processRepoChecksum(
   repoOwner: string,
   repoName: string,
   csvString: string,
-  checksumKey: string,
   circuit: ChecksumCircuitState,
 ): Promise<{ skipRepair: boolean; checksumError: boolean }> {
   if (circuit.isOpen) {
@@ -94,7 +95,7 @@ async function processRepoChecksum(
   }
 
   try {
-    const existingChecksum = await tryReadChecksum(checksumKey, circuit);
+    const existingChecksum = await tryReadChecksum(repoOwner, repoName, circuit);
     if (existingChecksum) {
       const currentChecksum = createHash("sha256").update(csvString).digest("hex");
       if (currentChecksum === existingChecksum) {
@@ -106,7 +107,6 @@ async function processRepoChecksum(
     }
     return { skipRepair: false, checksumError: false };
   } catch {
-    // Error already recorded in circuit
     return { skipRepair: false, checksumError: true };
   }
 }
@@ -115,7 +115,6 @@ async function updateRepoChecksum(
   repoOwner: string,
   repoName: string,
   csvContent: string,
-  checksumKey: string,
   circuit: ChecksumCircuitState,
 ): Promise<boolean> {
   if (circuit.isOpen) {
@@ -124,7 +123,7 @@ async function updateRepoChecksum(
 
   try {
     const newChecksum = createHash("sha256").update(csvContent).digest("hex");
-    await tryWriteChecksum(checksumKey, newChecksum, circuit);
+    await tryWriteChecksum(repoOwner, repoName, newChecksum, circuit);
     return true;
   } catch {
     console.warn(`[GitHub-CSV] Checksum write failed for ${repoOwner}/${repoName}`);
@@ -231,7 +230,6 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
     const repoOwner = repo.owner.login;
     const repoName = repo.name;
     const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}.csv`;
-    const checksumKey = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}_raw_checksum.json`;
 
     try {
       const csvContent = await readBinaryS3(repoStatS3Key);
@@ -243,7 +241,6 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
           repoOwner,
           repoName,
           csvString,
-          checksumKey,
           checksumCircuit,
         );
 
@@ -267,7 +264,6 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
           repoOwner,
           repoName,
           wasModified ? repairedCsv : csvString,
-          checksumKey,
           checksumCircuit,
         );
 

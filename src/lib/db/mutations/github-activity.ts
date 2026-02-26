@@ -145,6 +145,35 @@ export async function writeAggregatedWeeklyActivityToDb(
 }
 
 /**
+ * Write the CSV checksum for a repo to the csv-checksum row.
+ * Uses upsert so the row is created on first write.
+ */
+export async function writeRepoCsvChecksumToDb(
+  owner: string,
+  repo: string,
+  checksum: string,
+): Promise<void> {
+  assertDatabaseWriteAllowed("writeRepoCsvChecksumToDb");
+
+  const qualifier = `${owner}/${repo}`;
+  const updatedAt = Date.now();
+
+  await db
+    .insert(githubActivityStore)
+    .values({
+      dataType: "csv-checksum",
+      qualifier,
+      payload: { checksum },
+      checksum,
+      updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: [githubActivityStore.dataType, githubActivityStore.qualifier],
+      set: { payload: { checksum }, checksum, updatedAt },
+    });
+}
+
+/**
  * Delete a per-repo weekly stats entry.
  */
 export async function deleteRepoWeeklyStatsFromDb(owner: string, repo: string): Promise<void> {
