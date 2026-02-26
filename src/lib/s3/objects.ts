@@ -20,7 +20,7 @@ import { safeStringifyValue } from "@/lib/utils/error-utils";
 import { isS3Error, isS3NotFound } from "@/lib/utils/s3-error-guards";
 import { getS3Client } from "./client";
 import { assertNotDryRun, getS3Config } from "./config";
-import { S3InvalidContentTypeError, S3NotFoundError, S3OperationError } from "./errors";
+import { S3NotFoundError, S3OperationError } from "./errors";
 import { streamToBuffer } from "./stream";
 
 const toErrorContext = (
@@ -210,14 +210,4 @@ export async function deleteFromS3(key: string): Promise<void> {
     const message = safeStringifyValue(error);
     throw new S3OperationError(`S3 delete failed for ${key}: ${message}`, context, error);
   }
-}
-
-export function assertJsonContentType(key: string, contentType?: string): void {
-  if (!contentType) return;
-  if (contentType.includes("application/json") || contentType.startsWith("text/")) return;
-  throw new S3InvalidContentTypeError(
-    { operation: "getObject", key },
-    "application/json or text/*",
-    contentType,
-  );
 }

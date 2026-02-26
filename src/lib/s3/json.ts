@@ -43,14 +43,6 @@ export async function readJsonS3Optional<T>(
   }
 }
 
-export async function readJsonS3Unchecked(s3Key: string): Promise<unknown> {
-  const payload = await getJsonDocumentPayloadByKey(s3Key);
-  if (payload === null) {
-    throw new S3NotFoundError({ operation: "readJsonS3Unchecked", key: s3Key });
-  }
-  return payload;
-}
-
 export async function writeJsonS3<T>(
   s3Key: string,
   data: T,
