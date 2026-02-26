@@ -9,7 +9,6 @@
 
 /**
  * Cache keys for MiniSearch indexes.
- * Used by ServerCacheInstance to store/retrieve indexes.
  */
 export const SEARCH_INDEX_KEYS = {
   INVESTMENTS: "search:index:investments",

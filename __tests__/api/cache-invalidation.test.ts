@@ -21,23 +21,6 @@ vi.mock("@/lib/cache", async (importOriginal) => {
   };
 });
 
-// Mock server-cache
-vi.mock("@/lib/server-cache", () => ({
-  ServerCacheInstance: {
-    shouldRefreshBookmarks: vi.fn().mockReturnValue(true),
-    clearBookmarks: vi.fn(),
-    getStats: vi.fn().mockReturnValue({
-      keys: 0,
-      hits: 0,
-      misses: 0,
-      sizeBytes: 0,
-      maxSizeBytes: 0,
-      utilizationPercent: 0,
-    }),
-  },
-  getDeterministicTimestamp: vi.fn(() => Date.now()),
-}));
-
 // Mock S3 utilities
 vi.mock("@/lib/s3/json", () => {
   return {
