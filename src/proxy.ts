@@ -131,11 +131,11 @@ async function buildCspHeader(): Promise<string> {
     .join("; ");
 }
 
-function setCacheHeaders(response: NextResponse, url: string, host: string, isDev: boolean): void {
-  // Check if the request is for an analytics script
+function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): void {
+  // Analytics is proxied through same-origin rewrites (/stats/*, /api/send),
+  // so host-based checks miss these requests.
   const isAnalyticsScript =
-    url.includes("/script.js") &&
-    (host.includes("umami.iocloudhost.net") || host.includes("plausible.iocloudhost.net"));
+    (url.startsWith("/stats/") && url.endsWith("/script.js")) || url === "/api/send";
 
   if (isAnalyticsScript) {
     // Prevent caching for analytics scripts
@@ -232,10 +232,9 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
 
   // Add caching headers for static assets and analytics scripts
   const url = request.nextUrl.pathname;
-  const host = request.headers.get("host") || "";
   const isDev = process.env.NODE_ENV === "development";
 
-  setCacheHeaders(response, url, host, isDev);
+  setCacheHeaders(response, url, isDev);
 
   if (shouldLogRequest(pathname, request.method)) {
     // Log the request with the real IP
@@ -271,11 +270,8 @@ async function createProxy(): Promise<ProxyFunction> {
   const isProtectedRoute = createRouteMatcher([
     "/admin(.*)",
     "/api/admin(.*)",
-    // TODO: Re-enable after local testing concludes
-    // "/api/books/upload",
-    // "/api/books/ingest",
-    // "/upload-file(.*)",
-    // "/api/upload(.*)",
+    "/upload-file(.*)",
+    "/api/upload(.*)",
   ]);
 
   const clerkHandler = clerkMiddleware(
@@ -327,15 +323,14 @@ export const config = {
      * - favicon.ico (favicon file)
      * - robots.txt
      * - sitemap.xml
-     * - api/upload (file uploads - must bypass proxy to preserve request body)
      * But include:
      * - api routes (for Clerk auth and other APIs)
      * - api/debug (for security checks)
      * - _next/image (image optimization files)
      * - all other paths
      */
-    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/upload|api/ai/chat|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    "/(api(?!/upload|/ai/chat)|trpc)(.*)",
+    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/ai/chat|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api(?!/ai/chat)|trpc)(.*)",
     "/_next/image(.*)",
   ],
 };
