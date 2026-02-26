@@ -100,7 +100,7 @@ describe("Environment Variable Configuration", () => {
    * Data updater script configuration validation - tests environment variables used by data-updater script
    * Validates test limits, force refresh flags, and S3 bucket configuration handling
    */
-  describe("S3 Update Script Configuration", () => {
+  describe("Data Updater Script Configuration", () => {
     /**
      * Validates S3_TEST_LIMIT environment variable parsing for controlled test runs
      * Ensures numeric conversion works correctly for limiting operation scope during testing
