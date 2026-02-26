@@ -32,6 +32,13 @@ if git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|jsx|ts|tsx)
     echo "❌ Oxlint found issues!"
     exit 1
   }
+
+  # Re-add files that were modified by oxlint --fix
+  git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
+    case "$file" in
+      *.js|*.jsx|*.ts|*.tsx) printf '%s\0' "$file" ;;
+    esac
+  done | xargs -0 git add --
 fi
 
 # Run oxfmt on JS/TS files only (oxfmt is alpha and only supports JavaScript/TypeScript)
