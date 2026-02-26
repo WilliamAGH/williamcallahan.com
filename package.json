@@ -83,6 +83,7 @@
     "books:refresh:prod": "DEPLOYMENT_ENV=production bun scripts/data-updater.ts --books --force",
     "bookmarks:refresh:dev": "DEPLOYMENT_ENV=development bun scripts/data-updater.ts --bookmarks --force",
     "bookmarks:refresh:prod": "DEPLOYMENT_ENV=production bun scripts/data-updater.ts --bookmarks --force",
+    "bookmarks:embeddings:backfill": "bun scripts/backfill-bookmark-embeddings.ts",
     "bookmarks:metadata:dev": "DEPLOYMENT_ENV=development bun scripts/data-updater.ts --bookmarks --metadata-only",
     "bookmarks:metadata:prod": "DEPLOYMENT_ENV=production bun scripts/data-updater.ts --bookmarks --metadata-only",
     "reset-s3-json": "bun scripts/reset-and-regenerate-s3-json.ts",

@@ -19,4 +19,20 @@ export async function writeBookmarkMasterFiles(
   invalidateBookmarkByIdCaches();
   const { upsertUnifiedBookmarks } = await import("@/lib/db/mutations/bookmarks");
   await upsertUnifiedBookmarks(bookmarksWithSlugs);
+
+  const embeddingModel = process.env.AI_DEFAULT_EMBEDDING_MODEL?.trim();
+  if (!embeddingModel) {
+    return;
+  }
+
+  const { backfillBookmarkEmbeddings } = await import("@/lib/db/mutations/bookmark-embeddings");
+  const result = await backfillBookmarkEmbeddings({
+    bookmarkIds: bookmarksWithSlugs.map((bookmark) => bookmark.id),
+    maxRows: bookmarksWithSlugs.length,
+  });
+  if (result.updatedRows > 0) {
+    console.log(
+      `[bookmarks/persistence] Updated ${result.updatedRows} bookmark embeddings using ${result.usedModel}.`,
+    );
+  }
 }
