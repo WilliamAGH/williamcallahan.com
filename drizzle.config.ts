@@ -25,7 +25,6 @@ export default defineConfig({
     "ai_analysis_versions",
     "opengraph_metadata",
     "opengraph_overrides",
-    "json_documents",
   ],
   schemaFilter: "public",
   dbCredentials: {
