@@ -119,7 +119,6 @@ export async function processOpenGraphBatch(
     {
       batchSize: options.batchSize || 5, // Lower concurrency for external sites
       batchDelay: 100, // Small delay between batches
-      memoryThreshold: 0.85,
       timeout: 30000,
       onProgress: (current, total, failed) => {
         if (options.onProgress) {
@@ -151,22 +150,11 @@ export async function processOpenGraphBatch(
     );
   }
 
-  // Add skipped results (due to memory pressure)
-  for (const item of result.skipped) {
-    ogResults.set(
-      item.url,
-      createFallbackResult(item.url, "Skipped due to memory pressure", item.fallback),
-    );
-  }
-
   // Log summary
   console.log(`[OpenGraph Batch] Completed in ${result.totalTime}ms`);
   console.log(
     `[OpenGraph Batch] Success: ${result.successful.size}, Failed: ${result.failed.size}, Skipped: ${result.skipped.length}`,
   );
-  if (result.memoryPressureEvents > 0) {
-    console.log(`[OpenGraph Batch] Memory pressure events: ${result.memoryPressureEvents}`);
-  }
 
   return ogResults;
 }

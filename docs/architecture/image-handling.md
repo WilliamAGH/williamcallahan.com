@@ -131,7 +131,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 ## Integration with Adjacent Domains
 
-- **S3 object storage**: Understand bucket layout, ACLs, and distributed lock behavior in [`s3-object-storage.md`](./s3-object-storage.md).
+- **S3 object storage**: Understand bucket layout, ACLs, and shared lock utility behavior in [`s3-object-storage.md`](./s3-object-storage.md).
 - **Unified stack map**: The holistic flow (client -> Next -> API -> service -> S3/CDN) lives in [`image-stack.md`](./image-stack.md).
 - **Next.js 16 policies**: See `docs/standards/nextjs-framework.md` for caching, cache components, and outlawed patterns before changing API routes or components.
 

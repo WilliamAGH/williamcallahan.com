@@ -684,8 +684,6 @@ export interface BookmarksS3Paths {
   FILE: string;
   /** Directory containing per-bookmark JSON files */
   BY_ID_DIR: string;
-  /** Full S3 path to refresh lock file */
-  LOCK: string;
   /** S3 path to lightweight bookmark index */
   INDEX: string;
   /** S3 path prefix for paginated bookmark files */

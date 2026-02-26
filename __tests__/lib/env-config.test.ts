@@ -1,7 +1,7 @@
 /**
  * Environment variable configuration testing - validates dynamic config loading and fallback behavior
  *
- * Tests environment variable handling across OpenGraph fetch, bookmarks lock TTL, S3 script configuration,
+ * Tests environment variable handling across OpenGraph fetch, S3 script configuration,
  * and critical application variables with proper module isolation and state restoration
  *
  * Covers: default value fallbacks, environment override behavior, invalid value handling,
@@ -93,38 +93,6 @@ describe("Environment Variable Configuration", () => {
       expect(OPENGRAPH_FETCH_CONFIG.TIMEOUT).toBe(15000); // NaN || 7000
       expect(OPENGRAPH_FETCH_CONFIG.MAX_RETRIES).toBe(2); // NaN || 2
       expect(OPENGRAPH_FETCH_CONFIG.BACKOFF_BASE).toBe(1000); // '0' parses to 0, but NaN defaults to 1000
-    });
-  });
-
-  /**
-   * Bookmarks lock TTL configuration validation - tests distributed locking timeout behavior
-   * Validates proper fallback and override behavior for bookmark operation locking
-   */
-  describe("Bookmarks Lock TTL Configuration", () => {
-    /**
-     * Validates default lock TTL when environment variable is not configured
-     * Ensures bookmark operations use reasonable default locking timeout values
-     */
-    it("should use default TTL when env var not set", async () => {
-      Reflect.deleteProperty(process.env, "BOOKMARKS_LOCK_TTL_MS");
-
-      /** Import fresh module */
-      const bookmarksModule = await import("@/lib/bookmarks");
-      /** The module exports or internal constants would need to be checked */
-      /** This is a placeholder for the actual test */
-      expect(bookmarksModule).toBeDefined();
-    });
-
-    /**
-     * Validates environment variable override for lock TTL configuration
-     * Tests custom timeout value (30 minutes) for bookmark operation locking
-     */
-    it("should use environment variable for TTL when set", async () => {
-      process.env.BOOKMARKS_LOCK_TTL_MS = "1800000"; // 30 minutes
-
-      const bookmarksModule = await import("@/lib/bookmarks");
-      /** The module exports or internal constants would need to be checked */
-      expect(bookmarksModule).toBeDefined();
     });
   });
 

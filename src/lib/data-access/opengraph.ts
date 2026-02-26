@@ -12,7 +12,6 @@ import { getMonotonicTime } from "@/lib/utils";
 
 import { USE_NEXTJS_CACHE } from "@/lib/cache";
 import { readJsonS3 } from "@/lib/s3/json";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
 import { getS3Override } from "@/lib/persistence/s3-persistence";
 import { serveImageFromS3 } from "@/lib/image-handling/image-s3-utils";
@@ -27,7 +26,7 @@ import {
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { S3NotFoundError } from "@/lib/s3/errors";
 import type { OgResult } from "@/types";
-import { isOgResult, OgError } from "@/types/opengraph";
+import { isOgResult } from "@/types/opengraph";
 import { karakeepImageFallbackSchema, ogResultSchema } from "@/types/seo/opengraph";
 import { getCachedOpenGraphDataInternal } from "./opengraph-next-cache";
 import { isCliLikeContext, safeRevalidateTag } from "./opengraph-cache-context";
@@ -80,7 +79,7 @@ export async function getOpenGraphData(
     });
   }
 
-  // Legacy path - still using ServerCacheInstance
+  // Legacy path
   const urlHash = hashUrl(normalizedUrl);
 
   debug(`[DataAccess/OpenGraph] 🔍 Getting OpenGraph data for: ${normalizedUrl}`);
@@ -100,35 +99,6 @@ export async function getOpenGraphData(
     return createFallbackResult(normalizedUrl, "Invalid or unsafe URL", validatedFallback);
   }
 
-  // PRIORITY LEVEL 2: Check metadata cache first
-  debug(`[OG-Priority-2] 🔍 Checking metadata cache for: ${normalizedUrl}`);
-  const cached = ServerCacheInstance.getOpenGraphData(normalizedUrl);
-  if (
-    cached &&
-    getOgTimestamp() - (cached.data.timestamp ?? 0) < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000
-  ) {
-    debug(`[OG-Priority-2] ✅ Found valid metadata cache for: ${normalizedUrl}`);
-
-    // Validate cached data integrity
-    if (
-      !cached.data.url ||
-      !cached.data.title ||
-      (cached.data.error && typeof cached.data.error !== "string")
-    ) {
-      envLogger.log(
-        "Cached data appears corrupted, invalidating cache",
-        { url: normalizedUrl },
-        { category: "OpenGraph" },
-      );
-      ServerCacheInstance.deleteOpenGraphData(normalizedUrl);
-      // Continue to S3/external fetch
-    } else {
-      // Return cached data directly - S3 images don't need processing
-      return cached.data;
-    }
-  }
-  debug(`[OG-Priority-2] ❌ No valid metadata cache found for: ${normalizedUrl}`);
-
   // Check circuit breaker using unified image service session management
   const domain = getDomainType(normalizedUrl);
   const imageService = getUnifiedImageService();
@@ -137,35 +107,7 @@ export async function getOpenGraphData(
     return createFallbackResult(normalizedUrl, "Domain temporarily unavailable", validatedFallback);
   }
 
-  // If we have stale in-memory cache and should refresh, start background refresh
-  if (cached && !skipExternalFetch) {
-    debug(
-      `[DataAccess/OpenGraph] Using stale metadata cache while refreshing in background: ${normalizedUrl}`,
-    );
-
-    refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback).catch((error) => {
-      const ogError = new OgError(`Background refresh failed for ${normalizedUrl}`, "refresh", {
-        originalError: error,
-      });
-      envLogger.log(
-        `Background refresh failed`,
-        {
-          url: normalizedUrl,
-          errorName: ogError.name,
-          errorMessage: ogError.message,
-          originalErrorMessage: error instanceof Error ? error.message : String(error),
-        },
-        { category: "OpenGraph" },
-      );
-    });
-
-    return {
-      ...cached.data,
-      source: "cache",
-    };
-  }
-
-  // PRIORITY LEVEL 3: Try to read from S3 persistent storage if not in memory cache
+  // PRIORITY LEVEL 3: Try to read from S3 persistent storage
   debug(`[OG-Priority-3] 🔍 Checking S3 persistent storage for: ${normalizedUrl}`);
   try {
     const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`, ogResultSchema);
@@ -185,8 +127,6 @@ export async function getOpenGraphData(
           `[OG-Priority-3] ✅ Found FRESH S3 storage: ${normalizedUrl} (age: ${Math.round((getOgTimestamp() - (stored.timestamp || 0)) / 1000)}s)`,
         );
 
-        // Store in memory cache and return - S3 images are served directly
-        ServerCacheInstance.setOpenGraphData(normalizedUrl, stored, false);
         return stored;
       }
     }
@@ -250,9 +190,7 @@ export function invalidateOpenGraphCache(): void {
     safeRevalidateTag("OpenGraph", "opengraph");
     envLogger.log("Cache invalidated for all OpenGraph data", undefined, { category: "OpenGraph" });
   } else {
-    // Legacy: clear memory cache
-    ServerCacheInstance.deleteOpenGraphData("*");
-    envLogger.log("Legacy cache cleared for all OpenGraph data", undefined, {
+    envLogger.log("OpenGraph cache invalidation skipped (no memory cache)", undefined, {
       category: "OpenGraph",
     });
   }
@@ -269,10 +207,8 @@ export function invalidateOpenGraphCacheForUrl(url: string): void {
     safeRevalidateTag("OpenGraph", `opengraph-${urlHash}`);
     envLogger.log("Cache invalidated for URL", { url: normalizedUrl }, { category: "OpenGraph" });
   } else {
-    // Legacy: clear specific entry from memory cache
-    ServerCacheInstance.deleteOpenGraphData(normalizedUrl);
     envLogger.log(
-      "Legacy cache cleared for URL",
+      "OpenGraph URL cache invalidation skipped (no memory cache)",
       { url: normalizedUrl },
       { category: "OpenGraph" },
     );

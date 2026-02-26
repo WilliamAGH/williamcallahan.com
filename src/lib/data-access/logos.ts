@@ -12,7 +12,6 @@
 
 import { revalidateTag } from "next/cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import type { LogoResult, LogoInversion, LogoData } from "@/types/logo";
 import type { LogoValidationResult } from "@/types/cache";
@@ -24,12 +23,11 @@ import { DEFAULT_IMAGE_CONTENT_TYPE } from "@/lib/utils/content-type";
 const safeRevalidateTag = revalidateTag as (tag: string) => void;
 
 /**
- * Resets logo session tracking by clearing the server cache.
- * This forces fresh fetches on next request.
+ * Resets logo session tracking.
+ * Previously cleared the server cache; now a no-op as memory cache is removed.
  */
 export function resetLogoSessionTracking(): void {
-  ServerCacheInstance.clearAllLogoFetches();
-  console.debug("[Logos] Logo cache cleared, forcing fresh fetches");
+  console.debug("[Logos] Logo session tracking reset (no-op: memory cache removed)");
 }
 
 /**
@@ -134,10 +132,8 @@ export function invalidateLogoCache(): void {
       console.info("[Logos] Cache invalidated for all logos");
     }
   } else {
-    // Legacy: clear memory cache
-    ServerCacheInstance.clearAllLogoFetches();
     if (!isTestEnvironment) {
-      console.info("[Logos] Legacy cache cleared for all logos");
+      console.info("[Logos] Logo cache invalidation skipped (no memory cache)");
     }
   }
 }
@@ -172,53 +168,37 @@ export function getRuntimeLogoUrl(
 }
 
 /**
- * Get logo validation - delegates to ServerCache for backward compatibility
+ * Get logo validation - memory cache removed; always returns null.
  */
-export function getLogoValidation(imageHash: string): LogoValidationResult | null {
-  // Direct delegation to ServerCache - UnifiedImageService handles validation internally
-  return ServerCacheInstance.getLogoValidation(imageHash) || null;
+export function getLogoValidation(_imageHash: string): LogoValidationResult | null {
+  return null;
 }
 
 /**
- * Set logo validation with Next.js cache invalidation when enabled
+ * Set logo validation with Next.js cache invalidation when enabled.
+ * Memory cache storage removed; only Next.js cache tag invalidation remains.
  */
-export function setLogoValidation(imageHash: string, isGlobeIcon: boolean): void {
-  // Set validation in cache
-
+export function setLogoValidation(imageHash: string, _isGlobeIcon: boolean): void {
   if (USE_NEXTJS_CACHE) {
-    // Store in ServerCache for immediate access
-    ServerCacheInstance.setLogoValidation(imageHash, isGlobeIcon);
-
-    // Invalidate Next.js cache to trigger re-fetch on next access
     safeRevalidateTag(`logo-validation-${imageHash}`);
     safeRevalidateTag("logo-validations");
-  } else {
-    // Legacy: only use ServerCache
-    ServerCacheInstance.setLogoValidation(imageHash, isGlobeIcon);
   }
 }
 
 /**
- * Get logo analysis - delegates to ServerCache for backward compatibility
+ * Get logo analysis - memory cache removed; always returns null.
  */
-export function getLogoAnalysis(cacheKey: string): LogoInversion | null {
-  // Direct delegation to ServerCache - UnifiedImageService handles analysis internally
-  return ServerCacheInstance.getLogoAnalysis(cacheKey) || null;
+export function getLogoAnalysis(_cacheKey: string): LogoInversion | null {
+  return null;
 }
 
 /**
- * Set logo analysis with Next.js cache invalidation when enabled
+ * Set logo analysis with Next.js cache invalidation when enabled.
+ * Memory cache storage removed; only Next.js cache tag invalidation remains.
  */
-export function setLogoAnalysis(cacheKey: string, analysis: LogoInversion): void {
+export function setLogoAnalysis(cacheKey: string, _analysis: LogoInversion): void {
   if (USE_NEXTJS_CACHE) {
-    // Store in ServerCache for immediate access
-    ServerCacheInstance.setLogoAnalysis(cacheKey, analysis);
-
-    // Invalidate Next.js cache to trigger re-fetch on next access
     safeRevalidateTag(`logo-analysis-${cacheKey}`);
     safeRevalidateTag("logo-analyzes");
-  } else {
-    // Legacy: only use ServerCache
-    ServerCacheInstance.setLogoAnalysis(cacheKey, analysis);
   }
 }

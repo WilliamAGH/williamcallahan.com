@@ -1,4 +1,4 @@
-/** Bookmarks data access: In-memory → S3 → External API */
+/** Bookmarks data access: In-memory → PostgreSQL → External API */
 
 import { BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -8,7 +8,6 @@ import {
   type BookmarkLoadOptions,
   type LightweightBookmark,
 } from "@/types/bookmark";
-import { tagToSlug } from "@/lib/utils/tag-utils";
 import {
   normalizeBookmarkTags,
   stripImageData,
@@ -19,17 +18,7 @@ import {
   LOG_PREFIX,
   BOOKMARK_SERVICE_LOG_CATEGORY,
 } from "@/lib/bookmarks/config";
-import { getEnvironment } from "@/lib/config/environment";
-import { USE_NEXTJS_CACHE, isCliLikeCacheContext, withCacheFallback } from "@/lib/cache";
-import {
-  listTagSlugsFromS3,
-  readBookmarkByIdFromS3,
-  readBookmarksDatasetFromS3,
-  readBookmarksIndexFromS3,
-  readBookmarksPageFromS3,
-  readTagBookmarksIndexFromS3,
-  readTagBookmarksPageFromS3,
-} from "@/lib/bookmarks/bookmarks-s3-store";
+import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 
 // Runtime-safe cache wrappers imported from cache-management
 import {
@@ -37,8 +26,6 @@ import {
   safeCacheTag,
   getCachedBookmarkById,
   setCachedBookmarkById,
-  getFullDatasetCache,
-  setFullDatasetCache,
   clearFullDatasetCache,
   invalidateBookmarkByIdCaches,
   invalidateNextJsBookmarksCache,
@@ -47,7 +34,6 @@ import {
   invalidateBookmarkMemoryCache as invalidateBookmarkCacheInternal,
 } from "@/lib/bookmarks/cache-management.server";
 
-const isCliLikeContext = isCliLikeCacheContext;
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
@@ -66,6 +52,13 @@ import {
   releaseRefreshLock,
 } from "@/lib/bookmarks/refresh-logic.server";
 
+let bookmarkQueryModulePromise: Promise<typeof import("@/lib/db/queries/bookmarks")> | null = null;
+
+const loadBookmarkQueryModule = async (): Promise<typeof import("@/lib/db/queries/bookmarks")> => {
+  bookmarkQueryModulePromise ??= import("@/lib/db/queries/bookmarks");
+  return bookmarkQueryModulePromise;
+};
+
 /**
  * Fetches bookmarks with Next.js caching layer.
  * Cache duration: 1 hour (coordinated with 2-hour scheduler to minimize staleness).
@@ -80,7 +73,7 @@ async function fetchAndCacheBookmarks(
   // Cache for 1 hour to coordinate with 2-hour scheduler runs.
   // This ensures data refreshes between scheduler cycles.
   safeCacheLife({ revalidate: 3600 }); // 1 hour
-  safeCacheTag("bookmarks-s3-full");
+  safeCacheTag("bookmarks-db-full");
   const { skipExternalFetch = false, includeImageData = true, force = false } = options;
   logBookmarkDataAccessEvent("fetchAndCacheBookmarks", {
     skipExternalFetch,
@@ -88,33 +81,7 @@ async function fetchAndCacheBookmarks(
     force,
   });
 
-  // --- 1. Prefer S3 in production runtime; avoid local fallbacks ---
-  const isProductionRuntime =
-    getEnvironment() === "production" &&
-    !isCliLikeContext() &&
-    process.env[PHASE_ENV_KEY] !== BUILD_PHASE_VALUE;
-  const isTestEnvironment =
-    process.env.NODE_ENV === "test" || process.env.VITEST === "true" || process.env.TEST === "true";
-  if (isProductionRuntime) {
-    // Explicitly log that we are skipping local fallback in production runtime.
-    envLogger.log(
-      "Skipping local bookmarks fallback in production runtime; using S3-only strategy",
-      undefined,
-      {
-        category: LOG_PREFIX,
-      },
-    );
-  } else if (isTestEnvironment) {
-    envLogger.debug(
-      "Test environment detected; skipping local fallbacks for bookmarks",
-      undefined,
-      {
-        category: LOG_PREFIX,
-      },
-    );
-  }
-
-  // --- 2. Read from S3 ---
+  // --- 1. Read from PostgreSQL ---
   const formatBookmarks = (dataset: UnifiedBookmark[], source: string) => {
     if (!includeImageData) {
       logBookmarkDataAccessEvent(`Stripping image data from ${source} bookmarks`, {
@@ -125,17 +92,17 @@ async function fetchAndCacheBookmarks(
     return dataset.map(normalizeBookmarkTags);
   };
 
-  // readBookmarksDatasetFromS3 returns null for S3NotFoundError (expected),
-  // and re-throws service errors. Let service errors propagate to callers.
-  const s3Data = await readBookmarksDatasetFromS3();
-  const bookmarksFromS3 = s3Data && Array.isArray(s3Data) && s3Data.length > 0 ? s3Data : null;
+  const { getAllBookmarks } = await loadBookmarkQueryModule();
+  const bookmarksFromDatabase = await getAllBookmarks();
 
-  if (bookmarksFromS3) {
-    logBookmarkDataAccessEvent("Loaded bookmarks from S3", {
-      bookmarkCount: bookmarksFromS3.length,
+  if (bookmarksFromDatabase.length > 0) {
+    logBookmarkDataAccessEvent("Loaded bookmarks from PostgreSQL", {
+      bookmarkCount: bookmarksFromDatabase.length,
     });
     if (process.env.DEBUG_BOOKMARKS === "true") {
-      const cliBookmark = bookmarksFromS3.find((b) => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
+      const cliBookmark = bookmarksFromDatabase.find(
+        (bookmark) => bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y",
+      );
       if (cliBookmark) {
         logBookmarkDataAccessEvent("CLI bookmark content exists", {
           hasContent: !!cliBookmark.content,
@@ -145,10 +112,10 @@ async function fetchAndCacheBookmarks(
         });
       }
     }
-    return formatBookmarks(bookmarksFromS3, "S3");
+    return formatBookmarks(bookmarksFromDatabase, "PostgreSQL");
   }
 
-  logBookmarkDataAccessEvent("No bookmarks in S3; attempting refresh");
+  logBookmarkDataAccessEvent("No bookmarks in PostgreSQL; attempting refresh");
   if (skipExternalFetch) return [];
   const refreshedBookmarks = await refreshAndPersistBookmarks(force);
   if (!refreshedBookmarks) return [];
@@ -162,15 +129,14 @@ async function fetchAndCacheBookmarks(
 }
 
 async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookmark[]> {
-  // readBookmarksPageFromS3 returns null for S3NotFoundError (page doesn't exist),
-  // and re-throws service errors. Let service errors propagate to callers.
-  const pageData = await readBookmarksPageFromS3(pageNumber);
-  return pageData ? normalizePageBookmarkTags(pageData) : [];
+  const { getBookmarksPage } = await loadBookmarkQueryModule();
+  const pageData = await getBookmarksPage(pageNumber, BOOKMARKS_PER_PAGE);
+  return normalizePageBookmarkTags(pageData);
 }
 
 /**
  * Gets a paginated bookmarks page with caching.
- * Cache duration: 1 day (pages rarely change, reduces S3 reads).
+ * Cache duration: 1 day (pages rarely change, reduces DB reads).
  * @param pageNumber - Page number to fetch (1-indexed)
  * @returns Bookmarks for the specified page
  */
@@ -198,10 +164,9 @@ async function getTagBookmarksPageDirect(
   tagSlug: string,
   pageNumber: number,
 ): Promise<UnifiedBookmark[]> {
-  // readTagBookmarksPageFromS3 returns null for S3NotFoundError (page doesn't exist),
-  // and re-throws service errors. Let service errors propagate to callers.
-  const pageData = await readTagBookmarksPageFromS3(tagSlug, pageNumber);
-  return pageData ? normalizePageBookmarkTags(pageData) : [];
+  const { getBookmarksPageByTag } = await loadBookmarkQueryModule();
+  const pageData = await getBookmarksPageByTag(tagSlug, pageNumber, BOOKMARKS_PER_PAGE);
+  return normalizePageBookmarkTags(pageData);
 }
 
 /**
@@ -242,9 +207,8 @@ export async function getTagBookmarksPage(
 }
 
 async function getTagBookmarksIndexDirect(tagSlug: string): Promise<BookmarksIndex | null> {
-  // readTagBookmarksIndexFromS3 returns null for S3NotFoundError (index doesn't exist),
-  // and re-throws service errors. Let service errors propagate to callers.
-  return readTagBookmarksIndexFromS3(tagSlug);
+  const { getTagBookmarksIndexFromDatabase } = await loadBookmarkQueryModule();
+  return getTagBookmarksIndexFromDatabase(tagSlug, BOOKMARKS_PER_PAGE);
 }
 
 /**
@@ -281,20 +245,21 @@ export async function listTagSlugs(): Promise<string[]> {
   if (isProductionBuildPhase()) {
     return listTagSlugsCached();
   }
-  return listTagSlugsFromS3();
+  const { listTagSlugsFromDatabase } = await loadBookmarkQueryModule();
+  return listTagSlugsFromDatabase();
 }
 
 async function listTagSlugsCached(): Promise<string[]> {
   "use cache";
   safeCacheLife({ revalidate: 3600 });
   safeCacheTag("bookmarks", "bookmarks-tag-slugs");
-  return listTagSlugsFromS3();
+  const { listTagSlugsFromDatabase } = await loadBookmarkQueryModule();
+  return listTagSlugsFromDatabase();
 }
 
 async function getBookmarksIndexDirect(): Promise<BookmarksIndex | null> {
-  // readBookmarksIndexFromS3 returns null for S3NotFoundError (index doesn't exist),
-  // and re-throws service errors. Let service errors propagate to callers.
-  return readBookmarksIndexFromS3();
+  const { getBookmarksIndexFromDatabase } = await loadBookmarkQueryModule();
+  return getBookmarksIndexFromDatabase(BOOKMARKS_PER_PAGE);
 }
 
 /**
@@ -312,7 +277,7 @@ async function getCachedBookmarksIndex(): Promise<BookmarksIndex | null> {
 /**
  * Get all bookmarks with de-duplication of in-flight requests.
  * Service errors propagate to callers - they can distinguish between
- * empty results (no bookmarks) and failures (S3 service errors).
+ * empty results (no bookmarks) and failures (service errors).
  */
 export async function getBookmarks(
   options: BookmarkLoadOptions = {},
@@ -346,11 +311,12 @@ export async function getBookmarkById(
 
   let bookmark: UnifiedBookmark | null = null;
 
-  bookmark ??= await readBookmarkByIdFromS3(bookmarkId);
+  const { getBookmarkById: getBookmarkByIdFromDatabase } = await loadBookmarkQueryModule();
+  bookmark ??= await getBookmarkByIdFromDatabase(bookmarkId);
 
   if (!bookmark) {
     envLogger.log(
-      "Per-bookmark JSON missing in S3. Falling back to scanning full dataset.",
+      "Bookmark missing from direct PostgreSQL lookup. Falling back to full dataset scan.",
       { bookmarkId },
       { category: LOG_PREFIX },
     );
@@ -387,72 +353,28 @@ export async function getBookmarksByTag(
   fromCache: boolean;
 }> {
   logBookmarkDataAccessEvent("getBookmarksByTag invoked", { tagSlug, pageNumber });
-  const cachedPage = await getTagBookmarksPage(tagSlug, pageNumber);
-  if (cachedPage.length > 0) {
-    const index = await getTagBookmarksIndex(tagSlug);
-    logBookmarkDataAccessEvent("Serving tag page from cache", {
-      tagSlug,
-      pageNumber,
-      count: cachedPage.length,
-    });
-    return {
-      bookmarks: cachedPage,
-      totalCount: index?.count || cachedPage.length,
-      totalPages: index?.totalPages || 1,
-      fromCache: true,
-    };
+  const [index, pageBookmarks] = await Promise.all([
+    getTagBookmarksIndex(tagSlug),
+    getTagBookmarksPage(tagSlug, pageNumber),
+  ]);
+
+  if (!index || index.count === 0) {
+    return { bookmarks: [], totalCount: 0, totalPages: 0, fromCache: true };
   }
-  logBookmarkDataAccessEvent("Tag page cache miss, filtering full dataset", {
+
+  logBookmarkDataAccessEvent("Served tag page from PostgreSQL query", {
     tagSlug,
     pageNumber,
+    count: pageBookmarks.length,
+    totalCount: index.count,
   });
 
-  // Check in-memory runtime cache first to avoid repeated S3 reads.
-  // In test environment, bypass the in-process cache so each test can
-  // provide different mocked datasets deterministically.
-  let allBookmarks: UnifiedBookmark[];
-  const bypassMemoryCache = process.env.NODE_ENV === "test";
-
-  const cachedDataset = bypassMemoryCache ? null : getFullDatasetCache();
-
-  if (cachedDataset) {
-    // Note: getFullDatasetCache handles TTL internally
-    envLogger.log("Using in-memory runtime cache for full bookmarks dataset", undefined, {
-      category: LOG_PREFIX,
-    });
-    allBookmarks = cachedDataset;
-  } else {
-    envLogger.log("Reading full bookmarks dataset from S3 persistence", undefined, {
-      category: LOG_PREFIX,
-    });
-    allBookmarks = (await getBookmarks({
-      includeImageData: true,
-      skipExternalFetch: false,
-      force: false,
-    } satisfies BookmarkLoadOptions)) as UnifiedBookmark[];
-
-    if (!bypassMemoryCache) {
-      // Update in-memory runtime cache
-      setFullDatasetCache(allBookmarks);
-    }
-  }
-  const filteredBookmarks = allBookmarks.filter((b) => {
-    const tags = Array.isArray(b.tags) ? b.tags : [];
-    return tags.some((t) => {
-      const tagName = typeof t === "string" ? t : (t as { name: string }).name;
-      return tagToSlug(tagName) === tagSlug;
-    });
-  });
-  const totalCount = filteredBookmarks.length,
-    totalPages = Math.ceil(totalCount / BOOKMARKS_PER_PAGE);
-  const start = (pageNumber - 1) * BOOKMARKS_PER_PAGE,
-    paginated = filteredBookmarks.slice(start, start + BOOKMARKS_PER_PAGE);
-  logBookmarkDataAccessEvent("Tag page generated via filtered dataset", {
-    tagSlug,
-    pageNumber,
-    count: paginated.length,
-  });
-  return { bookmarks: paginated, totalCount, totalPages, fromCache: false };
+  return {
+    bookmarks: pageBookmarks,
+    totalCount: index.count,
+    totalPages: index.totalPages,
+    fromCache: true,
+  };
 }
 
 /** Cache invalidation functions (Next.js cache and in-memory runtime cache) */

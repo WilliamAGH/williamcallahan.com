@@ -7,10 +7,9 @@
  * @module data-access/github-public-api
  */
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import { GITHUB_CACHE_KEYS, GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
+import { GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
 import { getEnvironment } from "@/lib/config/environment";
 import type {
@@ -111,13 +110,6 @@ function formatActivityView(
  */
 export async function getGithubActivity(): Promise<UserActivityView> {
   debug("[DataAccess/GitHub:getGithubActivity] Starting GitHub activity fetch");
-
-  // Check in-memory cache first
-  const cachedData = ServerCacheInstance.get<UserActivityView>(GITHUB_CACHE_KEYS.ACTIVITY);
-  if (cachedData) {
-    debug("[DataAccess/GitHub:getGithubActivity] Returning GitHub activity from in-memory cache.");
-    return cachedData;
-  }
 
   debug(
     `[DataAccess/GitHub:getGithubActivity] Attempting to read GitHub activity from S3: ${GITHUB_ACTIVITY_S3_KEY_FILE}`,
@@ -223,9 +215,6 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   }
 
   const formattedView = formatActivityView(s3ActivityData, "s3-store", lastRefreshed);
-
-  // Cache the result
-  ServerCacheInstance.set(GITHUB_CACHE_KEYS.ACTIVITY, formattedView, 60 * 60 * 1000); // 1 hour
 
   return formattedView;
 }

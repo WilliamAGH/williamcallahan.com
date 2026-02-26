@@ -3,7 +3,6 @@
  * @module lib/services/image/logo-fetcher
  */
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
@@ -106,10 +105,9 @@ export class LogoFetcher {
   }
 
   /**
-   * Cache result and log debug info, then return the result
+   * Finalize logo result logging and return.
    */
   finalizeLogoResult(result: LogoFetchResult): LogoFetchResult {
-    if (result.domain) ServerCacheInstance.setLogoFetch(result.domain, result);
     if (result.isValid) {
       logoDebugger.setFinalResult(
         result.domain ?? "",

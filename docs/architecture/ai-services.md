@@ -113,7 +113,6 @@ Because the endpoints are available to anonymous visitors, they are still callab
 - Same-origin checks using `Origin` / `Referer` host allowlist (`williamcallahan.com` and `*.williamcallahan.com`).
 - Token + cookie binding step (`/api/ai/token` → `/api/ai/chat/[feature]`).
 - Per-IP rate limiting using `src/lib/rate-limiter.ts`.
-- Route-level memory pressure shedding via `memoryPressureMiddleware(...)` in `chat-helpers.ts` (covers `/api/ai/chat/[feature]` even when proxy matcher bypasses this path).
 - Server-side logging via `src/lib/utils/logger.ts`.
 
 ## Required Secret
@@ -152,7 +151,7 @@ All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so w
 
 ## Test Coverage
 
-- `__tests__/api/ai/chat-rag-helpers.test.ts` covers retrieval query shaping, abort classification, and chat-route memory-pressure shedding.
+- `__tests__/api/ai/chat-rag-helpers.test.ts` covers retrieval query shaping, abort classification, and chat-route request validation.
 - `__tests__/api/ai/upstream-pipeline-test-harness.ts` centralizes upstream-pipeline mock wiring and fixture builders for DRY test setup.
 - `__tests__/api/ai/chat-upstream-pipeline-streaming.test.ts` checks queue mode selection and normalized stream events.
 - `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` asserts tool-call rounds and deterministic search fallback behavior.

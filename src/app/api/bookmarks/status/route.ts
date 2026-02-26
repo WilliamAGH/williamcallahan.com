@@ -6,9 +6,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { readJsonS3Optional } from "@/lib/s3/json";
-import { BOOKMARKS_S3_PATHS, BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
-import { bookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
+import { BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
+import { getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import { getMonotonicTime } from "@/lib/utils";
 
 /**
@@ -24,15 +23,12 @@ export async function GET(): Promise<NextResponse> {
   }
 
   try {
-    const index = await readJsonS3Optional<BookmarksIndex>(
-      BOOKMARKS_S3_PATHS.INDEX,
-      bookmarksIndexSchema,
-    );
+    const index = await getBookmarksIndex();
 
     // Check if refresh is needed based on timing
     let needsRefresh = true;
     if (index?.lastFetchedAt) {
-      const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
+      const timeSinceLastFetch = getMonotonicTime() - index.lastFetchedAt;
       const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
       needsRefresh = timeSinceLastFetch > revalidationThreshold;
     }

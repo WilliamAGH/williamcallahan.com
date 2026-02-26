@@ -1,39 +1,20 @@
 import { GET } from "@/app/api/search/bookmarks/route";
-import { searchBookmarks } from "@/lib/search";
-import { getBookmarks } from "@/lib/bookmarks/service.server";
 import type { SearchResult } from "@/types/search";
 import type { UnifiedBookmark } from "@/types";
 
-vi.mock("@/lib/search");
-vi.mock("@/lib/bookmarks/service.server");
+const { mockSearchBookmarksFtsPage } = vi.hoisted(() => ({
+  mockSearchBookmarksFtsPage: vi.fn(),
+}));
 
-const mockSearchBookmarks = vi.mocked(searchBookmarks);
-const mockGetBookmarks = vi.mocked(getBookmarks);
+vi.mock("@/lib/db/queries/bookmarks", () => ({
+  searchBookmarksFtsPage: mockSearchBookmarksFtsPage,
+}));
 
 describe("Bookmarks Search API", () => {
   const idMatch1 = "bk-1";
   const idMatch2 = "bk-2";
 
-  const searchResults: SearchResult[] = [
-    {
-      id: idMatch1,
-      type: "bookmark",
-      title: "SDK for Claude Code",
-      description: "CLI tool",
-      url: "/bookmarks/sdk",
-      score: 1,
-    },
-    {
-      id: idMatch2,
-      type: "bookmark",
-      title: "Another SDK article",
-      description: "Docs",
-      url: "/bookmarks/sdk2",
-      score: 0.9,
-    },
-  ];
-
-  const dataset: UnifiedBookmark[] = [
+  const matchedBookmarks: UnifiedBookmark[] = [
     {
       id: idMatch1,
       url: "https://example.com/sdk1",
@@ -50,20 +31,17 @@ describe("Bookmarks Search API", () => {
       tags: [],
       dateBookmarked: "2025-01-02",
     } as UnifiedBookmark,
-    {
-      id: "unmatched",
-      url: "https://example.com/other",
-      title: "Unrelated",
-      description: "No match",
-      tags: [],
-      dateBookmarked: "2025-01-03",
-    } as UnifiedBookmark,
   ];
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSearchBookmarks.mockResolvedValue(searchResults);
-    mockGetBookmarks.mockResolvedValue(dataset);
+    mockSearchBookmarksFtsPage.mockResolvedValue({
+      totalCount: matchedBookmarks.length,
+      items: [
+        { bookmark: matchedBookmarks[0], score: 1 },
+        { bookmark: matchedBookmarks[1], score: 0.9 },
+      ],
+    });
   });
 
   it("returns matched bookmarks for query", async () => {
@@ -97,7 +75,6 @@ describe("Bookmarks Search API", () => {
 });
 
 afterAll(() => {
-  vi.doUnmock("@/lib/bookmarks/service.server");
-  vi.doUnmock("@/lib/search");
+  vi.doUnmock("@/lib/db/queries/bookmarks");
   vi.resetModules();
 });

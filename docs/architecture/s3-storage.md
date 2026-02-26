@@ -24,7 +24,7 @@ bucket/
 │   ├── bookmarks/, blog/, github-activity/, education/, experience/
 │   ├── search/indices/*.json
 │   ├── overrides/opengraph/*.json  # Manual OG overrides
-│   └── locks/ (distributed locks, refresh markers)
+│   └── locks/ (shared lock artifacts for non-bookmark jobs)
 ├── manifests/
 │   ├── logos.json                  # IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST
 │   ├── opengraph.json
@@ -55,7 +55,7 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 
 - **Deterministic Keys**: `hash-utils.ts` + `generateS3Key` produce predictable names; no overwrites unless `S3_FORCE_WRITE=true` (used only by sync scripts).
 - **Streaming**: `lib/services/image-streaming.ts` uses `@aws-sdk/lib-storage Upload` with timeouts and byte monitoring for large downloads; avoids buffering >5 MB in Node.
-- **Atomic Locking**: `acquireDistributedLock` writes `locks/*.json` with `If-None-Match: "*"`; stale lock cleanup happens via `cleanupStaleLocks` when tasks crash.
+- **Legacy Distributed Lock Utility**: `acquireDistributedLock` can write `locks/*.json` with `If-None-Match: "*"` for cross-instance jobs. Bookmark refreshes no longer depend on this path.
 - **Access Control**: All public assets get `x-amz-acl: public-read`; sensitive JSON lives under private prefixes and is never exposed through CDN.
 - **Retries**: AWS SDK retry strategy (configured in `lib/s3/client.ts`) is the only retry layer; no custom retry loops.
 

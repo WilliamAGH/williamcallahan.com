@@ -3,11 +3,10 @@
  * Ensures retrieval query construction and inventory gating are deterministic.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { buildRagContextForChat, validateRequest } from "@/app/api/ai/chat/[feature]/chat-helpers";
 import { isAbortError } from "@/app/api/ai/chat/[feature]/upstream-error";
 import { buildContextForQuery } from "@/lib/ai/rag";
-import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 
 vi.mock("@/lib/ai/rag", () => ({
   buildContextForQuery: vi.fn().mockImplementation((query: string) =>
@@ -20,12 +19,7 @@ vi.mock("@/lib/ai/rag", () => ({
     }),
   ),
 }));
-vi.mock("@/lib/middleware/memory-pressure", () => ({
-  memoryPressureMiddleware: vi.fn().mockResolvedValue(null),
-}));
-
 const mockedBuildContextForQuery = vi.mocked(buildContextForQuery);
-const mockedMemoryPressureMiddleware = vi.mocked(memoryPressureMiddleware);
 const conversationId = "77777777-7777-4777-8777-777777777777";
 
 describe("AI Chat RAG Helpers", () => {
@@ -74,41 +68,12 @@ describe("AI Chat RAG Helpers", () => {
 
   afterAll(() => {
     vi.doUnmock("@/lib/ai/rag");
-    vi.doUnmock("@/lib/middleware/memory-pressure");
     vi.resetModules();
   });
 });
 
 describe("AI Chat Request Validation", () => {
-  beforeEach(() => {
-    mockedMemoryPressureMiddleware.mockReset();
-    mockedMemoryPressureMiddleware.mockResolvedValue(null);
-  });
-
-  it("returns memory-shed response before further validation when pressure is critical", async () => {
-    const memoryResponse = NextResponse.json(
-      { code: "SERVICE_UNAVAILABLE", message: "System is under heavy load." },
-      { status: 503 },
-    );
-    mockedMemoryPressureMiddleware.mockResolvedValueOnce(memoryResponse);
-
-    const request = new NextRequest("https://williamcallahan.com/api/ai/chat/terminal_chat", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userText: "hello there" }),
-    });
-
-    const result = await validateRequest(request, "terminal_chat");
-
-    expect(mockedMemoryPressureMiddleware).toHaveBeenCalledWith(request);
-    expect(result).toBe(memoryResponse);
-  });
-
-  it("rejects non-SSE requests and preserves warning status header", async () => {
-    const memoryWarningResponse = NextResponse.next();
-    memoryWarningResponse.headers.set("X-System-Status", "MEMORY_WARNING");
-    mockedMemoryPressureMiddleware.mockResolvedValueOnce(memoryWarningResponse);
-
+  it("rejects non-SSE requests without system-status headers", async () => {
     const request = new NextRequest("https://williamcallahan.com/api/ai/chat/terminal_chat", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
@@ -117,9 +82,9 @@ describe("AI Chat Request Validation", () => {
 
     const result = await validateRequest(request, "terminal_chat");
 
-    expect(result).toBeInstanceOf(NextResponse);
+    expect(result).toBeDefined();
     expect(result.status).toBe(406);
-    expect(result.headers.get("X-System-Status")).toBe("MEMORY_WARNING");
+    expect(result.headers.get("X-System-Status")).toBeFalsy();
   });
 });
 

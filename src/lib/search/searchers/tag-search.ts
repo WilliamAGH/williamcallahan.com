@@ -8,17 +8,12 @@
  */
 
 import type { SearchResult, AggregatedTag } from "@/types/search";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
 import { aggregateTags } from "../tag-aggregator";
 import { getBookmarksIndex, getCachedBooksData } from "../loaders/dynamic-content";
 import { projectsData } from "../loaders/static-content";
-
-// Cache key and TTL for aggregated tags
-const TAGS_CACHE_KEY = "search:aggregated-tags";
-const TAGS_CACHE_TTL = 10 * 60; // 10 minutes
 
 /**
  * Get blog post tags with counts from MDX posts.
@@ -94,12 +89,6 @@ async function getBookGenresWithCounts(): Promise<AggregatedTag[]> {
  * Aggregate all tags from all content types.
  */
 async function aggregateAllTags(): Promise<AggregatedTag[]> {
-  // Check cache first
-  const cached = ServerCacheInstance.get<AggregatedTag[]>(TAGS_CACHE_KEY);
-  if (cached) {
-    return cached;
-  }
-
   // Gather tags from all sources in parallel
   const [blogTags, projectTags, bookmarkTags, bookGenres] = await Promise.all([
     getBlogTagsWithCounts(),
@@ -109,10 +98,6 @@ async function aggregateAllTags(): Promise<AggregatedTag[]> {
   ]);
 
   const allTags = [...blogTags, ...projectTags, ...bookmarkTags, ...bookGenres];
-
-  // Cache the aggregated tags
-  ServerCacheInstance.set(TAGS_CACHE_KEY, allTags, TAGS_CACHE_TTL);
-
   return allTags;
 }
 
@@ -141,12 +126,6 @@ function formatTagTitle(tag: AggregatedTag): string {
 export async function searchTags(query: string): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
-
-  // Check result cache first
-  const cached = ServerCacheInstance.getSearchResults<SearchResult>("tags", sanitizedQuery);
-  if (cached && !ServerCacheInstance.shouldRefreshSearch("tags", sanitizedQuery)) {
-    return cached.results;
-  }
 
   const allTags = await aggregateAllTags();
 
@@ -210,9 +189,6 @@ export async function searchTags(query: string): Promise<SearchResult[]> {
     url: tag.url,
     score,
   }));
-
-  // Cache results
-  ServerCacheInstance.setSearchResults("tags", sanitizedQuery, results);
 
   return results;
 }

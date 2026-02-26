@@ -4,13 +4,8 @@
  * Provides client-side access to bookmarks with pagination support.
  */
 
-import {
-  bookmarksIndexSchema as BookmarksIndexSchema,
-  type BookmarksIndex,
-} from "@/types/bookmark";
-import { BOOKMARKS_PER_PAGE, BOOKMARKS_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
-import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { readJsonS3Optional } from "@/lib/s3/json";
+import { BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { getBookmarks, getBookmarksIndex, getBookmarksPage } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
@@ -60,17 +55,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const tagFilter = searchParams.get("tag") || null;
 
   try {
+    const indexData = await getBookmarksIndex();
+
     // Fast-path: only when the caller requests **one standard page** worth of data
     // If the client asks for more than BOOKMARKS_PER_PAGE (24) items we must
     // fall back to the full-dataset path otherwise search on the bookmarks page
     // will miss results that live beyond page 1.
     if (!tagFilter && page > 0 && limit <= BOOKMARKS_PER_PAGE) {
-      const { getBookmarksPage } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      const indexData = await readJsonS3Optional<BookmarksIndex>(
-        BOOKMARKS_S3_PATHS.INDEX,
-        BookmarksIndexSchema,
-      );
-
       if (indexData) {
         const { totalPages, count: total, lastFetchedAt = getMonotonicTime() } = indexData;
 
@@ -120,19 +111,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       force: false,
     });
 
-    // Try to get metadata from S3 index
-    let lastFetchedAt = getMonotonicTime();
-    try {
-      const indexData = await readJsonS3Optional<BookmarksIndex>(
-        BOOKMARKS_S3_PATHS.INDEX,
-        BookmarksIndexSchema,
-      );
-      if (indexData) {
-        lastFetchedAt = indexData.lastFetchedAt;
-      }
-    } catch {
-      // Use default if index read fails
-    }
+    const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 
     // Apply tag filter if provided
     let filteredBookmarks = allBookmarks;

@@ -16,7 +16,6 @@ import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-ana
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { searchBooks, searchBookmarks } from "./dynamic-searchers";
@@ -286,12 +285,6 @@ export async function searchAiAnalysis(query: string): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  // Check cache first
-  const cached = ServerCacheInstance.getSearchResults<SearchResult>("ai-analysis", sanitizedQuery);
-  if (cached && !ServerCacheInstance.shouldRefreshSearch("ai-analysis", sanitizedQuery)) {
-    return cached.results;
-  }
-
   // Search all domains in parallel
   const domains: AnalysisDomain[] = ["bookmarks", "books", "projects"];
   const domainResults = await Promise.all(
@@ -303,9 +296,6 @@ export async function searchAiAnalysis(query: string): Promise<SearchResult[]> {
     .flat()
     .toSorted((a, b) => b.score - a.score)
     .slice(0, MAX_TOTAL_RESULTS);
-
-  // Cache results
-  ServerCacheInstance.setSearchResults("ai-analysis", sanitizedQuery, allResults);
 
   return allResults;
 }

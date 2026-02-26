@@ -27,7 +27,7 @@ import { isBookmarkServiceLoggingEnabled } from "@/lib/bookmarks/config";
 setRefreshBookmarksCallback((force?: boolean) => refreshBookmarksData(force));
 
 /**
- * Get bookmarks from cache or S3, with optional background refresh
+ * Get bookmarks from cache or PostgreSQL, with optional background refresh
  */
 export async function getBookmarks(
   options: BookmarkLoadOptions = {},
@@ -74,7 +74,7 @@ export async function getBookmarksByTag(tagSlug: string, pageNumber: number = 1)
 }
 
 /**
- * Get a single page of bookmarks from cache or S3
+ * Get a single page of bookmarks from cache or PostgreSQL
  */
 export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
   initializeBookmarksDataAccess();
@@ -82,7 +82,7 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
 }
 
 /**
- * Get the main bookmarks index from cache or S3
+ * Get the main bookmarks index from cache or PostgreSQL
  */
 export async function getBookmarksIndex() {
   initializeBookmarksDataAccess();

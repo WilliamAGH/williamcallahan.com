@@ -3,18 +3,16 @@
  */
 
 import { GET } from "@/app/api/bookmarks/route";
-import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { readJsonS3Optional } from "@/lib/s3/json";
+import { getBookmarks, getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 
 // Mock dependencies
 vi.mock("@/lib/bookmarks/service.server");
-vi.mock("@/lib/s3/json");
 vi.mock("@/lib/bookmarks/slug-manager");
 
 const mockGetBookmarks = vi.mocked(getBookmarks);
-const mockReadJsonS3 = vi.mocked(readJsonS3Optional);
+const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
 const mockLoadSlugMapping = vi.mocked(loadSlugMapping);
 
 /**
@@ -82,7 +80,7 @@ describe("Bookmark API Tag Filtering", () => {
     vi.spyOn(console, "log").mockImplementation(() => {}); // Suppress console logs in tests
     // Set up default slug mapping mock
     mockLoadSlugMapping.mockResolvedValue(createMockSlugMapping(mockBookmarks));
-    mockReadJsonS3.mockResolvedValue(null);
+    mockGetBookmarksIndex.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -92,9 +90,15 @@ describe("Bookmark API Tag Filtering", () => {
   describe("Tag parameter handling", () => {
     it("should filter bookmarks by tag in slug format", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockReadJsonS3.mockResolvedValueOnce({
+      mockGetBookmarksIndex.mockResolvedValueOnce({
         count: mockBookmarks.length,
         lastFetchedAt: Date.now(),
+        totalPages: 1,
+        pageSize: 24,
+        lastModified: new Date().toISOString(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test-checksum",
+        changeDetected: false,
       });
 
       const request = {
@@ -115,9 +119,15 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should handle multi-word tags with hyphens", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockReadJsonS3.mockResolvedValueOnce({
+      mockGetBookmarksIndex.mockResolvedValueOnce({
         count: mockBookmarks.length,
         lastFetchedAt: Date.now(),
+        totalPages: 1,
+        pageSize: 24,
+        lastModified: new Date().toISOString(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test-checksum",
+        changeDetected: false,
       });
 
       const request = {
@@ -137,9 +147,15 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should handle URL-encoded tags", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockReadJsonS3.mockResolvedValueOnce({
+      mockGetBookmarksIndex.mockResolvedValueOnce({
         count: mockBookmarks.length,
         lastFetchedAt: Date.now(),
+        totalPages: 1,
+        pageSize: 24,
+        lastModified: new Date().toISOString(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test-checksum",
+        changeDetected: false,
       });
 
       const request = {
@@ -159,9 +175,15 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should perform case-insensitive tag matching", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockReadJsonS3.mockResolvedValueOnce({
+      mockGetBookmarksIndex.mockResolvedValueOnce({
         count: mockBookmarks.length,
         lastFetchedAt: Date.now(),
+        totalPages: 1,
+        pageSize: 24,
+        lastModified: new Date().toISOString(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test-checksum",
+        changeDetected: false,
       });
 
       const request = {
@@ -181,9 +203,15 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should return empty array for non-existent tags", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockReadJsonS3.mockResolvedValueOnce({
+      mockGetBookmarksIndex.mockResolvedValueOnce({
         count: mockBookmarks.length,
         lastFetchedAt: Date.now(),
+        totalPages: 1,
+        pageSize: 24,
+        lastModified: new Date().toISOString(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test-checksum",
+        changeDetected: false,
       });
 
       const request = {
@@ -218,9 +246,15 @@ describe("Bookmark API Tag Filtering", () => {
         );
 
       mockGetBookmarks.mockResolvedValueOnce(largeSet);
-      mockReadJsonS3.mockResolvedValueOnce({
+      mockGetBookmarksIndex.mockResolvedValueOnce({
         count: largeSet.length,
         lastFetchedAt: Date.now(),
+        totalPages: Math.ceil(largeSet.length / 20),
+        pageSize: 20,
+        lastModified: new Date().toISOString(),
+        lastAttemptedAt: Date.now(),
+        checksum: "test-checksum",
+        changeDetected: false,
       });
       // Override default slug mapping for this test's larger dataset
       mockLoadSlugMapping.mockResolvedValueOnce(createMockSlugMapping(largeSet));
@@ -250,7 +284,7 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should return all bookmarks when no tag filter provided", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockReadJsonS3.mockResolvedValueOnce(null);
+      mockGetBookmarksIndex.mockResolvedValueOnce(null);
 
       const request = {
         url: "http://localhost:3000/api/bookmarks",
@@ -270,7 +304,7 @@ describe("Bookmark API Tag Filtering", () => {
 
   describe("Error handling", () => {
     it("should handle errors gracefully", async () => {
-      mockReadJsonS3.mockResolvedValueOnce(null);
+      mockGetBookmarksIndex.mockResolvedValueOnce(null);
       mockGetBookmarks.mockRejectedValueOnce(new Error("Database error"));
 
       const request = {

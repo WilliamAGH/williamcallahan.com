@@ -1,6 +1,3 @@
-import { RequestPriority } from "@/types/services";
-import { MemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
-import { MemoryAwareRequestScheduler } from "@/lib/services/memory-aware-scheduler";
 import { monitoredAsync } from "@/lib/async-operations-monitor";
 import { retryWithOptions } from "@/lib/utils/retry";
 import { waitForPermit } from "@/lib/rate-limiter";
@@ -12,35 +9,23 @@ import type { BatchProcessorOptions, BatchResult, LogLevel } from "@/types/batch
 export type { BatchProcessorOptions, BatchResult, LogLevel } from "@/types/batch-processing";
 
 /**
- * Generic batch processor that handles memory pressure, rate limiting, and retries
+ * Generic batch processor that handles rate limiting and retries
  */
 export class BatchProcessor<T, R> {
-  private scheduler: MemoryAwareRequestScheduler;
-  private memoryMonitor: MemoryHealthMonitor;
-
   constructor(
     private name: string,
     private processor: (item: T) => Promise<R>,
     private options: BatchProcessorOptions<T> = {},
-  ) {
-    this.scheduler = new MemoryAwareRequestScheduler({
-      maxConcurrentRequests: options.batchSize || 10,
-      memoryThresholdPercent: (options.memoryThreshold ?? 0.85) * 100,
-      maxQueueSize: 1000,
-    });
-
-    this.memoryMonitor = new MemoryHealthMonitor();
-  }
+  ) {}
 
   /**
-   * Process items in batches with all safety features
+   * Process items in batches with rate limiting and retry support
    */
   async processBatch(items: T[]): Promise<BatchResult<T, R>> {
     const startTime = getMonotonicTime();
     const successful = new Map<T, R>();
     const failed = new Map<T, Error>();
     const skipped: T[] = [];
-    let memoryPressureEvents = 0;
 
     const {
       batchSize = 10,
@@ -57,17 +42,6 @@ export class BatchProcessor<T, R> {
 
     // Process in batches
     for (let i = 0; i < items.length; i += batchSize) {
-      // Check memory before starting batch
-      const health = this.memoryMonitor.getHealthStatus();
-      if (health.status === "unhealthy") {
-        if (debug) {
-          debugLog(`[${this.name}] Skipping batch due to unhealthy memory status`, "warn");
-        }
-        skipped.push(...items.slice(i));
-        memoryPressureEvents++;
-        break;
-      }
-
       const batch = items.slice(i, Math.min(i + batchSize, items.length));
 
       // Process batch items concurrently with monitoring
@@ -86,7 +60,7 @@ export class BatchProcessor<T, R> {
             null,
             `${this.name}-process`,
             async () => {
-              return await retryWithOptions(() => this.processItem(item), {
+              return await retryWithOptions(() => this.processor(item), {
                 maxRetries: 3,
                 baseDelay: 1000,
                 maxBackoff: 10000,
@@ -150,28 +124,6 @@ export class BatchProcessor<T, R> {
       failed,
       skipped,
       totalTime: getMonotonicTime() - startTime,
-      memoryPressureEvents,
-    };
-  }
-
-  /**
-   * Process a single item with memory-aware scheduling
-   */
-  private async processItem(item: T): Promise<R> {
-    return await this.scheduler.scheduleRequest(
-      async () => this.processor(item),
-      RequestPriority.NORMAL,
-      3,
-    );
-  }
-
-  /**
-   * Get current queue status
-   */
-  getStatus() {
-    return {
-      scheduler: this.scheduler.getMetrics(),
-      memory: this.memoryMonitor.getHealthStatus(),
     };
   }
 }
@@ -188,7 +140,6 @@ export class ImageBatchProcessor<T extends { url: string }> extends BatchProcess
     super(name, fetchImage, {
       // Image-specific defaults
       batchSize: 5, // Lower concurrency for image ops
-      memoryThreshold: 0.75, // More conservative memory threshold
       timeout: 30000, // 30s timeout for image fetches
       ...options,
     });

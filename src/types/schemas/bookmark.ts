@@ -115,6 +115,8 @@ export const logoDataSchema = z.object({
   height: z.number().int().positive().optional(),
 });
 
+export type LogoData = z.infer<typeof logoDataSchema>;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // UnifiedBookmark Schema (most comprehensive bookmark type)
 // ─────────────────────────────────────────────────────────────────────────────

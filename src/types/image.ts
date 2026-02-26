@@ -69,15 +69,6 @@ export interface ImageDataMetadata extends BaseImageData {
   size?: number;
 }
 
-export interface ImageMemoryMetrics {
-  cacheSize: number;
-  cacheBytes: number;
-  rss: number;
-  heapUsed: number;
-  external: number;
-  memoryPressure: boolean;
-}
-
 export interface ImageServiceOptions {
   forceRefresh?: boolean;
   invertColors?: boolean;
@@ -164,7 +155,6 @@ export interface ImageFetchConfig {
   devProcessingDisabled: boolean;
   devStreamImagesToS3: boolean;
   isDev: boolean;
-  shouldAcceptRequests: () => boolean;
   s3Ops: import("@/lib/services/image/s3-operations").S3Operations;
   logoFetcher: import("@/lib/services/image/logo-fetcher").LogoFetcher;
   placeholderBuffer: Buffer;

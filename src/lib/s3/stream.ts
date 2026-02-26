@@ -15,12 +15,7 @@ export async function streamToBuffer(stream: Readable): Promise<Buffer> {
     const chunks: Buffer[] = [];
     let totalSize = 0;
     let timeoutId: NodeJS.Timeout | undefined;
-
-    timeoutId = setTimeout(() => {
-      stream.destroy();
-      chunks.length = 0;
-      reject(new Error(`Stream timeout: took longer than ${S3_SIZE_LIMITS.STREAM_TIMEOUT_MS}ms`));
-    }, S3_SIZE_LIMITS.STREAM_TIMEOUT_MS);
+    const timeoutMessage = `Stream timeout: took longer than ${S3_SIZE_LIMITS.STREAM_TIMEOUT_MS}ms`;
 
     const cleanup = () => {
       if (timeoutId) {
@@ -29,7 +24,20 @@ export async function streamToBuffer(stream: Readable): Promise<Buffer> {
       }
     };
 
+    const scheduleTimeout = () => {
+      cleanup();
+      timeoutId = setTimeout(() => {
+        stream.destroy(new Error(timeoutMessage));
+        chunks.length = 0;
+        reject(new Error(timeoutMessage));
+      }, S3_SIZE_LIMITS.STREAM_TIMEOUT_MS);
+    };
+
+    // Guard against idle streams while allowing long active transfers.
+    scheduleTimeout();
+
     stream.on("data", (chunk: Buffer) => {
+      scheduleTimeout();
       totalSize += chunk.length;
       if (totalSize > S3_SIZE_LIMITS.MAX_READ_SIZE) {
         cleanup();

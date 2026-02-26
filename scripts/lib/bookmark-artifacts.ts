@@ -34,11 +34,20 @@ function embedSlug(
   bookmark: BookmarkS3Record,
   slugMapping: Partial<BookmarkSlugMapping> | null,
 ): BookmarkS3Record {
-  if (bookmark.slug) return bookmark;
+  if (typeof bookmark.slug === "string" && bookmark.slug.trim().length > 0) {
+    return bookmark;
+  }
   const id = typeof bookmark.id === "string" ? bookmark.id : null;
-  if (!id) return bookmark;
+  if (!id) {
+    throw new Error(
+      "[bookmark-artifacts] Cannot build artifacts for bookmark without a string id and slug.",
+    );
+  }
   const slug = slugMapping?.slugs?.[id]?.slug;
-  return slug ? { ...bookmark, slug } : bookmark;
+  if (typeof slug === "string" && slug.trim().length > 0) {
+    return { ...bookmark, slug };
+  }
+  throw new Error(`[bookmark-artifacts] Missing slug mapping for bookmark id "${id}".`);
 }
 
 /**

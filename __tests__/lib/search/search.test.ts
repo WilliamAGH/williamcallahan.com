@@ -93,41 +93,12 @@ vi.mock("@/lib/s3/json", () => ({
   readJsonS3Optional: vi.fn().mockResolvedValue(null),
 }));
 
-// Mock ServerCacheInstance
-vi.mock("@/lib/server-cache", () => ({
-  ServerCacheInstance: {
-    get: vi.fn(),
-    set: vi.fn(),
-    getStats: vi.fn().mockReturnValue({
-      keys: 0,
-      hits: 0,
-      misses: 0,
-      ksize: 0,
-      vsize: 0,
-      sizeBytes: 0,
-      maxSizeBytes: 0,
-      utilizationPercent: 0,
-    }),
-    getSearchResults: vi.fn(),
-    setSearchResults: vi.fn(),
-    shouldRefreshSearch: vi.fn(),
-    clearAllCaches: vi.fn(),
-  },
-}));
-
 import { searchInvestments, searchExperience, searchEducation, searchProjects } from "@/lib/search";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { validateSearchQuery } from "@/lib/validators/search";
-import type { Mock } from "vitest";
 
 describe("search", () => {
-  // Clear cache mocks before each test
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: no cache hit
-    (ServerCacheInstance.get as Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.getSearchResults as Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.shouldRefreshSearch as Mock).mockReturnValue(true);
   });
 
   describe("query validation", () => {
@@ -294,29 +265,6 @@ describe("search", () => {
       const results = await searchProjects("Test Project 1");
       const project1Result = results.find((r) => r.title === "Test Project 1");
       expect(project1Result?.url).toBe("/projects/test-project-1");
-    });
-
-    it("should use cached results when available", async () => {
-      const cachedResults = [{ id: "cached", title: "Cached Project", url: "/cached" }];
-      (ServerCacheInstance.getSearchResults as Mock).mockReturnValue({
-        results: cachedResults,
-      });
-      (ServerCacheInstance.shouldRefreshSearch as Mock).mockReturnValue(false);
-
-      const results = await searchProjects("test");
-
-      expect(results).toEqual(cachedResults);
-      expect(ServerCacheInstance.setSearchResults).not.toHaveBeenCalled();
-    });
-
-    it("should cache search results", async () => {
-      await searchProjects("react");
-
-      expect(ServerCacheInstance.setSearchResults).toHaveBeenCalledWith(
-        "projects",
-        "react",
-        expect.any(Array),
-      );
     });
   });
 });

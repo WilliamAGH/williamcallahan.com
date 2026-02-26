@@ -1,8 +1,7 @@
 /**
  * Health Metrics Endpoint
  *
- * Provides detailed metrics about the application's health, including
- * cache statistics and memory usage.
+ * Provides basic process metrics about the application.
  *
  * @module app/api/health/metrics
  */
@@ -14,108 +13,37 @@ import {
   createErrorResponse,
   NO_STORE_HEADERS,
 } from "@/lib/utils/api-utils";
-import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
-import { HealthMetricsResponseSchema, type HealthMetrics } from "@/types/health";
 
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-/**
- * GET /api/health/metrics
- * @description Returns detailed health and performance metrics for the application.
- * @returns {NextResponse}
- */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   if (isProductionBuild) {
     return NextResponse.json(
-      {
-        status: "skipped",
-        message: "Health metrics disabled during build phase",
-        timestamp: new Date().toISOString(),
-      },
+      { status: "skipped", timestamp: new Date().toISOString() },
       { status: 200, headers: NO_STORE_HEADERS },
     );
   }
   preventCaching();
-  try {
-    // Check authorization using existing env variable
-    const expectedToken =
-      process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
-
-    if (!validateAuthSecret(request, expectedToken)) {
-      return createErrorResponse("Unauthorized", 401);
-    }
-    const monitor = getMemoryHealthMonitor();
-    const healthStatus = monitor.getHealthStatus();
-    const systemMetrics = await getSystemMetrics();
-
-    // Get process memory usage
-    const memUsage = process.memoryUsage();
-
-    // Import ServerCache for detailed stats
-    const { ServerCacheInstance } = await import("@/lib/server-cache");
-
-    const serverCacheStats = ServerCacheInstance.getStats();
-
-    // Get allocator diagnostics for deeper analysis
-    const allocatorDiagnostics = monitor.getAllocatorDiagnostics();
-
-    // Safely access budget and threshold with optional chaining
-    const rawBudget =
-      typeof healthStatus.details?.budget === "number" ? healthStatus.details.budget : null;
-    const rawThreshold =
-      typeof healthStatus.details?.threshold === "number" ? healthStatus.details.threshold : null;
-    const budget = rawBudget ?? 0;
-    const threshold = rawThreshold ?? 0;
-
-    const response: HealthMetrics = {
-      status: healthStatus.status,
+  const expectedToken =
+    process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  if (!validateAuthSecret(request, expectedToken)) {
+    return createErrorResponse("Unauthorized", 401);
+  }
+  const memUsage = process.memoryUsage();
+  const systemMetrics = await getSystemMetrics();
+  return NextResponse.json(
+    {
+      status: "healthy",
       timestamp: new Date().toISOString(),
       memory: {
-        process: {
-          rss: Math.round(memUsage.rss / 1024 / 1024), // MB
-          heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
-          heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
-          external: Math.round(memUsage.external / 1024 / 1024), // MB
-        },
-        limits: {
-          totalBudget: Math.round(budget / 1024 / 1024), // MB
-          warningThreshold: Math.round(threshold / 1024 / 1024), // MB
-          criticalThreshold: Math.round((budget * 0.9) / 1024 / 1024), // MB
-        },
-      },
-      caches: {
-        serverCache: {
-          keys: Number(serverCacheStats.keys ?? 0),
-          hits: Number(serverCacheStats.hits ?? 0),
-          misses: Number(serverCacheStats.misses ?? 0),
-          sizeBytes: serverCacheStats.sizeBytes || 0,
-          maxSizeBytes: serverCacheStats.maxSizeBytes || 0,
-          utilizationPercent: serverCacheStats.utilizationPercent || 0,
-        },
-        imageMemory: {
-          cacheSize: 0,
-          cacheBytes: 0,
-          rss: memUsage.rss,
-          heapUsed: memUsage.heapUsed,
-          external: memUsage.external,
-          memoryPressure: false,
-        },
-      },
-      health: {
-        status: healthStatus.status,
-        message: healthStatus.message,
+        rss: Math.round(memUsage.rss / 1024 / 1024),
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+        external: Math.round(memUsage.external / 1024 / 1024),
       },
       system: systemMetrics,
-      allocator: allocatorDiagnostics,
-    };
-
-    // Validate the final response against the Zod schema to ensure type safety
-    const parsedResponse = HealthMetricsResponseSchema.parse(response);
-
-    return NextResponse.json(parsedResponse, { headers: NO_STORE_HEADERS });
-  } catch (error: unknown) {
-    console.error("Error retrieving health metrics:", error);
-    return createErrorResponse("Failed to retrieve health metrics", 500, undefined);
-  }
+    },
+    { headers: NO_STORE_HEADERS },
+  );
 }

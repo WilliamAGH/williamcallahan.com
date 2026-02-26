@@ -76,11 +76,6 @@ export function POST(request: NextRequest): NextResponse {
 
     console.log("[Cache Clear] All Next.js caches invalidated successfully");
 
-    // Force garbage collection if available
-    if (global.gc) {
-      global.gc();
-    }
-
     return NextResponse.json({
       status: "success",
       message: "All Next.js caches cleared successfully",

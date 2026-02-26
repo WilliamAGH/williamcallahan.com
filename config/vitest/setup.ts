@@ -12,7 +12,6 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { vi, afterEach, beforeAll, afterAll } from "vitest";
 import React from "react";
-import { ServerCacheInstance } from "@/lib/server-cache";
 
 // Mock next/link to avoid DOM navigation and strip non-DOM props
 type MockNextLinkProps = React.PropsWithChildren<{
@@ -182,6 +181,5 @@ afterEach(() => {
 });
 
 afterAll(() => {
-  ServerCacheInstance.destroy();
   console.error = originalError;
 });

@@ -276,7 +276,7 @@ const nextConfig = {
     // resolution work correctly.  In production use a deterministic id so
     // that multiple servers share identical paths for static assets.
     if (process.env.NODE_ENV === "development") {
-      return null as unknown as string; // Next.js will generate a random ID
+      return null; // Next.js will generate a random ID
     }
     const gitHash = getGitHash();
     return `v${appVersion}-${gitHash}`;
@@ -326,7 +326,7 @@ const nextConfig = {
   ],
   poweredByHeader: false,
   reactStrictMode: true,
-  productionBrowserSourceMaps: false, // Disable to save memory during builds
+  productionBrowserSourceMaps: false,
   // Enable Cache Components (formerly experimental.useCache in Next.js 15)
   // This is the new way to enable 'use cache' directive in Next.js 16
   cacheComponents: true,
@@ -344,12 +344,11 @@ const nextConfig = {
       bodySizeLimit: "100mb",
     },
     preloadEntriesOnStart: false, // Don't preload all pages on server start
-    serverSourceMaps: false, // Disable server source maps to save memory
+    serverSourceMaps: false,
     // Disable package optimization in development to reduce cache entries
     optimizePackageImports:
       process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
-    // **KEEP ONLY STABLE MEMORY-RELATED FEATURES**
-    // Optimize CSS handling to reduce memory usage
+    // Optimize CSS handling
     optimizeCss: true,
     /**
      * Safely control how many pages Next.js generates in parallel.

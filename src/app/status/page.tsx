@@ -64,10 +64,8 @@ const StatusPage: NextPage = async () => {
         </header>
         <main>
           <Suspense fallback={<div className="text-center text-xl">Loading status...</div>}>
-            {renderSection("Health", data.health)}
+            {renderSection("Memory", data.memory)}
             {renderSection("System", data.system)}
-            {renderSection("Memory", data.memory.process)}
-            {renderSection("Caches", data.caches)}
           </Suspense>
         </main>
       </div>

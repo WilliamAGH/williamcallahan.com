@@ -44,6 +44,21 @@ function buildRedactedRequest(request: {
   };
 }
 
+function normalizeRequestErrorForCapture(error: unknown, routePath: string): unknown {
+  if (!(error instanceof Error)) {
+    return error;
+  }
+
+  if (error.message.trim().length > 0) {
+    return error;
+  }
+
+  const normalized = new Error(`Request error with empty message (route: ${routePath})`);
+  normalized.name = error.name;
+  normalized.stack = error.stack;
+  return normalized;
+}
+
 function resolveEdgeDsn(): string | null {
   const privateDsn = process.env.SENTRY_DSN?.trim();
   if (privateDsn && privateDsn.length > 0) {
@@ -128,6 +143,7 @@ export function onRequestError(
   context: { routerKind: string; routePath: string; routeType: string },
 ): void {
   const redactedRequest = buildRedactedRequest(request);
+  const captureError = normalizeRequestErrorForCapture(error, context.routePath);
 
   if (!sentryInitialized) {
     console.error(
@@ -139,11 +155,11 @@ export function onRequestError(
   }
 
   if (typeof Sentry.captureRequestError === "function") {
-    Sentry.captureRequestError(error, request, context);
+    Sentry.captureRequestError(captureError, request, context);
     return;
   }
 
-  Sentry.captureException(error, {
+  Sentry.captureException(captureError, {
     extra: {
       request: redactedRequest,
       context,

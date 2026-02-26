@@ -6,25 +6,20 @@
  * - `data`: hydrated `UnifiedBookmark[]` for bookmark-focused consumers
  * - `results`: normalized `SearchResult[]` for terminal scoped-search parsing
  *
- * It relies on the server-side `searchBookmarks` MiniSearch index to find
- * matching bookmark IDs and then hydrates them to full `UnifiedBookmark`
- * objects via `getBookmarks()`.
+ * Search is powered by PostgreSQL full-text search (tsvector/websearch_to_tsquery)
+ * and returns ranked matches directly from the bookmarks table.
  */
 
-import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
-import { searchBookmarks } from "@/lib/search";
 import {
   applySearchGuards,
   createSearchErrorResponse,
   withNoStoreHeaders,
 } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
-import type { AnyBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/bookmark";
 import type { SearchResult } from "@/types/search";
 import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
-import { debug } from "@/lib/utils/debug";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -35,12 +30,14 @@ const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
+const loadBookmarkQueryModule = async () => import("@/lib/db/queries/bookmarks");
+
 /** Pagination-only slice of the bookmark search params schema. */
 const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: true });
 
 /** Build the standard bookmark search response payload. */
 function buildBookmarkSearchResponse(params: {
-  data: AnyBookmark[];
+  data: UnifiedBookmark[];
   results: SearchResult[];
   totalCount: number;
   hasMore: boolean;
@@ -66,22 +63,16 @@ function buildBookmarkSearchResponse(params: {
   );
 }
 
-/** Map a hydrated bookmark + optional ranked search hit into a normalized SearchResult. */
-function toBookmarkSearchResult(
-  bookmark: AnyBookmark,
-  ranked: { url: string; score: number } | undefined,
-): SearchResult {
-  if (!ranked) {
-    debug("[Bookmarks Search] No ranked result for hydrated bookmark, using score 0:", bookmark.id);
-  }
+/** Map a ranked bookmark row into a normalized SearchResult. */
+function toBookmarkSearchResult(bookmark: UnifiedBookmark, score: number): SearchResult {
   const fallbackUrl = bookmark.slug ? `/bookmarks/${bookmark.slug}` : `/bookmarks/${bookmark.id}`;
   return {
     id: bookmark.id,
     type: "bookmark",
     title: bookmark.title,
     description: bookmark.description,
-    url: ranked ? ranked.url : fallbackUrl,
-    score: ranked ? ranked.score : 0,
+    url: fallbackUrl,
+    score,
   };
 }
 
@@ -151,33 +142,13 @@ export async function GET(request: NextRequest) {
     }
     const { page, limit } = paginationResult.data;
 
-    // Get IDs of matching bookmarks via MiniSearch index (already score-sorted)
-    const searchResults = await searchBookmarks(query);
-
-    // Pull full bookmark objects (includeImageData=false for lighter payload).
-    const rawDataset = await getBookmarks({
-      ...DEFAULT_BOOKMARK_OPTIONS,
-      includeImageData: false,
-      skipExternalFetch: false,
-      force: false,
-    });
-    if (!Array.isArray(rawDataset)) {
-      return createSearchErrorResponse("Bookmarks search failed", "Unexpected non-array response");
-    }
-    // Widen union-of-arrays to array-of-union so .map() infers concrete element types
-    const fullDataset: AnyBookmark[] = rawDataset;
-    const bookmarksById = new Map(fullDataset.map((bookmark) => [bookmark.id, bookmark]));
-    const orderedMatches = searchResults
-      .map((result) => bookmarksById.get(String(result.id)))
-      .filter((bookmark): bookmark is AnyBookmark => Boolean(bookmark));
-
-    const totalCount = orderedMatches.length;
-    const start = (page - 1) * limit;
-    const paginated = orderedMatches.slice(start, start + limit);
-    const searchResultsById = new Map(searchResults.map((result) => [String(result.id), result]));
-    const paginatedResults: SearchResult[] = paginated.map((bookmark) =>
-      toBookmarkSearchResult(bookmark, searchResultsById.get(bookmark.id)),
+    const { searchBookmarksFtsPage } = await loadBookmarkQueryModule();
+    const { items, totalCount } = await searchBookmarksFtsPage(query, page, limit);
+    const paginated = items.map((item) => item.bookmark);
+    const paginatedResults: SearchResult[] = items.map((item) =>
+      toBookmarkSearchResult(item.bookmark, item.score),
     );
+    const start = (page - 1) * limit;
 
     return buildBookmarkSearchResponse({
       data: paginated,

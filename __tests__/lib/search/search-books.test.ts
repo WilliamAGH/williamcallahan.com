@@ -14,28 +14,6 @@ vi.mock("@/lib/books/audiobookshelf.server", () => ({
   fetchBooks: vi.fn(),
 }));
 
-// Mock ServerCacheInstance
-vi.mock("@/lib/server-cache", () => ({
-  ServerCacheInstance: {
-    get: vi.fn(),
-    set: vi.fn(),
-    getStats: vi.fn().mockReturnValue({
-      keys: 0,
-      hits: 0,
-      misses: 0,
-      ksize: 0,
-      vsize: 0,
-      sizeBytes: 0,
-      maxSizeBytes: 0,
-      utilizationPercent: 0,
-    }),
-    getSearchResults: vi.fn(),
-    setSearchResults: vi.fn(),
-    shouldRefreshSearch: vi.fn(),
-    clearAllCaches: vi.fn(),
-  },
-}));
-
 // Mock S3 JSON helpers to prevent actual S3 calls
 vi.mock("@/lib/s3/json", () => ({
   readJsonS3Optional: vi.fn().mockResolvedValue(null),
@@ -44,7 +22,6 @@ vi.mock("@/lib/s3/json", () => ({
 
 import { searchBooks } from "@/lib/search";
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import type { Mock } from "vitest";
 
 // Test data: books with valid UUIDs (like real audiobookshelf data)
@@ -89,10 +66,6 @@ const mockBooks: Book[] = [
 describe("Books Search", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: no cache hit, force fresh index build
-    (ServerCacheInstance.get as Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.getSearchResults as Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.shouldRefreshSearch as Mock).mockReturnValue(true);
     // Return mock books
     (fetchBooks as Mock).mockResolvedValue(mockBooks);
   });

@@ -6,7 +6,6 @@
  * Extracted from unified-image-service for SRP compliance per [MO1d].
  */
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { DEFAULT_IMAGE_CONTENT_TYPE } from "@/lib/utils/content-type";
 import { safeStringifyValue } from "@/lib/utils/error-utils";
@@ -62,7 +61,7 @@ export async function validateAndPersistLogo(
   options: LogoPersistenceOptions,
   config: LogoPersistenceConfig,
 ): Promise<LogoFetchResult> {
-  const { isReadOnly, validators, s3Ops, logoFetcher, getCdnUrl } = config;
+  const { isReadOnly, validators, s3Ops, logoFetcher } = config;
 
   const validation = await validators.validateLogo(logoData.buffer);
   const isValid = !validation.isGlobeIcon;
@@ -84,19 +83,6 @@ export async function validateAndPersistLogo(
         url: logoData.url,
         extension: ext,
         inverted: true,
-      });
-      ServerCacheInstance.setInvertedLogo(domain, {
-        s3Key,
-        cdnUrl: getCdnUrl(s3Key) || undefined,
-        analysis: inverted.analysis || {
-          needsDarkInversion: false,
-          needsLightInversion: false,
-          hasTransparency: false,
-          brightness: 0.5,
-          format: "png",
-          dimensions: { width: 0, height: 0 },
-        },
-        contentType: logoData.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
       });
     }
   }
@@ -162,20 +148,6 @@ export function buildReadOnlyMissingResult(domain: string, isDev: boolean): Logo
     source: null,
     contentType: DEFAULT_IMAGE_CONTENT_TYPE,
     error: "Logo not available in CDN (fetch required at runtime)",
-    timestamp: getDeterministicTimestamp(),
-    isValid: false,
-  };
-}
-
-/**
- * Build result when memory pressure prevents logo processing.
- */
-export function buildMemoryPressureResult(domain: string): LogoFetchResult {
-  return {
-    domain,
-    source: null,
-    contentType: DEFAULT_IMAGE_CONTENT_TYPE,
-    error: "Insufficient memory to process logo request",
     timestamp: getDeterministicTimestamp(),
     isValid: false,
   };

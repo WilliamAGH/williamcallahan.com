@@ -18,7 +18,6 @@ import {
   type SerializedIndex,
 } from "@/types/schemas/search";
 import type { Book } from "@/types/schemas/book";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { SEARCH_S3_PATHS, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -28,7 +27,7 @@ import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { loadIndexFromJSON } from "../index-builder";
 import { extractBookmarksFromSerializedIndex } from "../serialization";
 import { BOOKMARKS_INDEX_CONFIG, BOOKS_INDEX_CONFIG } from "../config";
-import { SEARCH_INDEX_KEYS, INDEX_TTL, USE_S3_INDEXES } from "../constants";
+import { USE_S3_INDEXES } from "../constants";
 import { createIndexWithoutDedup } from "../index-factory";
 import { generateFallbackSlug } from "@/lib/bookmarks/slug-helpers";
 
@@ -82,52 +81,16 @@ export async function getBookmarksIndex(): Promise<{
   index: MiniSearch<BookmarkIndexItem>;
   bookmarks: Array<BookmarkIndexItem & { slug: string }>;
 }> {
-  // Memory safety guard – skip rebuild if under critical pressure
-  let shouldBlockForMemoryPressure = false;
-  try {
-    const { getMemoryHealthMonitor } = await import("@/lib/health/memory-health-monitor");
-    shouldBlockForMemoryPressure = !getMemoryHealthMonitor().shouldAcceptNewRequests();
-  } catch {
-    /* If monitor not available, continue without blocking */
-  }
-  if (shouldBlockForMemoryPressure) {
-    throw new Error("Memory pressure – aborting bookmarks index build");
-  }
-
   devLog("[getBookmarksIndex] Building/Loading bookmarks index. start");
-  const cacheKey = SEARCH_INDEX_KEYS.BOOKMARKS;
-  const cached = ServerCacheInstance.get<{
-    index: MiniSearch<BookmarkIndexItem>;
-    bookmarks: Array<BookmarkIndexItem & { slug: string }>;
-  }>(cacheKey);
 
   // CRITICAL: Use bracket notation to prevent Turbopack from inlining NEXT_PHASE at build time
   const PHASE_KEY = "NEXT_PHASE";
   const BUILD_VALUE = "phase-production-build";
   const isBuildPhase = process.env[PHASE_KEY] === BUILD_VALUE;
 
-  if (cached) {
-    // SAFEGUARD: Don't use cached empty indexes outside build phase
-    if (cached.bookmarks.length === 0 && !isBuildPhase) {
-      devLog("[getBookmarksIndex] cached index is empty outside build phase, attempting rebuild");
-      envLogger.log(
-        "[Search] Cached bookmarks index is empty - rebuilding (possible stale cache from cold start)",
-        {},
-        { category: "Search" },
-      );
-    } else {
-      devLog("[getBookmarksIndex] using cached in-memory index", {
-        items: cached.bookmarks.length,
-      });
-      return cached;
-    }
-  }
-
   if (isBuildPhase) {
     devLog("[getBookmarksIndex] build phase detected, returning empty index");
-    const emptyResult = { index: buildBookmarksIndex([]), bookmarks: [] };
-    ServerCacheInstance.set(cacheKey, emptyResult, INDEX_TTL.BOOKMARKS);
-    return emptyResult;
+    return { index: buildBookmarksIndex([]), bookmarks: [] };
   }
 
   // Fetch bookmarks data
@@ -218,13 +181,13 @@ export async function getBookmarksIndex(): Promise<{
           BOOKMARKS_INDEX_CONFIG,
         );
         console.log(
-          `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
+          `[Search] Loaded bookmarks index from S3 (${serializedIndex.metadata.itemCount} items)`,
         );
       } else {
         bookmarksIndex = buildBookmarksIndex(bookmarks);
       }
     } catch (error) {
-      console.error(`[Search] Error loading ${cacheKey} from S3:`, error);
+      console.error("[Search] Error loading bookmarks index from S3:", error);
       bookmarksIndex = buildBookmarksIndex(bookmarks);
     }
   } else {
@@ -284,18 +247,7 @@ export async function getBookmarksIndex(): Promise<{
 
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
 
-  // CRITICAL: Do NOT cache empty indexes when source data exists
   const serializedIndexCount = serializedBookmarksIndex?.metadata?.itemCount ?? 0;
-  if (bookmarksForIndex.length === 0 && (bookmarks.length > 0 || serializedIndexCount > 0)) {
-    envLogger.log(
-      "[Search] SKIPPING CACHE: Empty bookmarks index despite available bookmark data (source or S3 index)",
-      { sourceCount: bookmarks.length, indexedCount: 0, serializedIndexCount },
-      { category: "Search" },
-    );
-  } else {
-    ServerCacheInstance.set(cacheKey, result, INDEX_TTL.BOOKMARKS);
-  }
-
   devLog("[getBookmarksIndex] index built", {
     indexed: bookmarksForIndex.length,
     sourceBookmarks: bookmarks.length,
@@ -312,13 +264,6 @@ export async function getBookmarksIndex(): Promise<{
  * Called by both getBooksIndex() and getBookGenresWithCounts() to avoid duplicate API calls.
  */
 export async function getCachedBooksData(): Promise<Book[]> {
-  const cacheKey = SEARCH_INDEX_KEYS.BOOKS_DATA;
-  const cached = ServerCacheInstance.get<Book[]>(cacheKey);
-  if (cached) {
-    devLog("[getCachedBooksData] Using cached books data", { count: cached.length });
-    return cached;
-  }
-
   let books: Book[] = [];
   try {
     devLog("[getCachedBooksData] Fetching full books from AudioBookShelf...");
@@ -335,7 +280,6 @@ export async function getCachedBooksData(): Promise<Book[]> {
     console.warn("[Search] WARNING: No books returned from AudioBookShelf");
   }
 
-  ServerCacheInstance.set(cacheKey, books, INDEX_TTL.BOOKS_DATA);
   return books;
 }
 
@@ -368,13 +312,6 @@ function buildBooksIndex(books: Book[]): MiniSearch<Book> {
  * Uses shared books data cache and S3 fallback.
  */
 export async function getBooksIndex(): Promise<MiniSearch<Book>> {
-  const cacheKey = SEARCH_INDEX_KEYS.BOOKS;
-  const cached = ServerCacheInstance.get<MiniSearch<Book>>(cacheKey);
-  if (cached) {
-    devLog("[getBooksIndex] Using cached books index");
-    return cached;
-  }
-
   let booksIndex: MiniSearch<Book>;
 
   // Try to load from S3 first
@@ -388,29 +325,23 @@ export async function getBooksIndex(): Promise<MiniSearch<Book>> {
       if (serializedIndex?.index && serializedIndex.metadata) {
         booksIndex = loadIndexFromJSON<Book>(serializedIndex, BOOKS_INDEX_CONFIG);
         console.log(
-          `[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`,
+          `[Search] Loaded books index from S3 (${serializedIndex.metadata.itemCount} items)`,
         );
-        ServerCacheInstance.set(cacheKey, booksIndex, INDEX_TTL.BOOKS);
         return booksIndex;
       }
-      devLog("[getBooksIndex] S3 index not found or invalid, falling back to shared cache");
+      devLog("[getBooksIndex] S3 index not found or invalid, falling back to live fetch");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      devLog("[getBooksIndex] S3 load failed, falling back to shared cache:", message);
+      devLog("[getBooksIndex] S3 load failed, falling back to live fetch:", message);
     }
   }
 
-  // Use shared books data cache
   const books = await getCachedBooksData();
 
   if (books.length === 0) {
-    const emptyIndex = buildBooksIndex([]);
-    ServerCacheInstance.set(cacheKey, emptyIndex, INDEX_TTL.BOOKS);
-    return emptyIndex;
+    return buildBooksIndex([]);
   }
 
-  console.log(`[Search] Building books index with ${books.length} books (from shared cache)`);
-  booksIndex = buildBooksIndex(books);
-  ServerCacheInstance.set(cacheKey, booksIndex, INDEX_TTL.BOOKS);
-  return booksIndex;
+  console.log(`[Search] Building books index with ${books.length} books`);
+  return buildBooksIndex(books);
 }
