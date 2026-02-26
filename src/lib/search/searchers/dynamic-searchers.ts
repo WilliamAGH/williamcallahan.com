@@ -11,6 +11,10 @@ import type { SearchResult } from "@/types/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { hybridSearchBookmarks } from "@/lib/db/queries/hybrid-search";
+import { BOOKMARK_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/bookmarks";
+import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
+import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { getBookmarksIndex, getBooksIndex } from "../loaders/dynamic-content";
 import { isRecord } from "../serialization";
 
@@ -19,6 +23,60 @@ const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !==
 const devLog = (...args: unknown[]) => {
   if (IS_DEV) console.log("[SearchDev]", ...args);
 };
+const SEARCH_LIMIT = 50;
+
+function shouldUseHybridBookmarkSearch(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+async function buildBookmarkQueryEmbedding(query: string): Promise<number[] | undefined> {
+  const embeddingConfig = resolveDefaultEndpointCompatibleEmbeddingConfig();
+  if (!embeddingConfig) {
+    return undefined;
+  }
+
+  try {
+    const vectors = await embedTextsWithEndpointCompatibleModel({
+      config: embeddingConfig,
+      input: [query],
+      timeoutMs: 1500,
+    });
+    const vector = vectors[0];
+    if (!vector || vector.length !== BOOKMARK_EMBEDDING_DIMENSIONS) {
+      return undefined;
+    }
+    return vector;
+  } catch (error) {
+    envLogger.log(
+      "Bookmark query embedding failed; continuing with keyword-only hybrid search",
+      { error: error instanceof Error ? error.message : String(error) },
+      { category: "Search" },
+    );
+    return undefined;
+  }
+}
+
+async function tryHybridBookmarkSearch(query: string): Promise<SearchResult[] | null> {
+  try {
+    const embedding = await buildBookmarkQueryEmbedding(query);
+    const rows = await hybridSearchBookmarks({ query, embedding, limit: SEARCH_LIMIT });
+    return rows.map(({ bookmark, score }) => ({
+      id: bookmark.id,
+      type: "bookmark",
+      title: bookmark.title,
+      description: bookmark.description,
+      url: `/bookmarks/${bookmark.slug || bookmark.id}`,
+      score,
+    }));
+  } catch (error) {
+    envLogger.log(
+      "Hybrid bookmark search failed; falling back to MiniSearch",
+      { error: error instanceof Error ? error.message : String(error) },
+      { category: "Search" },
+    );
+    return null;
+  }
+}
 
 /**
  * Common filler words stripped from bookmark search queries before they hit
@@ -131,13 +189,20 @@ function normalizeBookmarkSearchHit(hit: unknown): {
  * Execute bookmark search and cache results. Used for both foreground and background refresh.
  */
 async function executeBookmarkSearch(query: string): Promise<SearchResult[]> {
-  const indexData = await getBookmarksIndex();
-  const { index, bookmarks } = indexData;
-
   if (!query) return [];
 
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
+
+  if (shouldUseHybridBookmarkSearch()) {
+    const hybridResults = await tryHybridBookmarkSearch(sanitizedQuery);
+    if (hybridResults) {
+      return hybridResults;
+    }
+  }
+
+  const indexData = await getBookmarksIndex();
+  const { index, bookmarks } = indexData;
 
   const searchResults = executeBookmarkQueryStrategies(index, sanitizedQuery)
     .map(normalizeBookmarkSearchHit)
