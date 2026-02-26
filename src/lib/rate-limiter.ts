@@ -150,7 +150,7 @@ export async function waitForPermit(
  * it resets on process restart, which is acceptable for sliding-window limiters.
  * @deprecated Remove callers and this stub once all references are cleaned up.
  */
-export async function loadRateLimitStoreFromS3(_storeName: string, _s3Path: string): Promise<void> {
+export async function loadRateLimitStore(_storeName: string, _storePath: string): Promise<void> {
   // In-memory only — nothing to load.
 }
 
@@ -162,7 +162,7 @@ export function incrementAndPersist(
   storeName: string,
   contextId: string,
   config: RateLimiterConfig,
-  _s3Path: string,
+  _storePath: string,
 ): boolean {
   return isOperationAllowed(storeName, contextId, config);
 }

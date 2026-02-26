@@ -2,7 +2,6 @@
  * GitHub Activity Storage Module
  *
  * Delegates all persistence to PostgreSQL via Drizzle ORM.
- * Exported function signatures are intentionally preserved for call-site compatibility.
  *
  * @module data-access/github-storage
  */
@@ -32,12 +31,9 @@ import type {
 
 /**
  * Read GitHub activity data from the database.
- * The `_key` parameter is accepted for call-site compatibility but is not used;
- * all activity data lives in a single DB row keyed by ("activity", "global").
+ * All activity data lives in a single DB row keyed by ("activity", "global").
  */
-export async function readGitHubActivityFromS3(
-  _key?: string,
-): Promise<GitHubActivityApiResponseFromSchema | null> {
+export async function readGitHubActivityRecord(): Promise<GitHubActivityApiResponseFromSchema | null> {
   const data = await readGitHubActivityFromDb();
   if (!data) {
     debugLog("No GitHub activity data found in database", "warn");
@@ -47,11 +43,9 @@ export async function readGitHubActivityFromS3(
 
 /**
  * Write GitHub activity data with non-degrading write protection.
- * The `_key` parameter is accepted for call-site compatibility but is not used.
  */
-export async function writeGitHubActivityToS3(
+export async function writeGitHubActivityRecord(
   data: GitHubActivityApiResponseFromSchema,
-  _key?: string,
 ): Promise<boolean> {
   return writeGitHubActivityToDb(data);
 }
@@ -59,14 +53,14 @@ export async function writeGitHubActivityToS3(
 /**
  * Read GitHub activity summary from the database.
  */
-export async function readGitHubSummaryFromS3(): Promise<GitHubActivitySummaryFromSchema | null> {
+export async function readGitHubSummaryRecord(): Promise<GitHubActivitySummaryFromSchema | null> {
   return readGitHubSummaryFromDb();
 }
 
 /**
  * Write GitHub activity summary to the database.
  */
-export async function writeGitHubSummaryToS3(
+export async function writeGitHubSummaryRecord(
   summary: GitHubActivitySummaryFromSchema,
 ): Promise<boolean> {
   return writeGitHubSummaryToDb(summary);
@@ -75,7 +69,7 @@ export async function writeGitHubSummaryToS3(
 /**
  * Read repository weekly stats cache from the database.
  */
-export async function readRepoWeeklyStatsFromS3(
+export async function readRepoWeeklyStatsRecord(
   repoOwner: string,
   repoName: string,
 ): Promise<RepoWeeklyStatCacheFromSchema | null> {
@@ -85,7 +79,7 @@ export async function readRepoWeeklyStatsFromS3(
 /**
  * Write repository weekly stats cache to the database.
  */
-export async function writeRepoWeeklyStatsToS3(
+export async function writeRepoWeeklyStatsRecord(
   repoOwner: string,
   repoName: string,
   cache: RepoWeeklyStatCacheFromSchema,
@@ -96,7 +90,7 @@ export async function writeRepoWeeklyStatsToS3(
 /**
  * Read aggregated weekly activity from the database.
  */
-export async function readAggregatedWeeklyActivityFromS3(): Promise<
+export async function readAggregatedWeeklyActivityRecord(): Promise<
   AggregatedWeeklyActivityFromSchema[] | null
 > {
   return readAggregatedWeeklyActivityFromDb();
@@ -105,7 +99,7 @@ export async function readAggregatedWeeklyActivityFromS3(): Promise<
 /**
  * Write aggregated weekly activity to the database.
  */
-export async function writeAggregatedWeeklyActivityToS3(
+export async function writeAggregatedWeeklyActivityRecord(
   data: AggregatedWeeklyActivityFromSchema[],
 ): Promise<boolean> {
   return writeAggregatedWeeklyActivityToDb(data);
@@ -114,7 +108,7 @@ export async function writeAggregatedWeeklyActivityToS3(
 /**
  * List all repository weekly stats qualifiers stored in the database.
  * Returns qualifiers in "owner/repo" format, sorted alphabetically.
- * Replaces the S3-based file listing.
+ * Replaces object-store key listing for repo weekly stats.
  */
 export async function listRepoStatsFiles(): Promise<string[]> {
   return listRepoWeeklyStatsQualifiers();
@@ -124,9 +118,7 @@ export async function listRepoStatsFiles(): Promise<string[]> {
  * Get metadata for GitHub activity data.
  * Returns the updatedAt timestamp from the database row.
  */
-export async function getGitHubActivityMetadata(
-  _key?: string,
-): Promise<{ lastModified?: Date } | null> {
+export async function getGitHubActivityMetadata(): Promise<{ lastModified?: Date } | null> {
   const updatedAt = await readGitHubActivityUpdatedAt("activity");
   if (updatedAt === null) {
     return null;
@@ -139,7 +131,7 @@ export async function getGitHubActivityMetadata(
  * Check if an object uses the old flat stored GitHub activity format.
  * Retained for backward compatibility in consumers that handle legacy data shapes.
  */
-export function isOldFlatStoredGithubActivityS3Format(obj: unknown): obj is StoredGithubActivityS3 {
+export function isOldFlatStoredGithubActivityFormat(obj: unknown): obj is StoredGithubActivityS3 {
   if (!obj || typeof obj !== "object") return false;
   const activity = obj as Record<string, unknown>;
 

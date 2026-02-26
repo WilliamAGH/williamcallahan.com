@@ -17,8 +17,8 @@ import type {
   UserActivityView,
 } from "@/types/github";
 import {
-  readGitHubActivityFromS3,
-  isOldFlatStoredGithubActivityS3Format,
+  readGitHubActivityRecord,
+  isOldFlatStoredGithubActivityFormat,
   getGitHubActivityMetadata,
 } from "./github-storage";
 
@@ -44,11 +44,11 @@ function isEmptyData(data: unknown): boolean {
  * Formats GitHub activity data into a user-friendly view
  */
 function formatActivityView(
-  s3ActivityData: GitHubActivityApiResponse | null,
+  activityRecord: GitHubActivityApiResponse | null,
   source: UserActivityView["source"],
   lastRefreshed?: string,
 ): UserActivityView {
-  if (!s3ActivityData) {
+  if (!activityRecord) {
     return {
       source: "empty",
       trailingYearData: {
@@ -66,7 +66,7 @@ function formatActivityView(
     };
   }
 
-  const trailingYearData = s3ActivityData.trailingYearData || {
+  const trailingYearData = activityRecord.trailingYearData || {
     data: [],
     totalContributions: 0,
     linesAdded: 0,
@@ -74,12 +74,12 @@ function formatActivityView(
     dataComplete: false,
   };
 
-  const allTimeData = s3ActivityData.cumulativeAllTimeData || trailingYearData;
+  const allTimeData = activityRecord.cumulativeAllTimeData || trailingYearData;
   const commitsOlderThanYear = allTimeData.allCommitsOlderThanYear;
 
   return {
     source,
-    error: s3ActivityData.error,
+    error: activityRecord.error,
     trailingYearData: {
       data: trailingYearData.data || [],
       totalContributions: trailingYearData.totalContributions || 0,
@@ -99,13 +99,13 @@ function formatActivityView(
 
 /**
  * Primary function to get GitHub activity data from the database.
- * All GitHub activity is stored in a single PostgreSQL row; no S3 key
+ * All GitHub activity is stored in a single PostgreSQL row; no object-key
  * fallback logic is needed.
  */
 export async function getGithubActivity(): Promise<UserActivityView> {
   debug("[DataAccess/GitHub:getGithubActivity] Starting GitHub activity fetch");
 
-  let activityData = await readGitHubActivityFromS3();
+  let activityData = await readGitHubActivityRecord();
 
   if (!activityData || isEmptyData(activityData)) {
     debug("[DataAccess/GitHub:getGithubActivity] No GitHub data found in database");
@@ -118,7 +118,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
     : undefined;
 
   // Handle old flat format (backward compatibility)
-  if (isOldFlatStoredGithubActivityS3Format(activityData)) {
+  if (isOldFlatStoredGithubActivityFormat(activityData)) {
     debug("[DataAccess/GitHub:getGithubActivity] Converting old flat format to new nested format");
     const oldFormatData = activityData as StoredGithubActivityS3;
     activityData = {
@@ -127,7 +127,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
     };
   }
 
-  return formatActivityView(activityData, "s3-store", lastRefreshed);
+  return formatActivityView(activityData, "db-store", lastRefreshed);
 }
 
 /**

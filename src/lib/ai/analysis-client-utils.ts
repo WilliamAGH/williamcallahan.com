@@ -181,7 +181,7 @@ export function parseLlmJson(rawText: string): unknown {
  * @param id - The item ID
  * @param analysis - The analysis data to persist
  */
-export async function persistAnalysisToS3(
+export async function persistAnalysis(
   domain: AnalysisDomain,
   id: string,
   analysis: unknown,

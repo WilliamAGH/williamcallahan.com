@@ -12,7 +12,7 @@
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse, type NextRequest } from "next/server";
-import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
+import { incrementAndPersist, loadRateLimitStore } from "@/lib/rate-limiter";
 import { envLogger } from "@/lib/utils/env-logger";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import { getClientIp } from "@/lib/utils/request-utils";
@@ -25,18 +25,18 @@ import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
 
 const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
-const RATE_LIMIT_S3_PATH = "json/rate-limits/github-refresh.json";
+const RATE_LIMIT_STORE_PATH = "json/rate-limits/github-refresh.json";
 const RATE_LIMIT_STORE_NAME = "github-refresh";
 
-// Load rate limits from S3 on startup
+// Load rate limits from the in-memory store bootstrap on startup
 let rateLimitsLoaded = false;
 async function ensureRateLimitsLoaded() {
   if (!rateLimitsLoaded) {
     try {
-      await loadRateLimitStoreFromS3(RATE_LIMIT_STORE_NAME, RATE_LIMIT_S3_PATH);
+      await loadRateLimitStore(RATE_LIMIT_STORE_NAME, RATE_LIMIT_STORE_PATH);
       rateLimitsLoaded = true;
     } catch (error) {
-      console.warn("[API Refresh] Failed to load rate limits from S3:", error);
+      console.warn("[API Refresh] Failed to load rate limits from store bootstrap:", error);
       // Continue anyway - will start with empty store
     }
   }
@@ -100,12 +100,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const ip = getClientIp(headerStore, { fallback: "unknown" });
     const rateLimitKey = `github-refresh:${ip}`;
 
-    // Check and increment rate limit using S3-backed persistent storage
+    // Check and increment rate limit using the in-memory store
     const allowed = incrementAndPersist(
       RATE_LIMIT_STORE_NAME,
       rateLimitKey,
       { maxRequests: RATE_LIMIT_MAX_REQUESTS, windowMs: RATE_LIMIT_WINDOW },
-      RATE_LIMIT_S3_PATH,
+      RATE_LIMIT_STORE_PATH,
     );
 
     if (!allowed) {

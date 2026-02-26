@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { aiQueueStatsSchema } from "@/types/schemas/ai-openai-compatible-client";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
-import { parseLlmJson, persistAnalysisToS3 } from "@/lib/ai/analysis-client-utils";
+import { parseLlmJson, persistAnalysis } from "@/lib/ai/analysis-client-utils";
 import type { AnalysisState, UseAiAnalysisArgs, UseAiAnalysisResult } from "@/types/ai-analysis";
 
 const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
@@ -143,7 +143,7 @@ export function useAiAnalysis<TEntity, TAnalysis>(
         }
 
         setState({ status: "success", analysis: parsedAnalysis, error: null });
-        void persistAnalysisToS3(persistenceKey, entityId, parsedAnalysis);
+        void persistAnalysis(persistenceKey, entityId, parsedAnalysis);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         const message = error instanceof Error ? error.message : "Failed to generate analysis";

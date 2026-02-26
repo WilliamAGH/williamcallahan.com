@@ -21,7 +21,6 @@ import {
   readRepoWeeklyStatsRecord,
   writeAggregatedWeeklyActivityRecord,
 } from "./github-storage";
-import { AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE } from "@/lib/constants";
 
 /**
  * Creates an empty category stats object for LOC tracking
@@ -198,7 +197,8 @@ export function repairCsvData(
 }
 
 /**
- * Aggregates weekly lines added and removed across all repository CSV files in S3 and stores the result as a single JSON file.
+ * Aggregates weekly lines added and removed across all repository CSV files and stores the
+ * result in PostgreSQL.
  *
  * @returns A promise that resolves to an object containing the aggregated weekly activity array and a flag indicating whether all data was processed successfully, or null if in DRY_RUN mode.
  *
@@ -209,29 +209,36 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
   overallDataComplete: boolean;
 } | null> {
   if (process.env.DRY_RUN === "true") {
-    debug("[DataAccess/GitHub-S3] DRY RUN mode: skipping aggregated weekly activity calculation.");
+    debug(
+      "[DataAccess/GitHub-Store] DRY RUN mode: skipping aggregated weekly activity calculation.",
+    );
     return null;
   }
   const overrideCalc = globalThis.calculateAndStoreAggregatedWeeklyActivityOverride;
   if (typeof overrideCalc === "function") {
     return overrideCalc();
   }
-  console.log("[DataAccess/GitHub-S3] Calculating aggregated weekly activity...");
+  console.log("[DataAccess/GitHub-Store] Calculating aggregated weekly activity...");
   let overallDataComplete = true;
   const weeklyTotals: Record<string, { added: number; removed: number }> = {};
   const today = new Date();
   let repoStatIdentifiers: string[] = [];
   try {
     repoStatIdentifiers = await listRepoStatsFiles();
-    debug(`[DataAccess/GitHub-S3] Found ${repoStatIdentifiers.length} repo stat identifiers.`);
+    debug(`[DataAccess/GitHub-Store] Found ${repoStatIdentifiers.length} repo stat identifiers.`);
   } catch (listError: unknown) {
     const message = listError instanceof Error ? listError.message : String(listError);
-    console.error("[DataAccess/GitHub-S3] Aggregation: Error listing repo weekly stats:", message);
+    console.error(
+      "[DataAccess/GitHub-Store] Aggregation: Error listing repo weekly stats:",
+      message,
+    );
     await writeAggregatedWeeklyActivityRecord([]); // Write empty if listing fails
     return { aggregatedActivity: [], overallDataComplete: false };
   }
   if (repoStatIdentifiers.length === 0) {
-    debug("[DataAccess/GitHub-S3] Aggregation: No repo weekly stats found. Nothing to aggregate.");
+    debug(
+      "[DataAccess/GitHub-Store] Aggregation: No repo weekly stats found. Nothing to aggregate.",
+    );
     await writeAggregatedWeeklyActivityRecord([]);
     return { aggregatedActivity: [], overallDataComplete: true }; // No files means data is "complete" in terms of processing what's there
   }
@@ -240,13 +247,17 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
       const [owner, ...repoParts] = identifier.split("/");
       const repo = repoParts.join("/");
       if (!owner || !repo) {
-        debug(`[DataAccess/GitHub-S3] Aggregation: Invalid qualifier "${identifier}", skipping.`);
+        debug(
+          `[DataAccess/GitHub-Store] Aggregation: Invalid qualifier "${identifier}", skipping.`,
+        );
         overallDataComplete = false;
         continue;
       }
       const cache = await readRepoWeeklyStatsRecord(owner, repo);
       if (!cache) {
-        debug(`[DataAccess/GitHub-S3] Aggregation: Missing DB cache for ${identifier}, skipping.`);
+        debug(
+          `[DataAccess/GitHub-Store] Aggregation: Missing DB cache for ${identifier}, skipping.`,
+        );
         overallDataComplete = false;
         continue;
       }
@@ -273,14 +284,14 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
       }
     } catch (err: unknown) {
       debug(
-        `[DataAccess/GitHub-S3] Aggregation: Error reading ${identifier}, skipping.`,
+        `[DataAccess/GitHub-Store] Aggregation: Error reading ${identifier}, skipping.`,
         err instanceof Error ? err.message : String(err),
       );
       overallDataComplete = false; // Error reading a file means overall is not complete
     }
   }
   debug(
-    `[DataAccess/GitHub-S3] Aggregation: Processed ${repoStatIdentifiers.length} repo stat identifiers.`,
+    `[DataAccess/GitHub-Store] Aggregation: Processed ${repoStatIdentifiers.length} repo stat identifiers.`,
   );
   const aggregatedActivity: AggregatedWeeklyActivity[] = Object.entries(weeklyTotals)
     .map(([weekStartDate, totals]) => ({
@@ -291,7 +302,7 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
     .toSorted((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
   await writeAggregatedWeeklyActivityRecord(aggregatedActivity);
   console.log(
-    `[DataAccess/GitHub-S3] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`,
+    `[DataAccess/GitHub-Store] Aggregated weekly activity persisted to PostgreSQL. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`,
   );
   return { aggregatedActivity, overallDataComplete };
 }

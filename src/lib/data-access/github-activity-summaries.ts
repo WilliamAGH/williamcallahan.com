@@ -7,8 +7,7 @@ import { debug } from "@/lib/utils/debug";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
 import { createCategorizedError } from "@/lib/utils/error-utils";
 import { createEmptyCategoryStats } from "./github-processing";
-import { writeGitHubSummaryToS3 } from "./github-storage";
-import { ALL_TIME_SUMMARY_S3_KEY_FILE } from "@/lib/constants";
+import { writeGitHubSummaryRecord } from "./github-storage";
 import type {
   GitHubActivitySummary,
   GitHubSummaryInput,
@@ -37,13 +36,13 @@ export async function writeGitHubActivitySummaries({
       totalRepositoriesContributedTo,
       linesOfCodeByCategory: yearCategoryStats,
     };
-    await writeGitHubSummaryToS3(yearSummaryData);
-    debug("[DataAccess/GitHub-S3] Trailing year GitHub summary saved");
+    await writeGitHubSummaryRecord(yearSummaryData);
+    debug("[DataAccess/GitHub-Store] Trailing year GitHub summary saved");
     result.trailingYearWritten = true;
   } catch (summaryError: unknown) {
     const categorizedError = createCategorizedError(summaryError, "github");
     console.error(
-      "[DataAccess/GitHub-S3] Failed to write trailing year GitHub summary:",
+      "[DataAccess/GitHub-Store] Failed to write trailing year GitHub summary:",
       categorizedError.message,
     );
     // result.trailingYearWritten remains false - caller can check and handle
@@ -75,15 +74,13 @@ export async function writeGitHubActivitySummaries({
       totalRepositoriesContributedTo,
       linesOfCodeByCategory: finalAllTimeCategoryStats,
     };
-    await writeGitHubSummaryToS3(allTimeSummaryData);
-    debug(
-      `[DataAccess/GitHub-S3] All-time GitHub summary saved to ${ALL_TIME_SUMMARY_S3_KEY_FILE}`,
-    );
+    await writeGitHubSummaryRecord(allTimeSummaryData);
+    debug("[DataAccess/GitHub-Store] All-time GitHub summary saved to PostgreSQL");
     result.allTimeWritten = true;
   } catch (summaryError: unknown) {
     const categorizedError = createCategorizedError(summaryError, "github");
     console.error(
-      "[DataAccess/GitHub-S3] Failed to write all-time GitHub summary:",
+      "[DataAccess/GitHub-Store] Failed to write all-time GitHub summary:",
       categorizedError.message,
     );
     // result.allTimeWritten remains false - caller can check and handle

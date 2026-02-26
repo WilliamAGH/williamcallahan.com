@@ -3,7 +3,7 @@
  *
  * Orchestrates GitHub activity data operations using specialized modules:
  * - github-api.ts: Direct GitHub API interactions
- * - github-storage.ts: S3 storage operations
+ * - github-storage.ts: PostgreSQL-backed activity record operations
  * - github-processing.ts: Data processing and aggregation
  * - github-repo-stats.ts: Per-repository stats processing
  * - github-commit-counts.ts: Commit count aggregation
@@ -32,12 +32,12 @@ import {
   getGitHubUsername,
 } from "./github-api";
 
-import { writeGitHubActivityToS3 } from "./github-storage";
+import { writeGitHubActivityRecord } from "./github-storage";
 import { writeGitHubActivitySummaries } from "./github-activity-summaries";
 import { detectAndRepairCsvFiles } from "./github-csv-repair";
 import { calculateAllTimeCommitCount } from "./github-commit-counts";
 import { processRepositoryStats } from "./github-repo-stats";
-import { GITHUB_ACTIVITY_S3_KEY_FILE, GITHUB_REFRESH_RATE_LIMIT_CONFIG } from "@/lib/constants";
+import { GITHUB_REFRESH_RATE_LIMIT_CONFIG } from "@/lib/constants";
 
 import { calculateAndStoreAggregatedWeeklyActivity } from "./github-processing";
 import { fetchTrailingYearContributionCalendar } from "./github-contributions";
@@ -76,15 +76,17 @@ function wrapGithubActivity(
 // --- GitHub Activity Data Refresh ---
 
 /**
- * Refreshes and recalculates GitHub activity data by fetching repository statistics, commit history, and contribution calendars from the GitHub API, then updates S3 storage with the latest summaries and per-repository data.
+ * Refreshes and recalculates GitHub activity data by fetching repository statistics, commit
+ * history, and contribution calendars from the GitHub API, then updates the PostgreSQL-backed
+ * store with the latest summaries and per-repository data.
  *
  * This function:
  * - Optionally repairs CSV files for data completeness.
  * - Fetches all non-forked repositories contributed to by the configured user.
- * - For each repository, retrieves weekly contributor statistics and falls back to S3 data if necessary.
+ * - For each repository, retrieves weekly contributor statistics and falls back to database cache if necessary.
  * - Aggregates lines of code added/removed and commit counts for both the trailing year and all-time.
  * - Fetches the user's contribution calendar for the trailing year.
- * - Writes updated CSVs, summary JSON files, and combined activity data to S3.
+ * - Writes updated CSV checksums, summary rows, and combined activity data to PostgreSQL.
  * - Performs consistency checks between trailing year and all-time statistics.
  * - Triggers aggregation of weekly activity across all repositories.
  *
@@ -160,7 +162,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       allTimeTotalContributions: 0,
     };
     const result = { trailingYearData: emptyRawResponse, allTimeData: emptyRawResponse };
-    await writeGitHubActivityToS3(wrapGithubActivity(result) as GitHubActivityApiResponse);
+    await writeGitHubActivityRecord(wrapGithubActivity(result) as GitHubActivityApiResponse);
     return result;
   }
 
@@ -243,7 +245,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     (yearTotalCommits || 0) + (olderThanYearCommitStats.totalCommits || 0);
 
   const allTimeData: StoredGithubActivityS3 = {
-    source: "api", // Source is 'api' because it's processed from API/S3 cache, not re-read from aggregated S3 files for this specific object.
+    source: "api", // Source is 'api' because it's processed from API/database cache.
     data: [], // All-time data typically doesn't include the daily calendar view
     totalContributions: lifetimeContributionEstimate,
     linesAdded: allTimeLinesAdded,
@@ -283,21 +285,19 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     error: "All-time data generation failed or was incomplete during refresh",
     dataComplete: false,
   };
-  const combinedActivityDataForS3: GitHubActivityApiResponse = {
+  const combinedActivityData: GitHubActivityApiResponse = {
     // The segments here conform to GitHubActivitySegment which omits summaryActivity and allTimeTotalContributions
     trailingYearData: { ...safeTrailingYearData, source: "api_multi_file_cache" },
     cumulativeAllTimeData: { ...safeAllTimeData, source: "api_multi_file_cache" },
   };
 
   try {
-    await writeGitHubActivityToS3(combinedActivityDataForS3);
-    debug(
-      `[DataAccess/GitHub-S3] Combined GitHub activity data (ApiResponse structure) saved to ${GITHUB_ACTIVITY_S3_KEY_FILE}`,
-    );
+    await writeGitHubActivityRecord(combinedActivityData);
+    debug("[DataAccess/GitHub-Store] Combined GitHub activity data persisted to PostgreSQL.");
   } catch (error: unknown) {
     const categorizedError = createCategorizedError(error, "github");
     console.error(
-      "[DataAccess/GitHub-S3] Failed to write combined GitHub activity data to S3:",
+      "[DataAccess/GitHub-Store] Failed to write combined GitHub activity data to the store:",
       categorizedError.message,
     );
   }

@@ -243,7 +243,7 @@ export const ContributorStatsResponseSchema = z.array(GithubContributorStatsEntr
  * This is what components and scripts like populate-volumes.ts will consume.
  */
 export interface UserActivityView {
-  source: "s3-store" | "s3-store-fallback" | "api-fallback" | "error" | "empty";
+  source: "db-store" | "api-fallback" | "error" | "empty";
   error?: string;
   trailingYearData: {
     data: ContributionDay[];

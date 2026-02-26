@@ -82,14 +82,14 @@ export async function register(): Promise<void> {
     );
   }
 
-  /** Load global Jina AI rate-limit store **/
+  /** Load global Jina AI rate-limit store bootstrap **/
   try {
-    const { loadRateLimitStoreFromS3 } = await import("@/lib/rate-limiter");
+    const { loadRateLimitStore } = await import("@/lib/rate-limiter");
     const { JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH } =
       await import("@/lib/constants");
-    await loadRateLimitStoreFromS3(JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH);
+    await loadRateLimitStore(JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_S3_PATH);
   } catch (err) {
-    console.warn("[Instrumentation] Unable to load Jina rate-limit store:", err);
+    console.warn("[Instrumentation] Unable to load Jina rate-limit store bootstrap:", err);
   }
 
   /**
