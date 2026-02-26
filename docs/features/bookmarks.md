@@ -89,7 +89,7 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 
 ### Rendering Strategy
 
-- Bookmark detail routes (`app/bookmarks/[slug]/page.tsx`) keep Cache Components enabled and rely on a `<Suspense>` boundary around `RelatedContent` to stream recommendations. `RelatedContent` does **not** call `connection()`; it avoids build-time execution by returning `null` during the production build phase and performs S3-backed precomputed lookups at request time, with an in-process cache fallback to avoid repeated similarity computation. Slug-resolution helpers (`findBookmarkBySlug`, `resolveBookmarkIdFromSlug`) remain cache-tagged for memoization.
+- Bookmark detail routes (`app/bookmarks/[slug]/page.tsx`) keep Cache Components enabled and rely on a `<Suspense>` boundary around `RelatedContent` to stream recommendations. `RelatedContent` does **not** call `connection()`; it avoids build-time execution by returning `null` during the production build phase and performs PostgreSQL-backed precomputed lookups (`content_graph_artifacts`) at request time, with an in-process cache fallback to avoid repeated similarity computation. Slug-resolution helpers (`findBookmarkBySlug`, `resolveBookmarkIdFromSlug`) remain cache-tagged for memoization.
 - Bookmark tag routes (`app/bookmarks/tags/[...slug]/page.tsx`) can display a “Discover More” related-content section sourced from the first bookmark on the page, with the active tag excluded from recommendations.
 
 ## Key Features
@@ -113,7 +113,7 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 ### Memory & Cache Management
 
 - **Health Monitoring**: `/api/health/deep` verifies shard lookups (`json/bookmarks/slug-shards*/`) resolve correctly, guaranteeing slug files and mapping stay in sync.
-- **Next.js Cache Tags**: Bookmark lists/tag pages use `cacheTag("bookmarks")` plus slug-specific tags with 15–60 minute lifetimes. Detail routes tag `bookmark-${slug}`. Related content uses its own tags but still reads the same JSON.
+- **Next.js Cache Tags**: Bookmark lists/tag pages use `cacheTag("bookmarks")` plus slug-specific tags with 15–60 minute lifetimes. Detail routes tag `bookmark-${slug}`. Related content uses its own tags while reading PostgreSQL-backed content-graph artifacts.
 - **API Responses**: `/api/bookmarks`, `/api/search/*`, `/api/related-content*` call `unstable_noStore()` and return `Cache-Control: no-store` so they always read the freshest DB-backed bookmark state without joining the Cache Components layer.
 - **Legacy Map Cache**: Still used for metadata (slug lookups, stats) but never stores full bookmark arrays or buffers.
 

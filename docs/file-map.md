@@ -263,8 +263,8 @@ File/Path Functionality Description
   - [x] `terminal-window-state-context.client.tsx` `terminal` - Context for terminal window state
 - [x] **data-access/**
   - [x] `bookmarks.ts` `json-handling` - Data access for bookmarks
-  - [x] `github.ts` `json-handling` - Data access for GitHub
-  - [x] `github-activity-summaries.ts` `github-activity` - Writes trailing-year and all-time summary JSON
+  - [x] `github.ts` `json-handling` - GitHub orchestration (API fetch, processing, cache invalidation, and durable persistence flow)
+  - [x] `github-activity-summaries.ts` `github-activity` - Writes trailing-year and all-time summary payloads via PostgreSQL-backed storage adapters
   - [x] `github-commit-counts.ts` `github-activity` - All-time commit count aggregation (GraphQL + REST fallback)
   - [x] `github-contributions.ts` `github-activity` - Contribution calendar fetch + flattening helpers
   - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
@@ -283,17 +283,26 @@ File/Path Functionality Description
     - [x] `s3-operations.ts` `s3-object-storage` - S3 operations for logos
     - [x] `s3-store.ts` `s3-object-storage` - S3 storage logic for logos
     - [x] `session.ts` `image-handling` - Session management for logo operations
-- [x] **db/**
+  - [x] **db/**
   - [x] `connection.ts` `data-access` - Drizzle PostgreSQL client bootstrap with strict `DATABASE_URL` guard
   - [x] `bookmark-record-mapper.ts` `bookmarks` - Row/insert mapping helpers between Drizzle bookmark records and `UnifiedBookmark`
   - [x] **schema/**
     - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmarks table definition with generated FTS vector plus trigram/HNSW indexes
     - [x] `bookmark-taxonomy.ts` `bookmarks` - Drizzle tag-link and bookmark/tag index-state tables for DB-backed tag pagination and index metadata
+    - [x] `github-activity.ts` `github-activity` - Unified GitHub JSON document store (`github_activity_store`) keyed by `(data_type, qualifier)`
+    - [x] `content-graph.ts` `search` - Precomputed related-content artifact table (`content_graph_artifacts`)
+    - [x] `json-documents.ts` `data-access` - Canonical compatibility JSON document store for former S3 JSON keys (`json_documents`)
   - [x] **queries/**
     - [x] `bookmarks.ts` `bookmarks` - Bookmark read queries (all/page/by-id/count/FTS/tag pages/global index/per-tag index/tag slug listing)
+    - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated read queries from PostgreSQL
+    - [x] `content-graph.ts` `search` - Related-content/books-related artifact reads from PostgreSQL
+    - [x] `json-documents.ts` `data-access` - Compatibility JSON document reads/metadata/listing from PostgreSQL
   - [x] **mutations/**
     - [x] `bookmarks.ts` `bookmarks` - Bookmark upsert/delete mutations plus taxonomy/index-state rebuilds for PostgreSQL persistence
     - [x] `bookmark-embeddings.ts` `bookmarks` - Bookmark embedding backfill/update mutations for `qwen_4b_fp16_embedding` via endpoint-compatible Qwen embeddings
+    - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated upserts and guarded writes
+    - [x] `content-graph.ts` `search` - Content-graph artifact upserts for related-content precomputation
+    - [x] `json-documents.ts` `data-access` - Compatibility JSON upsert/delete mutations with etag/content-length metadata
 - [ ] **hooks/**
   - [x] `use-anchor-scroll.client.ts` `navigation` - Hook for scrolling to anchor links
   - [x] `use-fix-svg-transforms.ts` `image-handling` - Hook to fix SVG transform issues
@@ -338,7 +347,7 @@ File/Path Functionality Description
   - [x] `client.ts` `s3-object-storage` - S3 client creation + retry config
   - [x] `config.ts` `s3-object-storage` - S3 configuration validation
   - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
-  - [x] `json.ts` `s3-object-storage` - JSON S3 read/write helpers
+  - [x] `json.ts` `s3-object-storage` - JSON compatibility helpers (PostgreSQL-backed in production, direct S3 in non-production)
   - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
   - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer helpers
 - [x] **seo/**
@@ -478,7 +487,7 @@ File/Path Functionality Description
 - [x] `Dockerfile` `deployment` - Docker container configuration
 - [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
 - [x] `eslint.config.ts` `linting-formatting` - ESLint configuration
-- [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync (`bookmarks`, `bookmark_tag_links`, `bookmark_index_state`, `bookmark_tag_index_state`)
+- [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync (`bookmarks`, taxonomy/index tables, `json_documents`, `github_activity_store`, `content_graph_artifacts`, books/AI/OpenGraph tables)
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Server-side instrumentation setup
 - [x] `vitest.config.ts` `testing-config` - Vitest configuration

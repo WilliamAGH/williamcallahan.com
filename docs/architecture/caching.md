@@ -4,7 +4,7 @@
 
 ## Core Objective
 
-Use durable data stores (PostgreSQL + S3) plus Next.js Cache Components to deliver low-latency reads, predictable invalidation, and clear cache boundaries between UI rendering and API routes.
+Use durable data stores (PostgreSQL + S3 binaries) plus Next.js Cache Components to deliver low-latency reads, predictable invalidation, and clear cache boundaries between UI rendering and API routes.
 
 ## Architecture Diagram
 
@@ -14,12 +14,12 @@ See `docs/architecture/caching.mmd` for the current write/read/supporting flow.
 
 ### Domain Responsibilities
 
-| Domain                   | Source of truth                        | Cached read path                                   | Invalidation                                                |
-| ------------------------ | -------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
-| Bookmarks                | PostgreSQL read model (`src/lib/db/*`) | `"use cache"` functions + tag-labeled RSC reads    | `revalidateTag("bookmarks")`, slug/tag-specific tags        |
-| Blog + Related Content   | S3 JSON + content graph artifacts      | Server read functions with `cacheLife/cacheTag`    | `revalidateTag("blog")`, `revalidateTag("related-content")` |
-| GitHub Activity          | S3 JSON snapshots                      | RSC summaries/pages using cache tags               | `revalidateTag("github-activity")`                          |
-| Images/Logos/OG metadata | S3 objects + manifests                 | Cache-tagged server accessors and manifest loaders | tag invalidation + key-level refresh                        |
+| Domain                   | Source of truth                                             | Cached read path                                   | Invalidation                                                |
+| ------------------------ | ----------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
+| Bookmarks                | PostgreSQL read model (`src/lib/db/*`)                      | `"use cache"` functions + tag-labeled RSC reads    | `revalidateTag("bookmarks")`, slug/tag-specific tags        |
+| Blog + Related Content   | Repository content + PostgreSQL content-graph artifacts     | Server read functions with `cacheLife/cacheTag`    | `revalidateTag("blog")`, `revalidateTag("related-content")` |
+| GitHub Activity          | PostgreSQL `github_activity_store` (JSON payload documents) | RSC summaries/pages using cache tags               | `revalidateTag("github-activity")`                          |
+| Images/Logos/OG metadata | S3 objects + manifests                                      | Cache-tagged server accessors and manifest loaders | tag invalidation + key-level refresh                        |
 
 ### Route Policy
 
@@ -117,6 +117,7 @@ rg "Date\.now\(\)" src/lib src/components
 - `src/lib/bookmarks/bookmarks-data-access.server.ts`
 - `src/lib/search.ts`
 - `src/lib/data-access/github.ts`
+- `src/lib/data-access/github-storage.ts`
 - `src/lib/data-access/images.server.ts`
 - `src/lib/data-access/opengraph.ts`
 - `src/lib/image-handling/image-manifest-loader.ts`
