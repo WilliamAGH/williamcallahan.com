@@ -1,0 +1,23 @@
+import { defineConfig } from "drizzle-kit";
+
+const databaseUrl = process.env.DATABASE_URL?.trim();
+
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL environment variable is required for drizzle-kit.");
+}
+
+export default defineConfig({
+  dialect: "postgresql",
+  schema: "./src/lib/db/schema/*.ts",
+  out: "./drizzle",
+  tablesFilter: [
+    "bookmarks",
+    "bookmark_tag_links",
+    "bookmark_index_state",
+    "bookmark_tag_index_state",
+  ],
+  schemaFilter: "public",
+  dbCredentials: {
+    url: databaseUrl,
+  },
+});

@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1772075867565,
+      "tag": "0000_rename-embedding-to-qwen-4b-fp16",
+      "breakpoints": true
+    }
+  ]
+}
