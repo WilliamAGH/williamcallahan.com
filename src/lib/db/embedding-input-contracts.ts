@@ -16,7 +16,8 @@
  * @module lib/db/embedding-input-contracts
  */
 
-import type { ContentEmbeddingDomain } from "@/lib/db/schema/content-embeddings";
+import type { ContentEmbeddingDomain, EmbeddingFieldSpec } from "@/types/db/embeddings";
+export type { EmbeddingFieldSpec } from "@/types/db/embeddings";
 import {
   AI_ANALYSIS_EMBEDDING_FIELDS,
   BLOG_POST_EMBEDDING_FIELDS,
@@ -27,23 +28,6 @@ import {
   PROJECT_EMBEDDING_FIELDS,
   THOUGHT_EMBEDDING_FIELDS,
 } from "@/lib/db/embedding-field-specs";
-
-/**
- * A single field in an embedding input text block.
- *
- * @property sourceKey    — Key path in the source data (dot notation for nested).
- * @property label        — Unambiguous label written into text as "Label: value\n".
- * @property meaning      — Developer-facing explanation (never shown to model).
- * @property required     — If true, must have a non-empty value.
- * @property verboseField — If true, can be very long; placed LAST for truncation safety.
- */
-export interface EmbeddingFieldSpec {
-  sourceKey: string;
-  label: string;
-  meaning: string;
-  required: boolean;
-  verboseField: boolean;
-}
 
 /** Maps each content domain to its ordered embedding field specification. */
 export const EMBEDDING_FIELD_CONTRACTS: Record<

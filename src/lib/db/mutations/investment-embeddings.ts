@@ -18,37 +18,14 @@ import {
   contentEmbeddings,
   CONTENT_EMBEDDING_DIMENSIONS,
 } from "@/lib/db/schema/content-embeddings";
+import type {
+  InvestmentEmbeddingRow,
+  InvestmentEmbeddingBackfillOptions,
+  InvestmentEmbeddingBackfillResult,
+} from "@/types/db/investments";
 
 const DEFAULT_BATCH_SIZE = 16;
 const MAX_BATCH_SIZE = 128;
-
-interface InvestmentEmbeddingRow {
-  id: string;
-  name: string;
-  description: string;
-  category: string | null;
-  stage: string;
-  status: string;
-  operatingStatus: string;
-  location: string | null;
-  type: string;
-  investedYear: string;
-  accelerator: unknown;
-}
-
-interface InvestmentEmbeddingBackfillOptions {
-  batchSize?: number;
-  maxRows?: number;
-  dryRun?: boolean;
-}
-
-interface InvestmentEmbeddingBackfillResult {
-  processedRows: number;
-  updatedRows: number;
-  remainingRows: number;
-  usedModel: string;
-  dryRun: boolean;
-}
 
 function buildHalfvecLiteral(embedding: number[]): string {
   if (embedding.length !== CONTENT_EMBEDDING_DIMENSIONS) {

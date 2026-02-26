@@ -17,7 +17,7 @@
  * @module lib/db/embedding-field-specs
  */
 
-import type { EmbeddingFieldSpec } from "@/lib/db/embedding-input-contracts";
+import type { EmbeddingFieldSpec } from "@/types/db/embeddings";
 
 /** Source: `bookmarks` table. Entity ID: `bookmarks.id`. */
 export const BOOKMARK_EMBEDDING_FIELDS: readonly EmbeddingFieldSpec[] = [

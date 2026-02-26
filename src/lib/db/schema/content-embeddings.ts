@@ -7,25 +7,14 @@
  */
 
 import { bigint, halfvec, index, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
+export { CONTENT_EMBEDDING_DOMAINS, type ContentEmbeddingDomain } from "@/types/db/embeddings";
 
 /** Qwen3-Embedding-4B — the single authorized embedding model. */
 export const CONTENT_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-4B" as const;
 
 /** FP16 halfvec dimension count (model default; do NOT truncate via MRL). */
 export const CONTENT_EMBEDDING_DIMENSIONS = 2560 as const;
-
-/** Valid domain values for content_embeddings rows. */
-export const CONTENT_EMBEDDING_DOMAINS = [
-  "bookmark",
-  "thought",
-  "blog",
-  "book",
-  "investment",
-  "project",
-  "ai_analysis",
-  "opengraph",
-] as const;
-export type ContentEmbeddingDomain = (typeof CONTENT_EMBEDDING_DOMAINS)[number];
 
 export const contentEmbeddings = pgTable(
   "content_embeddings",
