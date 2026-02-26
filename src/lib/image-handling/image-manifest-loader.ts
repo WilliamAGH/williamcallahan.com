@@ -1,14 +1,14 @@
 /**
  * Image Manifest Loader
  *
- * Loads image manifests from S3 for logo and image resolution.
+ * Loads image manifests from PostgreSQL for logo and image resolution.
  * Startup warm-up is opt-in to avoid large boot-time allocations.
  *
  * @module lib/image-handling/image-manifest-loader
  */
 
-import { readJsonS3 } from "@/lib/s3/json";
-import { IMAGE_MANIFEST_S3_PATHS, USE_NEXTJS_CACHE } from "@/lib/constants";
+import { USE_NEXTJS_CACHE } from "@/lib/constants";
+import { readImageManifest } from "@/lib/db/queries/image-manifests";
 import {
   imageManifestSchema,
   logoManifestSchema,
@@ -35,34 +35,28 @@ const isProductionNodeRuntime = (): boolean =>
   process.env.NEXT_PHASE !== BUILD_PHASE;
 
 /**
- * Direct manifest loading (no cache)
+ * Direct manifest loading from PostgreSQL (no Next.js cache)
  */
 async function getManifestsDirect(): Promise<{
   logos: LogoManifestFromSchema;
   opengraph: ImageManifestFromSchema;
   blog: ImageManifestFromSchema;
 }> {
-  const [logos, opengraph, blog] = await Promise.all([
-    readJsonS3<LogoManifestFromSchema>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST, logoManifestSchema),
-    readJsonS3<ImageManifestFromSchema>(
-      IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST,
-      imageManifestSchema,
-    ),
-    readJsonS3<ImageManifestFromSchema>(
-      IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST,
-      imageManifestSchema,
-    ),
+  const [rawLogos, rawOpengraph, rawBlog] = await Promise.all([
+    readImageManifest("logos"),
+    readImageManifest("opengraph"),
+    readImageManifest("blog"),
   ]);
 
   return {
-    logos,
-    opengraph,
-    blog,
+    logos: logoManifestSchema.parse(rawLogos ?? {}),
+    opengraph: imageManifestSchema.parse(rawOpengraph ?? []),
+    blog: imageManifestSchema.parse(rawBlog ?? []),
   };
 }
 
 /**
- * Load all image manifests from S3
+ * Load all image manifests from PostgreSQL
  * Called once during instrumentation/startup
  */
 export async function loadImageManifests(): Promise<void> {
@@ -71,7 +65,7 @@ export async function loadImageManifests(): Promise<void> {
     return;
   }
 
-  console.log("[ImageManifestLoader] Loading image manifests from S3...");
+  console.log("[ImageManifestLoader] Loading image manifests from PostgreSQL...");
 
   // During instrumentation/startup, we can't use "use cache" functions
   // Always use direct loading here - the cache functions are for runtime use

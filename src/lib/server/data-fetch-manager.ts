@@ -16,7 +16,7 @@ import { getMonotonicTime } from "@/lib/utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
-import { KNOWN_DOMAINS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
+import { KNOWN_DOMAINS, IMAGE_S3_PATHS } from "@/lib/constants";
 import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
 import { getLogo, invalidateLogoS3Cache, resetLogoSessionTracking } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
@@ -25,7 +25,7 @@ import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
 import { upsertAllSearchIndexArtifacts } from "@/lib/db/mutations/search-index-artifacts";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
-import { writeJsonS3 } from "@/lib/s3/json";
+import { writeAllImageManifests } from "@/lib/db/mutations/image-manifests";
 import { listS3Objects } from "@/lib/s3/objects";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { LogoManifest } from "@/types/image";
@@ -569,14 +569,8 @@ export class DataFetchManager {
         blog: this.createImageManifest(blog),
       };
 
-      // Upload manifests to S3
-      const uploadPromises = [
-        writeJsonS3(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST, manifests.logos),
-        writeJsonS3(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST, manifests.opengraph),
-        writeJsonS3(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST, manifests.blog),
-      ];
-
-      await Promise.all(uploadPromises);
+      // Persist manifests to PostgreSQL
+      await writeAllImageManifests(manifests);
 
       const totalImages = logos.length + opengraph.length + blog.length;
       logger.info(

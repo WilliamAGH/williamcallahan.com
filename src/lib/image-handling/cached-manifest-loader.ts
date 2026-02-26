@@ -1,12 +1,11 @@
 /**
- * Cached manifest loading functions for Next.js 15
+ * Cached manifest loading functions for Next.js cache components
  *
- * These functions use the experimental "use cache" directive and must be
- * in a separate module to work properly with Next.js 15's caching system.
+ * These functions use the "use cache" directive and must be
+ * in a separate module to work properly with Next.js caching system.
  */
 
-import { readJsonS3 } from "@/lib/s3/json";
-import { IMAGE_MANIFEST_S3_PATHS } from "@/lib/constants";
+import { readImageManifest } from "@/lib/db/queries/image-manifests";
 import { cacheContextGuards } from "@/lib/cache";
 import {
   imageManifestSchema,
@@ -42,36 +41,28 @@ export async function loadManifestsWithCache() {
   safeCacheLife("days");
   safeCacheTag("image-manifests");
 
-  const [logos, opengraph, blog] = await Promise.all([
-    readJsonS3<LogoManifestFromSchema>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST, logoManifestSchema),
-    readJsonS3<ImageManifestFromSchema>(
-      IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST,
-      imageManifestSchema,
-    ),
-    readJsonS3<ImageManifestFromSchema>(
-      IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST,
-      imageManifestSchema,
-    ),
+  const [rawLogos, rawOpengraph, rawBlog] = await Promise.all([
+    readImageManifest("logos"),
+    readImageManifest("opengraph"),
+    readImageManifest("blog"),
   ]);
 
   return {
-    logos,
-    opengraph,
-    blog,
+    logos: logoManifestSchema.parse(rawLogos ?? {}) as LogoManifestFromSchema,
+    opengraph: imageManifestSchema.parse(rawOpengraph ?? []) as ImageManifestFromSchema,
+    blog: imageManifestSchema.parse(rawBlog ?? []) as ImageManifestFromSchema,
   };
 }
 
 /**
  * Load logo manifest with caching
  */
-export async function loadLogoManifestWithCache() {
+export async function loadLogoManifestWithCache(): Promise<LogoManifestFromSchema> {
   "use cache";
 
   safeCacheLife("days");
   safeCacheTag("logo-manifest");
 
-  return readJsonS3<LogoManifestFromSchema>(
-    IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST,
-    logoManifestSchema,
-  );
+  const raw = await readImageManifest("logos");
+  return logoManifestSchema.parse(raw ?? {});
 }
