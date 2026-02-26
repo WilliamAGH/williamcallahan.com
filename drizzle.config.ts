@@ -28,6 +28,8 @@ export default defineConfig({
     "image_manifests",
     "content_embeddings",
     "investments",
+    "projects",
+    "books",
   ],
   schemaFilter: "public",
   dbCredentials: {

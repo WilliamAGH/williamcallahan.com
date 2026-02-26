@@ -4,7 +4,7 @@
  *
  * IMPORTANT: This script MUST run under Node.js (not bun). See CLAUDE.md [RT1].
  *
- * Handles: ai_analysis_latest, opengraph_metadata, thoughts, investments
+ * Handles: ai_analysis_latest, opengraph_metadata, thoughts, investments, books, projects
  * Write target: content_embeddings (unified table, not domain tables).
  * Labels align with canonical contracts in embedding-field-specs.ts.
  *
@@ -16,12 +16,20 @@
  *   --dry-run          Show what would be written without writing
  *   --force            Regenerate ALL embeddings (not just missing)
  *   --domain X         Only backfill a specific domain
- *     Valid: ai-analysis, opengraph, thoughts, investments
+ *     Valid: ai-analysis, opengraph, thoughts, investments, books, projects
  *   --batch-size N     Texts per API call (default 16, max 128)
  *   --max-rows N       Stop after N rows
  */
 
 import postgres from "postgres";
+import {
+  buildAiAnalysisText,
+  buildOgText,
+  buildThoughtText,
+  buildInvestmentText,
+  buildBookText,
+  buildProjectText,
+} from "./domain-embedding-text-builders.mjs";
 
 const EMBEDDING_DIMENSIONS = 2560;
 const DEFAULT_BATCH_SIZE = 16;
@@ -164,74 +172,6 @@ async function backfillLoop(
   console.log(`${P} ${cfg.label}: DONE updated=${updated}${skipped ? ` skipped=${skipped}` : ""}`);
 }
 
-// ─── Text Builders (labels from embedding-field-specs.ts contracts) ──
-
-function buildAiAnalysisText(row) {
-  const payload = row.payload;
-  if (!payload || typeof payload !== "object") return null;
-  const sections = [];
-  const analysis = payload.analysis ?? payload;
-  if (typeof analysis.summary === "string" && analysis.summary.trim())
-    sections.push(`AI Analysis Summary: ${analysis.summary.trim()}`);
-  const highlights = analysis.highlights ?? analysis.keyHighlights;
-  if (Array.isArray(highlights)) {
-    const items = highlights.filter((h) => typeof h === "string" && h.trim()).map((h) => h.trim());
-    if (items.length > 0) sections.push(`AI Analysis Key Points: ${items.join("; ")}`);
-  }
-  const themes = analysis.keyThemes ?? analysis.themes;
-  if (Array.isArray(themes)) {
-    const items = themes.filter((t) => typeof t === "string" && t.trim()).map((t) => t.trim());
-    if (items.length > 0) sections.push(`AI Analysis Themes: ${items.join("; ")}`);
-  }
-  return sections.length > 0 ? sections.join("\n") : null;
-}
-
-function buildOgText(row) {
-  const payload = row.payload;
-  if (!payload || typeof payload !== "object") return null;
-  const sections = [];
-  const title = payload.title ?? payload.ogTitle;
-  if (typeof title === "string" && title.trim())
-    sections.push(`OpenGraph Page Title: ${title.trim()}`);
-  const desc = payload.description ?? payload.ogDescription;
-  if (typeof desc === "string" && desc.trim())
-    sections.push(`OpenGraph Page Description: ${desc.trim()}`);
-  if (typeof row.url === "string" && row.url.trim()) sections.push(`Page URL: ${row.url.trim()}`);
-  return sections.length > 0 ? sections.join("\n") : null;
-}
-
-function buildThoughtText(row) {
-  const sections = [`Thought Title: ${row.title}`];
-  if (typeof row.content === "string" && row.content.trim())
-    sections.push(`Thought Full Text: ${row.content.trim()}`);
-  if (typeof row.category === "string" && row.category.trim())
-    sections.push(`Topic Category: ${row.category.trim()}`);
-  if (Array.isArray(row.tags) && row.tags.length > 0)
-    sections.push(`Topic Tags: ${row.tags.filter(Boolean).join(", ")}`);
-  return sections.join("\n");
-}
-
-function buildInvestmentText(row) {
-  const sections = [`Company Name: ${row.name}`];
-  if (typeof row.description === "string" && row.description.trim())
-    sections.push(`Company Description: ${row.description.trim()}`);
-  if (typeof row.category === "string" && row.category.trim())
-    sections.push(`Business Sector: ${row.category.trim()}`);
-  sections.push(`Funding Round at Entry: ${row.stage}`);
-  sections.push(`Investment Outcome: ${row.status}`);
-  sections.push(`Company Operating State: ${row.operating_status}`);
-  if (typeof row.location === "string" && row.location.trim())
-    sections.push(`Company Headquarters: ${row.location.trim()}`);
-  sections.push(`Investment Vehicle: ${row.type}`);
-  sections.push(`Year of Investment: ${row.invested_year}`);
-  if (row.accelerator && typeof row.accelerator === "object") {
-    if (row.accelerator.program)
-      sections.push(`Startup Accelerator Program: ${row.accelerator.program}`);
-    if (row.accelerator.batch) sections.push(`Accelerator Cohort: ${row.accelerator.batch}`);
-  }
-  return sections.join("\n");
-}
-
 // ─── Domain Configs ──────────────────────────────────────
 
 function aiAnalysisConfig(sql) {
@@ -310,6 +250,44 @@ function investmentsConfig(sql) {
   };
 }
 
+function booksConfig(sql) {
+  return {
+    sql,
+    label: "books",
+    domain: "book",
+    buildText: buildBookText,
+    entityId: (r) => r.id,
+    titleFn: (r) => r.title,
+    count: (force) =>
+      force
+        ? sql`SELECT count(*)::int as c FROM books`
+        : sql`SELECT count(*)::int as c FROM books b LEFT JOIN content_embeddings ce ON ce.domain = 'book' AND ce.entity_id = b.id WHERE ce.entity_id IS NULL`,
+    fetch: (force, limit, offset) =>
+      force
+        ? sql`SELECT id, title, subtitle, authors, genres, publisher, description, ai_summary, thoughts FROM books ORDER BY id LIMIT ${limit} OFFSET ${offset}`
+        : sql`SELECT b.id, b.title, b.subtitle, b.authors, b.genres, b.publisher, b.description, b.ai_summary, b.thoughts FROM books b LEFT JOIN content_embeddings ce ON ce.domain = 'book' AND ce.entity_id = b.id WHERE ce.entity_id IS NULL ORDER BY b.id LIMIT ${limit} OFFSET 0`,
+  };
+}
+
+function projectsConfig(sql) {
+  return {
+    sql,
+    label: "projects",
+    domain: "project",
+    buildText: buildProjectText,
+    entityId: (r) => r.id,
+    titleFn: (r) => r.name,
+    count: (force) =>
+      force
+        ? sql`SELECT count(*)::int as c FROM projects`
+        : sql`SELECT count(*)::int as c FROM projects p LEFT JOIN content_embeddings ce ON ce.domain = 'project' AND ce.entity_id = p.id WHERE ce.entity_id IS NULL`,
+    fetch: (force, limit, offset) =>
+      force
+        ? sql`SELECT id, name, description, short_summary, url, github_url, tags, tech_stack, note FROM projects ORDER BY id LIMIT ${limit} OFFSET ${offset}`
+        : sql`SELECT p.id, p.name, p.description, p.short_summary, p.url, p.github_url, p.tags, p.tech_stack, p.note FROM projects p LEFT JOIN content_embeddings ce ON ce.domain = 'project' AND ce.entity_id = p.id WHERE ce.entity_id IS NULL ORDER BY p.id LIMIT ${limit} OFFSET 0`,
+  };
+}
+
 // ─── Main ────────────────────────────────────────────────
 
 async function run() {
@@ -337,6 +315,8 @@ async function run() {
     if (ok("opengraph")) await backfillLoop(...args, opengraphConfig(sql));
     if (ok("thoughts")) await backfillLoop(...args, thoughtsConfig(sql));
     if (ok("investments")) await backfillLoop(...args, investmentsConfig(sql));
+    if (ok("books")) await backfillLoop(...args, booksConfig(sql));
+    if (ok("projects")) await backfillLoop(...args, projectsConfig(sql));
     const rows =
       await sql`SELECT domain, count(*)::int as cnt FROM content_embeddings GROUP BY domain ORDER BY domain`;
     console.log(`\n${P} Embedding coverage (content_embeddings):`);

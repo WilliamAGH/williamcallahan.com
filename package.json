@@ -87,6 +87,8 @@
     "bookmarks:embeddings:backfill": "node scripts/backfill-bookmark-embeddings.node.mjs",
     "embeddings:migrate-to-unified": "node scripts/migrate-embeddings-to-unified.node.mjs",
     "seed:investments": "node scripts/seed-investments.node.mjs",
+    "seed:projects": "node scripts/seed-projects.node.mjs",
+    "seed:books": "node scripts/seed-books.node.mjs",
     "bookmarks:metadata:dev": "DEPLOYMENT_ENV=development bun scripts/data-updater.ts --bookmarks --metadata-only",
     "bookmarks:metadata:prod": "DEPLOYMENT_ENV=production bun scripts/data-updater.ts --bookmarks --metadata-only",
     "postdeploy": "bun run validate-opengraph"

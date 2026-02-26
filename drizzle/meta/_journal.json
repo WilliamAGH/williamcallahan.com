@@ -120,6 +120,20 @@
       "when": 1775150400000,
       "tag": "0015_investments-table",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1775236800000,
+      "tag": "0016_projects-table",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1775323200000,
+      "tag": "0017_books-individual-table",
+      "breakpoints": true
     }
   ]
 }
