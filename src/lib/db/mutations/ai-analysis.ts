@@ -3,7 +3,7 @@
  * @module lib/db/mutations/ai-analysis
  * @description
  * Write operations for AI analysis data in PostgreSQL.
- * Replaces S3 writeJsonS3 calls for both latest and versioned writes.
+ * Canonical write path for latest and versioned AI analysis payloads.
  *
  * All mutations enforce the production-only write guard via assertDatabaseWriteAllowed.
  */

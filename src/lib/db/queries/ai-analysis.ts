@@ -3,7 +3,7 @@
  * @module lib/db/queries/ai-analysis
  * @description
  * Read-only queries for AI analysis data stored in PostgreSQL.
- * Replaces S3 readJsonS3Optional / listS3Objects calls.
+ * Canonical read path for AI analysis payloads.
  */
 
 import { and, desc, eq } from "drizzle-orm";

@@ -1,3 +1,13 @@
+/**
+ * PostgreSQL Connection (Drizzle + postgres.js)
+ *
+ * WARNING [RT1]: This module uses `ssl: "require"`. Bun's TLS implementation
+ * fails to negotiate signature algorithms with the PostgreSQL server. All
+ * standalone database scripts MUST run under Node.js (not bun).
+ * See CLAUDE.md [RT1] for the full runtime isolation policy.
+ *
+ * @module db/connection
+ */
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 

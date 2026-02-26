@@ -200,7 +200,7 @@ export class DataFetchManager {
       // Re-aggregate stats
       await calculateAndStoreAggregatedWeeklyActivity();
 
-      // Invalidate caches after successful S3 write (defense in depth)
+      // Invalidate caches after successful durable write (defense in depth)
       try {
         const { invalidateAllGitHubCaches } = await import("@/lib/cache/invalidation");
         invalidateAllGitHubCaches();
