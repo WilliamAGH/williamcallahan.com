@@ -71,6 +71,20 @@
       "when": 1774545600000,
       "tag": "0008_opengraph-tables",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774632000000,
+      "tag": "0009_thoughts-table",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1774718400000,
+      "tag": "0010_image-manifests",
+      "breakpoints": true
     }
   ]
 }
