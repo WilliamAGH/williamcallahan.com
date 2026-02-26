@@ -1,17 +1,14 @@
 import { z } from "zod/v4";
 import type { OpenAiCompatibleFeatureConfig } from "@/types/ai-openai-compatible";
-import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
+import type {
+  AiUpstreamApiMode,
+  EndpointCompatibleEmbeddingConfig,
+} from "@/types/schemas/ai-openai-compatible";
 
 const DEFAULT_BASE_URL = "https://popos-sf7.com";
 const DEFAULT_MODEL = "openai/gpt-oss-120b,openai/gpt-oss-20b";
 const DEFAULT_MAX_PARALLEL = 1;
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-qwen3-embedding-4b";
-
-export type EndpointCompatibleEmbeddingConfig = {
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-};
 
 function normalizeFeatureEnvKey(feature: string): string {
   return feature

@@ -4,10 +4,8 @@ import {
   endpointCompatibleEmbeddingsRequestSchema,
   endpointCompatibleEmbeddingsResponseSchema,
 } from "@/types/schemas/ai-openai-compatible";
-import {
-  buildOpenAiApiBaseUrl,
-  type EndpointCompatibleEmbeddingConfig,
-} from "@/lib/ai/openai-compatible/feature-config";
+import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
+import type { EndpointCompatibleEmbeddingConfig } from "@/types/schemas/ai-openai-compatible";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_RETRIES = 1;
