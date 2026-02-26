@@ -13,6 +13,11 @@
  */
 
 import { EmbeddingFunctionError } from "@/lib/chroma/embedding-error";
+import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
+import {
+  resolveDefaultEndpointCompatibleEmbeddingConfig,
+  type EndpointCompatibleEmbeddingConfig,
+} from "@/lib/ai/openai-compatible/feature-config";
 import type { EmbeddingFunction } from "chromadb";
 
 /**
@@ -30,6 +35,23 @@ let embeddingFunction: EmbeddingFunction | null = null;
  * embeddingFunction is populated. On failure, this is reset to null to allow retry.
  */
 let embeddingFunctionPromise: Promise<EmbeddingFunction> | null = null;
+
+class EndpointCompatibleEmbeddingFunction implements EmbeddingFunction {
+  public readonly name = "endpoint-compatible-qwen";
+  private readonly config: EndpointCompatibleEmbeddingConfig;
+
+  constructor(config: EndpointCompatibleEmbeddingConfig) {
+    this.config = config;
+  }
+
+  async generate(texts: string[]): Promise<number[][]> {
+    if (texts.length === 0) {
+      return [];
+    }
+
+    return embedTextsWithEndpointCompatibleModel({ config: this.config, input: texts });
+  }
+}
 
 /**
  * Get or initialize the singleton embedding function.
@@ -67,6 +89,12 @@ export async function getEmbeddingFunction(): Promise<EmbeddingFunction> {
   // We're the first caller - start initialization
   embeddingFunctionPromise = (async () => {
     try {
+      const endpointCompatibleConfig = resolveDefaultEndpointCompatibleEmbeddingConfig();
+      if (endpointCompatibleConfig) {
+        embeddingFunction = new EndpointCompatibleEmbeddingFunction(endpointCompatibleConfig);
+        return embeddingFunction;
+      }
+
       // Dynamic import to avoid build-time evaluation of ONNX native bindings
       const { DefaultEmbeddingFunction } = await import("@chroma-core/default-embed");
       embeddingFunction = new DefaultEmbeddingFunction();

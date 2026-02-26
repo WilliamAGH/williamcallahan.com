@@ -1,5 +1,3 @@
-import "server-only";
-
 import { z } from "zod/v4";
 import type { OpenAiCompatibleFeatureConfig } from "@/types/ai-openai-compatible";
 import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
@@ -7,6 +5,13 @@ import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
 const DEFAULT_BASE_URL = "https://popos-sf7.com";
 const DEFAULT_MODEL = "openai/gpt-oss-120b,openai/gpt-oss-20b";
 const DEFAULT_MAX_PARALLEL = 1;
+const DEFAULT_EMBEDDING_MODEL = "text-embedding-qwen3-embedding-4b";
+
+export type EndpointCompatibleEmbeddingConfig = {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+};
 
 function normalizeFeatureEnvKey(feature: string): string {
   return feature
@@ -100,4 +105,27 @@ export function buildUpstreamQueueKey(args: {
       : buildChatCompletionsUrl(args.baseUrl);
   const { primaryModel } = resolvePreferredUpstreamModel(args.model);
   return `${upstreamUrl}::${primaryModel}`;
+}
+
+export function resolveDefaultEndpointCompatibleEmbeddingConfig(): EndpointCompatibleEmbeddingConfig | null {
+  const embeddingModel = readOptionalTrimmedEnv("AI_DEFAULT_EMBEDDING_MODEL");
+  if (!embeddingModel) {
+    return null;
+  }
+
+  const baseUrl = readOptionalTrimmedEnv("AI_DEFAULT_OPENAI_BASE_URL");
+  if (!baseUrl) {
+    throw new Error("AI_DEFAULT_EMBEDDING_MODEL is set but AI_DEFAULT_OPENAI_BASE_URL is missing.");
+  }
+
+  const apiKey = readOptionalTrimmedEnv("AI_DEFAULT_OPENAI_API_KEY");
+  if (!apiKey) {
+    throw new Error("AI_DEFAULT_EMBEDDING_MODEL is set but AI_DEFAULT_OPENAI_API_KEY is missing.");
+  }
+
+  return {
+    baseUrl: baseUrlSchema.parse(baseUrl),
+    apiKey,
+    model: modelSchema.parse(embeddingModel ?? DEFAULT_EMBEDDING_MODEL),
+  };
 }

@@ -258,6 +258,32 @@ export const responsesOutputRefusalItemSchema = z.object({
   ),
 });
 
+export const endpointCompatibleEmbeddingsRequestSchema = z.object({
+  model: z.string().min(1),
+  input: z.array(z.string().min(1)).min(1),
+});
+
+export type EndpointCompatibleEmbeddingsRequest = z.infer<
+  typeof endpointCompatibleEmbeddingsRequestSchema
+>;
+
+export const endpointCompatibleEmbeddingsResponseSchema = z.object({
+  object: z.literal("list"),
+  data: z
+    .array(
+      z.object({
+        object: z.literal("embedding"),
+        embedding: z.array(z.number()),
+        index: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+
+export type EndpointCompatibleEmbeddingsResponse = z.infer<
+  typeof endpointCompatibleEmbeddingsResponseSchema
+>;
+
 export const openAiCompatibleResponsesResponseSchema = z.object({
   id: z.string().min(1),
   output_text: z.string(),
