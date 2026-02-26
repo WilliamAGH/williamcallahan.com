@@ -11,7 +11,6 @@ import {
 } from "@/lib/bookmarks/slug-manager";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 import { getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
-import type { MockedFunction } from "vitest";
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
   getSlugMappingRowsFromDatabase: vi.fn(),
@@ -20,9 +19,7 @@ vi.mock("@/lib/db/queries/bookmarks", () => ({
 
 vi.mock("@/lib/utils/logger");
 
-const mockGetSlugMappingRows = getSlugMappingRowsFromDatabase as MockedFunction<
-  typeof getSlugMappingRowsFromDatabase
->;
+const mockGetSlugMappingRows = vi.mocked(getSlugMappingRowsFromDatabase);
 
 describe("Bookmark Slug Mapping", () => {
   const mockBookmarks: UnifiedBookmark[] = [
