@@ -3,13 +3,12 @@
  * Environment Validation Script
  *
  * Ensures environment is properly configured before builds and deployments.
- * This prevents S3 path mismatches that cause 404 errors.
+ * This prevents environment drift for PostgreSQL-backed content pipelines.
  *
  * Run automatically before builds or manually with: bun scripts/validate-environment.ts
  */
 
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
-import { BOOKMARKS_S3_PATHS, SEARCH_S3_PATHS } from "@/lib/constants";
 
 console.log("=== Environment Validation ===\n");
 
@@ -21,7 +20,7 @@ const nodeEnv = process.env.NODE_ENV;
 // Check if NODE_ENV is set
 if (!nodeEnv) {
   console.error("❌ NODE_ENV is not set!");
-  console.error("   This will cause S3 path mismatches and 404 errors.");
+  console.error("   This causes environment resolution drift across runtime modules.");
   console.error("   Set NODE_ENV=development|production|test before running.");
   process.exit(1);
 }
@@ -33,30 +32,22 @@ console.log(`  Environment (normalized): ${env}`);
 console.log(`  Path suffix: "${suffix}"`);
 console.log("");
 
-// Validate critical S3 paths
-console.log("Validating S3 Paths:");
-
-const pathsToCheck = [
-  { name: "Bookmarks", path: BOOKMARKS_S3_PATHS.FILE },
-  { name: "Bookmarks Index", path: BOOKMARKS_S3_PATHS.INDEX },
-  { name: "Slug Mapping", path: BOOKMARKS_S3_PATHS.SLUG_MAPPING },
-  { name: "Heartbeat", path: BOOKMARKS_S3_PATHS.HEARTBEAT },
-  { name: "Search Index", path: SEARCH_S3_PATHS.POSTS_INDEX },
-];
-
 let hasErrors = false;
 
-for (const { name, path } of pathsToCheck) {
-  const expectedSuffix = suffix ? `${suffix}.json` : ".json";
-  const hasCorrectSuffix = path.endsWith(expectedSuffix);
+if (!process.env.DATABASE_URL) {
+  console.error("❌ DATABASE_URL is not set.");
+  console.error("   PostgreSQL is the canonical persistence layer for JSON-backed site data.");
+  hasErrors = true;
+} else {
+  console.log("✅ DATABASE_URL is set");
+}
 
-  if (hasCorrectSuffix) {
-    console.log(`  ✅ ${name}: ${path}`);
-  } else {
-    console.error(`  ❌ ${name}: ${path}`);
-    console.error(`     Expected to end with: ${expectedSuffix}`);
-    hasErrors = true;
-  }
+if (!process.env.S3_BUCKET) {
+  console.error("❌ S3_BUCKET is not set.");
+  console.error("   S3 is still required for binary asset storage.");
+  hasErrors = true;
+} else {
+  console.log("✅ S3_BUCKET is set");
 }
 
 console.log("");
@@ -103,16 +94,11 @@ if (hasErrors) {
   process.exit(1);
 } else {
   console.log("✅ Environment validation passed!");
-  console.log("   S3 paths will be created with correct suffixes.");
+  console.log("   Environment is consistent with PostgreSQL-first data persistence.");
 
-  // Show what files will be created
-  console.log("\nFiles that will be created in S3:");
-  console.log(`  - bookmarks${suffix}.json`);
-  console.log(`  - index${suffix}.json`);
-  console.log(`  - slug-mapping${suffix}.json`);
-  console.log(`  - heartbeat${suffix}.json`);
-  console.log(`  - pages${suffix}/page-*.json`);
-  console.log(`  - tags${suffix}/*/page-*.json`);
+  console.log("\nPersistence model:");
+  console.log("  - PostgreSQL: canonical JSON/search/content data");
+  console.log("  - S3: binary assets (images, uploads, generated files)");
 }
 
 console.log("\n=== Validation Complete ===");

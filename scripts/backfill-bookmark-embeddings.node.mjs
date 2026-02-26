@@ -1,5 +1,16 @@
 #!/usr/bin/env node
 
+/**
+ * Backfill Qwen3-Embedding-4B embeddings for bookmarks in PostgreSQL.
+ *
+ * IMPORTANT: This script MUST run under Node.js (not bun). Bun's TLS
+ * implementation fails SSL negotiation with PostgreSQL. See CLAUDE.md [RT1].
+ *
+ * Usage:
+ *   set -a; source .env; set +a
+ *   DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-embeddings.node.mjs
+ */
+
 import postgres from "postgres";
 
 const DEFAULT_BATCH_SIZE = 16;

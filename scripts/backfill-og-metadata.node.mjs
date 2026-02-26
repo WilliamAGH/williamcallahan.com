@@ -3,6 +3,9 @@
 /**
  * Backfill OpenGraph metadata (og_title, og_description, og_image) for bookmarks.
  *
+ * IMPORTANT: This script MUST run under Node.js (not bun). Bun's TLS
+ * implementation fails SSL negotiation with PostgreSQL. See CLAUDE.md [RT1].
+ *
  * Fetches each bookmark's URL, parses <meta property="og:*"> tags from the HTML
  * <head>, and UPDATEs the corresponding PostgreSQL columns.
  *

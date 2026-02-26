@@ -134,6 +134,13 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [BP1b] Forbidden: placeholder implementations (`// TODO: implement`), generic tutorial-y function names (`handleSubmit`, `processData`), placeholder text ("Lorem ipsum")
 - [BP1c] If boilerplate/example code is detected, stop and surface the exact `file:line` and required replacement action
 
+### [RT1] Runtime Isolation: Database Scripts (Blocking)
+
+- [RT1a] **NEVER use bun to execute scripts that connect to PostgreSQL.** Bun's TLS implementation uses signature algorithms that the PostgreSQL server rejects (`could not accept SSL connection: no suitable signature algorithm`). This causes `CONNECT_TIMEOUT` failures that are NOT configuration issues — they are bun runtime limitations.
+- [RT1b] All database migration, backfill, and enrichment scripts MUST use `#!/usr/bin/env node` (NOT `#!/usr/bin/env bun`). Use the `*.node.mjs` file extension to signal Node execution.
+- [RT1c] The `postgres` npm package works correctly under Node.js with `ssl: "require"`. Do not attempt to "fix" bun's SSL by adding custom certificates, disabling SSL, or patching TLS options.
+- [RT1d] `bun run <script-name>` as a package.json task runner is fine (it just spawns the process). The prohibition is on bun as the **script runtime** for database-connecting code.
+
 ### [ENV1] Environment Variable Policy
 
 - [ENV1a] Never introduce new required environment variables (including `NEXT_PUBLIC_*`) without explicit, repeated, affirmative consent

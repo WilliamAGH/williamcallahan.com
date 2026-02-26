@@ -5,6 +5,13 @@
  *
  * Thin CLI wrapper for DataFetchManager operations.
  * Handles all data update operations including S3 updates and prefetching.
+ *
+ * WARNING: This script uses bun as its runtime (#!/usr/bin/env bun) for TypeScript
+ * alias resolution (@/ imports). When this script connects to PostgreSQL, bun's TLS
+ * implementation may fail with "could not accept SSL connection: no suitable signature
+ * algorithm". For direct database operations (backfills, migrations, enrichment),
+ * use the dedicated *.node.mjs scripts with #!/usr/bin/env node instead.
+ * See CLAUDE.md [RT1] for the full runtime isolation policy.
  */
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";

@@ -92,6 +92,13 @@
       "when": 1774804800000,
       "tag": "0011_add-embeddings-to-domain-tables",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1774891200000,
+      "tag": "0012_drop-json-documents",
+      "breakpoints": true
     }
   ]
 }

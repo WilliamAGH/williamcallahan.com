@@ -3,6 +3,9 @@
 /**
  * Backfill computed fields (word_count, reading_time) for bookmarks in PostgreSQL.
  *
+ * IMPORTANT: This script MUST run under Node.js (not bun). Bun's TLS
+ * implementation fails SSL negotiation with PostgreSQL. See CLAUDE.md [RT1].
+ *
  * Derives word_count from scraped_content_text (whitespace split) and
  * reading_time from word_count / 200 WPM.
  *

@@ -5,10 +5,9 @@
  * Thin wrapper around the core generation library.
  * Run with: bun scripts/generate-books.ts
  *
- * S3 layout:
- *   json/books-{env}/latest.json          → pointer to current versioned snapshot
- *   json/books-{env}/{checksum}.json      → immutable versioned snapshot
- *   json/books-{env}/index.json           → metadata (count, checksum, timestamps)
+ * Storage model:
+ *   books_latest     → pointer to current versioned snapshot
+ *   books_snapshots  → immutable versioned snapshot payloads by checksum
  */
 
 import { generateBooksDataset } from "@/lib/books/generate";

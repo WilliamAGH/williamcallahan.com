@@ -3,7 +3,10 @@
 /**
  * Backfill logo_data for bookmarks in PostgreSQL.
  *
- * Reads the logo manifest from S3 CDN and maps each bookmark's domain
+ * IMPORTANT: This script MUST run under Node.js (not bun). Bun's TLS
+ * implementation fails SSL negotiation with PostgreSQL. See CLAUDE.md [RT1].
+ *
+ * Reads the logo manifest from PostgreSQL and maps each bookmark's domain
  * to its logo CDN URL, writing {url, alt} to the logo_data JSONB column.
  *
  * Usage:
@@ -58,31 +61,21 @@ function readFlagValue(flag) {
   return idx === -1 ? undefined : args[idx + 1];
 }
 
-/**
- * Resolve the logo manifest S3 path based on environment.
- */
-function resolveManifestUrl(cdnBaseUrl) {
-  const env = resolveWriteEnvironment().environment;
-  const suffix = env === PRODUCTION_ENVIRONMENT ? "" : "-dev";
-  return `${cdnBaseUrl}/json/image-data/logos/manifest${suffix}.json`;
-}
+async function fetchLogoManifest(sql) {
+  const rows = await sql`
+    SELECT payload
+    FROM image_manifests
+    WHERE manifest_type = 'logos'
+    LIMIT 1
+  `;
 
-async function fetchLogoManifest(cdnBaseUrl) {
-  const url = resolveManifestUrl(cdnBaseUrl);
-  console.log(`[fetch] Loading logo manifest: ${url}`);
-
-  const response = await fetch(url, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Logo manifest fetch failed: HTTP ${response.status} from ${url}`);
+  const manifest = rows[0]?.payload;
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error("image_manifests.logos payload is missing or invalid");
   }
 
-  const manifest = await response.json();
   const domainCount = Object.keys(manifest).length;
-  console.log(`[fetch] Logo manifest loaded: ${domainCount} domains`);
+  console.log(`[db] Logo manifest loaded from PostgreSQL: ${domainCount} domains`);
   return manifest;
 }
 
@@ -102,7 +95,6 @@ async function main() {
   }
 
   const databaseUrl = readRequiredEnv("DATABASE_URL");
-  const cdnBaseUrl = readRequiredEnv("NEXT_PUBLIC_S3_CDN_URL").replace(/\/+$/, "");
   const sql = postgres(databaseUrl);
 
   console.log("=== Backfill logo_data ===");
@@ -112,7 +104,7 @@ async function main() {
   console.log();
 
   try {
-    const manifest = await fetchLogoManifest(cdnBaseUrl);
+    const manifest = await fetchLogoManifest(sql);
 
     let rows;
     if (TARGET_IDS) {

@@ -3,6 +3,9 @@
 /**
  * Backfill scraped_content_text for all bookmarks in PostgreSQL.
  *
+ * IMPORTANT: This script MUST run under Node.js (not bun). Bun's TLS
+ * implementation fails SSL negotiation with PostgreSQL. See CLAUDE.md [RT1].
+ *
  * Fetches every bookmark from the Karakeep API with includeContent=true,
  * normalizes the raw HTML to clean plain text, and UPDATEs each row.
  *
