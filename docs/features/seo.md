@@ -640,7 +640,7 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
    - Impact: Bookmark payloads can be consumed without runtime validation
    - Current: PostgreSQL-backed bookmark reads flow into route helpers without a dedicated schema parse checkpoint in this path
    - Fix: Add `UnifiedBookmarkSchema.array().parse()` at the route boundary
-   - ** PARTIAL**: Created schema directory at `types/schemas/` with initial validation schemas. Full route-boundary validation remains pending.
+   - **PARTIAL**: Created schema directory at `types/schemas/` with initial validation schemas. Full route-boundary validation remains pending.
 
 3. **Confusing Type Re-exports** - `types/seo/metadata.ts:18-30`
    - Impact: Aliased imports create confusion (e.g., `ProfilePageSchema as ProfileSchema`)
