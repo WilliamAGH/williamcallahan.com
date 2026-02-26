@@ -9,7 +9,6 @@
 
 import { fetchWithTimeout } from "@/lib/utils/http-client";
 import { envLogger } from "@/lib/utils/env-logger";
-import { getMonotonicTime } from "@/lib/utils";
 import {
   validateAbsLibraryItemsResponse,
   validateAbsLibraryItem,
@@ -51,25 +50,7 @@ function getConfig(): AbsConfig {
 // API Fetcher
 // ─────────────────────────────────────────────────────────────────────────────
 
-const cloneBook = (book: Book): Book => structuredClone(book);
-
-let lastBooksSnapshot: { booksById: Map<string, Book>; fetchedAt: number } | null = null;
-
-/**
- * Check if snapshot is fresh within TTL.
- * Note: When fetchedAt is 0 (prerender-safe value), always returns true
- * since we can't determine actual age without a real timestamp.
- */
-const snapshotIsFresh = (
-  snapshot: { booksById: Map<string, Book>; fetchedAt: number } | null,
-  ttlMs: number,
-): snapshot is { booksById: Map<string, Book>; fetchedAt: number } => {
-  if (!snapshot) return false;
-  // If fetchedAt is 0 (prerender-safe), consider it fresh (we can't know real age)
-  if (snapshot.fetchedAt === 0) return true;
-  const now = getMonotonicTime();
-  return now - snapshot.fetchedAt <= ttlMs;
-};
+let lastBooksSnapshot: { fetchedAt: number } | null = null;
 
 /**
  * Cache books snapshot with timestamp.
@@ -77,10 +58,8 @@ const snapshotIsFresh = (
  * so we use a stable timestamp of 0 which effectively disables the TTL check.
  */
 const cacheSnapshot = (books: Book[], timestamp?: number): void => {
-  lastBooksSnapshot = {
-    booksById: new Map(books.map((book) => [book.id, cloneBook(book)])),
-    fetchedAt: timestamp ?? 0, // Use provided timestamp or 0 (prerender-safe)
-  };
+  void books;
+  lastBooksSnapshot = { fetchedAt: timestamp ?? 0 };
 };
 
 /**
@@ -88,24 +67,19 @@ const cacheSnapshot = (books: Book[], timestamp?: number): void => {
  * Uses timestamp of 0 to avoid current-time access during prerendering.
  */
 const upsertBookIntoSnapshot = (book: Book, ts = 0): void => {
-  // prerender-safe
-  if (!lastBooksSnapshot) {
-    lastBooksSnapshot = { booksById: new Map([[book.id, cloneBook(book)]]), fetchedAt: ts };
-    return;
-  }
-  lastBooksSnapshot.booksById.set(book.id, cloneBook(book));
-  lastBooksSnapshot.fetchedAt = ts;
+  void book;
+  lastBooksSnapshot = { fetchedAt: ts };
 };
 
 const getSnapshotBooks = (ttlMs: number): Book[] | null => {
-  if (!snapshotIsFresh(lastBooksSnapshot, ttlMs)) return null;
-  return Array.from(lastBooksSnapshot.booksById.values()).map(cloneBook);
+  void ttlMs;
+  return null;
 };
 
 const getSnapshotBookById = (id: string, ttlMs: number): Book | null => {
-  if (!snapshotIsFresh(lastBooksSnapshot, ttlMs)) return null;
-  const book = lastBooksSnapshot.booksById.get(id);
-  return book ? cloneBook(book) : null;
+  void id;
+  void ttlMs;
+  return null;
 };
 
 async function absApi<T>(path: string, validate: (data: unknown) => T): Promise<T> {

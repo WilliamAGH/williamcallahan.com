@@ -1,6 +1,5 @@
 import { GET } from "@/app/api/bookmarks/route";
-import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { readJsonS3Optional } from "@/lib/s3/json";
+import { getBookmarks, getBookmarksIndex } from "@/lib/bookmarks/service.server";
 // Import BOOKMARKS_PER_PAGE lazily within isolated module to avoid global cache interfering with env-config tests
 // Placeholder variable – will be set in beforeAll
 let BOOKMARKS_PER_PAGE: number;
@@ -9,12 +8,11 @@ import type { BookmarkSlugMapping } from "@/types/bookmark";
 
 // Mock dependencies used inside the route
 vi.mock("@/lib/bookmarks/service.server");
-vi.mock("@/lib/s3/json");
 vi.mock("@/lib/bookmarks/slug-manager");
 import * as slugManagerModule from "@/lib/bookmarks/slug-manager";
 
 const mockGetBookmarks = vi.mocked(getBookmarks);
-const mockReadJsonS3 = vi.mocked(readJsonS3Optional);
+const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
 const slugManager = vi.mocked(slugManagerModule);
 const loadSlugMapping = vi.mocked(slugManager.loadSlugMapping);
 
@@ -38,7 +36,7 @@ describe("Bookmark API – large limit behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetBookmarks.mockResolvedValue(mockBookmarks);
-    mockReadJsonS3.mockResolvedValue({
+    mockGetBookmarksIndex.mockResolvedValue({
       count: mockBookmarks.length,
       totalPages: Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE),
       lastFetchedAt: Date.now(),
@@ -90,7 +88,6 @@ describe("Bookmark API – large limit behavior", () => {
 
   afterAll(() => {
     vi.doUnmock("@/lib/bookmarks/service.server");
-    vi.doUnmock("@/lib/s3/json");
     vi.doUnmock("@/lib/bookmarks/slug-manager");
     vi.resetModules();
   });

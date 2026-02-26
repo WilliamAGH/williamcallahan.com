@@ -11,20 +11,12 @@ assertServerOnly(); // Ensure this module runs only on the server
 
 import MiniSearch from "minisearch";
 import type { SearchResult } from "@/types/search";
-import { ServerCacheInstance } from "../server-cache";
 import { sanitizeSearchQuery } from "../validators/search";
 import { prepareDocumentsForIndexing } from "../utils/search-helpers";
 import { getAllMDXPostsForSearch } from "./mdx";
 import type { BlogPost } from "@/types/blog";
 
-// Cache key and TTL for blog search index
-const BLOG_INDEX_CACHE_KEY = "search:index:blog-posts";
-const BLOG_INDEX_TTL_SECONDS = 60 * 60; // 1 hour
-
 async function getBlogSearchIndex(): Promise<MiniSearch<BlogPost>> {
-  const cached = ServerCacheInstance.get<MiniSearch<BlogPost>>(BLOG_INDEX_CACHE_KEY);
-  if (cached) return cached;
-
   const posts = await getAllMDXPostsForSearch();
   const index = new MiniSearch<BlogPost>({
     fields: ["title", "excerpt", "tags", "authorName"],
@@ -50,8 +42,6 @@ async function getBlogSearchIndex(): Promise<MiniSearch<BlogPost>> {
 
   const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", (post) => post.slug);
   index.addAll(dedupedPosts);
-
-  ServerCacheInstance.set(BLOG_INDEX_CACHE_KEY, index, BLOG_INDEX_TTL_SECONDS);
   return index;
 }
 

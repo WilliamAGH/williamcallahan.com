@@ -1,15 +1,13 @@
 /**
  * @file Helper functions for bookmark refresh operations.
  *
- * Extracted from bookmarks.ts to maintain single-responsibility and
- * comply with the 350-line limit. These functions handle the individual
- * stages of the bookmark refresh pipeline.
+ * These functions handle fetch, checksum gating, normalization,
+ * enrichment, and PostgreSQL fallback loading.
  *
  * @module lib/bookmarks/refresh-helpers
  */
 
-import { BOOKMARKS_S3_PATHS, BOOKMARKS_API_CONFIG } from "@/lib/constants";
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
+import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { normalizeBookmarks } from "./normalize";
 import { processBookmarksInBatches } from "./enrich-opengraph";
 import { createHash } from "node:crypto";
@@ -21,17 +19,19 @@ import {
   type BookmarksApiContext,
   type ChecksumResult,
   bookmarksApiResponseSchema,
-  unifiedBookmarksArraySchema,
 } from "@/types/bookmark";
-import { checksumKeyRecordSchema } from "@/types/schemas/checksum";
 
 // Re-export types for backward compatibility
 export type { BookmarksApiContext, ChecksumResult };
 
-// S3 prefix for raw API snapshots (environment-suffixed for isolation)
-const RAW_CACHE_PREFIX = "json/bookmarks/raw";
+let bookmarkQueryModulePromise: Promise<typeof import("@/lib/db/queries/bookmarks")> | null = null;
 
-/** Validates required environment configuration and returns API context */
+const loadBookmarkQueryModule = async (): Promise<typeof import("@/lib/db/queries/bookmarks")> => {
+  bookmarkQueryModulePromise ??= import("@/lib/db/queries/bookmarks");
+  return bookmarkQueryModulePromise;
+};
+
+/** Validates required environment configuration and returns API context. */
 export function validateApiConfig(): BookmarksApiContext {
   const bookmarksListId = BOOKMARKS_API_CONFIG.LIST_ID;
   if (!bookmarksListId) {
@@ -58,23 +58,31 @@ export function validateApiConfig(): BookmarksApiContext {
   };
 }
 
-/** Handles test environment by returning S3 data or empty array */
+/** Handles test environment by returning PostgreSQL data or an empty array. */
 export async function handleTestEnvironment(): Promise<UnifiedBookmark[] | null> {
   if (process.env.NODE_ENV !== "test") return null;
 
-  const s3Backup = await readJsonS3Optional<UnifiedBookmark[]>(
-    BOOKMARKS_S3_PATHS.FILE,
-    unifiedBookmarksArraySchema,
-  );
-  if (Array.isArray(s3Backup) && s3Backup.length > 0) {
-    console.log("[refreshBookmarksData] Test mode: returning bookmarks from S3 persistence");
-    return s3Backup;
+  try {
+    const { getAllBookmarks } = await loadBookmarkQueryModule();
+    const existingBookmarks = await getAllBookmarks();
+    if (existingBookmarks.length > 0) {
+      console.log(
+        "[refreshBookmarksData] Test mode: returning bookmarks from PostgreSQL persistence",
+      );
+      return existingBookmarks;
+    }
+  } catch (error) {
+    console.warn(
+      "[refreshBookmarksData] Test mode: PostgreSQL read unavailable, returning empty dataset:",
+      String(error),
+    );
   }
-  console.log("[refreshBookmarksData] Test mode: no S3 data, returning empty dataset");
+
+  console.log("[refreshBookmarksData] Test mode: no PostgreSQL data, returning empty dataset");
   return [];
 }
 
-/** Fetches all pages from the bookmarks API with pagination */
+/** Fetches all pages from the bookmarks API with pagination. */
 export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<RawApiBookmark[]> {
   console.log(`[refreshBookmarksData] Fetching all bookmarks from API: ${ctx.apiUrl}`);
   const allRawBookmarks: RawApiBookmark[] = [];
@@ -82,7 +90,7 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
   let pageCount = 0;
 
   do {
-    pageCount++;
+    pageCount += 1;
     const pageUrl = cursor ? `${ctx.apiUrl}?cursor=${encodeURIComponent(cursor)}` : ctx.apiUrl;
     console.log(`[refreshBookmarksData] Fetching page ${pageCount}: ${pageUrl}`);
 
@@ -116,7 +124,7 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
     if (!parsed.success) {
       console.error(
         "[refreshBookmarksData] Invalid API response shape:",
-        parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+        parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; "),
       );
       throw new Error("Invalid bookmarks API response shape");
     }
@@ -135,53 +143,58 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
   return allRawBookmarks;
 }
 
-/** Validates checksum and returns cached data if unchanged, or null to proceed */
+/**
+ * Validates checksum and returns cached PostgreSQL data if unchanged,
+ * or null to continue with full normalization/enrichment.
+ */
 export async function validateChecksumAndGetCached(
   allRawBookmarks: RawApiBookmark[],
   force: boolean,
 ): Promise<ChecksumResult> {
   const rawJsonString = JSON.stringify(allRawBookmarks);
   const rawChecksum = createHash("sha256").update(rawJsonString).digest("hex");
-  const { ENVIRONMENT_SUFFIX } = await import("@/lib/config/environment");
-  const latestKey = `${RAW_CACHE_PREFIX}${ENVIRONMENT_SUFFIX}/LATEST.json`;
 
   if (force) {
     console.log("[refreshBookmarksData] Force refresh requested, skipping checksum check.");
-    return { cached: null, checksum: rawChecksum, latestKey, envSuffix: ENVIRONMENT_SUFFIX };
+    return { cached: null, checksum: rawChecksum };
   }
 
   try {
-    const latest = await readJsonS3Optional(latestKey, checksumKeyRecordSchema);
-    if (latest?.checksum === rawChecksum) {
-      const cached = await readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, unifiedBookmarksArraySchema);
+    const { getAllBookmarks, getBookmarksIndexFromDatabase } = await loadBookmarkQueryModule();
+    const indexState = await getBookmarksIndexFromDatabase();
 
-      if (cached && cached.length === allRawBookmarks.length) {
-        const hasSlugs = cached.every((b) => {
-          if (typeof b !== "object" || b === null || !("slug" in b)) return false;
-          const s = (b as Record<string, unknown>).slug;
-          return typeof s === "string" && s.length > 0;
-        });
-        if (hasSlugs) {
-          console.log(
-            `[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) – reuse cached.`,
-          );
-          return { cached, checksum: rawChecksum, latestKey, envSuffix: ENVIRONMENT_SUFFIX };
-        }
-        console.warn("[refreshBookmarksData] Cached manifest lacks slugs; regenerating.");
-      } else {
-        console.warn(
-          `[refreshBookmarksData] Manifest size mismatch (cached: ${cached?.length ?? 0}, expected: ${allRawBookmarks.length}).`,
-        );
-      }
+    if (indexState.checksum !== rawChecksum) {
+      return { cached: null, checksum: rawChecksum };
     }
-  } catch (err) {
-    console.warn("[refreshBookmarksData] Could not read raw LATEST checksum:", String(err));
-  }
 
-  return { cached: null, checksum: rawChecksum, latestKey, envSuffix: ENVIRONMENT_SUFFIX };
+    const cachedBookmarks = await getAllBookmarks();
+    if (cachedBookmarks.length !== allRawBookmarks.length) {
+      console.warn(
+        `[refreshBookmarksData] PostgreSQL count mismatch (cached: ${cachedBookmarks.length}, expected: ${allRawBookmarks.length}).`,
+      );
+      return { cached: null, checksum: rawChecksum };
+    }
+
+    const hasSlugs = cachedBookmarks.every(
+      (bookmark) => typeof bookmark.slug === "string" && bookmark.slug.length > 0,
+    );
+    if (!hasSlugs) {
+      console.warn("[refreshBookmarksData] PostgreSQL cache lacks slugs; regenerating dataset.");
+      return { cached: null, checksum: rawChecksum };
+    }
+
+    console.log(`[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) - reuse cached.`);
+    return { cached: cachedBookmarks, checksum: rawChecksum };
+  } catch (error) {
+    console.warn(
+      "[refreshBookmarksData] Could not read PostgreSQL cache during checksum validation:",
+      String(error),
+    );
+    return { cached: null, checksum: rawChecksum };
+  }
 }
 
-/** Normalizes bookmarks and embeds slugs into each bookmark object */
+/** Normalizes bookmarks and embeds slugs into each bookmark object. */
 export async function normalizeAndGenerateSlugs(
   rawBookmarks: RawApiBookmark[],
 ): Promise<UnifiedBookmark[]> {
@@ -190,7 +203,7 @@ export async function normalizeAndGenerateSlugs(
     `[refreshBookmarksData] Successfully normalized ${normalizedBookmarks.length} bookmarks.`,
   );
 
-  const { generateSlugMapping, saveSlugMapping } = await import("@/lib/bookmarks/slug-manager");
+  const { generateSlugMapping } = await import("@/lib/bookmarks/slug-manager");
   const slugMapping = generateSlugMapping(normalizedBookmarks);
 
   for (const bookmark of normalizedBookmarks) {
@@ -200,25 +213,17 @@ export async function normalizeAndGenerateSlugs(
     }
     bookmark.slug = slugEntry.slug;
   }
+
   console.log(
     `[refreshBookmarksData] Generated slugs for ${normalizedBookmarks.length} bookmarks.`,
   );
-
-  try {
-    await saveSlugMapping(normalizedBookmarks);
-    console.log(`[refreshBookmarksData] Persisted slug mapping to S3.`);
-  } catch (err) {
-    console.warn("[refreshBookmarksData] Failed to persist slug mapping (non-fatal):", String(err));
-  }
-
   return normalizedBookmarks;
 }
 
-/** Applies optional test limit and enriches bookmarks with OpenGraph data */
+/** Applies optional test limit and enriches bookmarks with OpenGraph data. */
 export async function enrichWithOpenGraph(
   normalizedBookmarks: UnifiedBookmark[],
 ): Promise<UnifiedBookmark[]> {
-  // Apply test limit if configured
   const isNonProd = process.env.NODE_ENV !== "production";
   let testLimit = 0;
   if (isNonProd && process.env.S3_TEST_LIMIT) {
@@ -271,46 +276,23 @@ export async function enrichWithOpenGraph(
   return enrichedBookmarks;
 }
 
-/** Persists enriched bookmarks and raw snapshot to S3 */
-export async function persistToS3(
-  enrichedBookmarks: UnifiedBookmark[],
-  allRawBookmarks: RawApiBookmark[],
-  checksum: string,
-  latestKey: string,
-  envSuffix: string,
-): Promise<void> {
-  await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, enrichedBookmarks);
-  console.log(
-    `[refreshBookmarksData] Persisted enriched manifest to ${BOOKMARKS_S3_PATHS.FILE} (${enrichedBookmarks.length} records).`,
-  );
-
+/** Attempts to load PostgreSQL fallback data when primary fetch fails. */
+export async function loadDatabaseFallback(): Promise<UnifiedBookmark[] | null> {
   try {
-    const rawDataKey = `${RAW_CACHE_PREFIX}${envSuffix}/${checksum}.json`;
-    await writeJsonS3(rawDataKey, allRawBookmarks);
-    await writeJsonS3(latestKey, { checksum, key: rawDataKey });
-    console.log(`[refreshBookmarksData] Raw snapshot saved to S3 (checksum: ${checksum}).`);
-  } catch (err) {
-    console.warn(
-      "[refreshBookmarksData] Failed to persist raw snapshot (non-critical):",
-      String(err),
-    );
-  }
-}
-
-/** Attempts to load S3 fallback data when primary fetch fails */
-export async function loadS3Fallback(): Promise<UnifiedBookmark[] | null> {
-  try {
-    console.log("[refreshBookmarksData] API failed, loading from S3 (primary storage)...");
-    const s3Backup = await readJsonS3Optional(BOOKMARKS_S3_PATHS.FILE, unifiedBookmarksArraySchema);
-    if (Array.isArray(s3Backup) && s3Backup.length > 0) {
+    console.log("[refreshBookmarksData] API failed, loading from PostgreSQL fallback...");
+    const { getAllBookmarks } = await loadBookmarkQueryModule();
+    const existingBookmarks = await getAllBookmarks();
+    if (existingBookmarks.length > 0) {
       console.log(
-        `[refreshBookmarksData] S3_FALLBACK_SUCCESS: Returning ${s3Backup.length} bookmarks.`,
+        `[refreshBookmarksData] DATABASE_FALLBACK_SUCCESS: Returning ${existingBookmarks.length} bookmarks.`,
       );
-      return s3Backup;
+      return existingBookmarks;
     }
-    console.warn("[refreshBookmarksData] S3_FALLBACK_EMPTY: S3 storage contains no bookmarks.");
-  } catch (s3ReadError) {
-    console.error("[refreshBookmarksData] S3_FALLBACK_FAILURE:", s3ReadError);
+    console.warn(
+      "[refreshBookmarksData] DATABASE_FALLBACK_EMPTY: PostgreSQL contains no bookmarks.",
+    );
+  } catch (error) {
+    console.error("[refreshBookmarksData] DATABASE_FALLBACK_FAILURE:", error);
   }
   return null;
 }

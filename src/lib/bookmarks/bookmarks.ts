@@ -1,14 +1,14 @@
 /**
- * @file Bookmarks API and data management with S3-first persistence.
+ * @file Bookmarks API and data refresh pipeline.
  *
  * Architecture:
- * - S3 = Primary source of truth (persistent across deployments)
+ * - PostgreSQL = Primary source of truth
  * - Docker containers = Ephemeral (destroyed/recreated frequently)
- * - Local files = Temporary cache/fallback only (not critical for persistence)
  *
  * This module fetches bookmarks from Hoarder/Karakeep API, normalizes data,
- * enriches with OpenGraph metadata, and persists to S3. Handles pagination,
- * error fallbacks, and incremental updates via checksum comparison.
+ * enriches with OpenGraph metadata, and returns a dataset for refresh-logic
+ * persistence orchestration. Handles pagination, error fallbacks, and
+ * incremental updates via checksum comparison.
  *
  * @module lib/bookmarks
  */
@@ -22,24 +22,21 @@ import {
   validateChecksumAndGetCached,
   normalizeAndGenerateSlugs,
   enrichWithOpenGraph,
-  persistToS3,
-  loadS3Fallback,
+  loadDatabaseFallback,
 } from "./refresh-helpers";
 
 /**
- * Refreshes bookmarks data with S3-first persistence strategy.
+ * Refreshes bookmarks data before persistence orchestration.
  *
  * Pipeline:
  * 1. Fetch all pages from external API (with timeout protection)
  * 2. Check if raw data changed via checksum (skip if unchanged)
  * 3. Normalize bookmarks and generate stable slugs
  * 4. Enrich with OpenGraph metadata (batched for memory efficiency)
- * 5. Persist enriched manifest to S3 (primary storage)
- * 6. Update raw snapshot and checksum pointer in S3
  *
  * @param force - Skip checksum optimization and force full refresh
  * @returns Enriched bookmarks with embedded slugs
- * @throws If critical steps fail and S3 fallback is unavailable
+ * @throws If critical steps fail and PostgreSQL fallback is unavailable
  */
 export async function refreshBookmarksData(force = false): Promise<UnifiedBookmark[]> {
   console.log(
@@ -67,23 +64,14 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
     // Enrich with OpenGraph data
     const enrichedBookmarks = await enrichWithOpenGraph(normalizedBookmarks);
 
-    // Persist to S3
-    await persistToS3(
-      enrichedBookmarks,
-      allRawBookmarks,
-      checksumResult.checksum,
-      checksumResult.latestKey,
-      checksumResult.envSuffix,
-    );
-
     console.log("[refreshBookmarksData] Refresh cycle completed successfully.");
     return enrichedBookmarks;
   } catch (error) {
     const fetchError = error instanceof Error ? error : new Error(String(error));
     console.error(`[refreshBookmarksData] PRIMARY_FETCH_FAILURE: ${fetchError.message}`);
 
-    // Attempt S3 fallback
-    const fallbackData = await loadS3Fallback();
+    // Attempt PostgreSQL fallback
+    const fallbackData = await loadDatabaseFallback();
     if (fallbackData) return fallbackData;
 
     console.error("[refreshBookmarksData] All fallback attempts failed.");

@@ -36,9 +36,6 @@ export async function POST(
       ...pipeline,
       ragContextStatus: ragResult.status,
     });
-    if (ctx.systemStatus) {
-      response.headers.set("X-System-Status", ctx.systemStatus);
-    }
     return response;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -47,9 +44,6 @@ export async function POST(
       { error: "AI service initialization failed" },
       { status: 500, headers: NO_STORE_HEADERS },
     );
-    if (ctx.systemStatus) {
-      errorResponse.headers.set("X-System-Status", ctx.systemStatus);
-    }
     return errorResponse;
   }
 }

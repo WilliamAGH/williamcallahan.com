@@ -105,36 +105,10 @@ async function checkS3Freshness() {
       console.log(`   ❌ Could not read heartbeat: ${err}`);
     }
 
-    // Check lock status
+    // Refresh lock file was removed from the bookmark storage contract.
     console.log("");
     console.log("4. CHECKING REFRESH LOCK:");
-    try {
-      const lock = await readJsonS3Optional(
-        BOOKMARKS_S3_PATHS.LOCK,
-        z.object({ timestamp: z.string(), ttl: z.number() }),
-      );
-      if (lock?.timestamp) {
-        const lockDate = new Date(lock.timestamp);
-        if (Number.isNaN(lockDate.getTime())) {
-          console.log(`   ❌ Invalid lock timestamp: ${lock.timestamp}`);
-        } else {
-          const minsSinceLock = (Date.now() - lockDate.getTime()) / (1000 * 60);
-          console.log(
-            `   🔒 Lock timestamp: ${lock.timestamp} (${minsSinceLock.toFixed(1)} minutes ago)`,
-          );
-
-          if (minsSinceLock < 5) {
-            console.log("   ⚠️  WARNING: Active lock - refresh might be in progress");
-          } else if (minsSinceLock < 60) {
-            console.log("   ℹ️  Lock is stale but recent - refresh may have completed recently");
-          }
-        }
-      } else {
-        console.log("   ✅ No active lock");
-      }
-    } catch {
-      console.log("   ✅ No lock file (normal state)");
-    }
+    console.log("   ℹ️  Lock-file diagnostics removed (no LOCK path in BOOKMARKS_S3_PATHS)");
 
     // Sample a few bookmarks to check OpenGraph data freshness
     console.log("");

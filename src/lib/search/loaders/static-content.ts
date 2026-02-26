@@ -21,7 +21,6 @@ import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
 import { projects as projectsData } from "@/data/projects";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { SEARCH_S3_PATHS } from "@/lib/constants";
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -49,15 +48,9 @@ async function loadOrBuildIndex<T>(
   s3Path: string,
   cacheKey: string,
   buildFn: () => MiniSearch<T>,
-  ttl: number,
+  _ttl: number,
   config?: IndexFieldConfig<T>,
 ): Promise<MiniSearch<T>> {
-  // Try to get from cache first
-  const cached = ServerCacheInstance.get<MiniSearch<T>>(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
   let index: MiniSearch<T>;
 
   if (USE_S3_INDEXES) {
@@ -89,8 +82,6 @@ async function loadOrBuildIndex<T>(
     index = buildFn();
   }
 
-  // Cache the index
-  ServerCacheInstance.set(cacheKey, index, ttl);
   return index;
 }
 

@@ -17,7 +17,6 @@
 
 import { CSP_DIRECTIVES } from "@/config/csp";
 import { NextResponse, type NextRequest } from "next/server";
-import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
 import { getClientIp } from "@/lib/utils/request-utils";
 import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
@@ -197,10 +196,6 @@ function setCacheHeaders(response: NextResponse, url: string, host: string, isDe
 async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  // Check memory pressure first (before any expensive operations)
-  const memoryResponse = await memoryPressureMiddleware(request);
-  const systemStatus = memoryResponse?.headers.get("X-System-Status");
-  if (memoryResponse && memoryResponse.status >= 400) return memoryResponse;
   const rateLimitResponse = sitewideRateLimitMiddleware(request);
   if (rateLimitResponse) return rateLimitResponse;
   // SECURITY: Block debug endpoints in production
@@ -228,7 +223,6 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   }
 
   const response = NextResponse.next();
-  if (systemStatus) response.headers.set("X-System-Status", systemStatus);
   const ip = getClientIp(request.headers);
 
   setSecurityHeaders(response, ip);

@@ -8,7 +8,6 @@ import { debug } from "@/lib/utils/debug";
 import { getS3Override } from "@/lib/persistence/s3-persistence";
 import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { writeJsonS3 } from "@/lib/s3/json";
 import { hashUrl, normalizeUrl } from "@/lib/utils/opengraph-utils";
 import type { OgResult } from "@/types";
@@ -48,7 +47,6 @@ export async function refreshOpenGraphData(
         debug(
           `[OpenGraph Refresh] 🛡️ S3 override found during refresh, skipping external fetch: ${normalizedUrl}`,
         );
-        ServerCacheInstance.setOpenGraphData(normalizedUrl, s3Override, false);
         return s3Override;
       }
 
@@ -61,7 +59,6 @@ export async function refreshOpenGraphData(
       if (result && typeof result === "object" && "url" in result) {
         debug(`[OpenGraph Refresh] ✅ Successfully refreshed: ${normalizedUrl}`);
         const metadataS3Key = `${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`;
-        ServerCacheInstance.setOpenGraphData(normalizedUrl, result, false);
         await writeJsonS3(metadataS3Key, result);
         debug(`[OpenGraph S3] 💾 Persisted refreshed metadata to S3: ${metadataS3Key}`);
         return result;
@@ -69,23 +66,11 @@ export async function refreshOpenGraphData(
 
       if (result && typeof result === "object" && "networkFailure" in result) {
         debug(`[OpenGraph Refresh] 🌐 Network unavailable for: ${normalizedUrl}, using fallback`);
-        const fallback = createFallbackResult(
-          normalizedUrl,
-          "Network connectivity issue",
-          validatedFallback,
-        );
-        ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
-        return fallback;
+        return createFallbackResult(normalizedUrl, "Network connectivity issue", validatedFallback);
       }
 
       debug(`[OpenGraph Refresh] ❌ External source unavailable for: ${normalizedUrl}`);
-      const fallback = createFallbackResult(
-        normalizedUrl,
-        "External source unavailable",
-        validatedFallback,
-      );
-      ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
-      return fallback;
+      return createFallbackResult(normalizedUrl, "External source unavailable", validatedFallback);
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       const ogError = new OgError(
@@ -107,9 +92,7 @@ export async function refreshOpenGraphData(
         { category: "OpenGraph" },
       );
 
-      const fallback = createFallbackResult(normalizedUrl, ogError.message, validatedFallback);
-      ServerCacheInstance.setOpenGraphData(normalizedUrl, fallback, true);
-      return fallback;
+      return createFallbackResult(normalizedUrl, ogError.message, validatedFallback);
     } finally {
       inFlightOgPromises.delete(urlHash);
     }

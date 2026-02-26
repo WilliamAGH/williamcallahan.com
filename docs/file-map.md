@@ -234,7 +234,6 @@ File/Path Functionality Description
   - [x] `json.ts` `s3-object-storage` - JSON read/write helpers
   - [x] `binary.ts` `s3-object-storage` - Binary read/write helpers
   - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer utilities
-- [x] `server-cache.ts` `caching` - Server-side in-memory cache
 - [x] `utils.ts` `shared-utils` - Shared utility helpers
 - [ ] **blog/**
   - [x] `index.ts` `blog` - Barrel file for blog library functions
@@ -243,7 +242,6 @@ File/Path Functionality Description
   - [x] `validation.ts` `blog` - Blog data validation schemas
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Barrel file for bookmark library functions
-  - [x] `bookmarks-s3-store.ts` `bookmarks` - S3-only bookmark reads (replaces local fallback paths)
   - [x] `slug-shards.ts` `bookmarks` - S3 shard helpers for bookmark slugs
   - [x] **analysis/**
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
@@ -283,6 +281,16 @@ File/Path Functionality Description
     - [x] `s3-operations.ts` `s3-object-storage` - S3 operations for logos
     - [x] `s3-store.ts` `s3-object-storage` - S3 storage logic for logos
     - [x] `session.ts` `image-handling` - Session management for logo operations
+- [x] **db/**
+  - [x] `connection.ts` `data-access` - Drizzle PostgreSQL client bootstrap with strict `DATABASE_URL` guard
+  - [x] `bookmark-record-mapper.ts` `bookmarks` - Row/insert mapping helpers between Drizzle bookmark records and `UnifiedBookmark`
+  - [x] **schema/**
+    - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmarks table definition with generated FTS vector plus trigram/HNSW indexes
+    - [x] `bookmark-taxonomy.ts` `bookmarks` - Drizzle tag-link and bookmark/tag index-state tables for DB-backed tag pagination and index metadata
+  - [x] **queries/**
+    - [x] `bookmarks.ts` `bookmarks` - Bookmark read queries (all/page/by-id/count/FTS/tag pages/global index/per-tag index/tag slug listing)
+  - [x] **mutations/**
+    - [x] `bookmarks.ts` `bookmarks` - Bookmark upsert/delete mutations plus taxonomy/index-state rebuilds for PostgreSQL persistence
 - [ ] **hooks/**
   - [x] `use-anchor-scroll.client.ts` `navigation` - Hook for scrolling to anchor links
   - [x] `use-fix-svg-transforms.ts` `image-handling` - Hook to fix SVG transform issues
@@ -346,11 +354,8 @@ File/Path Functionality Description
   - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates
 - [x] **s3-reset/**
   - [x] `index.ts` `s3-object-storage` - Factory functions and category config for S3 reset scripts
-- [x] **server-cache/**
-  - [x] `index.ts` `caching` - Barrel file for server cache
 - [ ] **services/**
   - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
-  - [x] `memory-aware-scheduler.ts` `memory-mgmt` - Scheduler with memory-aware gating
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
   - [x] **image/**
     - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
@@ -361,8 +366,6 @@ File/Path Functionality Description
   - [x] `constants.ts` `seo` - Shared sitemap constants (change frequencies, priorities, cache TTL)
   - [x] `content-collectors.ts` `seo` - Book and thought sitemap entry collectors
   - [x] `date-utils.ts` `seo` - Date parsing, path sanitization, and test-environment detection for sitemap modules
-- [x] **test-utils/**
-  - [x] `cache-tester.ts` `caching` - Cache testing utility
 - [x] **utils/**
   - [x] `api-sanitization.ts` `rate-limit-and-sanitize` - API input/output sanitization
   - [x] `debug.ts` `log-error-debug-handling` - Debugging utilities
@@ -406,6 +409,8 @@ File/Path Functionality Description
 - [x] `seo.ts` `seo` - Types for SEO and metadata
 - [x] `social.ts` `social-links` - Types for social links
 - [x] `terminal.ts` `terminal` - Types for terminal components
+- [x] **db/**
+  - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmark row/insert type exports for DB modules
 - [ ] **schemas/**
   - [x] `og-image.ts` `opengraph` - Zod schemas for OG image entity types, per-entity params, and layout props
   - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
@@ -455,11 +460,7 @@ File/Path Functionality Description
 
 ## Middleware Directory
 
-- [x] `cache-debug.ts` `caching` - Middleware for debugging cache behavior
-- [ ] **health/**
-  - [x] `memory-health-monitor.ts` `memory-mgmt` - Memory health monitor with graceful degradation
 - [ ] **middleware/**
-  - [x] `memory-pressure.ts` `memory-mgmt` - Class-aware memory shedding (`document` -> HTML 503, `api` -> JSON 503) with structured handled-event logs
   - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Navigation-first proxy throttling (only `document`/`api`) with deterministic 429 contracts and structured handled-event logs
 
 ## Root Directory
@@ -473,6 +474,7 @@ File/Path Functionality Description
 - [x] `components.json` `config` - ShadCN UI component configuration
 - [x] `Dockerfile` `deployment` - Docker container configuration
 - [x] `eslint.config.ts` `linting-formatting` - ESLint configuration
+- [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync (`bookmarks`, `bookmark_tag_links`, `bookmark_index_state`, `bookmark_tag_index_state`)
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Server-side instrumentation setup
 - [x] `vitest.config.ts` `testing-config` - Vitest configuration
@@ -591,6 +593,7 @@ File/Path Functionality Description
 - [x] `entrypoint.sh` `deployment` - Docker entrypoint script
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
+- [x] `migrate-s3-to-postgres.ts` `bookmarks` - Bookmark migration from S3 JSON to PostgreSQL via unified Drizzle mutations (including tag/index-state rebuild)
 - [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations
@@ -652,7 +655,7 @@ File/Path Functionality Description
   - [x] **app/**
     - [x] **api/**
       - [x] **ai/**
-        - [x] `chat-rag-helpers.test.ts` `ai-shared-services` - RAG context, abort detection, and request-validation memory-pressure tests for AI chat helpers
+        - [x] `chat-rag-helpers.test.ts` `ai-shared-services` - RAG context, abort detection, and request-validation tests for AI chat helpers
         - [x] `upstream-pipeline-test-harness.ts` `ai-shared-services` - Shared upstream pipeline test harness with centralized mocks and fixtures
         - [x] `chat-upstream-pipeline-streaming.test.ts` `ai-shared-services` - Upstream pipeline streaming and event contract tests
         - [x] `chat-upstream-pipeline-tools.test.ts` `ai-shared-services` - Upstream pipeline tool-call and deterministic fallback tests
@@ -695,6 +698,7 @@ File/Path Functionality Description
       - [x] `security.test.ts` `opengraph` - OG image SSRF protection tests (private hosts, protocol restrictions)
     - [x] `blog.test.ts` `blog` - Blog utility tests
     - [x] `bookmarks-s3-external-sync.unit.test.ts` `bookmarks` - Bookmarks S3 sync unit tests
+    - [x] `db/bookmark-record-mapper.test.ts` `bookmarks` - Unit tests for Drizzle bookmark row/insert mapper behavior
     - [x] `bookmarks-validation.test.ts` `json-handling` - Bookmarks validation tests
     - [x] `bookmarks.test.ts` `bookmarks` - Bookmarks utility tests
     - [x] `select-best-image.test.ts` `bookmarks` - Bookmark image selection security tests
@@ -708,15 +712,11 @@ File/Path Functionality Description
     - [x] `instrumentation-client.test.ts` `log-error-debug-handling` - Client instrumentation error filter tests
     - [x] `instrumentation-register.test.ts` `instrumentation-monitoring` - Instrumentation register hook tests
     - [x] `logo.test.ts` `image-handling` - Logo utility tests
-    - [x] `memory-health-monitor.test.ts` `memory-mgmt` - MemoryHealthMonitor image guard tests
-    - [x] `memory-pressure-middleware.test.ts` `memory-mgmt` - Memory pressure fail-safe tests
     - [x] `routes.test.ts` `navigation` - Routes utility tests
     - [x] `s3-connection.test.ts` `s3-object-storage` - S3 connection tests
     - [x] `s3-utils-actual.test.ts` `s3-object-storage` - S3 utilities integration tests
     - [x] `search.test.ts` `search` - Search utility tests
     - [x] `seo.test.ts` `seo` - SEO utility tests
-    - [x] `server-cache-init.test.ts` `caching` - Server cache initialization tests
-    - [x] `server-cache-simple.test.ts` `caching` - Server cache simple tests
     - [x] `utils.test.ts` `shared-utils` - General utility tests
     - [x] **ai/rag/**
       - [x] `context-formatter.test.ts` `ai-shared-services` - RAG context formatter tests

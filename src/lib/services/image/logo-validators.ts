@@ -3,9 +3,7 @@
  * @module lib/services/image/logo-validators
  */
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
-import { getBufferHash } from "@/lib/utils/hash-utils";
 import { extractBasicImageMeta } from "@/lib/image-handling/image-metadata";
 import { analyzeImage } from "@/lib/image-handling/image-analysis";
 import { processImageBuffer as sharedProcessImageBuffer } from "@/lib/image-handling/shared-image-processing";
@@ -35,14 +33,9 @@ export class LogoValidators {
    * Validate logo buffer and check for globe icon
    */
   async validateLogo(buffer: Buffer): Promise<LogoValidationResult> {
-    const bufferHash = getBufferHash(buffer);
-    const cached = ServerCacheInstance.getLogoValidation(bufferHash);
-    if (cached) return cached;
-
     // First check basic validation
     const isBasicValid = await this.validateLogoBuffer(buffer, "");
     if (!isBasicValid) {
-      ServerCacheInstance.setLogoValidation(bufferHash, true); // It's a globe/invalid
       return { isGlobeIcon: true, timestamp: getDeterministicTimestamp() };
     }
 
@@ -51,7 +44,6 @@ export class LogoValidators {
     const blankCheck = await isBlankOrPlaceholder(buffer);
 
     const isGlobeIcon = blankCheck.isBlank || blankCheck.isGlobe;
-    ServerCacheInstance.setLogoValidation(bufferHash, isGlobeIcon);
     return { isGlobeIcon, timestamp: getDeterministicTimestamp() };
   }
 
@@ -80,13 +72,8 @@ export class LogoValidators {
   /**
    * Analyze logo for inversion requirements
    */
-  async analyzeLogo(buffer: Buffer, url: string): Promise<LogoInversion> {
-    const cacheKey = `${url}-${getBufferHash(buffer)}`;
-    const cached = ServerCacheInstance.getLogoAnalysis(cacheKey);
-    if (cached) return cached;
-    const analysis = await analyzeImage(buffer);
-    ServerCacheInstance.setLogoAnalysis(cacheKey, analysis);
-    return analysis;
+  async analyzeLogo(buffer: Buffer, _url: string): Promise<LogoInversion> {
+    return analyzeImage(buffer);
   }
 
   /**

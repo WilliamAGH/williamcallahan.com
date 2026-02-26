@@ -20,6 +20,21 @@ import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { z } from "zod/v4";
 
+/**
+ * Type guard: confirms that an object implements the WHATWG ReadableStream
+ * interface required by Readable.fromWeb(). The DOM and Node.js stream/web
+ * types are structurally identical at runtime; this guard bridges the gap
+ * without a double-cast.
+ */
+function isNodeReadableStream(value: unknown): value is NodeReadableStream {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "getReader" in value &&
+    typeof (value as Record<string, unknown>)["getReader"] === "function"
+  );
+}
+
 // Initialize failure tracker for domains
 const domainFailureTracker = new FailureTracker<string>((domain) => domain, z.string().min(1), {
   s3Path: LOGO_BLOCKLIST_S3_PATH,
@@ -181,10 +196,14 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
 
         /*
          * Convert the WHATWG ReadableStream returned by fetch() into a Node.js
-         * stream without buffering the entire payload.  The generic parameter
-         * is omitted to satisfy @types/node expectations.
+         * stream without buffering the entire payload. The DOM ReadableStream and
+         * the Node.js stream/web ReadableStream are structurally identical at
+         * runtime; the type guard confirms the presence of the required interface.
          */
-        const nodeStream = Readable.fromWeb(res.body as unknown as NodeReadableStream);
+        if (!isNodeReadableStream(res.body)) {
+          throw new Error(`[Logo Batch] fetch response body is not a ReadableStream for ${url}`);
+        }
+        const nodeStream = Readable.fromWeb(res.body);
         await writeBinaryS3(s3Key, nodeStream, contentType);
 
         // Success - remove from failure tracker if it was there
@@ -237,7 +256,6 @@ export async function processLogoBatch(
     {
       batchSize: options.batchSize || 10,
       batchDelay: 500, // Rate limit protection
-      memoryThreshold: 0.8,
       timeout: 30000,
       onProgress: options.onProgress || progressReporter.createProgressHandler(),
       debug: true,
@@ -265,12 +283,12 @@ export async function processLogoBatch(
     });
   }
 
-  // Add skipped results (due to memory pressure)
+  // Add any skipped results
   for (const domain of result.skipped) {
     logoResults.set(domain, {
       url: null,
       source: null,
-      error: "Skipped due to memory pressure",
+      error: "Skipped during batch processing",
       contentType: "image/png",
     });
   }
@@ -283,9 +301,6 @@ export async function processLogoBatch(
   console.log(
     `[Logo Batch] Success: ${result.successful.size}, Failed: ${result.failed.size}, Skipped: ${result.skipped.length}`,
   );
-  if (result.memoryPressureEvents > 0) {
-    console.log(`[Logo Batch] Memory pressure events: ${result.memoryPressureEvents}`);
-  }
 
   return logoResults;
 }

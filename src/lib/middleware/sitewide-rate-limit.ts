@@ -2,7 +2,7 @@
  * Sitewide Rate Limiting Middleware
  *
  * Provides a lightweight, in-memory rate limit at the proxy layer to mitigate
- * aggressive crawlers that can trigger memory spikes and 503 load shedding.
+ * aggressive crawlers.
  *
  * @module lib/middleware/sitewide-rate-limit
  */
@@ -18,7 +18,18 @@ import type {
   RateLimitProfileName,
   SitewideRateLimitOptions,
 } from "@/types/middleware";
-import { isHealthCheckPath } from "./health-check-paths";
+const HEALTH_CHECK_PATHS = [
+  "/api/health",
+  "/api/health/metrics",
+  "/api/health/deep",
+  "/healthz",
+  "/livez",
+  "/readyz",
+] as const;
+
+function isHealthCheckPath(pathname: string): boolean {
+  return HEALTH_CHECK_PATHS.some((path) => pathname.startsWith(path));
+}
 
 const DEFAULT_STORE_PREFIX = "sitewide";
 

@@ -14,8 +14,6 @@ import { fetchBooks } from "@/lib/books/audiobookshelf.server";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { getThoughts } from "@/lib/thoughts/service.server";
-import { ServerCacheInstance } from "@/lib/server-cache";
-import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
 import { normalizeCompanyOrDomain } from "@/lib/utils";
 import { normalizeAndDeduplicateTags } from "@/lib/utils/tag-utils";
@@ -28,8 +26,6 @@ import type { Investment } from "@/types/investment";
 import type { Project } from "@/types/project";
 import type { Book } from "@/types/schemas/book";
 import type { Thought } from "@/types/schemas/thought";
-
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
 
 class MissingSlugError extends Error {
   constructor(message: string) {
@@ -370,13 +366,6 @@ function normalizeThought(thought: Thought): NormalizedContent {
  * Fetch and normalize all content from all sources
  */
 export async function aggregateAllContent(): Promise<NormalizedContent[]> {
-  // Check cache first
-  const cached = ServerCacheInstance.getAggregatedContent?.();
-  const now = getDeterministicTimestamp();
-  if (cached && cached.timestamp > now - CACHE_TTL) {
-    return cached.data;
-  }
-
   try {
     // Fetch all content in parallel (best-effort with Promise.allSettled)
     // CRITICAL: Must include image data for RelatedContent display
@@ -498,14 +487,6 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
       });
     } else if (thoughtsRes.status === "rejected") {
       console.error("Failed to fetch thoughts:", thoughtsRes.reason);
-    }
-
-    // Cache the results (avoid locking in empty arrays on transient failures)
-    if (normalized.length > 0) {
-      ServerCacheInstance.setAggregatedContent?.({
-        data: normalized,
-        timestamp: getDeterministicTimestamp(),
-      });
     }
 
     return normalized;

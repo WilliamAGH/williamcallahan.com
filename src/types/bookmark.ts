@@ -127,6 +127,4 @@ export interface BookmarksApiContext {
 export interface ChecksumResult {
   cached: import("./schemas/bookmark").UnifiedBookmark[] | null;
   checksum: string;
-  latestKey: string;
-  envSuffix: string;
 }

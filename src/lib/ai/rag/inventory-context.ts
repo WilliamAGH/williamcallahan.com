@@ -10,7 +10,6 @@
 
 import "server-only";
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import type {
   BuildInventoryContextOptions,
   InventoryContextResult,
@@ -34,9 +33,6 @@ import {
   setPaginationState,
   updateSectionPaginationState,
 } from "./inventory-pagination";
-
-const INVENTORY_CACHE_KEY = "rag:inventory:catalog";
-const INVENTORY_CACHE_TTL_SECONDS = 10 * 60;
 
 const mergeFailedSections = (
   base: InventorySectionName[] | undefined,
@@ -168,11 +164,6 @@ export async function buildInventoryContext(
 async function buildNonPaginatedInventoryContext(
   options: BuildInventoryContextOptions,
 ): Promise<InventoryContextResult> {
-  if (!options.skipCache) {
-    const cached = ServerCacheInstance.get<InventoryContextResult>(INVENTORY_CACHE_KEY);
-    if (cached) return cached;
-  }
-
   const { sections, failedSections } = await collectSections(options.includeDynamic ?? true);
   const { text, tokenEstimate, omittedSections } = formatInventoryText(sections, options.maxTokens);
 
@@ -186,10 +177,6 @@ async function buildNonPaginatedInventoryContext(
 
   if (omittedSections.length > 0) {
     result.failedSections = mergeFailedSections(result.failedSections, omittedSections);
-  }
-
-  if (!options.skipCache) {
-    ServerCacheInstance.set(INVENTORY_CACHE_KEY, result, INVENTORY_CACHE_TTL_SECONDS);
   }
 
   return result;

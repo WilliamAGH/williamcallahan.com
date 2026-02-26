@@ -13,7 +13,6 @@ import {
   filterByTypes,
 } from "@/lib/content-similarity/aggregator";
 import { findMostSimilar, limitByTypeAndTotal, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { requestLock } from "@/lib/server/request-lock";
 import { getMonotonicTime } from "@/lib/utils";
@@ -24,8 +23,6 @@ import type {
 } from "@/types/related-content";
 import { similarityWeightsSchema } from "@/types/schemas/related-content";
 import { getEnabledContentTypes, DEFAULT_MAX_PER_TYPE } from "@/config/related-content.config";
-
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours - content changes infrequently
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
@@ -259,12 +256,9 @@ export async function GET(request: NextRequest) {
     // parseTypesParam is now module-level and uses centralized config
     const includeTypes = parseTypesParam(searchParams.get("includeTypes"));
     const excludeTypes = parseTypesParam(searchParams.get("excludeTypes"));
-    const debug = searchParams.get("debug") === "true";
-
     // Parse custom weights if provided
     let weights = DEFAULT_WEIGHTS;
     const customWeights = searchParams.get("weights");
-    const hasCustomWeights = Boolean(customWeights);
     if (customWeights) {
       try {
         const parsed: unknown = JSON.parse(customWeights);
@@ -284,68 +278,43 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Parse excludeIds early to determine if we should skip caching
-    // (excludeIds affects computed results but shouldn't pollute the cache)
+    // Parse excludeIds early to apply request-scoped filtering.
     const excludeIdsParam = searchParams.get("excludeIds");
-    const hasExcludeIds = Boolean(
-      excludeIdsParam && excludeIdsParam.split(",").some((s) => s.trim().length > 0),
-    );
+    const computedItems = await requestLock.run<Array<
+      NormalizedContent & { score: number }
+    > | null>({
+      key: lockKey,
+      work: async () => {
+        const source = await getContentById(sourceType, sourceId);
+        if (!source) {
+          return null;
+        }
 
-    // Check cache first
-    let cached = ServerCacheInstance.getRelatedContent(sourceType, sourceId);
+        const allContent = await aggregateAllContent();
+        const excludeIds =
+          excludeIdsParam
+            ?.split(",")
+            .map((s) => s.trim())
+            .filter(Boolean) || [];
+        excludeIds.push(sourceId);
 
-    // If cache is stale/missing, or custom weights/debug requested, compute it (with a lock)
-    const now = getMonotonicTime();
-    if (!cached || now - cached.timestamp >= CACHE_TTL || debug || hasCustomWeights) {
-      await requestLock.run({
-        key: lockKey,
-        work: async () => {
-          const source = await getContentById(sourceType, sourceId);
-          if (!source) {
-            return;
-          }
+        const candidates = allContent.filter(
+          (item) => !(item.type === sourceType && excludeIds.includes(item.id)),
+        );
 
-          const allContent = await aggregateAllContent();
-          // Parse excludeIds for this request (use pre-parsed param)
-          const excludeIds =
-            excludeIdsParam
-              ?.split(",")
-              .map((s) => s.trim())
-              .filter(Boolean) || [];
-          excludeIds.push(sourceId);
+        return findMostSimilar(source, candidates, 100, weights);
+      },
+    });
 
-          const candidates = allContent.filter(
-            (item) => !(item.type === sourceType && excludeIds.includes(item.id)),
-          );
-
-          // Get a large number of similar items to allow for pagination
-          const similar = findMostSimilar(source, candidates, 100, weights);
-
-          // Only cache canonical computations (no debug/custom weights/excludeIds)
-          // excludeIds affects the computed candidates, so caching with excludeIds
-          // would pollute the cache with incomplete results for non-excluded requests
-          if (!debug && !hasCustomWeights && !hasExcludeIds) {
-            ServerCacheInstance.setRelatedContent(sourceType, sourceId, {
-              items: similar,
-              timestamp: now,
-            });
-          }
-        },
-      });
-
-      cached = ServerCacheInstance.getRelatedContent(sourceType, sourceId);
-    }
-
-    if (!cached) {
+    if (!computedItems) {
       return createErrorResponse(
         `Content not found or failed to compute: ${sourceType}/${sourceId}`,
         404,
       );
     }
 
-    // Apply filtering to cached results
-    const cachedData = cached;
-    let items = cachedData.items;
+    // Apply request filters to computed results.
+    let items: Array<NormalizedContent & { score: number }> = computedItems;
     // Apply type filters per-request
     if (includeTypes || excludeTypes) {
       items = filterByTypes(items, includeTypes, excludeTypes);

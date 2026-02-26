@@ -15,7 +15,6 @@
  * @module cache/invalidation
  */
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { cacheContextGuards, USE_NEXTJS_CACHE } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
 
@@ -33,8 +32,7 @@ export const GITHUB_CACHE_TAGS = {
 } as const;
 
 /**
- * In-memory cache keys for GitHub activity data
- * These keys are used with ServerCacheInstance
+ * Cache keys for GitHub activity data
  */
 export const GITHUB_CACHE_KEYS = {
   /** Main activity data */
@@ -46,12 +44,10 @@ export const GITHUB_CACHE_KEYS = {
 } as const;
 
 /**
- * Invalidate all GitHub activity caches (in-memory + Next.js)
+ * Invalidate all GitHub activity Next.js cache tags.
  *
  * This function should be called after any GitHub data update to ensure
- * fresh data is served to users. It clears both:
- * 1. In-memory ServerCache entries (immediate effect)
- * 2. Next.js cache tags (triggers revalidation on next request)
+ * fresh data is served to users.
  *
  * @example
  * ```ts
@@ -64,13 +60,7 @@ export function invalidateAllGitHubCaches(): void {
   const category = "GitHubCacheInvalidation";
 
   try {
-    // 1. Clear in-memory cache entries
-    ServerCacheInstance.del(GITHUB_CACHE_KEYS.ACTIVITY);
-    ServerCacheInstance.del(GITHUB_CACHE_KEYS.SUMMARY);
-    ServerCacheInstance.del(GITHUB_CACHE_KEYS.WEEKLY);
-    envLogger.log("Cleared in-memory GitHub caches", undefined, { category });
-
-    // 2. Invalidate Next.js cache tags (if available)
+    // Invalidate Next.js cache tags (if available)
     if (USE_NEXTJS_CACHE) {
       cacheContextGuards.revalidateTag(
         category,

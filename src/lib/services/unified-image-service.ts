@@ -3,7 +3,6 @@
  * @module lib/services/unified-image-service
  */
 import { checkIfS3ObjectExists } from "@/lib/s3/objects";
-import { ServerCacheInstance } from "../server-cache";
 import { getDeterministicTimestamp } from "../utils/deterministic-timestamp";
 import { UNIFIED_IMAGE_SERVICE_CONFIG } from "../constants";
 import { isS3ReadOnly } from "../utils/s3-read-only";
@@ -11,7 +10,6 @@ import type { LogoInversion } from "../../types/logo";
 import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { DEFAULT_IMAGE_HEADERS, fetchBinary } from "../utils/http-client";
 import { inferContentTypeFromUrl, DEFAULT_IMAGE_CONTENT_TYPE } from "../utils/content-type";
-import { wipeBuffer } from "../health/memory-health-monitor";
 import { monitoredAsync } from "../async-operations-monitor";
 import type { LogoFetchResult, LogoValidationResult } from "../../types/cache";
 import { logoDebugger } from "@/lib/utils/logo-debug";
@@ -21,11 +19,7 @@ import { S3Operations } from "./image/s3-operations";
 import { SessionManager } from "./image/session-manager";
 import { LogoFetcher } from "./image/logo-fetcher";
 import { findExistingHashedLogo, findAndMigrateLegacyLogo } from "./image/logo-discovery";
-import {
-  fetchAndPersistExternalLogo,
-  buildReadOnlyMissingResult,
-  buildMemoryPressureResult,
-} from "./image/logo-persistence";
+import { fetchAndPersistExternalLogo, buildReadOnlyMissingResult } from "./image/logo-persistence";
 import { fetchAndProcessImage } from "./image/image-fetcher";
 
 export class UnifiedImageService {
@@ -89,13 +83,6 @@ export class UnifiedImageService {
   }
 
   /**
-   * Check if service should accept new requests based on memory health
-   */
-  private shouldAcceptRequests(): boolean {
-    return this.sessionMgr.shouldAcceptRequests();
-  }
-
-  /**
    * Strip query parameters and hash from URL for safe logging
    */
   private stripQueryAndHash(url: string): string {
@@ -125,9 +112,6 @@ export class UnifiedImageService {
       };
     }
 
-    if (!this.shouldAcceptRequests()) {
-      throw new Error("Insufficient memory to process image request");
-    }
     return monitoredAsync(
       null,
       `get-image-${safeUrlForLog}`,
@@ -161,8 +145,6 @@ export class UnifiedImageService {
             cdnUrl: this.getCdnUrl(s3Key),
           };
         } finally {
-          // Clear buffer reference to help GC
-          wipeBuffer(result?.buffer);
           result = null;
         }
       },
@@ -175,10 +157,6 @@ export class UnifiedImageService {
 
   /** Get logo with validation, optional inversion */
   async getLogo(domain: string, options: ImageServiceOptions = {}): Promise<LogoFetchResult> {
-    if (!this.shouldAcceptRequests()) {
-      return buildMemoryPressureResult(domain);
-    }
-
     // Check if there's already an in-flight request for this domain
     const existingRequest = this.sessionMgr.getInFlightRequest(domain);
     if (existingRequest && !options.forceRefresh) {
@@ -205,26 +183,18 @@ export class UnifiedImageService {
     domain: string,
     options: ImageServiceOptions,
   ): Promise<LogoFetchResult> {
-    // Check server cache first
-    const cachedResult = ServerCacheInstance.getLogoFetch(domain);
-    if (cachedResult?.s3Key && (this.isReadOnly || !options.forceRefresh)) {
-      return { ...cachedResult, cdnUrl: this.getCdnUrl(cachedResult.s3Key) || undefined };
-    }
-
     // Build result helper bound to logoFetcher
     const buildResult = this.logoFetcher.buildLogoFetchResult.bind(this.logoFetcher);
 
     // Check for existing hashed logo files (extracted to logo-discovery.ts)
     const hashedLogo = await findExistingHashedLogo(domain, buildResult);
     if (hashedLogo) {
-      ServerCacheInstance.setLogoFetch(domain, hashedLogo);
       return hashedLogo;
     }
 
     // Check for legacy logos and optionally migrate (extracted to logo-discovery.ts)
     const legacyLogo = await findAndMigrateLegacyLogo(domain, this.isReadOnly, buildResult);
     if (legacyLogo) {
-      ServerCacheInstance.setLogoFetch(domain, legacyLogo);
       return legacyLogo;
     }
 
@@ -256,7 +226,6 @@ export class UnifiedImageService {
       devProcessingDisabled: this.devProcessingDisabled,
       devStreamImagesToS3: this.devStreamImagesToS3,
       isDev: this.isDev,
-      shouldAcceptRequests: () => this.shouldAcceptRequests(),
       s3Ops: this.s3Ops,
       logoFetcher: this.logoFetcher,
       placeholderBuffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER,
@@ -271,9 +240,6 @@ export class UnifiedImageService {
 
   /** Analyze logo from URL for inversion needs */
   async getLogoAnalysisByUrl(url: string): Promise<LogoInversion | null> {
-    const cacheKey = `${url}-analysis`;
-    const cached = ServerCacheInstance.getLogoAnalysis(cacheKey);
-    if (cached) return cached;
     try {
       // Use shared fetch utilities with retry
       const { buffer } = await fetchBinary(url, {

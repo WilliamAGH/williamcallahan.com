@@ -29,8 +29,6 @@ import {
 import type { RelatedContentEntry } from "@/types/related-content";
 import { contentGraphMetadataSchema } from "@/types/schemas/related-content";
 import { relatedContentEntrySchema } from "@/types/schemas/book";
-import { ServerCacheInstance } from "../src/lib/server-cache";
-import { getMemoryHealthMonitor } from "../src/lib/health/memory-health-monitor";
 
 async function checkPath(path: string): Promise<PathCheck> {
   try {
@@ -267,18 +265,5 @@ await auditS3Paths()
     const client = getS3Client();
     if (client && typeof client.destroy === "function") {
       client.destroy();
-    }
-
-    // Tear down process-wide intervals/singletons created via imports
-    try {
-      ServerCacheInstance.destroy();
-    } catch (error) {
-      console.warn("Server cache cleanup failed:", error);
-    }
-    try {
-      const monitor = getMemoryHealthMonitor();
-      monitor.destroy();
-    } catch (error) {
-      console.warn("Memory health monitor cleanup failed:", error);
     }
   });

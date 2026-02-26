@@ -48,38 +48,7 @@ vi.mock("@/lib/utils/env-logger", () => ({
   },
 }));
 
-vi.mock("@/lib/health/memory-health-monitor", () => ({
-  getMemoryHealthMonitor: () => ({
-    shouldAcceptNewRequests: () => true,
-    on: vi.fn(),
-    off: vi.fn(),
-  }),
-}));
-
-vi.mock("@/lib/server-cache", () => ({
-  ServerCacheInstance: {
-    get: vi.fn(),
-    set: vi.fn(),
-    getStats: vi.fn().mockReturnValue({
-      keys: 0,
-      hits: 0,
-      misses: 0,
-      ksize: 0,
-      vsize: 0,
-      sizeBytes: 0,
-      maxSizeBytes: 0,
-      utilizationPercent: 0,
-    }),
-    getSearchResults: vi.fn(),
-    setSearchResults: vi.fn(),
-    shouldRefreshSearch: vi.fn(),
-    clearAllCaches: vi.fn(),
-  },
-}));
-
 import { searchBookmarks } from "@/lib/search";
-import { ServerCacheInstance } from "@/lib/server-cache";
-import type { Mock } from "vitest";
 
 describe("searchBookmarks - S3 fallback mapping", () => {
   const bookmarks: Array<BookmarkIndexItem & { slug: string }> = [
@@ -124,8 +93,6 @@ describe("searchBookmarks - S3 fallback mapping", () => {
     mockLoadSlugMapping.mockResolvedValue(null);
     mockGetSlugForBookmark.mockReturnValue(null);
     mockTryGetEmbeddedSlug.mockReturnValue(null);
-    (ServerCacheInstance.getSearchResults as Mock).mockReturnValue(undefined);
-    (ServerCacheInstance.shouldRefreshSearch as Mock).mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -143,18 +110,10 @@ describe("searchBookmarks - S3 fallback mapping", () => {
     const results = await searchBookmarks("sdk");
 
     expect(mockReadJsonS3).toHaveBeenCalled();
-    const cacheArgs = (ServerCacheInstance.set as Mock).mock.calls[0]?.[1];
-    expect(cacheArgs?.bookmarks?.length ?? 0).toBeGreaterThan(0);
-    expect(typeof cacheArgs?.index?.documentCount).toBe("number");
-    expect(cacheArgs?.index?.documentCount ?? 0).toBeGreaterThan(0);
-    const debugHits =
-      (cacheArgs?.index as MiniSearch<BookmarkIndexItem> | undefined)?.search("sdk") ?? [];
-    expect(debugHits.length).toBeGreaterThan(0);
     expect(results).toHaveLength(1);
     expect(results[0]?.id).toBe("bk-1");
     expect(results[0]?.url).toBe("/bookmarks/sdk-slug");
     expect(results[0]?.title).toBe("SDK for Claude Code");
-    expect(ServerCacheInstance.setSearchResults).toHaveBeenCalled();
   });
 
   it("matches natural-language bookmark queries with extra filler words", async () => {

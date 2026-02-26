@@ -41,6 +41,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    const contentTypeHeader = request.headers.get("content-type");
+    if (!contentTypeHeader?.toLowerCase().includes("multipart/form-data")) {
+      return NextResponse.json(
+        { error: "Unsupported Media Type: expected multipart/form-data" },
+        {
+          status: 415,
+          headers: NO_STORE_HEADERS,
+        },
+      );
+    }
+
     const formData = await request.formData();
     const imageFile = formData.get("image") as File;
     const imageUrl = formData.get("url") as string;

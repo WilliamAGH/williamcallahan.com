@@ -44,8 +44,8 @@ export type {
 } from "./opengraph";
 export { OgError, isOgResult } from "./opengraph";
 
-/** 🖼️ IMAGE DOMAIN (types/image.ts) - Image processing, memory management, and service types */
-export type { ImageMemoryMetrics, ImageServiceOptions, ImageResult } from "./image";
+/** 🖼️ IMAGE DOMAIN (types/image.ts) - Image processing and service types */
+export type { ImageServiceOptions, ImageResult } from "./image";
 
 /** 🔗 SEO DOMAIN (types/seo/*) - SEO metadata, Open Graph, structured data */
 export * from "./seo";

@@ -11,7 +11,6 @@ import { fetchWithTimeout, DEFAULT_IMAGE_HEADERS } from "@/lib/utils/http-client
 import { normalizeError } from "@/lib/utils/error-utils";
 import { DEFAULT_IMAGE_CONTENT_TYPE, DEFAULT_BINARY_CONTENT_TYPE } from "@/lib/utils/content-type";
 import { isLogoUrl, extractDomain } from "@/lib/utils/url-utils";
-import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { maybeStreamImageToS3 } from "../image-streaming";
 import type { ImageServiceOptions, FetchProcessResult, ImageFetchConfig } from "@/types/image";
 import type { LogoFetcher } from "./logo-fetcher";
@@ -77,8 +76,6 @@ export async function fetchAndProcessImage(
   const {
     devProcessingDisabled,
     devStreamImagesToS3,
-    isDev,
-    shouldAcceptRequests,
     logoFetcher,
     placeholderBuffer,
     fetchTimeout,
@@ -89,11 +86,6 @@ export async function fetchAndProcessImage(
   // Dev gating: skip fetch/processing entirely when disabled in development
   if (devProcessingDisabled && !devStreamImagesToS3) {
     return { buffer: placeholderBuffer, contentType: DEFAULT_IMAGE_CONTENT_TYPE };
-  }
-
-  // Check memory before fetching unless we are in streaming mode
-  if (!shouldAcceptRequests()) {
-    throw new Error("Insufficient memory to fetch image");
   }
 
   // Handle logo URLs specially
@@ -130,16 +122,6 @@ export async function fetchAndProcessImage(
         contentType: contentType || DEFAULT_BINARY_CONTENT_TYPE,
         streamedToS3: true,
       };
-    }
-
-    // Streaming failed - check if we can fall back to buffering
-    if (devStreamImagesToS3 && !isDev && !getMemoryHealthMonitor().shouldAcceptNewRequests()) {
-      throw new Error("Streaming required but unavailable under memory pressure");
-    }
-
-    // Check memory again before loading into buffer
-    if (!shouldAcceptRequests()) {
-      throw new Error("Insufficient memory to load image into buffer");
     }
 
     // Handle body already consumed case and get buffer

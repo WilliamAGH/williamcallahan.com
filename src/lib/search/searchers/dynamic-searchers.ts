@@ -8,7 +8,6 @@
  */
 
 import type { SearchResult } from "@/types/search";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
@@ -20,12 +19,6 @@ const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !==
 const devLog = (...args: unknown[]) => {
   if (IS_DEV) console.log("[SearchDev]", ...args);
 };
-
-/**
- * Track in-flight background refreshes to prevent duplicate work.
- */
-const bookmarksRefreshInFlight = new Set<string>();
-const booksRefreshInFlight = new Set<string>();
 
 /**
  * Common filler words stripped from bookmark search queries before they hit
@@ -189,12 +182,10 @@ async function executeBookmarkSearch(query: string): Promise<SearchResult[]> {
     results = mappedHits.toSorted((a, b) => b.score - a.score);
   }
 
-  // Only cache if index was healthy (has documents) - empty results from healthy index are valid
-  if (bookmarks.length > 0 || results.length > 0) {
-    ServerCacheInstance.setSearchResults("bookmarks", query, results);
-  } else {
+  // Log empty-index behavior for debugging visibility
+  if (bookmarks.length === 0 && results.length === 0) {
     envLogger.log(
-      "[searchBookmarks] SKIPPING RESULT CACHE: Empty results from empty index",
+      "[searchBookmarks] Empty results from empty index",
       { query, indexedBookmarks: bookmarks.length, resultsCount: results.length },
       { category: "Search" },
     );
@@ -204,52 +195,17 @@ async function executeBookmarkSearch(query: string): Promise<SearchResult[]> {
 }
 
 /**
- * Trigger background refresh for bookmarks search (non-blocking).
- */
-function triggerBookmarksBackgroundRefresh(query: string): void {
-  if (bookmarksRefreshInFlight.has(query)) return;
-
-  bookmarksRefreshInFlight.add(query);
-  void executeBookmarkSearch(query)
-    .catch((err) => console.error("[SWR] Bookmarks background refresh failed:", err))
-    .finally(() => bookmarksRefreshInFlight.delete(query));
-}
-
-/**
  * Search bookmarks by query.
  * Uses stale-while-revalidate: returns cached results immediately, refreshes in background.
  */
 export async function searchBookmarks(query: string): Promise<SearchResult[]> {
   try {
     devLog("[searchBookmarks] query", { query });
-
-    // Check cache (even stale entries are usable with SWR)
-    const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
-    const isStale = cached && ServerCacheInstance.shouldRefreshSearch("bookmarks", query);
-
-    // SWR: Return stale cache immediately, trigger background refresh
-    if (cached) {
-      if (isStale) {
-        triggerBookmarksBackgroundRefresh(query);
-      }
-      devLog("[searchBookmarks] results (cached)", { count: cached.results.length, isStale });
-      return cached.results;
-    }
-
-    // No cache: must fetch synchronously (cold start)
     const results = await executeBookmarkSearch(query);
     devLog("[searchBookmarks] results (fresh)", { count: results.length });
     return results;
   } catch (err) {
     console.error("[searchBookmarks] Unexpected failure:", err);
-    // Return cached results if available on error (even if stale)
-    const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
-    if (cached?.results) {
-      devLog("[searchBookmarks] returning cached results on error", {
-        count: cached.results.length,
-      });
-      return cached.results;
-    }
     return [];
   }
 }
@@ -308,20 +264,7 @@ async function executeBooksSearch(query: string): Promise<SearchResult[]> {
   }));
 
   devLog("[searchBooks] Final results:", results.length);
-  ServerCacheInstance.setSearchResults("books", query, results);
   return results;
-}
-
-/**
- * Trigger background refresh for books search (non-blocking).
- */
-function triggerBooksBackgroundRefresh(query: string): void {
-  if (booksRefreshInFlight.has(query)) return;
-
-  booksRefreshInFlight.add(query);
-  void executeBooksSearch(query)
-    .catch((err) => console.error("[SWR] Books background refresh failed:", err))
-    .finally(() => booksRefreshInFlight.delete(query));
 }
 
 /**
@@ -330,20 +273,5 @@ function triggerBooksBackgroundRefresh(query: string): void {
  */
 export async function searchBooks(query: string): Promise<SearchResult[]> {
   devLog("[searchBooks] Query:", query);
-
-  // Check cache (even stale entries are usable with SWR)
-  const cached = ServerCacheInstance.getSearchResults<SearchResult>("books", query);
-  const isStale = cached && ServerCacheInstance.shouldRefreshSearch("books", query);
-
-  // SWR: Return stale cache immediately, trigger background refresh
-  if (cached) {
-    if (isStale) {
-      triggerBooksBackgroundRefresh(query);
-    }
-    devLog("[searchBooks] Returning cached results", { count: cached.results.length, isStale });
-    return cached.results;
-  }
-
-  // No cache: must fetch synchronously (cold start)
   return executeBooksSearch(query);
 }

@@ -24,7 +24,6 @@ import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { formatStaticContext, getStaticContext } from "@/lib/ai/rag/static-context";
 import { isPaginationKeyword } from "@/lib/ai/rag/inventory-pagination";
-import { memoryPressureMiddleware } from "@/lib/middleware/memory-pressure";
 import { getClientIp } from "@/lib/utils/request-utils";
 import {
   NO_STORE_HEADERS,
@@ -64,16 +63,6 @@ const RAG_INVENTORY_SECTION_MAX_TOKENS = 5000;
 /** Default number of inventory items per page */
 const INVENTORY_PAGE_SIZE = 25;
 
-function withSystemStatusHeader(
-  response: NextResponse,
-  systemStatus: "MEMORY_WARNING" | undefined,
-): NextResponse {
-  if (systemStatus) {
-    response.headers.set("X-System-Status", systemStatus);
-  }
-  return response;
-}
-
 /**
  * Validate the incoming request (cloudflare, origin, rate limit, auth, body)
  * Returns either an error response or the validated context
@@ -83,35 +72,21 @@ export async function validateRequest(
   feature: string,
 ): Promise<NextResponse | ValidatedRequestContext> {
   preventCaching();
-
-  const memoryResponse = await memoryPressureMiddleware(request);
-  const memoryWarningStatus = memoryResponse?.headers.get("X-System-Status");
-  const systemStatus: "MEMORY_WARNING" | undefined =
-    memoryWarningStatus === "MEMORY_WARNING" ? memoryWarningStatus : undefined;
-  if (memoryResponse && memoryResponse.status >= 400) {
-    return memoryResponse;
-  }
   const clientIp = getClientIp(request.headers, { fallback: "anonymous" });
 
   const acceptHeaderRaw = request.headers.get("accept");
   if (!acceptHeaderRaw) {
     logger.warn("[AI Chat] Missing Accept header on incoming request", { feature, clientIp });
-    return withSystemStatusHeader(
-      NextResponse.json(
-        { error: "Not Acceptable: this endpoint requires Accept: text/event-stream" },
-        { status: 406, headers: NO_STORE_HEADERS },
-      ),
-      systemStatus,
+    return NextResponse.json(
+      { error: "Not Acceptable: this endpoint requires Accept: text/event-stream" },
+      { status: 406, headers: NO_STORE_HEADERS },
     );
   }
   const acceptHeader = acceptHeaderRaw.toLowerCase();
   if (!acceptHeader.includes("text/event-stream")) {
-    return withSystemStatusHeader(
-      NextResponse.json(
-        { error: "Not Acceptable: this endpoint requires Accept: text/event-stream" },
-        { status: 406, headers: NO_STORE_HEADERS },
-      ),
-      systemStatus,
+    return NextResponse.json(
+      { error: "Not Acceptable: this endpoint requires Accept: text/event-stream" },
+      { status: 406, headers: NO_STORE_HEADERS },
     );
   }
 
@@ -119,50 +94,38 @@ export async function validateRequest(
     route: "/api/ai/chat",
     additionalHeaders: NO_STORE_HEADERS,
   });
-  if (cloudflareResponse) return withSystemStatusHeader(cloudflareResponse, systemStatus);
+  if (cloudflareResponse) return cloudflareResponse;
 
   const originHost = getRequestOriginHostname(request);
   if (!originHost || !isAllowedAiGateHostname(originHost)) {
-    return withSystemStatusHeader(
-      NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS }),
-      systemStatus,
-    );
+    return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE_HEADERS });
   }
 
   const pagePath = getRequestPagePath(request);
   const rateKey = `${feature}:${clientIp}`;
 
   if (!isOperationAllowed("ai-chat", rateKey, CHAT_RATE_LIMIT)) {
-    return withSystemStatusHeader(
-      buildApiRateLimitResponse({
-        retryAfterSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
-        rateLimitScope: "ai-chat",
-        rateLimitLimit: CHAT_RATE_LIMIT.maxRequests,
-        rateLimitWindowSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
-      }),
-      systemStatus,
-    );
+    return buildApiRateLimitResponse({
+      retryAfterSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
+      rateLimitScope: "ai-chat",
+      rateLimitLimit: CHAT_RATE_LIMIT.maxRequests,
+      rateLimitWindowSeconds: Math.ceil(CHAT_RATE_LIMIT.windowMs / 1000),
+    });
   }
 
   const secret = process.env.AI_TOKEN_SIGNING_SECRET?.trim();
   if (!secret) {
     logger.error("[AI Chat] AI_TOKEN_SIGNING_SECRET is not configured");
-    return withSystemStatusHeader(
-      NextResponse.json(
-        { error: "AI chat service not configured" },
-        { status: 503, headers: NO_STORE_HEADERS },
-      ),
-      systemStatus,
+    return NextResponse.json(
+      { error: "AI chat service not configured" },
+      { status: 503, headers: NO_STORE_HEADERS },
     );
   }
 
   const nonceCookie = getAiGateNonceCookie(request);
   const bearerToken = getBearerTokenFromRequest(request);
   if (!nonceCookie || !bearerToken) {
-    return withSystemStatusHeader(
-      NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS }),
-      systemStatus,
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
   const userAgentHeader = request.headers.get("user-agent");
@@ -176,10 +139,7 @@ export async function validateRequest(
     nonce: nonceCookie,
   });
   if (!verification.ok) {
-    return withSystemStatusHeader(
-      NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS }),
-      systemStatus,
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
   let parsedBody: ParsedRequestBody;
@@ -188,16 +148,13 @@ export async function validateRequest(
     parsedBody = requestBodySchema.parse(raw);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    return withSystemStatusHeader(
-      NextResponse.json(
-        { error: "Invalid request", details: message },
-        { status: 400, headers: NO_STORE_HEADERS },
-      ),
-      systemStatus,
+    return NextResponse.json(
+      { error: "Invalid request", details: message },
+      { status: 400, headers: NO_STORE_HEADERS },
     );
   }
 
-  return { feature, clientIp, pagePath, originHost, userAgent, systemStatus, parsedBody };
+  return { feature, clientIp, pagePath, originHost, userAgent, parsedBody };
 }
 
 function getUserMessages(parsedBody: ParsedRequestBody): string[] {

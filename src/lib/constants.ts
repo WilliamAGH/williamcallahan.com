@@ -42,7 +42,6 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   DIR: "json/bookmarks",
   FILE: `json/bookmarks/bookmarks${envSuffix}.json`,
   BY_ID_DIR: `json/bookmarks/by-id${envSuffix}`,
-  LOCK: `json/bookmarks/refresh-lock${envSuffix}.json`,
   INDEX: `json/bookmarks/index${envSuffix}.json`,
   PAGE_PREFIX: `json/bookmarks/pages${envSuffix}/page-`,
   TAG_PREFIX: `json/bookmarks/tags${envSuffix}/`,
@@ -279,7 +278,6 @@ export const TIME_CONSTANTS = {
   TWO_MINUTES_MS: 2 * MIN,
   DEFAULT_JITTER_MS: 5 * MIN,
   RATE_LIMIT_WINDOW_MS: HOUR,
-  LOCK_TTL_MS: 5 * MIN,
   LOGO_RETRY_COOLDOWN_MS: DAY,
   BOOKMARKS_PRELOAD_INTERVAL_MS: 2 * HOUR,
 } as const;
@@ -437,87 +435,16 @@ export const UNIFIED_IMAGE_SERVICE_CONFIG = {
   MAX_MIGRATION_LOCKS: 10,
   // House-keeping
   CLEANUP_INTERVAL: TIME_CONSTANTS.TWO_MINUTES_MS,
-  MEMORY_CHECK_INTERVAL: 1_000,
-} as const;
-
-/** Memory thresholds (bytes) */
-const GB = 1024 * 1024 * 1024,
-  MB = 1024 * 1024;
-// Auto-detect container memory limit (cgroups) to set accurate process budgets.
-// Falls back to env override or sane defaults.
-function detectCgroupMemoryLimitBytes(): number | null {
-  try {
-    // Guard against Edge/runtime environments without Node APIs
-    if (typeof process === "undefined" || !process.versions?.node) return null;
-
-    // Use dynamic require to avoid bundling issues in edge contexts
-
-    const fs = require("node:fs") as typeof import("node:fs");
-
-    const candidates = [
-      "/sys/fs/cgroup/memory.max", // cgroup v2
-      "/sys/fs/cgroup/memory/memory.limit_in_bytes", // cgroup v1
-    ];
-
-    for (const p of candidates) {
-      try {
-        if (fs.existsSync(p)) {
-          const raw = fs.readFileSync(p, "utf8").trim();
-          if (!raw || raw === "max") continue; // "max" means no limit enforced
-          const parsed = Number(raw);
-          if (Number.isFinite(parsed) && parsed > 0) return parsed;
-        }
-      } catch {
-        // Continue to next candidate
-      }
-    }
-  } catch {
-    // Ignore detection errors
-  }
-  return null;
-}
-
-const envBudgetRaw = process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
-const envBudget = envBudgetRaw ? Number(envBudgetRaw) : Number.NaN;
-const cgroupLimitBytes = detectCgroupMemoryLimitBytes();
-const defaultBudget = process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB;
-
-// Prefer explicit env override, then cgroup limit (with 5% safety headroom), else defaults.
-let cgroupBudget: number | null = null;
-if (cgroupLimitBytes && cgroupLimitBytes > 0) {
-  const safetyAdjusted = Math.floor(cgroupLimitBytes * 0.95);
-  const minimumWhenAvailable = 512 * MB;
-  const adjusted =
-    cgroupLimitBytes >= minimumWhenAvailable
-      ? Math.max(safetyAdjusted, minimumWhenAvailable)
-      : safetyAdjusted;
-  cgroupBudget = Math.min(adjusted, cgroupLimitBytes);
-}
-
-const totalBudget =
-  Number.isFinite(envBudget) && envBudget > 0 ? envBudget : (cgroupBudget ?? defaultBudget);
-
-export const MEMORY_THRESHOLDS = {
-  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,
-  IMAGE_RAM_BUDGET_BYTES: Number(
-    process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15),
-  ),
-  SERVER_CACHE_BUDGET_BYTES: Number(
-    process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15),
-  ),
-  MEMORY_WARNING_THRESHOLD: Number(process.env.MEMORY_WARNING_THRESHOLD ?? totalBudget * 0.7),
-  MEMORY_CRITICAL_THRESHOLD: Number(process.env.MEMORY_CRITICAL_THRESHOLD ?? totalBudget * 0.9),
-  IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * MB),
 } as const;
 
 /** Default S3 bucket name (callers handle undefined gracefully) */
 export const S3_BUCKET: string | undefined = process.env.S3_BUCKET;
 
-/** S3 size limits - single source of truth for memory protection */
+/** S3 size limits */
 export const S3_SIZE_LIMITS = {
-  /** Maximum read size to prevent memory exhaustion (50MB) */
+  /** Maximum read size (50MB) */
   MAX_READ_SIZE: 50 * 1024 * 1024,
-  /** Small payload threshold for memory checks (512KB) */
+  /** Small payload threshold (512KB) */
   SMALL_PAYLOAD_THRESHOLD: 512 * 1024,
   /** OpenGraph image threshold - higher limit for essential previews (2MB) */
   OPENGRAPH_IMAGE_THRESHOLD: 2 * 1024 * 1024,

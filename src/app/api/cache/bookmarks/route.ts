@@ -7,7 +7,6 @@
  * - DELETE: Clears the bookmarks cache metadata
  */
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchOperationSummary } from "@/types/lib";
@@ -50,8 +49,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       bookmarksIndexSchema,
     );
 
-    const needsRefresh = ServerCacheInstance.shouldRefreshBookmarks();
-
     return NextResponse.json({
       status: "success",
       data: {
@@ -60,7 +57,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         totalPages: index?.totalPages || 0,
         lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
         lastModified: index?.lastModified || null,
-        needsRefresh,
+        needsRefresh: false,
       },
     });
   } catch (error) {
@@ -139,9 +136,6 @@ export function DELETE(request: NextRequest): NextResponse {
   }
 
   try {
-    // Clear cache metadata
-    ServerCacheInstance.clearBookmarks();
-
     // Invalidate Next.js cache for bookmarks
     invalidateBookmarksCache();
 

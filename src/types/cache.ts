@@ -67,20 +67,6 @@ export interface InvertedLogoEntry {
   timestamp: number;
 }
 
-/**
- * Defines the core methods of a cache that domain-specific helpers can rely on.
- * This allows splitting the ServerCache class logic into multiple files
- * while maintaining type safety for the `this` context in the helper methods.
- */
-export interface Cache {
-  get<T>(key: string): T | undefined;
-  set<T extends CacheValue>(key: string, value: T, ttl?: number): boolean;
-  del(key: string | string[]): void;
-  keys(): string[];
-  has(key: string): boolean;
-  getStats(): CacheStats;
-}
-
 // Custom structure for GitHub activity cache
 export interface GitHubActivityCacheEntry {
   data: GitHubActivityApiResponse;
@@ -125,27 +111,4 @@ export interface CacheStats {
   sizeBytes?: number;
   maxSizeBytes?: number;
   utilizationPercent?: number;
-}
-
-/**
- * Types that can be safely stored in cache (excludes null/undefined)
- * These satisfy the constraint that values must extend {}
- * Using 'object' instead of Record<string, unknown> to allow any object type
- */
-export type StorableCacheValue = string | number | boolean | object | Buffer;
-
-/**
- * The full cache value type for the public interface (includes null)
- * null values are handled by not storing them (returning undefined instead)
- */
-export type CacheValue = StorableCacheValue | null;
-
-/**
- * Internal cache entry structure for ServerCache
- * Used for the Map-based implementation
- */
-export interface ServerCacheMapEntry<T = StorableCacheValue> {
-  value: T;
-  expiresAt: number;
-  size: number;
 }

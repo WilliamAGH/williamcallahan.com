@@ -15,7 +15,6 @@ import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { safeStringifyValue, isRetryableError } from "@/lib/utils/error-utils";
 import { computeExponentialDelay, retryWithOptions } from "@/lib/utils/retry";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
-import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import logger from "@/lib/utils/logger";
 
 import type { LogoSource } from "@/types/logo";
@@ -76,46 +75,42 @@ export class S3Operations {
       });
     }
 
-    const errorMessage = safeStringifyValue(error);
-    const isMemoryPressure = errorMessage.includes("Insufficient memory headroom");
-    if (isMemoryPressure) {
-      const sourceUrl = this.extractSourceUrlFromKey(key);
-      if (sourceUrl) {
-        const existingRetry = this.uploadRetryQueue.get(key);
-        const attempts = (existingRetry?.attempts || 0) + 1;
-        if (attempts <= CONFIG.MAX_UPLOAD_RETRIES) {
-          // Calculate exponential backoff with jitter
-          const delay = computeExponentialDelay(
-            attempts,
-            CONFIG.RETRY_BASE_DELAY,
-            CONFIG.RETRY_MAX_DELAY,
-            CONFIG.RETRY_JITTER_FACTOR,
-          );
-          const nextRetry = getDeterministicTimestamp() + delay;
-          this.uploadRetryQueue.set(key, {
-            sourceUrl,
-            contentType,
-            attempts,
-            lastAttempt: getDeterministicTimestamp(),
-            nextRetry,
-          });
-          logger.info(
-            `[S3Operations] S3 upload failed due to memory pressure. Retry ${attempts}/${CONFIG.MAX_UPLOAD_RETRIES} scheduled for ${new Date(nextRetry).toISOString()}`,
-          );
-        } else {
-          logger.info(
-            `[S3Operations] S3 upload failed after ${CONFIG.MAX_UPLOAD_RETRIES} attempts`,
-          );
-          this.uploadRetryQueue.delete(key);
-        }
+    const sourceUrl = this.extractSourceUrlFromKey(key);
+    if (sourceUrl) {
+      const existingRetry = this.uploadRetryQueue.get(key);
+      const attempts = (existingRetry?.attempts || 0) + 1;
+      if (attempts <= CONFIG.MAX_UPLOAD_RETRIES) {
+        const delay = computeExponentialDelay(
+          attempts,
+          CONFIG.RETRY_BASE_DELAY,
+          CONFIG.RETRY_MAX_DELAY,
+          CONFIG.RETRY_JITTER_FACTOR,
+        );
+        const nextRetry = getDeterministicTimestamp() + delay;
+        this.uploadRetryQueue.set(key, {
+          sourceUrl,
+          contentType,
+          attempts,
+          lastAttempt: getDeterministicTimestamp(),
+          nextRetry,
+        });
+        logger.info(
+          `[S3Operations] S3 upload retry ${attempts}/${CONFIG.MAX_UPLOAD_RETRIES} scheduled for ${new Date(nextRetry).toISOString()}`,
+          {
+            key,
+            error: safeStringifyValue(error),
+          },
+        );
+      } else {
+        this.uploadRetryQueue.delete(key);
       }
-    } else {
-      logger.error("[S3Operations] S3 upload failed", error, {
-        key,
-        contentType,
-        bufferSize: buffer.byteLength,
-      });
     }
+
+    logger.error("[S3Operations] S3 upload failed", error, {
+      key,
+      contentType,
+      bufferSize: buffer.byteLength,
+    });
   }
 
   /**
@@ -153,12 +148,6 @@ export class S3Operations {
     if (!this.getLogo) return;
 
     const now = getDeterministicTimestamp();
-    // Use memory health monitor instead of direct memory check
-    const memoryMonitor = getMemoryHealthMonitor();
-    if (!memoryMonitor.shouldAcceptNewRequests()) {
-      logger.info("[S3Operations] Memory pressure detected, skipping retry processing");
-      return;
-    }
     for (const [key, retry] of this.uploadRetryQueue.entries()) {
       if (retry.nextRetry <= now) {
         // Mark as in-flight to prevent overlapping retry chains

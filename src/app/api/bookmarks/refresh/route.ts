@@ -7,20 +7,18 @@
 import "server-only";
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
+import { getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import {
   API_ENDPOINT_STORE_NAME,
   DEFAULT_API_ENDPOINT_LIMIT_CONFIG,
-  BOOKMARKS_S3_PATHS,
   BOOKMARKS_CACHE_DURATION,
 } from "@/lib/constants";
-import { readJsonS3Optional } from "@/lib/s3/json";
 import { logEnvironmentConfig } from "@/lib/config/environment";
 import { getClientIp } from "@/lib/utils/request-utils";
 import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
 import { type NextRequest, NextResponse } from "next/server";
-import { bookmarksIndexSchema, type BookmarksIndex } from "@/types/bookmark";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getMonotonicTime } from "@/lib/utils";
 
@@ -88,39 +86,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // Check memory pressure before starting heavy operation
-    if (typeof process !== "undefined" && process.memoryUsage) {
-      const { rss } = process.memoryUsage();
-      const memoryLimitMB = 512; // Conservative limit
-      const memoryUsedMB = Math.round(rss / 1024 / 1024);
-
-      if (memoryUsedMB > memoryLimitMB * 0.8) {
-        console.log(`[API Trigger] ⚠️  High memory usage: ${memoryUsedMB}MB, deferring refresh`);
-        logger.warn(
-          `[API Bookmarks Refresh] High memory usage: ${memoryUsedMB}MB, deferring refresh`,
-        );
-        return NextResponse.json({
-          status: "success",
-          message: "Refresh deferred due to high memory usage",
-          data: {
-            refreshed: false,
-            memoryUsage: `${memoryUsedMB}MB`,
-            reason: "memory_pressure",
-          },
-        });
-      }
-    }
-
     // For cron jobs, always refresh. For others, check if refresh is needed.
     if (!isCronJob) {
-      // Read current index from S3 to check timing
-      const index = await readJsonS3Optional<BookmarksIndex>(
-        BOOKMARKS_S3_PATHS.INDEX,
-        bookmarksIndexSchema,
-      );
+      const index = await getBookmarksIndex();
 
       if (index?.lastFetchedAt) {
-        const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
+        const timeSinceLastFetch = getMonotonicTime() - index.lastFetchedAt;
         const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
 
         if (timeSinceLastFetch <= revalidationThreshold) {
@@ -152,17 +123,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Get previous count from S3 index
+    // Get previous count from bookmark index state
     let previousCount = 0;
-    let previousIndex: BookmarksIndex | null = null;
+    let previousIndex: Awaited<ReturnType<typeof getBookmarksIndex>> = null;
     try {
-      previousIndex = await readJsonS3Optional<BookmarksIndex>(
-        BOOKMARKS_S3_PATHS.INDEX,
-        bookmarksIndexSchema,
-      );
+      previousIndex = await getBookmarksIndex();
       previousCount = previousIndex?.count || 0;
     } catch (error: unknown) {
-      // readJsonS3Optional already returns null for 404; any throw here is a real failure
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[API Trigger] Failed to read previous index: ${message}`);
     }
@@ -268,16 +235,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  */
 export async function GET(): Promise<NextResponse> {
   try {
-    // Read from S3 index
-    const index = await readJsonS3Optional<BookmarksIndex>(
-      BOOKMARKS_S3_PATHS.INDEX,
-      bookmarksIndexSchema,
-    );
+    const index = await getBookmarksIndex();
 
     // Check if refresh is needed based on timing
     let needsRefresh = true;
     if (index?.lastFetchedAt) {
-      const timeSinceLastFetch = getMonotonicTime() - new Date(index.lastFetchedAt).getTime();
+      const timeSinceLastFetch = getMonotonicTime() - index.lastFetchedAt;
       const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
       needsRefresh = timeSinceLastFetch > revalidationThreshold;
     }
@@ -297,8 +260,6 @@ export async function GET(): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    // readJsonS3Optional returns null for 404, so this catch only handles real errors
-    // (network failures, permissions, schema validation) - do not mask as success
     logger.error("Failed to check bookmark refresh status:", error);
     return NextResponse.json(
       {

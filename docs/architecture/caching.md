@@ -4,7 +4,7 @@
 
 ## Core Objective
 
-High-performance multi-tiered caching with request coalescing, distributed locking, cache invalidation, and memory-safe operations built on **JSON source-of-truth files in S3**, periodic refresh jobs, and Next.js Cache Components for page/UI responses. The JSON writers are not new—they have always been the backbone for bookmarks, blogs, GitHub activity, and related-content results—but this document now reflects the actual production pipeline end to end.
+High-performance multi-tiered caching with request coalescing, cache invalidation, and memory-safe operations built on PostgreSQL bookmark state, S3 JSON for non-bookmark datasets, periodic refresh jobs, and Next.js Cache Components for page/UI responses.
 
 ## Architecture Diagram
 
@@ -14,13 +14,13 @@ See `caching.mmd` for the updated flow showing JSON writers, S3 persistence, Nex
 
 ### JSON Next.js Cache Responsibilities (high-traffic flows)
 
-| Domain                          | JSON writers (cron/scripts)                                                                             | JSON readers (Next.js cache)                                                                    | Cache tags & TTL                                                      |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **Bookmarks** (highest traffic) | `scripts/update-bookmarks.ts`, selective refresh inside `lib/bookmarks/bookmarks-data-access.server.ts` | Bookmark list/detail routes, related-content aggregators (`lib/search.ts`, `lib/content-graph`) | `cacheTag("bookmarks")`, slug-level tags, 15–60 min depending on page |
-| **Blog + Related Content**      | `lib/blog/mdx.ts` MDX build cache, content graph jobs                                                   | Blog index/detail routes, `/related-content` readers                                            | `cacheTag("blog")`, `cacheTag("related-content")`, ~1–2 h             |
-| **GitHub Activity**             | `scripts/update-s3-data.ts`, signed `/api/github-activity/refresh`                                      | `/github` RSCs, summary cards, `/health` deep checks                                            | `cacheTag("github-activity")`, ~30 min                                |
+| Domain                          | JSON writers (cron/scripts)                                                                     | JSON readers (Next.js cache)                                                                    | Cache tags & TTL                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Bookmarks** (highest traffic) | Selective refresh inside `lib/bookmarks/refresh-logic.server.ts` persists via Drizzle mutations | Bookmark list/detail routes, related-content aggregators (`lib/search.ts`, `lib/content-graph`) | `cacheTag("bookmarks")`, slug-level tags, 15–60 min depending on page |
+| **Blog + Related Content**      | `lib/blog/mdx.ts` MDX build cache, content graph jobs                                           | Blog index/detail routes, `/related-content` readers                                            | `cacheTag("blog")`, `cacheTag("related-content")`, ~1–2 h             |
+| **GitHub Activity**             | `scripts/update-s3-data.ts`, signed `/api/github-activity/refresh`                              | `/github` RSCs, summary cards, `/health` deep checks                                            | `cacheTag("github-activity")`, ~30 min                                |
 
-**Important:** Every read listed above first pulls JSON from S3. Only after S3 JSON loads do we hydrate RSCs and wrap the output in Next.js cache tags/lifetimes. API routes (`/api/bookmarks`, `/api/search/*`, `/api/related-content*`, `/api/health/*`, etc.) explicitly call `unstable_noStore()` and return `Cache-Control: no-store` so they never participate in Cache Components.
+**Important:** Bookmarks reads are PostgreSQL-backed; GitHub/blog/related-content flows still rely on S3 JSON artifacts before hydrating RSC cache tags/lifetimes. API routes (`/api/bookmarks`, `/api/search/*`, `/api/related-content*`, `/api/health/*`, etc.) explicitly call `unstable_noStore()` and return `Cache-Control: no-store` so they never participate in Cache Components.
 
 ### Files Using Next.js 15 'use cache' Directive (9 files)
 

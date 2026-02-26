@@ -7,8 +7,6 @@
 
 import { vi } from "vitest";
 import type { UnifiedBookmark, BookmarkContent } from "../../../src/types";
-import { ServerCacheInstance } from "@/lib/server-cache";
-
 // Mock getBaseUrl at the top level with the correct path
 vi.mock("@/lib/utils/get-base-url", () => ({
   getBaseUrl: () => "http://localhost:3000",
@@ -17,27 +15,6 @@ vi.mock("@/lib/utils/get-base-url", () => ({
 // Mock the API endpoint
 const API_ENDPOINT = "/api/bookmarks";
 void API_ENDPOINT; // Explicitly mark as intentionally unused
-
-// Mock server cache
-vi.mock("@/lib/server-cache", () => ({
-  ServerCacheInstance: {
-    get: vi.fn(),
-    set: vi.fn(),
-    getStats: vi.fn().mockReturnValue({
-      keys: 0,
-      hits: 0,
-      misses: 0,
-      ksize: 0,
-      vsize: 0,
-      sizeBytes: 0,
-      maxSizeBytes: 0,
-      utilizationPercent: 0,
-    }),
-  },
-}));
-
-const mockedCache = ServerCacheInstance;
-void mockedCache; // Explicitly mark as intentionally unused
 
 // Define properly typed API response
 const mockApiResponse: UnifiedBookmark[] = [

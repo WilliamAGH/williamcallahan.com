@@ -44,36 +44,6 @@ export async function register(): Promise<void> {
     console.error("[Instrumentation] Unhandled Promise Rejection:", reason);
   });
 
-  /** Memory monitoring & emergency GC / recycle **/
-  if (process.memoryUsage) {
-    const monitor = setInterval(() => {
-      const { rss, heapUsed, external, heapTotal } = process.memoryUsage();
-      const rssMb = Math.round(rss / 1024 / 1024);
-      const nativeMb = Math.round((rss - heapTotal) / 1024 / 1024);
-
-      if (rssMb > 1500) {
-        console.log(
-          `[Memory] RSS ${rssMb} MB (heap ${Math.round(heapUsed / 1024 / 1024)} MB, external ${Math.round(external / 1024 / 1024)} MB, native ${nativeMb} MB)`,
-        );
-      }
-
-      if (nativeMb > 2048) {
-        console.warn(`[Memory] High native usage ${nativeMb} MB`);
-      }
-
-      if (global.gc && rssMb > 3000) {
-        console.log("♻️  Forcing GC – RSS > 3 GB");
-        global.gc();
-      }
-    }, 30_000);
-    monitor.unref?.();
-
-    const tidy = () => clearInterval(monitor);
-    process.on("SIGTERM", tidy);
-    process.on("SIGINT", tidy);
-    process.on("beforeExit", tidy);
-  }
-
   /** Sentry (Node) **/
   if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
     const Sentry = await import("@sentry/nextjs");
@@ -157,6 +127,31 @@ export async function register(): Promise<void> {
 // DO NOT call register() immediately - it should only be invoked by the
 // instrumentation hook in src/instrumentation.ts after the dynamic import.
 
+function getRoutePathFromErrorContext(errorContext: Record<string, unknown>): string | null {
+  const routePath = errorContext.routePath;
+  return typeof routePath === "string" && routePath.length > 0 ? routePath : null;
+}
+
+function normalizeRequestErrorForCapture(
+  error: unknown,
+  requestPath: string,
+  routePath: string | null,
+): unknown {
+  if (!(error instanceof Error)) {
+    return error;
+  }
+
+  if (error.message.trim().length > 0) {
+    return error;
+  }
+
+  const resolvedRoute = routePath ?? requestPath;
+  const normalized = new Error(`Request error with empty message (route: ${resolvedRoute})`);
+  normalized.name = error.name;
+  normalized.stack = error.stack;
+  return normalized;
+}
+
 /**
  * onRequestError hook – invoked by the Sentry SDK (Next.js ≥15.4)
  * to capture errors originating from nested React Server Components.
@@ -210,6 +205,8 @@ export function onRequestError(
   };
 
   const safeRequest = normalizeRequest(request);
+  const routePath = getRoutePathFromErrorContext(errorContext);
+  const captureError = normalizeRequestErrorForCapture(error, safeRequest.path, routePath);
   if (typeof Sentry.captureRequestError === "function") {
     // Forward all required parameters per SDK typing
     if (
@@ -223,7 +220,7 @@ export function onRequestError(
       typeof (errorContext as { routeType: unknown }).routeType === "string"
     ) {
       Sentry.captureRequestError(
-        error,
+        captureError,
         safeRequest,
         errorContext as {
           routerKind: string;
@@ -233,10 +230,10 @@ export function onRequestError(
       );
     } else {
       // Fallback: still capture error without context
-      Sentry.captureException?.(error);
+      Sentry.captureException?.(captureError);
     }
   } else {
     // Fallback to the generic captureException for older SDKs
-    Sentry.captureException?.(error);
+    Sentry.captureException?.(captureError);
   }
 }

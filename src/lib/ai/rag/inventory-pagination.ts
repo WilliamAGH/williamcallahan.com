@@ -9,7 +9,6 @@
 
 import "server-only";
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import type {
   InventoryPaginationMeta,
   InventoryPaginationState,
@@ -17,9 +16,6 @@ import type {
   SectionPaginationData,
 } from "@/types/rag";
 import { SECTION_LABELS } from "./inventory-format";
-
-const PAGINATION_CACHE_PREFIX = "rag:pagination:";
-const PAGINATION_CACHE_TTL_SECONDS = 30 * 60; // 30 minutes
 
 /** Default page size for inventory sections */
 export const DEFAULT_PAGE_SIZE = 25;
@@ -41,19 +37,22 @@ const withSectionUpdate = (
 });
 
 /**
- * Get pagination state for a conversation from cache.
+ * Get pagination state for a conversation.
+ * Memory cache removed; always returns null (pagination resets each request).
  */
-export function getPaginationState(conversationId: string): InventoryPaginationState | null {
-  const key = `${PAGINATION_CACHE_PREFIX}${conversationId}`;
-  return ServerCacheInstance.get<InventoryPaginationState>(key) ?? null;
+export function getPaginationState(_conversationId: string): InventoryPaginationState | null {
+  return null;
 }
 
 /**
- * Save pagination state for a conversation to cache.
+ * Save pagination state for a conversation.
+ * Memory cache removed; state is not persisted between requests.
  */
-export function setPaginationState(conversationId: string, state: InventoryPaginationState): void {
-  const key = `${PAGINATION_CACHE_PREFIX}${conversationId}`;
-  ServerCacheInstance.set(key, { ...state, updatedAt: Date.now() }, PAGINATION_CACHE_TTL_SECONDS);
+export function setPaginationState(
+  _conversationId: string,
+  _state: InventoryPaginationState,
+): void {
+  // no-op: memory cache removed
 }
 
 /**

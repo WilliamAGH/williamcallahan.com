@@ -165,6 +165,17 @@ export async function POST(request: Request): Promise<Response> {
   let uploadCompleted = false;
 
   try {
+    const contentTypeHeader = request.headers.get("content-type");
+    if (!contentTypeHeader?.toLowerCase().includes("multipart/form-data")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unsupported Media Type: expected multipart/form-data",
+        },
+        { status: 415, headers: CORS_HEADERS },
+      );
+    }
+
     // Parse multipart form data
     const formData = await request.formData();
     const file = formData.get("file");

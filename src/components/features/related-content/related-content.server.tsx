@@ -8,11 +8,9 @@
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
 import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
-import { ServerCacheInstance } from "@/lib/server-cache";
-import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { RelatedContentSection } from "./related-content-section";
 import { resolveImageUrl } from "@/lib/seo/url-utils";
-import { debug, isDebug } from "@/lib/utils/debug";
+import { debug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { readJsonS3Optional } from "@/lib/s3/json";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
@@ -29,7 +27,6 @@ import type {
   RelatedContentProps,
   RelatedContentItem,
   NormalizedContent,
-  RelatedContentCacheData,
 } from "@/types/related-content";
 
 // Import configuration with documented rationale
@@ -378,54 +375,6 @@ export async function RelatedContent({
       }
     }
 
-    // Check cache first
-    const getRelatedContent = ServerCacheInstance.getRelatedContent;
-    let cached: RelatedContentCacheData | undefined;
-    if (getRelatedContent && typeof getRelatedContent === "function") {
-      cached = getRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId);
-    }
-    const now = getDeterministicTimestamp();
-    if (cached && cached.timestamp > now - 24 * 60 * 60 * 1000 && !isDebug) {
-      // Apply filtering to cached results
-      let items = cached.items;
-
-      if (includeTypes || excludeTypes) {
-        items = filterByTypes(
-          items,
-          includeTypes ? Array.from(new Set(includeTypes)) : undefined,
-          excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
-        );
-      }
-
-      // Filter by excluded tags
-      if (excludeTags.length > 0) {
-        items = items.filter((item) => !hasExcludedTag(item.tags));
-      }
-
-      // Apply limits via shared helper
-      const finalItems = limitByTypeAndTotal(items, maxPerType, maxTotal);
-
-      const relatedItemPromises = finalItems.map(async (item) => {
-        const relatedItem = await toRelatedContentItem(item);
-        return relatedItem;
-      });
-
-      const resolvedRelatedItems = await Promise.all(relatedItemPromises);
-      const relatedItems = resolvedRelatedItems.filter((i): i is RelatedContentItem => i !== null);
-
-      if (relatedItems.length === 0) {
-        return null;
-      }
-      return (
-        <RelatedContentSection
-          title={sectionTitle}
-          items={relatedItems}
-          className={className}
-          sourceType={sourceType}
-        />
-      );
-    }
-
     // Get source content
     const source = await getContentById(sourceType, actualSourceId);
     if (!source) {
@@ -457,18 +406,6 @@ export async function RelatedContent({
 
     // Apply limits via shared helper
     const finalItems = limitByTypeAndTotal(similar, maxPerType, maxTotal);
-
-    // Cache the results only if no ID or tag filtering was applied
-    // excludeIds/excludeTags affect computed candidates, so caching with them
-    // would pollute the cache with incomplete results for non-excluded requests
-    const setRelatedContent = ServerCacheInstance.setRelatedContent;
-    const hasExcludeFilters = excludeIds.length > 0 || excludeTags.length > 0;
-    if (setRelatedContent && typeof setRelatedContent === "function" && !hasExcludeFilters) {
-      setRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId, {
-        items: finalItems,
-        timestamp: getDeterministicTimestamp(),
-      });
-    }
 
     // Convert to RelatedContentItem format
     const relatedItemPromises = finalItems.map(async (item) => {

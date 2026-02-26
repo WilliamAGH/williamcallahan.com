@@ -76,36 +76,50 @@ graph TD
 
 ### Bookmarks Data Access (`lib/data-access/bookmarks.ts`)
 
-- **Purpose**: Manages the retrieval, caching, and persistence of bookmark data using a hierarchical access pattern (in-memory cache -> S3 storage -> external API).
+- **Purpose**: Manages retrieval, caching, and persistence of bookmark data using a hierarchical access pattern (in-memory cache -> PostgreSQL read model -> external API refresh).
 - **Key Features**:
-  - Implements a tiered access strategy, prioritizing in-memory cache, then S3 storage, and finally an external API as a fallback to optimize performance.
-  - Utilizes S3-based distributed locking to coordinate refresh operations across multiple instances, preventing concurrent refreshes and ensuring data consistency.
-  - Validates bookmark data before persistence to prevent overwriting with invalid or test data, safeguarding data integrity with detailed checks for suspicious content.
-  - Handles non-blocking background refreshes to keep the main request flow responsive, updating data without impacting user experience.
-  - Manages in-flight promises to avoid duplicate simultaneous fetches of external bookmark data, reducing unnecessary API calls.
-  - Persists refreshed data to S3 and updates the server cache, maintaining consistency across storage layers with retry mechanisms for robustness.
+  - Uses PostgreSQL as the runtime read model for bookmark lists, pagination, tag routes, and index metadata when `DATABASE_URL` is configured.
+  - Uses an in-process refresh lock for single-instance deployments to prevent overlapping refresh writes.
+  - Validates bookmark data before persistence to prevent overwriting with invalid or test data.
+  - Handles non-blocking background refreshes to keep request flows responsive.
+  - Manages in-flight promises to avoid duplicate simultaneous fetches of external bookmark data.
+  - Persists refreshed datasets through Drizzle mutations (bookmark rows + taxonomy/index state).
 - **Validation Features**:
   - All bookmark URLs validated with Zod schemas before processing
   - External URLs checked against SSRF attack patterns
   - Enhanced data validation with comprehensive schemas in `types/schemas/`
 
+#### PostgreSQL Bookmark Runtime (`lib/db/*`)
+
+- **Purpose**: Drizzle + PostgreSQL modules that now own runtime bookmark persistence and query paths for main, page, tag, and index reads.
+- **Key Components**:
+  - `lib/db/connection.ts`: Initializes `drizzle-orm/postgres-js` using `DATABASE_URL` with explicit runtime guard.
+  - `lib/db/schema/bookmarks.ts`: Defines the `bookmarks` table with generated `search_vector`, trigram indexes, and `halfvec(1024)` HNSW index.
+  - `lib/db/schema/bookmark-taxonomy.ts`: Defines `bookmark_tag_links`, `bookmark_index_state`, and `bookmark_tag_index_state` tables for tag joins and precomputed pagination metadata.
+  - `lib/db/queries/bookmarks.ts`: Read-model queries for all bookmarks, pagination, lookup by ID, row counts, FTS ranking, tag pages, and tag/index metadata.
+  - `lib/db/mutations/bookmarks.ts`: Upsert/delete write-model operations plus taxonomy/index-state rebuilds.
+  - `lib/db/bookmark-record-mapper.ts`: Zod-validated boundary mapper between Drizzle rows/inserts and `UnifiedBookmark`.
+- **Operational Notes**:
+  - `drizzle.config.ts` scopes `drizzle-kit push` to app tables (`bookmarks`, `bookmark_tag_links`, `bookmark_index_state`, `bookmark_tag_index_state`) so extension-managed objects (for example `pg_stat_statements`) are not mutated.
+  - `scripts/migrate-s3-to-postgres.ts` performs S3 JSON -> PostgreSQL migration and rebuilds taxonomy/index-state rows via unified mutations.
+
 #### Bookmarks API and Data Management (`lib/bookmarks.ts`)
 
 - **Purpose**: Oversees the fetching, normalization, caching, and enrichment of bookmark data from an external API (Hoarder/Karakeep).
 - **Key Features**:
-  - Implements a multi-tiered caching strategy using in-memory server cache and S3 storage to optimize data retrieval and minimize redundant API calls.
+  - Implements a multi-tiered caching strategy using in-memory server cache and PostgreSQL index checksum state to minimize redundant API calls.
   - Handles pagination for API requests to fetch all bookmarks across multiple pages, incorporating timeout safeguards to prevent hanging on slow responses.
   - Performs non-blocking background refreshes to update data without impacting the main request flow, ensuring a responsive user experience.
   - Normalizes raw API data into a unified bookmark format, omitting large fields like HTML content to reduce payload size and improve efficiency.
   - Enriches bookmarks with OpenGraph metadata in controlled batches with jittered delays to optimize network usage and respect external service limits.
   - Validates datasets before persistence using safeguard mechanisms to prevent overwriting with invalid or test data, ensuring data integrity.
-  - Provides robust fallback mechanisms to return cached or S3 data in case of fetch failures, enhancing application resilience during API downtime.
+  - Provides robust fallback mechanisms to return cached/PostgreSQL data in case of fetch failures, enhancing application resilience during API downtime.
 
 #### Sitemap Bookmark Streaming (`app/sitemap.ts` + `lib/bookmarks/service.server.ts`)
 
 - **Purpose**: Generates the sitemap at request time without loading the entire bookmark corpus into memory.
 - **Key Features**:
-  - Uses `getBookmarksIndex()` to determine the number of paginated S3 snapshots and then iterates them sequentially with `getBookmarksPage(pageNumber)`.
+  - Uses DB-backed `getBookmarksIndex()` to determine page count and then iterates with `getBookmarksPage(pageNumber)`.
   - Aggregates bookmark and tag metadata in small chunks, ensuring builds and runtime requests stay within heap limits.
   - Respects the same cache tags as the rest of the bookmarks stack so ISR invalidations continue to work end-to-end.
 

@@ -6,7 +6,6 @@
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { UNIFIED_IMAGE_SERVICE_CONFIG, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
 import { FailureTracker } from "@/lib/utils/failure-tracker";
-import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "@/lib/rate-limiter";
 import logger from "@/lib/utils/logger";
 import { getErrorMessage } from "@/types/error";
@@ -51,13 +50,10 @@ export class SessionManager {
     void this.domainFailureTracker.load();
   }
 
-  /**
-   * Check if service should accept new requests based on memory health
-   * In dev streaming mode, always allow requests (streaming uses bounded memory)
-   */
+  /** Request admission always remains enabled in the session manager. */
   shouldAcceptRequests(): boolean {
     if (this.devStreamImagesToS3) return true;
-    return getMemoryHealthMonitor().shouldAcceptNewRequests();
+    return true;
   }
 
   /**
@@ -237,10 +233,6 @@ export class SessionManager {
       }
 
       this.lastCleanupTime = now;
-      if (global.gc) {
-        global.gc();
-        logger.info("[SessionManager] Forced garbage collection after cleanup");
-      }
     }
   }
 }

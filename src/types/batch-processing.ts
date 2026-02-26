@@ -17,8 +17,6 @@ export interface BatchProcessorOptions<T> {
   onProgress?: (current: number, total: number, failed: number) => void;
   /** Error callback for individual items */
   onItemError?: (item: T, error: Error) => void;
-  /** Memory pressure threshold (0-1) */
-  memoryThreshold?: number;
   /** Operation timeout in ms */
   timeout?: number;
   /** Retry options for failed items */
@@ -32,5 +30,4 @@ export interface BatchResult<T, R> {
   failed: Map<T, Error>;
   skipped: T[];
   totalTime: number;
-  memoryPressureEvents: number;
 }
