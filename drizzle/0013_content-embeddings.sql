@@ -9,7 +9,10 @@ CREATE TABLE IF NOT EXISTS "embeddings" (
   "content_date" text,
   "qwen_4b_fp16_embedding" halfvec(2560),
   "updated_at" bigint NOT NULL,
-  CONSTRAINT "embeddings_pkey" PRIMARY KEY ("domain", "entity_id")
+  CONSTRAINT "embeddings_pkey" PRIMARY KEY ("domain", "entity_id"),
+  CONSTRAINT "embeddings_domain_check" CHECK (
+    "domain" IN ('bookmark', 'thought', 'blog', 'book', 'investment', 'project', 'ai_analysis', 'opengraph')
+  )
 );
 
 -->  statement-breakpoint
