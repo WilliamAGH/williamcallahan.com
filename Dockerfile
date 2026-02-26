@@ -289,7 +289,7 @@ COPY --from=builder /app/src/app/sitemap.ts ./src/app/sitemap.ts
 # 7. Scripts and package definitions (changes occasionally)
 #    IMPORTANT: Database backfill/migration scripts (*.node.mjs) MUST run under
 #    Node.js, NOT bun. Bun's TLS rejects PostgreSQL's SSL signature algorithms.
-#    See CLAUDE.md [RT1] for details.
+#    See AGENTS.md [RT1] for details.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --chown=nextjs:nodejs scripts/entrypoint.sh /app/entrypoint.sh
