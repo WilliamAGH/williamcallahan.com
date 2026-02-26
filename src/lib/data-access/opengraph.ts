@@ -16,12 +16,7 @@ import { getS3Override } from "@/lib/persistence/s3-persistence";
 import { serveImageFromS3 } from "@/lib/image-handling/image-s3-utils";
 import { getDomainType, hashUrl, normalizeUrl, validateOgUrl } from "@/lib/utils/opengraph-utils";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import {
-  OPENGRAPH_S3_KEY_DIR,
-  OPENGRAPH_METADATA_S3_DIR,
-  OPENGRAPH_IMAGES_S3_DIR,
-  OPENGRAPH_CACHE_DURATION,
-} from "@/lib/constants";
+import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { readOgMetadata } from "@/lib/db/queries/opengraph";
 import type { OgResult } from "@/types";
@@ -30,9 +25,6 @@ import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 import { getCachedOpenGraphDataInternal } from "./opengraph-next-cache";
 import { isCliLikeContext, safeRevalidateTag } from "./opengraph-cache-context";
 import { refreshOpenGraphData } from "./opengraph-refresh";
-
-// Re-export constants for backwards compatibility
-export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DIR };
 
 const isProductionBuildPhase = (): boolean => process.env.NEXT_PHASE === "phase-production-build";
 const getOgTimestamp = (): number => (isProductionBuildPhase() ? 0 : getMonotonicTime());

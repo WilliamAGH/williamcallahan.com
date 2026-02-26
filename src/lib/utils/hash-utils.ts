@@ -6,7 +6,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { IMAGE_S3_PATHS, OPENGRAPH_METADATA_S3_DIR } from "@/lib/constants";
+import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { getExtensionFromContentType } from "./content-type";
 import { extractTld, stripWwwPrefix } from "./url-utils";
 import type { S3KeyOptions } from "@/types/s3-cdn";
@@ -154,11 +154,6 @@ export function generateS3Key(options: S3KeyOptions): string {
       const parts: string[] = [IMAGE_S3_PATHS.LOGOS_DIR];
       if (inverted) parts.push("inverted");
       return `${parts.join("/")}/${filename}.${extension}`;
-    }
-    case "opengraph": {
-      if (!url) throw new Error("URL required for opengraph S3 key");
-      const urlHash = hash || getShortHash(url);
-      return `${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`;
     }
     case "image":
     case "avatar":

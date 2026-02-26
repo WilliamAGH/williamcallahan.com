@@ -124,7 +124,7 @@ export interface FailureTrackerConfig {
 // --- S3 Key Generation ---
 export interface S3KeyOptions {
   /** Asset type */
-  type: "logo" | "opengraph" | "image" | "avatar" | "banner";
+  type: "logo" | "image" | "avatar" | "banner";
   /** Domain for logos */
   domain?: string;
   /** Logo source */
