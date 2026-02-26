@@ -599,7 +599,11 @@ File/Path Functionality Description
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
 - [x] `migrate-s3-to-postgres.ts` `bookmarks` - Bookmark migration from S3 JSON to PostgreSQL via unified Drizzle mutations (including tag/index-state rebuild)
 - [x] `backfill-bookmark-embeddings.ts` `bookmarks` - CLI backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings`
-- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings` with resilient postgres-js connectivity
+- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings` with resilient postgres-js connectivity; supports `--force` to regenerate all embeddings
+- [x] `backfill-scraped-content.node.mjs` `bookmarks` - Node runtime backfill for `scraped_content_text` column from Karakeep `content.htmlContent` via HTML-to-plain-text conversion
+- [x] `backfill-computed-fields.node.mjs` `bookmarks` - Node runtime backfill for `word_count` and `reading_time` derived from `scraped_content_text` (whitespace split, 200 WPM)
+- [x] `backfill-og-metadata.node.mjs` `bookmarks` - Node runtime backfill for `og_title`, `og_description`, `og_image` by fetching bookmark URLs and parsing `<meta property="og:*">` tags
+- [x] `backfill-logo-data.node.mjs` `bookmarks` - Node runtime backfill for `logo_data` JSONB from S3 CDN logo manifest domain mapping
 - [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations

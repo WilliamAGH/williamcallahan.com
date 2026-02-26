@@ -4,7 +4,7 @@ import postgres from "postgres";
 
 const DEFAULT_BATCH_SIZE = 16;
 const MAX_BATCH_SIZE = 128;
-const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_TIMEOUT_MS = 120_000;
 const BOOKMARK_EMBEDDING_DIMENSIONS = 2560;
 const PRODUCTION_ENVIRONMENT = "production";
 
@@ -266,6 +266,8 @@ async function run() {
   const bookmarkIds = parseBookmarkIds(readFlagValue(args, "--bookmark-ids"));
   const dryRun = hasFlag(args, "--dry-run");
   const forceAll = hasFlag(args, "--force");
+  const timeoutMs =
+    parsePositiveInteger(readFlagValue(args, "--timeout"), "timeout") ?? DEFAULT_TIMEOUT_MS;
   const config = {
     databaseUrl: readRequiredEnv("DATABASE_URL"),
     baseUrl: readRequiredEnv("AI_DEFAULT_OPENAI_BASE_URL"),
@@ -320,6 +322,7 @@ async function run() {
         apiKey: config.apiKey,
         model: config.model,
         input: inputs,
+        timeoutMs,
       });
       processedRows += rows.length;
 

@@ -51,7 +51,7 @@ bun run test:smoke || { echo "❌ Smoke tests failed!"; exit 1; }
 
 # Check bookmark integrity (PostgreSQL-backed runtime checks)
 echo "🔍 Checking bookmark integrity (PostgreSQL)..."
-bun run scripts/bookmark-diagnostics.ts integrity || {
+NODE_ENV=production bun run scripts/bookmark-diagnostics.ts integrity || {
   echo "❌ Bookmark integrity check failed!"
   echo "📚 Fix the PostgreSQL bookmark issues listed above before pushing."
   echo "💡 Run 'bun run scripts/bookmark-diagnostics.ts integrity' to see details."

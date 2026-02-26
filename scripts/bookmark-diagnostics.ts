@@ -16,7 +16,6 @@
  *   all        - Run all diagnostics
  */
 
-import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import {
   getAllBookmarks,
   getBookmarksIndexFromDatabase,
@@ -49,7 +48,7 @@ async function loadBookmarkSnapshot(): Promise<{
 }> {
   const [bookmarks, index] = await Promise.all([
     getAllBookmarks(),
-    getBookmarksIndexFromDatabase(BOOKMARKS_PER_PAGE),
+    getBookmarksIndexFromDatabase(),
   ]);
   return { bookmarks, index };
 }
@@ -166,7 +165,7 @@ async function checkBookmarkIntegrity(): Promise<boolean> {
 
     const maxPagesToCheck = Math.min(3, index.totalPages);
     for (let pageNumber = 1; pageNumber <= maxPagesToCheck; pageNumber++) {
-      const pageRows = await getBookmarksPage(pageNumber, BOOKMARKS_PER_PAGE);
+      const pageRows = await getBookmarksPage(pageNumber, index.pageSize);
       if (pageRows.length === 0) {
         failures.push(`Page ${pageNumber} returned zero rows unexpectedly.`);
         continue;

@@ -10,9 +10,9 @@ This document describes how williamcallahan.com reads and writes runtime data ac
 graph TD
     A[Data Access Layer] --> B[Bookmarks: PostgreSQL]
     A --> C[Logos: S3 + External Providers]
-    A --> D[OpenGraph: S3 + External Fetch]
-    A --> E[GitHub: S3 JSON]
-    A --> F[S3 IO Layer]
+    A --> D[OpenGraph: PostgreSQL + External Fetch]
+    A --> E[GitHub: PostgreSQL]
+    A --> F[S3 IO Layer for binary assets]
     A --> G[Next.js Cache Components]
 ```
 
@@ -27,6 +27,7 @@ graph TD
 ### S3 Operations (`src/lib/s3/*`)
 
 - Purpose: shared object storage boundary for JSON and binary payloads.
+- Runtime JSON policy: production JSON persistence resolves to PostgreSQL (`json_documents`) through `src/lib/s3/json.ts`; non-production keeps direct S3 behavior for local/test compatibility.
 - Key capabilities:
   - Raw object operations in `src/lib/s3/objects.ts`
   - JSON helpers in `src/lib/s3/json.ts`
@@ -108,14 +109,15 @@ graph TD
 
 ### OpenGraph Data Access (`src/lib/data-access/opengraph*.ts`)
 
-- Reads/writes metadata and images through S3-backed modules.
+- Reads/writes metadata and overrides through PostgreSQL modules.
+- Keeps image assets in object storage.
 - Uses cache tags for controlled invalidation across pages and APIs.
 - Refresh flows maintain in-flight deduplication to avoid duplicate remote work.
 
 ### GitHub Data Access (`src/lib/data-access/github*.ts`)
 
-- Refresh jobs persist summary/statistics JSON to S3.
-- UI/server read flows hydrate from S3 + Next.js cache tags.
+- Refresh jobs persist summary/statistics payloads to PostgreSQL.
+- UI/server read flows hydrate from PostgreSQL + Next.js cache tags.
 - Public API routes use no-store reads when freshness is required.
 
 ## Performance and Reliability

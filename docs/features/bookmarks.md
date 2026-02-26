@@ -51,6 +51,36 @@ Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/i
 - Normalized text is stored in PostgreSQL as `scraped_content_text`; raw HTML is explicitly excluded from the persisted `content` JSONB column.
 - Embedding payload generation uses `scraped_content_text` as the content source (positioned last so server-side token truncation clips its tail first).
 
+### Derived Columns
+
+Derived columns are computed during normalization (`lib/bookmarks/normalize.ts`) and stored in PostgreSQL. The computation is deterministic and reusable for both ingestion and backfill.
+
+- **`word_count`**: `text.trim().split(/\s+/).length` from `scraped_content_text`. Returns `undefined` when no scraped content exists.
+- **`reading_time`**: `Math.ceil(wordCount / 200)` (200 WPM). Returns `undefined` when word count is 0 or undefined.
+- **`og_title`**, **`og_description`**, **`og_image`**: Populated during OG enrichment (`lib/bookmarks/enrich-opengraph.ts`) or backfilled by fetching bookmark URLs and parsing `<meta property="og:*">` tags.
+- **`logo_data`**: `{url, alt}` JSONB mapped from the S3 CDN logo manifest (`json/image-data/logos/manifest.json`) keyed by bookmark domain.
+
+### Backfill Scripts
+
+All backfill scripts are standalone Node (`#!/usr/bin/env node`) scripts using `postgres` directly. They share a production write guard pattern (`assertDatabaseWriteAllowed`) and support `--dry-run`, `--force`, and `--ids` flags.
+
+```bash
+# Source env and run any backfill script
+set -a && source .env && set +a
+
+# Derived fields (word_count, reading_time) from scraped_content_text
+DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-computed-fields.node.mjs
+
+# OG metadata by fetching bookmark URLs
+DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-og-metadata.node.mjs
+
+# Logo data from S3 CDN manifest
+DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-logo-data.node.mjs
+
+# Embeddings (Qwen3-Embedding-4B, 2560-d halfvec)
+DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-embeddings.node.mjs --force --batch-size 4
+```
+
 ### Runtime Fetch Strategy
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds read bookmarks from PostgreSQL in runtime paths.
@@ -240,37 +270,9 @@ youtube.com/watch?v=xyz789 + "React Best Practices" -> "youtube-react-best-pract
 
 ## Monitoring & Operations
 
-### Health Checks
-
-- `/api/health` endpoint with system health checks
-- Refresh lock state reported by runtime diagnostics
-
-### Observability
-
-- Detailed logging for all operations
-- Performance metrics for cache hits/misses
-- Error tracking for external API failures
-
-### Manual Operations
-
-```bash
-# Force refresh bookmarks
-curl -X POST http://localhost:3000/api/bookmarks/refresh
-
-# Check system health
-curl http://localhost:3000/api/health
-
-# View bookmark status
-curl http://localhost:3000/api/bookmarks/status
-```
-
-## Future Improvements
-
-1. **Search Enhancement**: Full-text search with Elasticsearch
-2. **User Personalization**: Per-user bookmark collections
-3. **Batch Operations**: Bulk bookmark management
-4. **Real-time Updates**: WebSocket for live bookmark changes
-5. **Analytics**: Usage tracking and popular bookmarks
+- `/api/health` endpoint with system health checks; refresh lock state reported by runtime diagnostics
+- `/api/bookmarks/refresh` for manual refresh trigger (secret protected)
+- Detailed logging, cache hit/miss metrics, and external API error tracking
 
 ## Related Documentation
 
@@ -300,13 +302,7 @@ These operations only need metadata and can safely use `includeImageData: false`
 2.  **Slug Mapping Generation**: Only needs bookmark IDs and titles.
 3.  **Search Index Building**: Only needs text content.
 
-#### Common Regression Pattern
-
-1.  Developer sees memory usage during build.
-2.  Adds `includeImageData: false` to optimize.
-3.  UI components lose their images (missing thumbnails).
-
-**Solution**: NEVER change `includeImageData` without checking all consumers.
+**Common regression**: Adding `includeImageData: false` to optimize build memory causes UI components to lose thumbnails. NEVER change `includeImageData` without checking all consumers.
 
 ## Deployment & Automatic Data Population (Integrated)
 
@@ -327,15 +323,8 @@ This consolidates deployment details for bookmarks data population and scheduler
 
 ### Environment-Specific S3 Keys
 
-- Source of truth: `lib/config/environment.ts`
-- Suffixes:
-  - production: "" (no suffix)
-  - test: "-test"
-  - development/local: "-dev"
-- Examples:
-  - dev: `json/bookmarks/slug-mapping-dev.json`
-  - prod: `json/bookmarks/slug-mapping.json`
-  - Local snapshots are not consumed at runtime; bookmark API reads and writes are PostgreSQL-first.
+- Source of truth: `lib/config/environment.ts`. Suffixes: production `""`, test `"-test"`, dev/local `"-dev"` (e.g., `json/bookmarks/slug-mapping-dev.json`).
+- Local snapshots are not consumed at runtime; bookmark reads and writes are PostgreSQL-first.
 
 ### Redundancy & Fallbacks
 
