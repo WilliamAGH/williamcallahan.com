@@ -179,6 +179,7 @@ File/Path Functionality Description
   - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing via `JSON.parse`, S3 persistence)
   - [x] **openai-compatible/**
     - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution, preferred-model resolution, and shared upstream queue-key builder
+    - [x] `embeddings-client.ts` `ai-shared-services` - Endpoint-compatible `/v1/embeddings` client for batch embedding generation
     - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers plus shared request origin/cookie/auth extraction helpers
     - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route with SSE-only consumption
     - [x] `openai-compatible-client.ts` `ai-shared-services` - Native OpenAI SDK transport for `chat.completions` and `responses`
@@ -291,6 +292,7 @@ File/Path Functionality Description
     - [x] `bookmarks.ts` `bookmarks` - Bookmark read queries (all/page/by-id/count/FTS/tag pages/global index/per-tag index/tag slug listing)
   - [x] **mutations/**
     - [x] `bookmarks.ts` `bookmarks` - Bookmark upsert/delete mutations plus taxonomy/index-state rebuilds for PostgreSQL persistence
+    - [x] `bookmark-embeddings.ts` `bookmarks` - Bookmark embedding backfill/update mutations for `qwen_4b_fp16_embedding` via endpoint-compatible Qwen embeddings
 - [ ] **hooks/**
   - [x] `use-anchor-scroll.client.ts` `navigation` - Hook for scrolling to anchor links
   - [x] `use-fix-svg-transforms.ts` `image-handling` - Hook to fix SVG transform issues
@@ -594,6 +596,7 @@ File/Path Functionality Description
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
 - [x] `migrate-s3-to-postgres.ts` `bookmarks` - Bookmark migration from S3 JSON to PostgreSQL via unified Drizzle mutations (including tag/index-state rebuild)
+- [x] `backfill-bookmark-embeddings.ts` `bookmarks` - CLI backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings`
 - [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations

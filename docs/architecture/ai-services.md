@@ -78,6 +78,7 @@ For a route param `feature`, the server resolves configuration with this precede
 2. Default variables:
    - `AI_DEFAULT_OPENAI_BASE_URL`
    - `AI_DEFAULT_LLM_MODEL`
+   - `AI_DEFAULT_EMBEDDING_MODEL` (optional; endpoint-compatible `/v1/embeddings` model id)
    - `AI_DEFAULT_OPENAI_API_KEY` (optional)
    - `AI_DEFAULT_MAX_PARALLEL` (optional; default: 1)
 3. Built-in safe defaults (no secrets):
@@ -87,6 +88,16 @@ For a route param `feature`, the server resolves configuration with this precede
    - no API key
 
 `<FEATURE>` is normalized server-side as: uppercase, non-alphanumerics replaced with `_`.
+
+### Endpoint-Compatible Embeddings
+
+- `AI_DEFAULT_EMBEDDING_MODEL` enables endpoint-compatible embeddings generation with the same upstream origin used by chat.
+- Required alongside that model variable:
+  - `AI_DEFAULT_OPENAI_BASE_URL`
+  - `AI_DEFAULT_OPENAI_API_KEY`
+- Used for:
+  - Chroma embedding generation in `src/lib/chroma/embedding-function.ts`
+  - PostgreSQL bookmark embedding backfill (`bun run bookmarks:embeddings:backfill`)
 
 ## OpenAI SDK Notes
 
