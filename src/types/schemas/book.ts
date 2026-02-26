@@ -9,6 +9,11 @@
 import { z } from "zod/v4";
 import { relatedContentTypeSchema } from "./related-content";
 
+const absoluteOrRootRelativeUrlSchema = z.union([
+  z.url(),
+  z.string().regex(/^\/(?!\/).+/, "Must be an absolute URL or a root-relative path"),
+]);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // EPUB Metadata Schema (for parsing validation)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -89,8 +94,8 @@ export const bookSchema = z.object({
   audioDurationSeconds: z.number().optional(),
   audioChapterCount: z.number().optional(),
 
-  // Cover (relative URL via /api/cache/images proxy, not an absolute URL)
-  coverUrl: z.string().optional(),
+  // Cover URL may be absolute or root-relative proxy path (/api/cache/images?...).
+  coverUrl: absoluteOrRootRelativeUrlSchema.optional(),
   /** Base64-encoded blur data URL for cover placeholder (LQIP) */
   coverBlurDataURL: z.string().optional(),
 
@@ -115,7 +120,7 @@ export const bookListItemSchema = z.object({
   id: z.string(),
   title: z.string(),
   authors: z.array(z.string()).optional(),
-  coverUrl: z.string().optional(),
+  coverUrl: absoluteOrRootRelativeUrlSchema.optional(),
   /** Base64-encoded blur data URL for cover placeholder (LQIP) */
   coverBlurDataURL: z.string().optional(),
 });

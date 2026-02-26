@@ -6,8 +6,8 @@
  * - `data`: hydrated `UnifiedBookmark[]` for bookmark-focused consumers
  * - `results`: normalized `SearchResult[]` for terminal scoped-search parsing
  *
- * Search is powered by PostgreSQL full-text search (tsvector/websearch_to_tsquery)
- * and returns ranked matches directly from the bookmarks table.
+ * In production: hybrid search (FTS + trigram + pgvector semantic similarity).
+ * Fallback: FTS-only search when hybrid is unavailable.
  */
 
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types/bookmark";
+import type { BookmarkFtsSearchHit, BookmarkFtsSearchPageResult } from "@/types/db/bookmarks";
 import type { SearchResult } from "@/types/search";
 import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
@@ -31,6 +32,12 @@ const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 const loadBookmarkQueryModule = async () => import("@/lib/db/queries/bookmarks");
+const loadHybridSearchModule = async () => import("@/lib/db/queries/hybrid-search");
+const loadEmbeddingModule = async () => import("@/lib/ai/openai-compatible/embeddings-client");
+const loadEmbeddingConfig = async () => import("@/lib/ai/openai-compatible/feature-config");
+const loadEmbeddingDimensions = async () => import("@/lib/db/schema/bookmarks");
+
+const HYBRID_CANDIDATE_LIMIT = 100;
 
 /** Pagination-only slice of the bookmark search params schema. */
 const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: true });
@@ -74,6 +81,59 @@ function toBookmarkSearchResult(bookmark: UnifiedBookmark, score: number): Searc
     url: fallbackUrl,
     score,
   };
+}
+
+async function tryHybridSearch(query: string): Promise<BookmarkFtsSearchHit[] | null> {
+  if (process.env.NODE_ENV !== "production") return null;
+
+  try {
+    const [{ hybridSearchBookmarks }, embClient, embConfig, schema] = await Promise.all([
+      loadHybridSearchModule(),
+      loadEmbeddingModule(),
+      loadEmbeddingConfig(),
+      loadEmbeddingDimensions(),
+    ]);
+
+    const config = embConfig.resolveDefaultEndpointCompatibleEmbeddingConfig();
+    let embedding: number[] | undefined;
+    if (config) {
+      try {
+        const vectors = await embClient.embedTextsWithEndpointCompatibleModel({
+          config,
+          input: [query],
+          timeoutMs: 1_500,
+        });
+        const vec = vectors[0];
+        if (vec && vec.length === schema.BOOKMARK_EMBEDDING_DIMENSIONS) {
+          embedding = vec;
+        }
+      } catch {
+        // Embedding generation failed; hybrid continues with keyword-only scoring
+      }
+    }
+
+    return hybridSearchBookmarks({ query, embedding, limit: HYBRID_CANDIDATE_LIMIT });
+  } catch {
+    return null;
+  }
+}
+
+async function executeHybridOrFtsSearch(
+  query: string,
+  page: number,
+  limit: number,
+): Promise<BookmarkFtsSearchPageResult> {
+  const hybridHits = await tryHybridSearch(query);
+  if (hybridHits) {
+    const start = (page - 1) * limit;
+    return {
+      items: hybridHits.slice(start, start + limit),
+      totalCount: hybridHits.length,
+    };
+  }
+
+  const { searchBookmarksFtsPage } = await loadBookmarkQueryModule();
+  return searchBookmarksFtsPage(query, page, limit);
 }
 
 function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }): URL {
@@ -142,19 +202,14 @@ export async function GET(request: NextRequest) {
     }
     const { page, limit } = paginationResult.data;
 
-    const { searchBookmarksFtsPage } = await loadBookmarkQueryModule();
-    const { items, totalCount } = await searchBookmarksFtsPage(query, page, limit);
-    const paginated = items.map((item) => item.bookmark);
-    const paginatedResults: SearchResult[] = items.map((item) =>
-      toBookmarkSearchResult(item.bookmark, item.score),
-    );
+    const allItems = await executeHybridOrFtsSearch(query, page, limit);
     const start = (page - 1) * limit;
 
     return buildBookmarkSearchResponse({
-      data: paginated,
-      results: paginatedResults,
-      totalCount,
-      hasMore: start + limit < totalCount,
+      data: allItems.items.map((item) => item.bookmark),
+      results: allItems.items.map((item) => toBookmarkSearchResult(item.bookmark, item.score)),
+      totalCount: allItems.totalCount,
+      hasMore: start + limit < allItems.totalCount,
       query,
     });
   } catch (err) {
