@@ -16,7 +16,6 @@ export default defineConfig({
     "bookmark_index_state",
     "bookmark_tag_index_state",
     "search_index_artifacts",
-    "json_documents",
     "github_activity_store",
     "content_graph_artifacts",
     "books_latest",
