@@ -7,10 +7,9 @@
  */
 
 import type { RateLimiterConfig, CircuitBreakerState, CircuitBreakerConfig } from "@/types/lib";
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getMonotonicTime } from "@/lib/utils";
-import { rateLimitStoreSchema, type RateLimitRecordFromSchema } from "@/types/schemas/rate-limit";
+import type { RateLimitRecordFromSchema } from "@/types/schemas/rate-limit";
 
 /**
  * In-memory store for rate limit records.
@@ -147,42 +146,25 @@ export async function waitForPermit(
 }
 
 /**
- * Loads a rate limit store from S3 and hydrates the in-memory map.
- * Missing files are treated as an empty store.
+ * No-op kept for call-site compatibility. Rate limit state is purely in-memory;
+ * it resets on process restart, which is acceptable for sliding-window limiters.
+ * @deprecated Remove callers and this stub once all references are cleaned up.
  */
-export async function loadRateLimitStoreFromS3(storeName: string, s3Path: string): Promise<void> {
-  const remoteData = await readJsonS3Optional<Record<string, RateLimitRecordFromSchema>>(
-    s3Path,
-    rateLimitStoreSchema,
-  );
-  rateLimitStores[storeName] = remoteData ?? {};
+export async function loadRateLimitStoreFromS3(_storeName: string, _s3Path: string): Promise<void> {
+  // In-memory only — nothing to load.
 }
 
 /**
- * Persists a specific rate limit store to S3.
- */
-export async function persistRateLimitStoreToS3(storeName: string, s3Path: string): Promise<void> {
-  const store = rateLimitStores[storeName] ?? {};
-  await writeJsonS3(s3Path, store);
-}
-
-/**
- * Convenience helper: updates in-memory counter (via isOperationAllowed) **and** persists.
+ * Updates the in-memory rate limit counter.
+ * The `_s3Path` parameter is retained for call-site compatibility but is not used.
  */
 export function incrementAndPersist(
   storeName: string,
   contextId: string,
   config: RateLimiterConfig,
-  s3Path: string,
+  _s3Path: string,
 ): boolean {
-  const allowed = isOperationAllowed(storeName, contextId, config);
-  if (allowed) {
-    // Fire-and-forget persist; do not block critical path.
-    void persistRateLimitStoreToS3(storeName, s3Path).catch((error: unknown) => {
-      console.error(`RateLimiter: failed to persist store ${storeName} to ${s3Path}:`, error);
-    });
-  }
-  return allowed;
+  return isOperationAllowed(storeName, contextId, config);
 }
 
 /**

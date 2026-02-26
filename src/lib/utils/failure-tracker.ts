@@ -1,19 +1,18 @@
 /**
  * Generic Failure Tracker
  *
- * Tracks failed items with configurable retry logic and S3 persistence
- * Used for domains, URLs, or any other items that need retry tracking
+ * Tracks failed items with configurable retry logic (in-memory only).
+ * State resets on process restart; acceptable for transient skip-lists.
+ * Used for domains, URLs, or any other items that need retry tracking.
  */
 
 import type { ZodSchema } from "zod/v4";
-import { readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { debugLog } from "./debug";
 import { getMonotonicTime } from "@/lib/utils";
 import type { FailedItem, FailureTrackerConfig } from "@/types/s3-cdn";
-import { createFailedItemRecordSchema } from "@/types/schemas/failure-tracker";
 
 /**
- * Generic failure tracker with S3 persistence
+ * Generic in-memory failure tracker
  */
 export class FailureTracker<T> {
   private failures = new Map<string, FailedItem<T>>();
@@ -36,41 +35,18 @@ export class FailureTracker<T> {
   }
 
   /**
-   * Load failures from S3
+   * Mark the tracker as initialized. Failure state is purely in-memory;
+   * it resets on process restart, which is acceptable for transient skip-lists.
    */
   async load(): Promise<void> {
-    if (this.loaded) return;
-
-    const schema = createFailedItemRecordSchema(this.itemSchema);
-    const data = await readJsonS3Optional<Record<string, FailedItem<T>>>(
-      this.config.s3Path,
-      schema,
-    );
-    if (data && typeof data === "object") {
-      this.failures.clear();
-      Object.entries(data).forEach(([key, item]) => {
-        this.failures.set(key, item);
-      });
-      debugLog(`[${this.config.name}] Loaded ${this.failures.size} failed items`);
-    }
-
     this.loaded = true;
   }
 
   /**
-   * Save failures to S3
+   * No-op — failure state is kept in-memory only.
    */
   async save(): Promise<void> {
-    try {
-      const data: Record<string, FailedItem<T>> = {};
-      this.failures.forEach((item, key) => {
-        data[key] = item;
-      });
-      await writeJsonS3(this.config.s3Path, data);
-      debugLog(`[${this.config.name}] Saved ${this.failures.size} failed items`);
-    } catch (error) {
-      debugLog(`[${this.config.name}] Failed to save`, "error", { error });
-    }
+    // In-memory only; nothing to persist.
   }
 
   /**
