@@ -51,11 +51,53 @@ bun run test:smoke || { echo "❌ Smoke tests failed!"; exit 1; }
 
 # Check bookmark integrity (PostgreSQL-backed runtime checks)
 echo "🔍 Checking bookmark integrity (PostgreSQL)..."
-NODE_ENV=production bun run scripts/bookmark-diagnostics.ts integrity || {
+if ! NODE_ENV=production node --input-type=module <<'EOF'
+import postgres from "postgres";
+
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  console.error("DATABASE_URL is required for bookmark integrity checks.");
+  process.exit(1);
+}
+
+const sql = postgres(databaseUrl, { ssl: "require", max: 1, connect_timeout: 10 });
+
+try {
+  const stateRows =
+    await sql`SELECT count, total_pages, page_size FROM bookmark_index_state WHERE id = 'global' LIMIT 1`;
+  if (stateRows.length === 0) {
+    throw new Error("bookmark_index_state row for id='global' is missing.");
+  }
+
+  const bookmarkRows = await sql`SELECT COUNT(*)::int AS count FROM bookmarks`;
+  const bookmarkCount = Number(bookmarkRows[0]?.count ?? 0);
+  const indexCount = Number(stateRows[0].count);
+  const pageSize = Number(stateRows[0].page_size);
+  const totalPages = Number(stateRows[0].total_pages);
+  const expectedPages = pageSize > 0 ? Math.ceil(bookmarkCount / pageSize) : 0;
+
+  if (bookmarkCount !== indexCount) {
+    throw new Error(`bookmark count mismatch: bookmarks=${bookmarkCount}, index=${indexCount}`);
+  }
+
+  if (expectedPages !== totalPages) {
+    throw new Error(
+      `bookmark page mismatch: expected=${expectedPages}, index_total_pages=${totalPages}, page_size=${pageSize}`,
+    );
+  }
+} catch (error) {
+  console.error("Bookmark integrity check failed:", error);
+  process.exit(1);
+} finally {
+  await sql.end({ timeout: 5 });
+}
+EOF
+then
   echo "❌ Bookmark integrity check failed!"
   echo "📚 Fix the PostgreSQL bookmark issues listed above before pushing."
-  echo "💡 Run 'bun run scripts/bookmark-diagnostics.ts integrity' to see details."
+  echo "💡 Run the Node Postgres integrity probe from .husky/pre-push for details."
   exit 1
-}
+fi
 
 echo "✅ All pre-push checks passed!"
