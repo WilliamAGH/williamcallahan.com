@@ -35,7 +35,7 @@ This orchestration model allows the GitHub Activity feature to focus on its spec
 
 The system uses a durable-source plus tagged-cache hierarchy:
 
-```
+```text
 GitHub APIs -> Refresh jobs / authorized POST -> PostgreSQL github_activity_store -> Next.js Cache Components -> UI
                                                                                    |
                                                                      API routes (noStore, read DB fresh)
