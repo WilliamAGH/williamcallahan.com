@@ -3,7 +3,7 @@
  * GitHub Repository Statistics Refresh Script
  *
  * Forces refresh of GitHub contributor statistics for specific repositories
- * Updates S3 storage with latest contributor data from GitHub API
+ * Updates PostgreSQL storage with latest contributor data from GitHub API
  *
  * @module scripts/force-refresh-repo-stats
  */
@@ -12,9 +12,8 @@ import type { RepoToUpdate } from "@/types/lib";
 
 import "dotenv/config"; // Load .env variables
 
-import type { GithubContributorStatsEntry, RepoRawWeeklyStat } from "@/types"; // Adjust path as needed
-import { REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants"; // Import directly from constants
-import { writeBinaryS3 } from "../src/lib/s3/binary"; // Adjust path as needed
+import type { GithubContributorStatsEntry, RepoRawWeeklyStat } from "@/types";
+import { writeRepoWeeklyStatsToDb } from "@/lib/db/mutations/github-activity";
 
 // Support both the new preferred env var and legacy common names to reduce mis-config issues.
 const GITHUB_API_TOKEN =
@@ -96,34 +95,31 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
 }
 
 /**
- * Processes a repository by fetching stats and writing to S3 as CSV
- *
- * Skips writing if no stats are available
+ * Processes a repository by fetching stats and writing to PostgreSQL.
  *
  * @param repo - The repository to process, including owner and name
  */
 async function processRepo(repo: RepoToUpdate) {
   console.log(`\n[Script] Processing repository: ${repo.owner}/${repo.name}`);
-  const s3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repo.owner}_${repo.name}.csv`;
-
   const weeklyStats = await fetchStatsForRepo(repo.owner, repo.name);
 
-  if (weeklyStats.length > 0) {
-    const csvContent = weeklyStats.map((s) => `${s.w},${s.a},${s.d},${s.c}`).join("\n");
-    try {
-      await writeBinaryS3(s3Key, Buffer.from(csvContent), "text/csv");
-      console.log(
-        `[Script] Successfully wrote updated CSV to S3 for ${repo.owner}/${repo.name} at ${s3Key} with ${weeklyStats.length} weeks of data.`,
-      );
-    } catch (error) {
-      console.error(`[Script] Failed to write CSV to S3 for ${repo.owner}/${repo.name}:`, error);
-    }
-  } else {
+  try {
+    await writeRepoWeeklyStatsToDb(repo.owner, repo.name, {
+      repoOwnerLogin: repo.owner,
+      repoName: repo.name,
+      lastFetched: new Date().toISOString(),
+      status: weeklyStats.length > 0 ? "complete" : "empty_no_user_contribs",
+      stats: weeklyStats,
+    });
+
     console.log(
-      `[Script] No stats data fetched for ${repo.owner}/${repo.name}. CSV file at ${s3Key} will not be updated or created if it doesn't exist with empty data.`,
+      `[Script] Updated PostgreSQL weekly stats for ${repo.owner}/${repo.name} with ${weeklyStats.length} weeks of data.`,
     );
-    // Optionally, you could write an empty CSV or delete the existing one if no stats are found.
-    // For now, it just skips writing if no data.
+  } catch (error) {
+    console.error(
+      `[Script] Failed to write PostgreSQL weekly stats for ${repo.owner}/${repo.name}:`,
+      error,
+    );
   }
 }
 
@@ -138,10 +134,6 @@ async function main() {
     console.error("GITHUB_ACCESS_TOKEN_COMMIT_GRAPH is not set in .env. Aborting.");
     return;
   }
-  if (!process.env.S3_BUCKET) {
-    console.error("S3_BUCKET is not set in .env. Aborting.");
-    return;
-  }
 
   console.log(
     "[Script] Starting forceful refresh of specified repo stats from /stats/contributors API...",
@@ -151,7 +143,7 @@ async function main() {
   }
   console.log("\n[Script] Forceful refresh process finished.");
   console.log(
-    "[Script] IMPORTANT: After running this script, you should trigger a full data refresh (e.g., via POST /api/github-activity/refresh or your cron job running scripts/update-s3-data.ts) to update the main activity_data.json and summary files based on these potentially updated CSVs.",
+    "[Script] IMPORTANT: After running this script, trigger a full refresh (POST /api/github-activity/refresh or scripts/data-updater.ts) so summary and aggregated activity rows are recalculated from updated repository stats.",
   );
 }
 

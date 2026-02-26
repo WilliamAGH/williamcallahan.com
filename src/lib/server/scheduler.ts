@@ -24,7 +24,7 @@ console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 // 1. The scheduler starts via 'bun run scheduler' (typically from entrypoint.sh)
 // 2. It registers cron patterns for each task type
 // 3. It remains running indefinitely, waiting for scheduled times to trigger
-// 4. When triggered, it executes the update-s3 script with appropriate arguments
+// 4. When triggered, it executes the update-data script with appropriate arguments
 // 5. The process continues running after task completion, waiting for next trigger
 //
 // Configuration:
@@ -72,7 +72,7 @@ console.log(
 
 // Ensure Node Cron interprets times in PT
 process.env.TZ = "America/Los_Angeles";
-console.log("[Scheduler] Starting update-s3-data scheduler (PT)...");
+console.log("[Scheduler] Starting update-data scheduler (PT)...");
 // Typed wrapper around node-cron to avoid any-typed calls
 const cron = rawCron as { schedule: (expression: string, task: () => void) => void };
 
@@ -110,10 +110,10 @@ const scheduleCronJob = (
       runningJobs.add(name);
 
       console.log(
-        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Spawning: bun run update-s3 -- ${flag}`,
+        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Spawning: bun run update-data -- ${flag}`,
       );
 
-      const updateProcess = spawn("bun", ["run", "update-s3", "--", flag], {
+      const updateProcess = spawn("bun", ["run", "update-data", "--", flag], {
         env: process.env,
         stdio: "inherit",
         detached: false,

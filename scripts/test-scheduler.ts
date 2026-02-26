@@ -5,7 +5,7 @@
  *
  * This script helps diagnose scheduler issues by:
  * 1. Checking environment variables
- * 2. Testing S3 connectivity
+ * 2. Testing PostgreSQL bookmark index connectivity
  * 3. Testing bookmark API connectivity
  * 4. Manually triggering a bookmark refresh
  * 5. Verifying the complete execution path
@@ -47,23 +47,21 @@ if (!allVarsSet) {
 
 console.log("\n✅ All required environment variables are set.\n");
 
-// Step 2: Test S3 connectivity
-console.log("2. S3 CONNECTIVITY TEST:");
+// Step 2: Test PostgreSQL connectivity for bookmark index state
+console.log("2. POSTGRESQL BOOKMARK INDEX CONNECTIVITY TEST:");
 try {
-  const { readJsonS3Optional } = await import("@/lib/s3/json");
-  const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
-  const { bookmarksIndexSchema } = await import("@/types/bookmark");
+  const { getBookmarksIndexFromDatabase } = await import("@/lib/db/queries/bookmarks");
 
-  console.log("  Testing S3 read access...");
-  const index = await readJsonS3Optional(BOOKMARKS_S3_PATHS.INDEX, bookmarksIndexSchema);
+  console.log("  Testing bookmark index read from PostgreSQL...");
+  const index = await getBookmarksIndexFromDatabase();
   if (index) {
-    console.log(`  ✅ S3 read successful. Found bookmarks index.`);
+    console.log(`  ✅ PostgreSQL read successful. Found bookmarks index.`);
   } else {
-    console.log(`  ⚠️  No bookmarks index found in S3 (may be first run).`);
+    console.log(`  ⚠️  No bookmarks index found in PostgreSQL (may be first run).`);
   }
 } catch (error) {
-  console.log(`  ❌ S3 connectivity failed: ${error}`);
-  console.log("     Check S3 credentials and bucket configuration.\n");
+  console.log(`  ❌ PostgreSQL connectivity failed: ${error}`);
+  console.log("     Check DATABASE_URL and database access configuration.\n");
   process.exit(1);
 }
 
@@ -102,7 +100,7 @@ console.log("  This simulates what the scheduler would do...\n");
 try {
   const { spawn } = await import("node:child_process");
 
-  const updateProcess = spawn("bun", ["run", "update-s3", "--", "--bookmarks"], {
+  const updateProcess = spawn("bun", ["run", "update-data", "--", "--bookmarks"], {
     env: process.env,
     stdio: "inherit",
   });
