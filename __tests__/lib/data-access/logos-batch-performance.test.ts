@@ -1,7 +1,6 @@
 import { vi } from "vitest";
 import { getLogoBatch } from "@/lib/data-access/logos-batch";
 import { checkIfS3ObjectExists } from "@/lib/s3/objects";
-import { readJsonS3Optional } from "@/lib/s3/json";
 import { writeBinaryS3 } from "@/lib/s3/binary";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
@@ -9,7 +8,6 @@ import type { LogoSource } from "@/types/logo";
 
 // Mock dependencies
 vi.mock("@/lib/s3/objects");
-vi.mock("@/lib/s3/json");
 vi.mock("@/lib/s3/binary");
 vi.mock("@/lib/utils/hash-utils");
 vi.mock("@/lib/utils/domain-utils");
@@ -49,7 +47,7 @@ vi.mock("@/lib/constants", async (importOriginal) => {
         hd: (d: string) => `https://icons.duckduckgo.com/ip3/${d}.ico`,
       },
     },
-    LOGO_BLOCKLIST_S3_PATH: "json/rate-limit/logo-failed-domains-test.json",
+    LOGO_BLOCKLIST_STORE_KEY: "rate-limit/logo-failed-domains-test",
   };
 });
 
@@ -57,7 +55,6 @@ describe("Logos Batch Performance Optimizations", () => {
   const mockCheckIfS3ObjectExists = vi.mocked(checkIfS3ObjectExists);
   const mockGenerateS3Key = vi.mocked(generateS3Key);
   const mockGetDomainVariants = vi.mocked(getDomainVariants);
-  const mockReadJsonS3 = vi.mocked(readJsonS3Optional);
   const mockWriteBinaryS3 = vi.mocked(writeBinaryS3);
 
   beforeEach(() => {
@@ -69,7 +66,6 @@ describe("Logos Batch Performance Optimizations", () => {
       ({ domain, source, extension }) => `logos/${source}/${domain}.${extension}`,
     );
     mockCheckIfS3ObjectExists.mockResolvedValue(false); // Default: no logos exist
-    mockReadJsonS3.mockRejectedValue(new Error("File not found")); // No persisted failures
     mockWriteBinaryS3.mockResolvedValue(undefined);
 
     // Mock fetch to prevent actual network requests

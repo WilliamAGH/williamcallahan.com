@@ -11,7 +11,7 @@ import {
   buildDirectCoverUrl,
 } from "@/lib/books/transforms";
 import { fetchBookById } from "@/lib/books/audiobookshelf.server";
-import type { AbsLibraryItem } from "@/types/schemas/book";
+import { validateBook, validateBookListItem, type AbsLibraryItem } from "@/types/schemas/book";
 
 const BASE_OPTIONS = { baseUrl: "https://abs.example.com", apiKey: "test-key" };
 
@@ -137,6 +137,34 @@ describe("Book Transforms", () => {
       // Direct URL is used for server-side operations like blur generation
       const directUrl = buildDirectCoverUrl("book-456", "https://abs.example.com", "test-key");
       expect(directUrl).toBe("https://abs.example.com/api/items/book-456/cover?token=test-key");
+    });
+
+    it("accepts root-relative proxy cover URLs in book schema", () => {
+      const book = validateBook({
+        id: "schema-book-1",
+        title: "Schema Book",
+        coverUrl: "/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg",
+      });
+      expect(book.coverUrl).toBe("/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg");
+    });
+
+    it("accepts root-relative proxy cover URLs in list-item schema", () => {
+      const item = validateBookListItem({
+        id: "schema-list-1",
+        title: "Schema List Book",
+        coverUrl: "/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg",
+      });
+      expect(item.coverUrl).toBe("/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg");
+    });
+
+    it("rejects malformed non-url cover URLs", () => {
+      expect(() =>
+        validateBook({
+          id: "schema-book-2",
+          title: "Invalid Cover",
+          coverUrl: "cover-without-prefix",
+        }),
+      ).toThrow();
     });
   });
 

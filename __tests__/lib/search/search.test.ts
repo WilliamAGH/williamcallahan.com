@@ -88,10 +88,7 @@ vi.mock("@/data/projects", () => ({
   ],
 }));
 
-// Mock S3 utils to prevent loading production indexes (forces in-memory index build with mocked data)
-vi.mock("@/lib/s3/json", () => ({
-  readJsonS3Optional: vi.fn().mockResolvedValue(null),
-}));
+// Mock DB-backed search index artifacts to force in-memory index build with mocked data.
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
   getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
 }));

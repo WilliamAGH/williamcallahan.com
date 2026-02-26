@@ -21,16 +21,6 @@ vi.mock("@/lib/cache", async (importOriginal) => {
   };
 });
 
-// Mock S3 utilities
-vi.mock("@/lib/s3/json", () => {
-  return {
-    readJsonS3Optional: vi
-      .fn()
-      .mockResolvedValue({ count: 0, lastRefresh: new Date().toISOString() }),
-    writeJsonS3: vi.fn().mockResolvedValue(undefined),
-  };
-});
-
 vi.mock("@/lib/db/queries/bookmarks", () => {
   return {
     getBookmarksIndexFromDatabase: vi.fn().mockResolvedValue({

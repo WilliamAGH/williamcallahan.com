@@ -8,12 +8,9 @@ import type { Mock, MockedFunction } from "vitest";
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { readContentGraphArtifact } from "@/lib/db/queries/content-graph";
 import { writeContentGraphArtifacts } from "@/lib/db/mutations/content-graph";
-import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchConfig } from "@/types/lib";
-import type { BookmarkSlugMapping } from "@/types/bookmark";
 
 // Mock external dependencies
-vi.mock("@/lib/s3/json");
 vi.mock("@/lib/s3/objects");
 vi.mock("@/lib/db/mutations/content-graph");
 vi.mock("@/lib/db/queries/content-graph");
@@ -141,10 +138,7 @@ describe("Pre-computation Pipeline Integration", () => {
       const { getBookmarks: getServiceBookmarks } = await import("@/lib/bookmarks/service.server");
       (getServiceBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
-      // Mock S3 utils
-      const { writeJsonS3 } = await import("@/lib/s3/json");
       const { listS3Objects } = await import("@/lib/s3/objects");
-      (writeJsonS3 as Mock).mockResolvedValue(undefined);
       (listS3Objects as Mock).mockResolvedValue([]);
 
       // Mock content similarity dependencies
@@ -344,34 +338,18 @@ describe("Pre-computation Pipeline Integration", () => {
       (getBookmarks as Mock).mockResolvedValue(mockBookmarks);
       (refreshBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
-      // Mock writeJsonS3 to capture calls
-      const { writeJsonS3 } = await import("@/lib/s3/json");
-      (writeJsonS3 as Mock).mockResolvedValue(undefined);
-
-      await manager.fetchData({
+      const results = await manager.fetchData({
         bookmarks: true,
         forceRefresh: true,
       });
 
-      // Verify slug mapping was created for all bookmarks
-      const slugMappingCall = (writeJsonS3 as Mock).mock.calls.find(
-        (call) => call[0] === BOOKMARKS_S3_PATHS.SLUG_MAPPING,
+      expect(results).toContainEqual(
+        expect.objectContaining({
+          operation: "bookmarks",
+          success: true,
+          itemsProcessed: 2,
+        }),
       );
-
-      // Skip this assertion if slug mapping wasn't created
-      // This depends on the implementation and might not always be created
-      if (!slugMappingCall) {
-        console.log("Slug mapping was not created in this test run");
-        return;
-      }
-
-      expect(slugMappingCall).toBeDefined();
-      if (slugMappingCall) {
-        const mapping = slugMappingCall[1] as BookmarkSlugMapping;
-        expect(mapping.count).toBe(2);
-        expect(mapping.slugs.b1).toBeDefined();
-        expect(mapping.slugs.b2).toBeDefined();
-      }
     });
 
     it("should maintain consistency in content graph counts", async () => {

@@ -119,18 +119,18 @@ describe("Search Index Serialization", () => {
       });
     });
 
-    it("should load index when serialized.index is an object (S3 round-trip)", () => {
+    it("should load index when serialized.index is an object (storage round-trip)", () => {
       const originalIndex = createIndex(sampleDocuments, ["title", "description"]);
 
-      // Simulate S3 round-trip:
+      // Simulate storage round-trip:
       // 1. toJSON() returns object
-      // 2. writeJsonS3 calls JSON.stringify (object -> string)
-      // 3. S3 stores the string
-      // 4. readJsonS3 calls JSON.parse (string -> object)
-      const s3RoundTrip = JSON.parse(JSON.stringify(originalIndex.toJSON()));
+      // 2. serializer calls JSON.stringify (object -> string)
+      // 3. database stores the string/object payload
+      // 4. reader returns JSON.parse-equivalent object
+      const storageRoundTrip = JSON.parse(JSON.stringify(originalIndex.toJSON()));
 
       const serializedIndex: SerializedIndex = {
-        index: s3RoundTrip, // Object (parsed from S3)
+        index: storageRoundTrip, // Object restored from persisted payload
         metadata: {
           itemCount: sampleDocuments.length,
           buildTime: new Date().toISOString(),

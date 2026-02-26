@@ -16,13 +16,6 @@ vi.mock("@/lib/s3/objects", () => ({
   deleteFromS3: vi.fn(),
 }));
 
-// Mock s3/json to avoid transitive dependency issues through FailureTracker
-vi.mock("@/lib/s3/json", () => ({
-  readJsonS3: vi.fn().mockResolvedValue(null),
-  readJsonS3Optional: vi.fn().mockResolvedValue(null),
-  writeJsonS3: vi.fn().mockResolvedValue(undefined),
-}));
-
 const mockFetchWithTimeout = fetchWithTimeout as Mock;
 const mockCheckIfS3ObjectExists = checkIfS3ObjectExists as Mock;
 

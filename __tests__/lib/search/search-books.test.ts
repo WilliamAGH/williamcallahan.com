@@ -14,11 +14,7 @@ vi.mock("@/lib/books/audiobookshelf.server", () => ({
   fetchBooks: vi.fn(),
 }));
 
-// Mock S3 JSON helpers to prevent actual S3 calls
-vi.mock("@/lib/s3/json", () => ({
-  readJsonS3Optional: vi.fn().mockResolvedValue(null),
-  writeJsonS3: vi.fn().mockResolvedValue(undefined),
-}));
+// Mock DB-backed search index artifacts to force in-memory index build.
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
   getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
 }));

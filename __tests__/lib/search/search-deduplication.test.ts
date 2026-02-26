@@ -9,11 +9,6 @@ import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
 import type { SearchResult } from "@/types/search";
 
-vi.mock("@/lib/s3/json", () => ({
-  readJsonS3Optional: vi.fn().mockResolvedValue(null),
-  readJsonS3: vi.fn().mockResolvedValue(null),
-  writeJsonS3: vi.fn().mockResolvedValue(undefined),
-}));
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
   getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
 }));
