@@ -26,11 +26,9 @@ graph TD
 
 ### S3 Operations (`src/lib/s3/*`)
 
-- Purpose: shared object storage boundary for binary payloads plus compatibility JSON APIs.
-- Runtime JSON policy: `src/lib/s3/json.ts` resolves to PostgreSQL (`json_documents`) in all environments while preserving existing key-based helper signatures.
+- Purpose: shared object storage boundary for binary payloads.
 - Key capabilities:
   - Raw object operations in `src/lib/s3/objects.ts`
-  - JSON helpers in `src/lib/s3/json.ts`
   - Binary helpers in `src/lib/s3/binary.ts`
   - Client and retry strategy in `src/lib/s3/client.ts`
   - Config validation in `src/lib/s3/config.ts`
@@ -126,6 +124,10 @@ graph TD
 - Cache Components: reduce duplicate read work in RSC/server contexts.
 - Streaming IO: large payload operations avoid unnecessary full buffering.
 - Failures degrade to durable state, not hidden in-process cache state.
+
+## Runtime Isolation [RT1]
+
+All database migration, backfill, and enrichment scripts MUST run under **Node.js** (not bun). Bun's TLS implementation fails SSL negotiation with PostgreSQL (`could not accept SSL connection: no suitable signature algorithm`). These scripts use `#!/usr/bin/env node` and the `*.node.mjs` extension. See `CLAUDE.md [RT1]` for the full policy.
 
 ## Security and Type Safety
 

@@ -622,6 +622,9 @@ File/Path Functionality Description
 - [x] `backfill-computed-fields.node.mjs` `bookmarks` - Node runtime backfill for `word_count` and `reading_time` derived from `scraped_content_text` (whitespace split, 200 WPM)
 - [x] `backfill-og-metadata.node.mjs` `bookmarks` - Node runtime backfill for `og_title`, `og_description`, `og_image` by fetching bookmark URLs and parsing `<meta property="og:*">` tags
 - [x] `backfill-logo-data.node.mjs` `bookmarks` - Node runtime backfill for `logo_data` JSONB from PostgreSQL `image_manifests` logo payloads
+- [x] `backfill-og-etags.node.mjs` `bookmarks` - Node runtime backfill for `og_image_etag` via HEAD requests to bookmark `og_image` URLs; also refreshes `og_image_last_fetched_at`
+- [x] `backfill-domain-embeddings.node.mjs` `data-access` - Node runtime backfill for Qwen3-Embedding-4B embeddings across `ai_analysis_latest`, `opengraph_metadata`, and `thoughts` tables
+- [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
 - [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations
