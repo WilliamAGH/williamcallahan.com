@@ -10,8 +10,7 @@
  * @module s3-distributed-lock
  */
 
-import { readJsonS3, readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
-import { deleteFromS3 } from "@/lib/s3/objects";
+import { deleteJsonS3, readJsonS3, readJsonS3Optional, writeJsonS3 } from "@/lib/s3/json";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
 import type { DistributedLockEntry, LockConfig, LockResult } from "@/types";
@@ -74,7 +73,7 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
         );
 
         // Delete the stale lock
-        await deleteFromS3(lockKey);
+        await deleteJsonS3(lockKey);
         envLogger.debug("Expired lock deleted successfully", undefined, {
           category: logCategory,
         });
@@ -133,7 +132,7 @@ export async function acquireDistributedLock(config: LockConfig): Promise<LockRe
       envLogger.log(`Error verifying lock ownership: ${String(error)}`, undefined, {
         category: logCategory,
       });
-      await deleteFromS3(lockKey);
+      await deleteJsonS3(lockKey);
       return {
         success: false,
         reason: `Failed to verify lock ownership: ${String(error)}`,
@@ -162,7 +161,7 @@ export async function releaseDistributedLock(
   if (!existingLock) return;
 
   if (existingLock.instanceId === instanceId || force) {
-    await deleteFromS3(lockKey);
+    await deleteJsonS3(lockKey);
     envLogger.log(
       force ? "Lock force-released" : "Lock released",
       { instanceId },
@@ -204,7 +203,7 @@ export async function cleanupStaleLocks(
       { ageMs: age, instanceId: existingLock.instanceId },
       { category: logCategory },
     );
-    await deleteFromS3(lockKey);
+    await deleteJsonS3(lockKey);
   }
 }
 
