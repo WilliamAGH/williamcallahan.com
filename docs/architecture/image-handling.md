@@ -66,7 +66,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 5. `image-analysis.ts` / `image-compare.ts` flag globe icons, `FailureTracker` tracks domains via `LOGO_BLOCKLIST_STORE_KEY` on repeated failures.
 6. Result is persisted/streamed to S3, CDN URL returned, placeholder fallback used only if every source fails.
 
-> **Logo `<Image>` behavior:** Whenever the resolved `src` points at `/api/cache/images` (or any other `/api/*` proxy), `<LogoImage>` sets `unoptimized` so Next.js skips the built-in optimizer. The proxy already resizes/streams logo bytes, and bypassing the optimizer prevents `_next/image` from rejecting nested `/api` URLs (per [Next.js `unoptimized` guidance](https://nextjs.org/docs/app/api-reference/components/image#unoptimized)).
+> **Logo `<Image>` behavior:** Whenever the resolved `src` points at `/api/cache/images`, `<LogoImage>` sets `unoptimized` so Next.js skips the built-in optimizer. The proxy already resizes/streams logo bytes. `/api/assets` is **not** bypassed — it streams raw bytes that benefit from Next.js optimization (WebP/AVIF conversion, responsive srcset). See `shouldBypassOptimizer` in `cdn-utils.ts`.
 
 ### Bookmark Cards & Sharing Links
 
@@ -126,8 +126,8 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 | Sync blog covers -> S3       | `bun scripts/sync-blog-cover-images.ts`                                                                                                     | Hashes local `/public/images/posts/**`, uploads via `writeBinaryS3`, updates manifest JSON.                                                                                                                                      |
 | Warm manifests               | Automatic via `instrumentation-node.ts` / `loadImageManifests()`                                                                            | Set `LOAD_IMAGE_MANIFESTS_AT_BOOT=true` to enable process-start warm-up. In production runtime, request-path logo lookups do not lazy-load manifests from S3; warm-up failures fall back to placeholders until warm-up succeeds. |
 | Purge logo cache             | `resetLogoSessionTracking()` / `invalidateLogoCache()`                                                                                      | Use via Node REPL or targeted script; ensures next request refreshes from origin.                                                                                                                                                |
-| Investigate SSRF regressions | Review `url-utils` + `openGraphUrlSchema`; add tests under `__tests__/lib/validators`.                                                      |
-| Add new CDN host             | Update env (`CALLAHAN_IMAGE_HOSTS` or `NEXT_PUBLIC_S3_CDN_URL`), rerun `bun run validate` to ensure lint rule `no-hardcoded-images` passes. |
+| Investigate SSRF regressions | Review `url-utils` + `openGraphUrlSchema`; add tests under `__tests__/lib/validators`.                                                      | Confirm URL parsing and allowlist checks with explicit validator coverage before release.                                                                                                                                        |
+| Add new CDN host             | Update env (`CALLAHAN_IMAGE_HOSTS` or `NEXT_PUBLIC_S3_CDN_URL`), rerun `bun run validate` to ensure lint rule `no-hardcoded-images` passes. | Verify the hostname is allowlisted for `<Image>` optimization and proxy SSRF policy before enabling traffic.                                                                                                                     |
 
 ## Integration with Adjacent Domains
 
@@ -162,6 +162,7 @@ Keep this document synchronized with real code: every new image entry point, val
 | -------------------------------------------------------- | ----------------------------- | -------------- | -------------------------------------- | ------------------------ |
 | Our CDN (`*.callahan.cloud`, `*.digitaloceanspaces.com`) | **Direct URL**                | **No**         | Yes (responsive) / Recommended (fixed) | Next.js `/_next/image`   |
 | External URL (Twitter, LinkedIn, etc.)                   | Proxy via `/api/cache/images` | **Yes**        | Yes (responsive) / Recommended (fixed) | API route streams bytes  |
+| `/api/assets/[assetId]` (Karakeep proxy)                 | N/A (local API route)         | **No**         | Yes (responsive)                       | Next.js `/_next/image`   |
 | Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Yes (responsive) / Recommended (fixed) | Next.js                  |
 | `/api/logo`, `/api/og-image`                             | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
 | Tracking pixels (`<noscript>` analytics)                 | **Direct external URL**       | N/A            | N/A                                    | None (use plain `<img>`) |
@@ -180,11 +181,11 @@ Per Next.js docs: without `sizes`, the browser assumes the image is viewport-wid
 
 ### Canonical Helpers
 
-| Helper                    | Location                 | Purpose                                                                                    |
-| ------------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
-| `getOptimizedImageSrc()`  | `lib/utils/cdn-utils.ts` | Routes CDN URLs directly, external URLs through proxy. Use for all `<Image>` `src` values. |
-| `shouldBypassOptimizer()` | `lib/utils/cdn-utils.ts` | Returns `true` for API proxy routes and data URIs. Use for `unoptimized` prop.             |
-| `buildCachedImageUrl()`   | `lib/utils/cdn-utils.ts` | **Deprecated** (zero call sites). Do not use; `getOptimizedImageSrc()` supersedes it.      |
+| Helper                    | Location                 | Purpose                                                                                                                                    |
+| ------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `getOptimizedImageSrc()`  | `lib/utils/cdn-utils.ts` | Routes CDN URLs directly, external URLs through proxy. Use for all `<Image>` `src` values.                                                 |
+| `shouldBypassOptimizer()` | `lib/utils/cdn-utils.ts` | Returns `true` for `/api/cache/images` routes and data URIs. `/api/assets` is excluded (optimized by Next.js). Use for `unoptimized` prop. |
+| `buildCachedImageUrl()`   | `lib/utils/cdn-utils.ts` | **Deprecated** (zero call sites). Do not use; `getOptimizedImageSrc()` supersedes it.                                                      |
 
 ### Next.js Optimizer Guardrails
 
