@@ -156,7 +156,6 @@ async function testIdempotency() {
     console.log("   • Reverse mapping is accurate");
     console.log(`   • Performance: ${avgTime.toFixed(2)}ms per generation`);
     console.log("   • Cache TTL configured correctly");
-    console.log("   • Lazy loading reduces memory usage");
     console.log("\n🎉 System is ready for deployment!");
   } catch (error) {
     console.error("\n❌ Test failed with error:", error);
