@@ -75,7 +75,10 @@ try {
   const indexCount = Number(stateRows[0].count);
   const pageSize = Number(stateRows[0].page_size);
   const totalPages = Number(stateRows[0].total_pages);
-  const expectedPages = pageSize > 0 ? Math.ceil(bookmarkCount / pageSize) : 0;
+  if (!Number.isFinite(pageSize) || pageSize <= 0) {
+    throw new Error('invalid page_size in bookmark_index_state: ' + pageSize);
+  }
+  const expectedPages = Math.ceil(bookmarkCount / pageSize);
 
   if (bookmarkCount !== indexCount) {
     throw new Error(`bookmark count mismatch: bookmarks=${bookmarkCount}, index=${indexCount}`);
