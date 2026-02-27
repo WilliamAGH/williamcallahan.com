@@ -33,13 +33,13 @@ describe("Cache Invalidation Functions", () => {
       expect(bookmarksModule.invalidateTagCache).toBeDefined();
       expect(typeof bookmarksModule.invalidateTagCache).toBe("function");
 
-      expect(bookmarksModule.invalidateBookmarkCache).toBeDefined();
-      expect(typeof bookmarksModule.invalidateBookmarkCache).toBe("function");
+      expect(bookmarksModule.invalidateBookmarksPageCache).toBeDefined();
+      expect(typeof bookmarksModule.invalidateBookmarksPageCache).toBe("function");
 
       // Test that functions can be called without errors
       expect(() => bookmarksModule.invalidateBookmarksCache()).not.toThrow();
       expect(() => bookmarksModule.invalidateTagCache("test")).not.toThrow();
-      expect(() => bookmarksModule.invalidateBookmarkCache("test")).not.toThrow();
+      expect(() => bookmarksModule.invalidateBookmarksPageCache(1)).not.toThrow();
     });
   });
 
