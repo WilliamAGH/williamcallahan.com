@@ -37,11 +37,20 @@ File/Path Functionality Description
   - [x] **bookmarks/**
     - [x] `bookmark-ai-analysis.client.tsx` `bookmarks` - AI analysis component for bookmarks with SSR cache support
     - [x] `bookmark-card.client.tsx` `bookmarks` - Bookmark card UI (2025-06: unified OG images)
-    - [x] `bookmarks-client-with-window.tsx` `bookmarks` - Bookmarks window entrypoint
-    - [x] `bookmarks-window.client.tsx` `bookmarks` - UI for the bookmarks window
+    - [x] `bookmark-pagination-nav.client.tsx` `bookmarks` - Pagination navigation controls
+    - [x] `bookmark-refresh-alerts.client.tsx` `bookmarks` - Refresh status alerts
+    - [x] `bookmarks-client-with-window.tsx` `bookmarks` - Bookmarks window entrypoint; derives feed mode from URL
+    - [x] `bookmarks-paginated.client.tsx` `bookmarks` - Pagination/options routing wrapper
+    - [x] `bookmarks-window.client.tsx` `bookmarks` - UI for the bookmarks window with feed toggle
     - [x] `bookmarks-with-options.client.tsx` `bookmarks` - UI with additional bookmark options
+    - [x] `bookmarks-with-pagination.client.tsx` `bookmarks` - Main paginated bookmarks view with discover/latest modes
     - [x] `bookmarks.{client,server}.tsx` `bookmarks` - Core bookmarks components
+    - [x] `category-ribbon.client.tsx` `bookmarks` - AI category filter ribbon (fetches from `/api/bookmarks/categories`)
+    - [x] `feed-toggle.client.tsx` `bookmarks` - Discover/Latest segmented control
+    - [x] `hero-row.client.tsx` `bookmarks` - Top-3 hero cards for discover mode
+    - [x] `impression-tracker.client.tsx` `bookmarks` - IntersectionObserver wrapper for engagement tracking
     - [x] `index.ts` `bookmarks` - Removed; import bookmark components from concrete files
+    - [x] `section-break.client.tsx` `bookmarks` - Thematic section dividers between feed clusters
     - [x] `share-button.client.tsx` `bookmarks` - Share button for bookmarks
     - [x] `tags-list.client.tsx` `bookmarks` - UI for displaying bookmark tags
   - [x] **books/**
@@ -295,9 +304,14 @@ File/Path Functionality Description
     - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest materialized view + append-only versions tables
     - [x] `opengraph.ts` `seo` - OpenGraph metadata + overrides tables keyed by URL hash
     - [x] `thoughts.ts` `thoughts` - Thoughts (TIL-style content) table with slug/category indexes
+    - [x] `content-engagement.ts` `bookmarks` - Engagement event table (impression, click, dwell, external_click) with visitor hash and duration tracking
+    - [x] `content-embeddings.ts` `bookmarks` - Content embeddings table for pgvector cosine ANN (Qwen3-Embedding-4B, 2560-d halfvec)
     - [x] `image-manifests.ts` `image-handling` - Image manifests keyed by type (logos/opengraph/blog)
   - [x] **queries/**
     - [x] `bookmarks.ts` `bookmarks` - Bookmark read queries (all/page/by-id/count/FTS/tag pages/global index/per-tag index/tag slug listing)
+    - [x] `discovery-scores.ts` `bookmarks` - Discovery score computation and ranked bookmark retrieval (recency-primary + engagement)
+    - [x] `embedding-similarity.ts` `bookmarks` - Pgvector cosine ANN search and blended ranking for related content
+    - [x] `cross-domain-similarity.ts` `bookmarks` - Cross-domain similarity queries (fallback path for tag co-occurrence)
     - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated read queries from PostgreSQL
     - [x] `content-graph.ts` `search` - Related-content/books-related artifact reads from PostgreSQL
     - [x] `books.ts` `books` - Books dataset read queries (latest pointer, snapshot, combined)
@@ -320,9 +334,12 @@ File/Path Functionality Description
     - [x] `search-index-artifacts.ts` `search` - Search index artifact upserts
 - [ ] **hooks/**
   - [x] `use-anchor-scroll.client.ts` `navigation` - Hook for scrolling to anchor links
+  - [x] `use-bookmark-refresh.ts` `bookmarks` - Hook for bookmark refresh with cross-env support
+  - [x] `use-engagement-tracker.ts` `bookmarks` - Hook for batching and flushing engagement events to API
   - [x] `use-fix-svg-transforms.ts` `image-handling` - Hook to fix SVG transform issues
   - [x] `use-isomorphic-layout-effect.ts` `hooks` - Isomorphic layout effect hook
   - [x] `use-logo.ts` `image-handling` - Hook for using logos
+  - [x] `use-pagination.ts` `bookmarks` - Generic SWR infinite pagination hook with discover/latest mode support
   - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
 - [x] **image-handling/**

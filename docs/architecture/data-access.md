@@ -87,6 +87,14 @@ graph TD
 - `src/lib/bookmarks.client.ts` wraps server APIs for browser callers.
 - Client behavior focuses on API fetch lifecycles, not server in-process cache coordination.
 
+#### Engagement Tracking & Discovery Scores
+
+- `src/lib/db/schema/content-engagement.ts`: `content_engagement` table storing impression, click, dwell, and external_click events.
+- `src/lib/db/queries/discovery-scores.ts`: Aggregates engagement signals into discovery scores (82% recency + 18% engagement) with cold-start handling.
+- `src/app/api/engagement/route.ts`: POST endpoint for client event ingestion; computes `visitor_hash` server-side from IP + User-Agent.
+- `src/hooks/use-engagement-tracker.ts`: Client-side hook batching events and flushing to the API.
+- Discovery feed ranking falls back to chronological order when engagement data is sparse or unavailable.
+
 #### Bookmark Validation
 
 - `src/lib/validators/bookmarks.ts` enforces dataset safety checks before writes.
