@@ -289,7 +289,7 @@ youtube.com/watch?v=xyz789 + "React Best Practices" -> "youtube-react-best-pract
 #### UI Components (MUST include image data)
 
 1.  **RelatedContent Component** (`components/features/related-content/`):
-    - Data sources: `aggregateAllContent()` (precomputes preview metadata + best image URL) and `getCachedBookmarks()` (lightweight unless overridden).
+    - Data sources: pgvector cosine ANN search (`findSimilarByEntity`) with batch hydration (`hydrateRelatedContent`) that fetches preview metadata and best image URL from domain tables.
     - Why: Displays bookmark thumbnails in "Discover Similar Content".
 
 2.  **Bookmark Cards/Lists**: Any component rendering bookmark cards with visual previews.

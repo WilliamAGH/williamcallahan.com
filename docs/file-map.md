@@ -755,7 +755,7 @@ File/Path Functionality Description
       - [x] `dynamic-retriever.test.ts` `ai-shared-services` - RAG dynamic retriever tests
       - [x] `inventory-context.test.ts` `ai-shared-services` - RAG inventory catalog tests
       - [x] `static-context.test.ts` `ai-shared-services` - RAG static context tests
-    - [x] `content-similarity/keyword-extractor.test.ts` `search` - Keyword extraction tag filtering tests
+    - [x] `utils/limit-by-type-total.test.ts` `utils` - Per-type and global limit utility tests
     - [x] **seo/**
       - [x] `metadata.test.ts` `seo` - SEO metadata tests
       - [x] `opengraph.test.ts` `seo` - OpenGraph metadata tests

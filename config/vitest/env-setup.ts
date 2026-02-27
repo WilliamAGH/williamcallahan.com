@@ -24,16 +24,23 @@ if (!globalThis.sessionStorage) {
   });
 }
 
-// Polyfill performance.markResourceTiming (missing in JSDOM)
+// Polyfill performance.markResourceTiming (missing in JSDOM).
+// Object.defineProperty bypasses TypeScript's readonly constraint without suppression.
 if (typeof globalThis.performance === "undefined") {
-  // @ts-expect-error - performance is readonly in some envs but we need to mock it if missing
-  globalThis.performance = {};
+  Object.defineProperty(globalThis, "performance", {
+    value: {},
+    writable: true,
+    configurable: true,
+  });
 }
 
-// @ts-expect-error - extending performance with non-standard API required by Next.js/Undici
-if (typeof globalThis.performance.markResourceTiming !== "function") {
-  // @ts-expect-error - extending performance
-  globalThis.performance.markResourceTiming = () => {};
+// Next.js/Undici calls markResourceTiming at runtime; JSDOM doesn't provide it.
+if (!("markResourceTiming" in globalThis.performance)) {
+  Object.defineProperty(globalThis.performance, "markResourceTiming", {
+    value: () => {},
+    writable: true,
+    configurable: true,
+  });
 }
 
 // Note: Bun 1.2+ provides TextEncoder, ReadableStream, fetch, etc. natively.
@@ -49,3 +56,9 @@ process.env.S3_ENDPOINT = "http://localhost:9000";
 process.env.S3_SERVER_URL = "http://localhost:9000";
 process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
 process.env.USE_S3_SEARCH_INDEXES = "false";
+
+// Search source timeout: production uses 20s to handle cold-start S3 loads,
+// but in tests all searchers are mocked (resolve in <1ms). A 5s ceiling
+// prevents the source timeout from colliding with Vitest's testTimeout (20s),
+// eliminating flaky failures when the event loop is under GC pressure.
+process.env.SEARCH_SOURCE_TIMEOUT_MS = "5000";
