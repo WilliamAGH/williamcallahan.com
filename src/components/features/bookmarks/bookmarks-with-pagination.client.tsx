@@ -1,11 +1,3 @@
-/**
- * Bookmarks Client Component with Pagination
- *
- * Displays a paginated list of bookmarks with configurable search and filtering.
- * Uses the paginated API endpoint to load bookmarks progressively.
- *
- * @module components/features/bookmarks/bookmarks-with-pagination.client
- */
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
@@ -25,6 +17,7 @@ import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
 import { ImpressionTracker } from "./impression-tracker.client";
 import { CategoryRibbon } from "./category-ribbon.client";
 import { HeroRow } from "./hero-row.client";
+import { SectionBreak } from "./section-break.client";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
@@ -144,7 +137,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     [goToPage],
   );
 
-  // Reset to page 1 when tag changes (ref avoids currentPage in deps)
   const currentPageRef = useRef(currentPage);
   useEffect(() => {
     currentPageRef.current = currentPage;
@@ -167,7 +159,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const heroBookmarks = feedMode === "discover" ? displayedBookmarks.slice(0, 3) : [];
   const gridBookmarks = feedMode === "discover" ? displayedBookmarks.slice(3) : displayedBookmarks;
 
-  // Sync currentPage with URL navigation from <Link> pagination
   useEffect(() => {
     const match = /\/page\/(\d+)/.exec(pathname);
     const pageFromPath = match ? Number(match[1]) : 1;
@@ -282,11 +273,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                 </span>
               )}
             </p>
-            {isDevelopment && (
-              <span className="text-xs px-2 py-1 rounded-lg font-mono bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                Page {currentPage}/{totalPages}
-              </span>
-            )}
+            {isDevelopment && <span />}
           </div>
         ) : (
           <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded" suppressHydrationWarning />
@@ -319,18 +306,29 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             {gridBookmarks.map((bookmark, index) => (
-              <ImpressionTracker
-                key={bookmark.id}
-                contentType="bookmark"
-                contentId={bookmark.id}
-                onImpression={trackImpression}
-              >
-                <BookmarkCardClient
-                  {...bookmark}
-                  internalHref={internalHrefs?.[bookmark.id]}
-                  preload={index < IMAGE_PRELOAD_THRESHOLD}
-                />
-              </ImpressionTracker>
+              <React.Fragment key={bookmark.id}>
+                {feedMode === "discover" && index > 0 && index % 8 === 0 && (
+                  <SectionBreak
+                    category={
+                      gridBookmarks
+                        .slice(index, index + 8)
+                        .map((item) => item.category)
+                        .find((category): category is string => Boolean(category)) ?? "More"
+                    }
+                  />
+                )}
+                <ImpressionTracker
+                  contentType="bookmark"
+                  contentId={bookmark.id}
+                  onImpression={trackImpression}
+                >
+                  <BookmarkCardClient
+                    {...bookmark}
+                    internalHref={internalHrefs?.[bookmark.id]}
+                    preload={index < IMAGE_PRELOAD_THRESHOLD}
+                  />
+                </ImpressionTracker>
+              </React.Fragment>
             ))}
           </div>
 

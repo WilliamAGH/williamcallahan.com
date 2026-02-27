@@ -100,6 +100,10 @@ export type HeroRowProps = {
   onImpression: (contentType: EngagementContentType, contentId: string) => void;
 };
 
+export type SectionBreakProps = {
+  category: string;
+};
+
 // Base type for all bookmark list variations
 type BaseBookmarkListProps = {
   bookmarks: UnifiedBookmark[];
