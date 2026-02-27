@@ -19,6 +19,7 @@
 ### Task 1: Create `content_engagement` Drizzle schema
 
 **Files:**
+
 - Create: `src/lib/db/schema/content-engagement.ts`
 
 **Step 1: Write the schema file**
@@ -28,12 +29,7 @@ Follow the pattern in `src/lib/db/schema/bookmarks.ts` and `src/lib/db/schema/co
 ```typescript
 import { bigserial, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-export const ENGAGEMENT_EVENT_TYPES = [
-  "impression",
-  "click",
-  "dwell",
-  "external_click",
-] as const;
+export const ENGAGEMENT_EVENT_TYPES = ["impression", "click", "dwell", "external_click"] as const;
 export type EngagementEventType = (typeof ENGAGEMENT_EVENT_TYPES)[number];
 
 export const ENGAGEMENT_CONTENT_TYPES = [
@@ -92,13 +88,17 @@ git commit -m "feat: add content_engagement table schema for engagement tracking
 ### Task 2: Create Zod validation schema for engagement events
 
 **Files:**
+
 - Create: `src/types/schemas/engagement.ts`
 
 **Step 1: Write the Zod schema**
 
 ```typescript
 import { z } from "zod/v4";
-import { ENGAGEMENT_CONTENT_TYPES, ENGAGEMENT_EVENT_TYPES } from "@/lib/db/schema/content-engagement";
+import {
+  ENGAGEMENT_CONTENT_TYPES,
+  ENGAGEMENT_EVENT_TYPES,
+} from "@/lib/db/schema/content-engagement";
 
 export const engagementEventSchema = z.object({
   contentType: z.enum(ENGAGEMENT_CONTENT_TYPES),
@@ -127,6 +127,7 @@ git commit -m "feat: add Zod schemas for engagement event validation"
 ### Task 3: Create engagement API route
 
 **Files:**
+
 - Create: `src/app/api/engagement/route.ts`
 
 **Step 1: Write the API route**
@@ -134,6 +135,7 @@ git commit -m "feat: add Zod schemas for engagement event validation"
 Follow the pattern in `src/app/api/bookmarks/route.ts`. Accept batched events via POST. Compute `visitor_hash` server-side from IP + User-Agent (never trust client for this). Respect DNT header.
 
 Key implementation points:
+
 - Extract IP from `request.headers.get("x-forwarded-for")` or `request.headers.get("x-real-ip")`
 - Extract UA from `request.headers.get("user-agent")`
 - SHA-256 hash of `${ip}:${ua}` for `visitor_hash`
@@ -162,6 +164,7 @@ git commit -m "feat: add POST /api/engagement route for event tracking"
 ### Task 4: Create client-side engagement tracking hook
 
 **Files:**
+
 - Create: `src/hooks/use-engagement-tracker.ts`
 
 **Step 1: Write the hook**
@@ -169,11 +172,13 @@ git commit -m "feat: add POST /api/engagement route for event tracking"
 Naming pattern follows `src/hooks/use-pagination.ts`.
 
 The hook provides:
+
 - `trackImpression(contentType, contentId)` — called by IntersectionObserver when card is visible >= 1s
 - `trackDwell(contentType, contentId)` — call on detail page mount; automatically sends elapsed time on `visibilitychange`/`pagehide`
 - `trackExternalClick(contentType, contentId)` — call before external navigation
 
 Implementation:
+
 - Check `navigator.doNotTrack === "1"` on mount — if true, all functions are no-ops
 - Impressions: accumulate in a `useRef<EngagementEvent[]>` array. Flush via `navigator.sendBeacon("/api/engagement", JSON.stringify({ events }))` every 30s (via `setInterval`) and on `visibilitychange` when `document.visibilityState === "hidden"`
 - Dwell: record `performance.now()` on mount. On cleanup or visibility change, compute elapsed `durationMs` and send single event via `sendBeacon`
@@ -198,6 +203,7 @@ git commit -m "feat: add useEngagementTracker hook for client-side event collect
 ### Task 5: Create impression observer component
 
 **Files:**
+
 - Create: `src/components/features/bookmarks/impression-tracker.client.tsx`
 
 **Step 1: Write the component**
@@ -230,6 +236,7 @@ git commit -m "feat: add ImpressionTracker component for viewport-based engageme
 ### Task 6: Wire engagement tracking into bookmark pages
 
 **Files:**
+
 - Modify: `src/components/features/bookmarks/bookmarks-with-pagination.client.tsx` (wrap cards in ImpressionTracker)
 - Modify: `src/components/features/bookmarks/bookmark-detail.tsx` (add dwell + external click tracking)
 
@@ -263,17 +270,20 @@ git commit -m "feat: wire engagement tracking into bookmark feed and detail page
 ### Task 7: Create discovery score query and aggregation
 
 **Files:**
+
 - Create: `src/lib/db/queries/discovery-scores.ts`
 
 **Step 1: Write the scoring query**
 
 This module exports functions to:
+
 1. Aggregate raw engagement events into per-content scores
 2. Compute the discovery score: `(ctr_score + dwell_score + external_score) * recency_factor * novelty_boost`
 
 Use raw SQL via Drizzle's `sql` template tag rather than a materialized view (more portable, easier to refresh on-demand).
 
 Key query:
+
 ```sql
 WITH engagement_agg AS (
   SELECT
@@ -310,6 +320,7 @@ git commit -m "feat: add discovery score computation from engagement data"
 ### Task 8: Add feed mode to bookmarks API
 
 **Files:**
+
 - Modify: `src/app/api/bookmarks/route.ts`
 
 **Step 1: Add `feed` query parameter**
@@ -347,12 +358,14 @@ git commit -m "feat: add discover/latest feed mode to bookmarks API"
 ### Task 9: Update navigation link and page metadata
 
 **Files:**
+
 - Modify: `src/components/ui/navigation/navigation-links.ts:30` — change `name: "Bookmarks"` to `name: "Cool Stuff"`
 - Modify: `data/metadata.ts:201-207` — change title to `` `Cool Stuff From the Web - ${SITE_NAME}` `` and update description
 
 **Step 1: Update nav link**
 
 In `navigation-links.ts` line 30, change:
+
 ```typescript
 { name: "Cool Stuff", path: "/bookmarks" },
 ```
@@ -360,6 +373,7 @@ In `navigation-links.ts` line 30, change:
 **Step 2: Update metadata**
 
 In `data/metadata.ts` lines 201-207:
+
 ```typescript
 bookmarks: {
   title: `Cool Stuff From the Web - ${SITE_NAME}`,
@@ -373,6 +387,7 @@ bookmarks: {
 **Step 3: Update TerminalContext copy**
 
 In `src/components/ui/context-notes/terminal-context.client.tsx` lines 28-38, update the `bookmark` entry:
+
 ```typescript
 bookmark: {
   what: "cool stuff I found on the web",
@@ -408,12 +423,14 @@ git commit -m "feat: rebrand bookmarks to Cool Stuff in nav, metadata, and conte
 ### Task 10: Add Discover/Latest segmented control to window title bar
 
 **Files:**
+
 - Modify: `src/components/features/bookmarks/bookmarks-window.client.tsx:91-103`
 - Create: `src/components/features/bookmarks/feed-toggle.client.tsx`
 
 **Step 1: Create FeedToggle component**
 
 A small segmented control component:
+
 ```tsx
 "use client";
 interface FeedToggleProps {
@@ -448,6 +465,7 @@ git commit -m "feat: add Discover/Latest feed toggle to bookmarks window title b
 ### Task 11: Create category ribbon component
 
 **Files:**
+
 - Create: `src/components/features/bookmarks/category-ribbon.client.tsx`
 - Create: `src/app/api/bookmarks/categories/route.ts`
 
@@ -483,12 +501,14 @@ git commit -m "feat: add AI category ribbon for content filtering"
 ### Task 12: Create hero row for Discover mode
 
 **Files:**
+
 - Create: `src/components/features/bookmarks/hero-row.client.tsx`
 - Modify: `src/components/features/bookmarks/bookmark-card.client.tsx` (add `variant` prop)
 
 **Step 1: Add `variant` prop to BookmarkCardClient**
 
 Add an optional `variant?: "default" | "hero"` prop to `BookmarkCardClientProps`. When `variant === "hero"`:
+
 - Description shows `line-clamp-4-resilient` (already default, but confirm)
 - Show personal `note` preview if present (2-line clamp, blue-tinted background)
 - Show `readingTime` in the meta row (add new optional prop `readingTime?: number`)
@@ -496,6 +516,7 @@ Add an optional `variant?: "default" | "hero"` prop to `BookmarkCardClientProps`
 - Show favorite indicator when `isFavorite` (add new optional prop `isFavorite?: boolean`)
 
 For `variant === "default"` (standard cards), also add:
+
 - `readingTime` display next to date (e.g., "· 5 min read")
 - `category` chip above title (small, subtle)
 - `isFavorite` subtle star icon
@@ -505,6 +526,7 @@ These enrichments apply to ALL cards, not just hero. The hero variant just gets 
 **Step 2: Create HeroRow component**
 
 Renders the top 3 discovery-ranked bookmarks in an asymmetric grid:
+
 ```
 grid-cols-3:
   col-span-2 → featured card (hero variant)
@@ -536,12 +558,14 @@ git commit -m "feat: add hero row and enriched cards for magazine-style feed"
 ### Task 13: Add thematic section breaks
 
 **Files:**
+
 - Create: `src/components/features/bookmarks/section-break.client.tsx`
 - Modify: `src/components/features/bookmarks/bookmarks-with-pagination.client.tsx`
 
 **Step 1: Create SectionBreak component**
 
 Simple divider with a category label:
+
 ```tsx
 interface SectionBreakProps {
   category: string;
@@ -549,6 +573,7 @@ interface SectionBreakProps {
 ```
 
 Renders:
+
 ```html
 <div class="flex items-center gap-4 my-8 px-2">
   <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
@@ -575,11 +600,13 @@ git commit -m "feat: add thematic section breaks between feed clusters"
 ### Task 14: Enable infinite scroll in Discover mode
 
 **Files:**
+
 - Modify: `src/components/features/bookmarks/bookmarks-client-with-window.tsx:93`
 
 **Step 1: Make infinite scroll conditional on feed mode**
 
 Change line 93 from `enableInfiniteScroll={false}` to:
+
 ```typescript
 enableInfiniteScroll={feedMode === "discover"}
 ```
@@ -608,6 +635,7 @@ git commit -m "feat: enable infinite scroll in Discover feed mode"
 ### Task 15: Wire content_embeddings into content graph build
 
 **Files:**
+
 - Modify: `src/lib/content-graph/build.ts:183-197`
 - Create: `src/lib/db/queries/embedding-similarity.ts`
 
@@ -620,10 +648,11 @@ export async function findSimilarByEmbedding(
   domain: ContentEmbeddingDomain,
   entityId: string,
   limit: number = 30,
-): Promise<Array<{ domain: string; entityId: string; title: string; similarity: number }>>
+): Promise<Array<{ domain: string; entityId: string; title: string; similarity: number }>>;
 ```
 
 Implementation:
+
 1. Fetch the source item's embedding from `content_embeddings`
 2. Query nearest neighbors: `1.0 - (qwen_4b_fp16_embedding <=> source_embedding)` ordered by distance, excluding self
 3. Return top `limit` results
@@ -634,12 +663,12 @@ This is the pattern from the embedding similarity upgrade design doc (Phase 4, L
 
 In `src/lib/content-graph/build.ts`, replace the `findMostSimilar()` call at line 187 with `findSimilarByEmbedding()`. Apply blended scoring:
 
-| Signal | Weight |
-|--------|--------|
-| Cosine similarity (from pgvector) | 0.70 |
-| Recency boost | 0.10 |
-| Domain diversity bonus | 0.10 |
-| Content quality proxy (has description, is favorite, word count > 0) | 0.10 |
+| Signal                                                               | Weight |
+| -------------------------------------------------------------------- | ------ |
+| Cosine similarity (from pgvector)                                    | 0.70   |
+| Recency boost                                                        | 0.10   |
+| Domain diversity bonus                                               | 0.10   |
+| Content quality proxy (has description, is favorite, word count > 0) | 0.10   |
 
 Fall back to existing heuristic `findMostSimilar()` for items without embeddings in `content_embeddings`.
 
@@ -688,6 +717,7 @@ bun run dev
 ```
 
 Verify:
+
 - [ ] Navigation shows "Cool Stuff" (not "Bookmarks")
 - [ ] Page title is "Cool Stuff From the Web - William Callahan"
 - [ ] Window toolbar shows `~/bookmarks`
@@ -715,6 +745,7 @@ git commit -m "fix: integration fixes for Cool Stuff rebrand"
 ### Task 17: Update documentation
 
 **Files:**
+
 - Modify: `docs/architecture/README.md` — add content_engagement table, discovery feed
 - Modify: `docs/file-map.md` — add new files created
 - Modify: `docs/features/bookmarks.md` — update for Cool Stuff rebrand, engagement tracking, feed modes
@@ -722,6 +753,7 @@ git commit -m "fix: integration fixes for Cool Stuff rebrand"
 **Step 1: Update docs**
 
 Add entries for:
+
 - `src/lib/db/schema/content-engagement.ts` — engagement tracking schema
 - `src/app/api/engagement/route.ts` — engagement event ingestion
 - `src/hooks/use-engagement-tracker.ts` — client-side event collection
@@ -744,32 +776,32 @@ git commit -m "docs: update architecture and file map for Cool Stuff rebrand"
 
 ## Summary of New Files
 
-| File | Purpose |
-|------|---------|
-| `src/lib/db/schema/content-engagement.ts` | Drizzle schema for engagement tracking |
-| `src/types/schemas/engagement.ts` | Zod validation for engagement events |
-| `src/app/api/engagement/route.ts` | POST endpoint for event ingestion |
-| `src/hooks/use-engagement-tracker.ts` | Client-side tracking (impression, dwell, click) |
-| `src/components/features/bookmarks/impression-tracker.client.tsx` | IntersectionObserver wrapper |
-| `src/lib/db/queries/discovery-scores.ts` | Feed ranking computation |
-| `src/components/features/bookmarks/feed-toggle.client.tsx` | Discover/Latest segmented control |
-| `src/app/api/bookmarks/categories/route.ts` | AI category aggregation endpoint |
-| `src/components/features/bookmarks/category-ribbon.client.tsx` | Category filter chips |
-| `src/components/features/bookmarks/hero-row.client.tsx` | Featured content 2/3 + 1/3 grid |
-| `src/components/features/bookmarks/section-break.client.tsx` | Thematic divider |
-| `src/lib/db/queries/embedding-similarity.ts` | Vector cosine similarity queries |
+| File                                                              | Purpose                                         |
+| ----------------------------------------------------------------- | ----------------------------------------------- |
+| `src/lib/db/schema/content-engagement.ts`                         | Drizzle schema for engagement tracking          |
+| `src/types/schemas/engagement.ts`                                 | Zod validation for engagement events            |
+| `src/app/api/engagement/route.ts`                                 | POST endpoint for event ingestion               |
+| `src/hooks/use-engagement-tracker.ts`                             | Client-side tracking (impression, dwell, click) |
+| `src/components/features/bookmarks/impression-tracker.client.tsx` | IntersectionObserver wrapper                    |
+| `src/lib/db/queries/discovery-scores.ts`                          | Feed ranking computation                        |
+| `src/components/features/bookmarks/feed-toggle.client.tsx`        | Discover/Latest segmented control               |
+| `src/app/api/bookmarks/categories/route.ts`                       | AI category aggregation endpoint                |
+| `src/components/features/bookmarks/category-ribbon.client.tsx`    | Category filter chips                           |
+| `src/components/features/bookmarks/hero-row.client.tsx`           | Featured content 2/3 + 1/3 grid                 |
+| `src/components/features/bookmarks/section-break.client.tsx`      | Thematic divider                                |
+| `src/lib/db/queries/embedding-similarity.ts`                      | Vector cosine similarity queries                |
 
 ## Summary of Modified Files
 
-| File | Change |
-|------|--------|
-| `src/components/ui/navigation/navigation-links.ts:30` | "Bookmarks" → "Cool Stuff" |
-| `data/metadata.ts:201-207` | Updated title + description |
-| `src/components/ui/context-notes/terminal-context.client.tsx:28-38` | Updated copy |
-| `src/app/api/bookmarks/route.ts` | Add `?feed=` parameter |
-| `src/components/features/bookmarks/bookmarks-window.client.tsx` | Add FeedToggle to title bar |
+| File                                                                     | Change                                                             |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `src/components/ui/navigation/navigation-links.ts:30`                    | "Bookmarks" → "Cool Stuff"                                         |
+| `data/metadata.ts:201-207`                                               | Updated title + description                                        |
+| `src/components/ui/context-notes/terminal-context.client.tsx:28-38`      | Updated copy                                                       |
+| `src/app/api/bookmarks/route.ts`                                         | Add `?feed=` parameter                                             |
+| `src/components/features/bookmarks/bookmarks-window.client.tsx`          | Add FeedToggle to title bar                                        |
 | `src/components/features/bookmarks/bookmarks-with-pagination.client.tsx` | Add category ribbon, hero row, section breaks, impression tracking |
-| `src/components/features/bookmarks/bookmarks-client-with-window.tsx:93` | Conditional infinite scroll |
-| `src/components/features/bookmarks/bookmark-card.client.tsx` | Add variant, category, readingTime, isFavorite props |
-| `src/components/features/bookmarks/bookmark-detail.tsx` | Add dwell + external click tracking |
-| `src/lib/content-graph/build.ts:183-197` | Replace heuristic with vector similarity |
+| `src/components/features/bookmarks/bookmarks-client-with-window.tsx:93`  | Conditional infinite scroll                                        |
+| `src/components/features/bookmarks/bookmark-card.client.tsx`             | Add variant, category, readingTime, isFavorite props               |
+| `src/components/features/bookmarks/bookmark-detail.tsx`                  | Add dwell + external click tracking                                |
+| `src/lib/content-graph/build.ts:183-197`                                 | Replace heuristic with vector similarity                           |

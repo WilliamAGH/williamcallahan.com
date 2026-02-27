@@ -14,6 +14,9 @@ export function HeroRow({ bookmarks, internalHrefs, onImpression }: Readonly<Her
 
   return (
     <section className="mb-8" aria-label="Featured bookmarks">
+      <div className="mb-4">
+        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Featured Today</p>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <ImpressionTracker

@@ -275,7 +275,21 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <p className="text-red-500 dark:text-red-300 text-sm">{error?.message}</p>
         </div>
       )}
-      {!error && filteredBookmarks.length === 0 && (
+      {!error && filteredBookmarks.length === 0 && isLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={`skeleton-${String(i)}`} className="animate-pulse rounded-xl overflow-hidden">
+              <div className="w-full aspect-video bg-gray-200 dark:bg-gray-700" />
+              <div className="p-5 space-y-3">
+                <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="h-3 w-4/5 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!error && filteredBookmarks.length === 0 && !isLoading && (
         <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
           <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -292,6 +306,12 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
               onImpression={trackImpression}
             />
           )}
+
+          <div className="mb-5">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              {feedMode === "discover" ? "Latest Stories" : "All Stories"}
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             {gridBookmarks.map((bookmark, index) => (

@@ -132,41 +132,56 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const indexData = await getBookmarksIndex();
 
     if (feedMode === "discover" && !tagFilter) {
-      const rankedBookmarks = await getDiscoveryRankedBookmarks(page, limit);
-      const diversifiedBookmarks = applyCategoryDiversity(rankedBookmarks);
-      const bookmarkData = diversifiedBookmarks.map((entry) => ({
-        ...entry.bookmark,
-        category: entry.category ?? null,
-      }));
-      const slugMapping = await loadSlugMapping();
-      const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
-      const total = indexData?.count ?? bookmarkData.length;
-      const totalPages = Math.ceil(total / limit);
-      const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
+      let rankedBookmarks: Awaited<ReturnType<typeof getDiscoveryRankedBookmarks>> = [];
+      try {
+        rankedBookmarks = await getDiscoveryRankedBookmarks(page, limit);
+      } catch (error) {
+        console.warn(
+          "[API Bookmarks] Discover ranking unavailable. Falling back to latest order.",
+          error,
+        );
+      }
 
-      return NextResponse.json(
-        {
-          data: bookmarkData,
-          internalHrefs,
-          meta: {
-            pagination: {
-              page,
-              limit,
-              total,
-              totalPages,
-              hasNext: page < totalPages,
-              hasPrev: page > 1,
+      if (rankedBookmarks.length > 0) {
+        const diversifiedBookmarks = applyCategoryDiversity(rankedBookmarks);
+        const bookmarkData = diversifiedBookmarks.map((entry) => ({
+          ...entry.bookmark,
+          category: entry.category ?? null,
+        }));
+        const slugMapping = await loadSlugMapping();
+        const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
+        const total = indexData?.count ?? bookmarkData.length;
+        const totalPages = Math.ceil(total / limit);
+        const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
+
+        return NextResponse.json(
+          {
+            data: bookmarkData,
+            internalHrefs,
+            meta: {
+              pagination: {
+                page,
+                limit,
+                total,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1,
+              },
+              feed: "discover",
+              dataVersion: lastFetchedAt,
+              lastRefreshed: new Date(lastFetchedAt).toISOString(),
             },
-            feed: "discover",
-            dataVersion: lastFetchedAt,
-            lastRefreshed: new Date(lastFetchedAt).toISOString(),
           },
-        },
-        {
-          headers: {
-            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          {
+            headers: {
+              "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+            },
           },
-        },
+        );
+      }
+
+      console.warn(
+        "[API Bookmarks] Discover feed requested, but no ranked rows were available. Falling back to latest order.",
       );
     }
 
