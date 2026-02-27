@@ -2,7 +2,7 @@
  * @vitest-environment node
  */
 
-const { mockWhere, mockFrom, mockSelect, mockValues, mockInsert } = vi.hoisted(() => {
+const { mockWhere, mockSelect, mockValues, mockInsert } = vi.hoisted(() => {
   const where = vi.fn();
   const from = vi.fn(() => ({ where }));
   const select = vi.fn(() => ({ from }));
@@ -11,7 +11,6 @@ const { mockWhere, mockFrom, mockSelect, mockValues, mockInsert } = vi.hoisted((
 
   return {
     mockWhere: where,
-    mockFrom: from,
     mockSelect: select,
     mockValues: values,
     mockInsert: insert,

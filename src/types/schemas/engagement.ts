@@ -13,6 +13,9 @@ import {
   ENGAGEMENT_EVENT_TYPES,
 } from "@/lib/db/schema/content-engagement";
 
+export type EngagementEventType = (typeof ENGAGEMENT_EVENT_TYPES)[number];
+export type EngagementContentType = (typeof ENGAGEMENT_CONTENT_TYPES)[number];
+
 export const engagementEventSchema = z.object({
   contentType: z.enum(ENGAGEMENT_CONTENT_TYPES),
   contentId: z.string().min(1).max(500),

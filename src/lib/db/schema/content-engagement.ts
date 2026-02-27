@@ -8,7 +8,6 @@
 import { bigserial, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const ENGAGEMENT_EVENT_TYPES = ["impression", "click", "dwell", "external_click"] as const;
-export type EngagementEventType = (typeof ENGAGEMENT_EVENT_TYPES)[number];
 
 export const ENGAGEMENT_CONTENT_TYPES = [
   "bookmark",
@@ -18,15 +17,14 @@ export const ENGAGEMENT_CONTENT_TYPES = [
   "project",
   "thought",
 ] as const;
-export type EngagementContentType = (typeof ENGAGEMENT_CONTENT_TYPES)[number];
 
 export const contentEngagement = pgTable(
   "content_engagement",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    contentType: text("content_type").$type<EngagementContentType>().notNull(),
+    contentType: text("content_type").$type<(typeof ENGAGEMENT_CONTENT_TYPES)[number]>().notNull(),
     contentId: text("content_id").notNull(),
-    eventType: text("event_type").$type<EngagementEventType>().notNull(),
+    eventType: text("event_type").$type<(typeof ENGAGEMENT_EVENT_TYPES)[number]>().notNull(),
     durationMs: integer("duration_ms"),
     visitorHash: text("visitor_hash").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

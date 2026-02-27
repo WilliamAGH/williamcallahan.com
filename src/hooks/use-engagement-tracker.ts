@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-import type { EngagementContentType } from "@/lib/db/schema/content-engagement";
-import type { EngagementEvent } from "@/types/schemas/engagement";
+import type { EngagementContentType, EngagementEvent } from "@/types/schemas/engagement";
 
 const ENGAGEMENT_ENDPOINT = "/api/engagement";
 const IMPRESSION_FLUSH_INTERVAL_MS = 30_000;

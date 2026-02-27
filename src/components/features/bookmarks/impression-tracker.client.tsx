@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-
-interface ImpressionTrackerProps {
-  contentType: string;
-  contentId: string;
-  onImpression: (contentType: string, contentId: string) => void;
-  children: React.ReactNode;
-}
+import type { ImpressionTrackerProps } from "@/types/features/bookmarks";
 
 const VISIBILITY_THRESHOLD = 0.5;
 const IMPRESSION_DELAY_MS = 1_000;

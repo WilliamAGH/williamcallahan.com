@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { BookmarkTag } from "@/types/schemas/bookmark";
@@ -35,6 +35,7 @@ import { removeCitations, processSummaryText } from "@/lib/utils/formatters";
 import { safeExternalHref, getDisplayHostname, isGitHubUrl } from "@/lib/utils/url-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
+import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
 
 // Helper to avoid rendering the literal "Invalid Date"
 function toDisplayDate(date?: string | Date | number | null): string | null {
@@ -48,6 +49,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
   const [analysisData, setAnalysisData] = useState<BookmarkAiAnalysisResponse | null>(
     cachedAnalysis?.analysis ?? null,
   );
+  const { trackDwell, trackExternalClick } = useEngagementTracker();
   const hasAnalysis = !!analysisData;
 
   // Subtle parallax for image
@@ -78,6 +80,10 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
   const featuredImage = selectBestImage(bookmark, {
     includeScreenshots: true,
   });
+
+  useEffect(() => {
+    return trackDwell("bookmark", bookmark.id);
+  }, [bookmark.id, trackDwell]);
 
   return (
     <BookmarksWindow windowTitle="~/bookmarks" windowId={`bookmark-detail-${bookmark.id}`}>
@@ -344,6 +350,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                   href={safeUrl ?? "/bookmarks"}
                   target={safeUrl ? "_blank" : undefined}
                   rel={safeUrl ? "noopener noreferrer" : undefined}
+                  onClick={() => trackExternalClick("bookmark", bookmark.id)}
                   className={`flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 font-medium rounded-lg transition-colors group ${
                     isGitHub
                       ? "bg-[#24292f] dark:bg-[#f0f3f6] text-white dark:text-[#24292f] hover:bg-[#32383f] dark:hover:bg-[#d8dee4]"

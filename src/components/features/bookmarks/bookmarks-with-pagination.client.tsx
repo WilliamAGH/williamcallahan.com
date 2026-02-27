@@ -22,6 +22,8 @@ import { BookmarkPaginationNav } from "./bookmark-pagination-nav.client";
 import { usePagination } from "@/hooks/use-pagination";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
 import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
+import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
+import { ImpressionTracker } from "./impression-tracker.client";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
@@ -91,6 +93,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       router.refresh();
     },
   });
+  const { trackImpression } = useEngagementTracker();
 
   useEffect(() => {
     setMounted(true);
@@ -270,12 +273,18 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             {paginatedSlice(filteredBookmarks).map((bookmark, index) => (
-              <BookmarkCardClient
+              <ImpressionTracker
                 key={bookmark.id}
-                {...bookmark}
-                internalHref={internalHrefs?.[bookmark.id]}
-                preload={index < IMAGE_PRELOAD_THRESHOLD}
-              />
+                contentType="bookmark"
+                contentId={bookmark.id}
+                onImpression={trackImpression}
+              >
+                <BookmarkCardClient
+                  {...bookmark}
+                  internalHref={internalHrefs?.[bookmark.id]}
+                  preload={index < IMAGE_PRELOAD_THRESHOLD}
+                />
+              </ImpressionTracker>
             ))}
           </div>
 

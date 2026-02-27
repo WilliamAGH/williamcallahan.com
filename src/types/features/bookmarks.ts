@@ -8,8 +8,11 @@
  * Everything else is just UI variations that should use composition.
  */
 
+import type { ReactNode } from "react";
+
 import type { UnifiedBookmark, BookmarkTag, BookmarkContent } from "../bookmark";
 import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from "@/types/ui";
+import type { EngagementContentType } from "@/types/schemas/engagement";
 
 // =============================================================================
 // ACTUALLY USED CLIENT COMPONENT PROPS
@@ -64,6 +67,13 @@ export type TagsListClientProps = BaseComponentProps & {
 export type BookmarkShareButtonProps = BaseComponentProps & {
   bookmark: Pick<UnifiedBookmark, "id" | "url">;
   shareUrl: string;
+};
+
+export type ImpressionTrackerProps = {
+  contentType: EngagementContentType;
+  contentId: string;
+  onImpression: (contentType: EngagementContentType, contentId: string) => void;
+  children: ReactNode;
 };
 
 // Base type for all bookmark list variations
