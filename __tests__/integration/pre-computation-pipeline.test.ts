@@ -39,7 +39,25 @@ vi.mock("@/lib/db/mutations/search-index-artifacts", () => ({
 vi.mock("@/lib/blog/mdx");
 vi.mock("@/lib/content-similarity/aggregator");
 vi.mock("@/lib/content-similarity");
-vi.mock("@/data/projects");
+vi.mock("@/data/projects", () => ({ projects: [] }));
+
+// Mock DB-backed content graph dependencies (pgvector queries)
+const mockDbExecute = vi.fn();
+vi.mock("@/lib/db/connection", () => ({
+  db: { execute: (...args: unknown[]) => mockDbExecute(...args) },
+}));
+vi.mock("drizzle-orm", () => ({
+  sql: Object.assign(
+    (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values, _tag: "sql" }),
+    { raw: (s: string) => ({ raw: s, _tag: "sql-raw" }) },
+  ),
+  inArray: vi.fn(),
+  eq: vi.fn(),
+  and: vi.fn(),
+}));
+vi.mock("@/lib/db/queries/cross-domain-similarity", () => ({
+  findSimilarByEntity: vi.fn().mockResolvedValue([]),
+}));
 
 const mockReadContentGraphArtifact = readContentGraphArtifact as MockedFunction<
   typeof readContentGraphArtifact
@@ -141,27 +159,18 @@ describe("Pre-computation Pipeline Integration", () => {
       const { listS3Objects } = await import("@/lib/s3/objects");
       (listS3Objects as Mock).mockResolvedValue([]);
 
-      // Mock content similarity dependencies
-      const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
-      (aggregateAllContent as Mock).mockResolvedValue([
-        {
-          type: "blog",
-          id: "test-post",
-          title: "Test Post",
-          description: "Test excerpt",
-          tags: ["test"],
-        },
-        {
-          type: "bookmark",
-          id: "b1",
-          title: "Test",
-          description: "",
-          tags: [],
-        },
-      ]);
-
-      const { findMostSimilar } = await import("@/lib/content-similarity");
-      (findMostSimilar as Mock).mockReturnValue([]);
+      // Mock DB queries for content graph build (pgvector-based)
+      mockDbExecute
+        .mockResolvedValueOnce([
+          {
+            domain: "blog",
+            entity_id: "test-post",
+            title: "Test Post",
+            content_date: "2024-01-01",
+          },
+          { domain: "bookmark", entity_id: "b1", title: "Test", content_date: null },
+        ])
+        .mockResolvedValueOnce([]); // tag content rows
 
       const { getAllPosts } = await import("@/lib/blog");
       (getAllPosts as Mock).mockResolvedValue([
@@ -258,9 +267,10 @@ describe("Pre-computation Pipeline Integration", () => {
       const { getBookmarks: getServiceBookmarks } = await import("@/lib/bookmarks/service.server");
       (getServiceBookmarks as Mock).mockResolvedValue(mockBookmarks);
 
-      // Ensure content graph can iterate even if search fails
-      const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
-      (aggregateAllContent as Mock).mockResolvedValue([]);
+      // Ensure content graph DB queries return data even if search fails
+      mockDbExecute
+        .mockResolvedValueOnce([]) // embedding rows
+        .mockResolvedValueOnce([]); // tag content rows
 
       const results = await manager.fetchData({
         bookmarks: true,

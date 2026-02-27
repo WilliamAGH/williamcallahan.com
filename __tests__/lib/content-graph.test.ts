@@ -1,10 +1,13 @@
 /**
- * Test suite for content graph pre-computation functionality
+ * Test suite for content graph pre-computation functionality.
+ *
+ * The content graph builder uses pgvector cosine similarity via
+ * findSimilarByEntity rather than the old in-memory aggregator.
  */
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { writeContentGraphArtifacts } from "@/lib/db/mutations/content-graph";
-import type { Mock, MockedFunction } from "vitest";
+import type { MockedFunction } from "vitest";
 
 // Mock DB mutations for content graph persistence
 vi.mock("@/lib/db/mutations/content-graph");
@@ -13,13 +16,28 @@ vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
 vi.mock("@/lib/blog");
 vi.mock("@/lib/utils/logger");
 vi.mock("@/lib/search/index-builder");
-vi.mock("@/lib/content-similarity/aggregator");
-vi.mock("@/lib/content-similarity", () => ({
-  findMostSimilar: vi.fn(),
-  DEFAULT_WEIGHTS: { tagMatch: 0.4, textSimilarity: 0.3, domainMatch: 0.2, recency: 0.1 },
-}));
 vi.mock("@/data/projects", () => ({
   projects: [],
+}));
+
+// Mock cross-domain similarity (pgvector queries)
+const mockFindSimilarByEntity = vi.fn();
+vi.mock("@/lib/db/queries/cross-domain-similarity", () => ({
+  findSimilarByEntity: (...args: unknown[]) => mockFindSimilarByEntity(...args),
+}));
+
+// Mock DB connection for direct SQL queries in buildContentGraph
+const mockDbExecute = vi.fn();
+vi.mock("@/lib/db/connection", () => ({
+  db: { execute: (...args: unknown[]) => mockDbExecute(...args) },
+}));
+
+// Mock drizzle-orm sql tagged template
+vi.mock("drizzle-orm", () => ({
+  sql: Object.assign(
+    (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values, _tag: "sql" }),
+    { raw: (s: string) => ({ raw: s, _tag: "sql-raw" }) },
+  ),
 }));
 
 const mockWriteContentGraphArtifacts = writeContentGraphArtifacts as MockedFunction<
@@ -36,68 +54,67 @@ describe("Content Graph Pre-computation", () => {
 
   describe("buildContentGraph", () => {
     it("should generate related content mappings for all items", async () => {
-      // Mock normalized content structure
-      const mockNormalizedContent = [
+      // Mock embedding rows returned by the first db.execute call
+      const embeddingRows = [
+        { domain: "bookmark", entity_id: "b1", title: "Test Bookmark", content_date: "2024-01-01" },
         {
-          type: "bookmark" as const,
-          id: "b1",
-          title: "Test Bookmark",
-          tags: ["javascript"],
-          url: "https://example.com",
-          content: "Test bookmark content",
-          createdAt: "2024-01-01",
-        },
-        {
-          type: "bookmark" as const,
-          id: "b2",
+          domain: "bookmark",
+          entity_id: "b2",
           title: "Another Bookmark",
-          tags: ["typescript"],
-          url: "https://test.com",
-          content: "Another bookmark content",
-          createdAt: "2024-01-02",
+          content_date: "2024-01-02",
         },
-        {
-          type: "blog" as const,
-          id: "p1",
-          title: "Test Post",
-          tags: ["javascript"],
-          url: "/blog/test-post",
-          content: "Test blog content",
-          createdAt: "2024-01-01",
-        },
+        { domain: "blog", entity_id: "p1", title: "Test Post", content_date: "2024-01-01" },
       ];
 
-      const mockBlogPosts = [
-        {
-          id: "p1",
-          title: "Test Post",
-          tags: ["javascript"],
-          slug: "test-post",
-          content: "Test content",
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01",
-          status: "published",
-        },
+      // Mock tag content rows returned by the second db.execute call
+      const tagContentRows = [
+        { domain: "bookmark", entity_id: "b1", tags: ["javascript"] },
+        { domain: "bookmark", entity_id: "b2", tags: ["typescript"] },
+        { domain: "blog", entity_id: "p1", tags: ["javascript"] },
       ];
 
-      // Setup mocks
-      const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
-      const { getAllPosts } = await import("@/lib/blog");
-      const { findMostSimilar } = await import("@/lib/content-similarity");
-      const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
+      // First call: embedding rows; second call: tag content rows
+      mockDbExecute.mockResolvedValueOnce(embeddingRows).mockResolvedValueOnce(tagContentRows);
 
-      (aggregateAllContent as Mock).mockResolvedValue(mockNormalizedContent);
-      (getAllPosts as Mock).mockResolvedValue(mockBlogPosts);
-      // Projects already mocked at module level
-      (findMostSimilar as Mock).mockImplementation((_source, candidates) => {
-        // Return mock similar content
-        return candidates.slice(0, 2).map((c: any, i: number) => ({
-          ...c,
-          score: 0.9 - i * 0.1,
-        }));
+      // Mock findSimilarByEntity to return similarity candidates
+      mockFindSimilarByEntity.mockImplementation(({ sourceId }: { sourceId: string }) => {
+        if (sourceId === "b1") {
+          return Promise.resolve([
+            {
+              domain: "blog",
+              entityId: "p1",
+              title: "Test Post",
+              similarity: 0.85,
+              contentDate: "2024-01-01",
+            },
+            {
+              domain: "bookmark",
+              entityId: "b2",
+              title: "Another Bookmark",
+              similarity: 0.7,
+              contentDate: "2024-01-02",
+            },
+          ]);
+        }
+        return Promise.resolve([
+          {
+            domain: "bookmark",
+            entityId: "b1",
+            title: "Test Bookmark",
+            similarity: 0.8,
+            contentDate: "2024-01-01",
+          },
+        ]);
       });
-      // DEFAULT_WEIGHTS already mocked at module level
-      (refreshBookmarks as Mock).mockResolvedValue([]);
+
+      // Mock blog posts and projects for metadata
+      const { getAllPosts } = await import("@/lib/blog");
+      (getAllPosts as MockedFunction<typeof getAllPosts>).mockResolvedValue([
+        { slug: "test-post", title: "Test Post", tags: ["javascript"], publishedAt: "2024-01-01" },
+      ] as any);
+
+      const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
+      (refreshBookmarks as any).mockResolvedValue([]);
       mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
 
       // Run the content graph build
@@ -137,66 +154,39 @@ describe("Content Graph Pre-computation", () => {
     });
 
     it("should build tag co-occurrence graph correctly", async () => {
-      // Mock normalized content with overlapping tags
-      const mockNormalizedContent = [
+      // Mock embedding rows
+      const embeddingRows = [
         {
-          type: "bookmark" as const,
-          id: "1",
-          tags: ["javascript", "react"],
+          domain: "bookmark",
+          entity_id: "1",
           title: "JS React Bookmark",
-          url: "https://example1.com",
-          content: "JS React content",
-          createdAt: "2024-01-01",
+          content_date: "2024-01-01",
         },
         {
-          type: "bookmark" as const,
-          id: "2",
-          tags: ["javascript", "vue"],
+          domain: "bookmark",
+          entity_id: "2",
           title: "JS Vue Bookmark",
-          url: "https://example2.com",
-          content: "JS Vue content",
-          createdAt: "2024-01-02",
+          content_date: "2024-01-02",
         },
-        {
-          type: "blog" as const,
-          id: "3",
-          tags: ["react", "typescript"],
-          title: "React TS Post",
-          url: "/blog/react-ts",
-          content: "React TS content",
-          createdAt: "2024-01-01",
-        },
+        { domain: "blog", entity_id: "3", title: "React TS Post", content_date: "2024-01-01" },
       ];
 
-      const mockBlogPosts = [
-        {
-          id: "3",
-          tags: ["react", "typescript"],
-          title: "React TS Post",
-          slug: "react-ts-post",
-          content: "Test content",
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01",
-          status: "published",
-        },
+      // Mock tag content rows with overlapping tags
+      const tagContentRows = [
+        { domain: "bookmark", entity_id: "1", tags: ["javascript", "react"] },
+        { domain: "bookmark", entity_id: "2", tags: ["javascript", "vue"] },
+        { domain: "blog", entity_id: "3", tags: ["react", "typescript"] },
       ];
 
-      const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
+      mockDbExecute.mockResolvedValueOnce(embeddingRows).mockResolvedValueOnce(tagContentRows);
+
+      mockFindSimilarByEntity.mockResolvedValue([]);
+
       const { getAllPosts } = await import("@/lib/blog");
-      const { findMostSimilar } = await import("@/lib/content-similarity");
-      const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
+      (getAllPosts as any).mockResolvedValue([]);
 
-      (aggregateAllContent as Mock).mockResolvedValue(mockNormalizedContent);
-      (getAllPosts as Mock).mockResolvedValue(mockBlogPosts);
-      // Projects already mocked at module level
-      (findMostSimilar as Mock).mockImplementation((_source, candidates) => {
-        return candidates.slice(0, 2).map((c: any, i: number) => ({
-          ...c,
-          score: 0.9 - i * 0.1,
-        }));
-      });
-      // DEFAULT_WEIGHTS already mocked at module level
-      (refreshBookmarks as Mock).mockResolvedValue([]);
+      const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
+      (refreshBookmarks as any).mockResolvedValue([]);
       mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
 
       await manager.fetchData({
@@ -239,111 +229,17 @@ describe("Content Graph Pre-computation", () => {
       }
     });
 
-    it.todo("should save metadata with correct counts", async () => {
-      const mockNormalizedContent = [
-        ...Array(50)
-          .fill(null)
-          .map((_, i) => ({
-            type: "bookmark" as const,
-            id: `b${i}`,
-            title: `Bookmark ${i}`,
-            url: `https://example${i}.com`,
-            tags: [],
-            content: `Bookmark ${i} content`,
-            createdAt: "2024-01-01",
-          })),
-        ...Array(10)
-          .fill(null)
-          .map((_, i) => ({
-            type: "blog" as const,
-            id: `p${i}`,
-            title: `Post ${i}`,
-            url: `/blog/post-${i}`,
-            tags: [],
-            content: `Post ${i} content`,
-            createdAt: "2024-01-01",
-          })),
-      ];
-
-      const mockBlogPosts = Array(10)
-        .fill(null)
-        .map((_, i) => ({
-          id: `p${i}`,
-          title: `Post ${i}`,
-          slug: `post-${i}`,
-          content: `Content ${i}`,
-          tags: [],
-          createdAt: "2024-01-01",
-          updatedAt: "2024-01-01",
-          status: "published",
-        }));
-
-      const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
-      const { getAllPosts } = await import("@/lib/blog");
-      const { findMostSimilar } = await import("@/lib/content-similarity");
-      const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
-      const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-
-      (aggregateAllContent as Mock).mockResolvedValue(mockNormalizedContent);
-      (getAllPosts as Mock).mockResolvedValue(mockBlogPosts);
-      // Projects already mocked at module level
-      (findMostSimilar as Mock).mockImplementation((_source, candidates) => {
-        return candidates.slice(0, 2).map((c: any, i: number) => ({
-          ...c,
-          score: 0.9 - i * 0.1,
-        }));
-      });
-      // DEFAULT_WEIGHTS already mocked at module level
-      // Mock getBookmarks to return previous bookmarks (empty initially)
-      (getBookmarks as Mock).mockResolvedValue([]);
-      // Return mock bookmarks data to ensure the fetch succeeds
-      (refreshBookmarks as Mock).mockResolvedValue(
-        Array(50)
-          .fill(null)
-          .map((_, i) => ({
-            id: `b${i}`,
-            title: `Bookmark ${i}`,
-            url: `https://example${i}.com`,
-            tags: [],
-            description: `Bookmark ${i} description`,
-            dateBookmarked: "2024-01-01",
-          })),
-      );
-      mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
-
-      await manager.fetchData({
-        bookmarks: true,
-        forceRefresh: true,
-      });
-
-      // Verify metadata was written via DB artifacts
-      const artifactsArg = mockWriteContentGraphArtifacts.mock.calls[0]?.[0];
-      const metadataArtifact = artifactsArg?.find(
-        (a: { artifactType: string }) => a.artifactType === "metadata",
-      );
-
-      expect(metadataArtifact).toBeDefined();
-      if (metadataArtifact) {
-        expect(metadataArtifact.payload).toMatchObject({
-          version: "1.0.0",
-          generated: expect.any(String),
-          counts: expect.objectContaining({
-            bookmarks: 50,
-            blogPosts: 10,
-          }),
-        });
-      }
-    });
+    it.todo("should save metadata with correct counts");
 
     it("should handle errors gracefully", async () => {
-      const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
+      // Make DB query fail
+      mockDbExecute.mockRejectedValue(new Error("Failed query"));
+
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
 
-      // Mock aggregator to throw error for content graph failure
-      (aggregateAllContent as Mock).mockRejectedValue(new Error("Content aggregation failed"));
-      (getBookmarks as Mock).mockResolvedValue([]); // Mock getBookmarks to return empty array
-      (refreshBookmarks as Mock).mockRejectedValue(new Error("API Error"));
+      (getBookmarks as any).mockResolvedValue([]);
+      (refreshBookmarks as any).mockRejectedValue(new Error("API Error"));
 
       const result = await manager.fetchData({
         bookmarks: true,
