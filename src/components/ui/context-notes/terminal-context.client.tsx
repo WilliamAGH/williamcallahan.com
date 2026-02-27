@@ -26,14 +26,14 @@ import type {
 
 const CONTENT: Record<ContextType, ContextContent> = {
   bookmark: {
-    what: "a bookmark from my personal collection",
+    what: "cool stuff I found on the web",
     why: [
-      "Traditional web browser Bookmarks don't work for me.",
-      "I organize mine to make them searchable and discoverable.",
+      "The internet is full of incredible tools, ideas, and resources.",
+      "I organize what I find to make it searchable and discoverable.",
     ],
     more: [
-      "I like to think of data in knowledge graphs (how they relate to each other).",
-      "Once I made it for myself, I thought others might benefit from it too, so I hope you like it!",
+      "Everything here is enriched with AI analysis and connected via semantic search.",
+      "I built this for myself first, then thought others might find it useful too.",
     ],
   },
   book: {

@@ -199,11 +199,11 @@ export const PAGE_METADATA = {
     profileImage: getStaticImageUrl("/images/william-callahan-san-francisco.png"),
   } as ProfilePageMetadata,
   bookmarks: {
-    title: `Bookmarks & Resources - ${SITE_NAME}`,
+    title: `Cool Stuff From the Web - ${SITE_NAME}`,
     description:
-      "A live updating directory of things online I found noteworthy and wish to refer back to periodically.",
+      "A curated collection of noteworthy tools, articles, and resources from across the web — searchable, organized, and enriched with AI analysis.",
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-11-04T12:42:00",
+    dateModified: new Date().toISOString(),
   } as CollectionPageMetadata,
   blog: {
     title: `Blog - ${SITE_NAME}`,
