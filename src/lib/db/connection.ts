@@ -57,7 +57,7 @@ const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string
     console.warn(
       "[db/connection] Failed to parse DATABASE_URL for internal rewrite:",
       getRedactedDatabaseUrlTarget(rawUrl),
-      error,
+      error instanceof Error ? error.message : String(error),
     );
     return rawUrl;
   }
