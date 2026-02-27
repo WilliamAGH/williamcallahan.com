@@ -17,7 +17,11 @@ import { readRelatedContent } from "@/lib/db/queries/content-graph";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
-import type { RelatedContentProps, RelatedContentItem } from "@/types/related-content";
+import type {
+  RelatedContentProps,
+  RelatedContentItem,
+  RelatedContentType,
+} from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 
 import {
@@ -98,7 +102,7 @@ async function resolveFromPrecomputed(contentKey: string): Promise<RelatedConten
 
   // Build ScoredCandidate-shaped objects for hydration
   const candidates = entries.map((e) => ({
-    domain: e.type as ContentEmbeddingDomain,
+    domain: e.type,
     entityId: e.id,
     title: e.title,
     similarity: e.score,
@@ -113,10 +117,10 @@ async function resolveFromPrecomputed(contentKey: string): Promise<RelatedConten
  * Compute related content on-demand via pgvector ANN search.
  */
 async function resolveOnDemand(
-  sourceType: string,
+  sourceType: RelatedContentType,
   sourceId: string,
 ): Promise<RelatedContentItem[]> {
-  const sourceDomain = sourceType as ContentEmbeddingDomain;
+  const sourceDomain: ContentEmbeddingDomain = sourceType;
 
   const candidates = await findSimilarByEntity({
     sourceDomain,

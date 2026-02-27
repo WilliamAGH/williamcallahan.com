@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     const hydratedItems = await requestLock.run<RelatedContentItem[] | null>({
       key: lockKey,
       work: async () => {
-        const sourceDomain = sourceType as ContentEmbeddingDomain;
+        const sourceDomain: ContentEmbeddingDomain = sourceType;
         const candidates = await findSimilarByEntity({
           sourceDomain,
           sourceId: finalSourceId,
