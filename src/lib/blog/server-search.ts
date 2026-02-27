@@ -1,98 +1,43 @@
 /**
- * Server-side function to filter blog posts based on a query.
- * Builds a cached MiniSearch index over title, excerpt, tags, and author name.
+ * Server-side blog post search via hybrid PostgreSQL (FTS + trigram + pgvector).
  *
- * @param query - The search query string.
- * @returns A promise that resolves to an array of matching SearchResult objects.
+ * @module lib/blog/server-search
  */
 
 import { assertServerOnly } from "../utils/ensure-server-only";
-assertServerOnly(); // Ensure this module runs only on the server
+assertServerOnly();
 
-import MiniSearch from "minisearch";
 import type { SearchResult } from "@/types/search";
 import { sanitizeSearchQuery } from "../validators/search";
-import { prepareDocumentsForIndexing } from "../utils/search-helpers";
-import { getAllMDXPostsForSearch } from "./mdx";
-import type { BlogPost } from "@/types/blog";
-import { rerankScoredResultsWithEmbeddings } from "@/lib/search/search-content";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+import { hybridSearchBlogPosts } from "@/lib/db/queries/hybrid-search-books-blog";
 
-async function getBlogSearchIndex(): Promise<MiniSearch<BlogPost>> {
-  const posts = await getAllMDXPostsForSearch();
-  const index = new MiniSearch<BlogPost>({
-    fields: ["title", "excerpt", "tags", "authorName"],
-    storeFields: ["slug", "title", "excerpt", "publishedAt"],
-    idField: "slug",
-    searchOptions: {
-      boost: { title: 2 },
-      fuzzy: 0.1,
-      prefix: true,
-    },
-    extractField: (document, fieldName) => {
-      if (fieldName === "authorName") {
-        return document.author?.name || "";
-      }
-      if (fieldName === "tags") {
-        return Array.isArray(document.tags) ? document.tags.join(" ") : "";
-      }
-      const field = fieldName as keyof BlogPost;
-      const value = document[field];
-      return typeof value === "string" ? value : "";
-    },
-  });
-
-  const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", (post) => post.slug);
-  index.addAll(dedupedPosts);
-  return index;
-}
+const SEARCH_LIMIT = 50;
 
 /**
- * Server-side function to filter blog posts based on a query.
- * Searches title, excerpt, tags, and author name (raw content excluded for memory efficiency).
- *
- * @param query - The search query string.
- * @returns A promise that resolves to an array of matching SearchResult objects.
+ * Search blog posts via hybrid PostgreSQL search.
+ * Results sorted by hybrid score desc, then recency as tiebreaker.
  */
 export async function searchBlogPostsServerSide(query: string): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
-  if (!sanitizedQuery) {
-    return [];
-  }
+  if (!sanitizedQuery) return [];
 
-  const index = await getBlogSearchIndex();
-
-  const rawResults = index.search(sanitizedQuery, {
-    prefix: true,
-    fuzzy: 0.1,
-    boost: { title: 2, excerpt: 1.25, authorName: 1.1 },
-    combineWith: "AND",
-  }) as Array<{
-    id: string | number;
-    slug?: string;
-    title?: string;
-    excerpt?: string;
-    publishedAt?: string;
-    score?: number;
-  }>;
-
-  const rerankedResults = await rerankScoredResultsWithEmbeddings({
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBlogPosts]");
+  const rows = await hybridSearchBlogPosts({
     query: sanitizedQuery,
-    scoredResults: rawResults.map((result) => ({ item: result, score: result.score ?? 0 })),
-    getRerankText: (result) => [result.title ?? "", result.excerpt ?? ""].join("\n"),
-    logContext: "[searchBlogPostsServerSide]",
+    embedding,
+    limit: SEARCH_LIMIT,
   });
 
-  // Map to SearchResult and keep a deterministic sort: score desc, then recency
-  return rerankedResults
-    .map(({ item, score }) => ({ ...item, score }))
-    .map((result) => ({
-      id: String(result.id),
+  return rows
+    .map((r) => ({
+      id: r.id,
       type: "blog-post" as const,
-      title: result.title ?? "Untitled Post",
-      description: result.excerpt ?? "No excerpt available.",
-      url: `/blog/${result.slug ?? result.id}`,
-      score: result.score ?? 0,
-      publishedAt: result.publishedAt,
+      title: r.title,
+      description: r.excerpt ?? undefined,
+      url: `/blog/${r.slug}`,
+      score: r.score,
+      publishedAt: r.publishedAt,
     }))
     .toSorted((a, b) => {
       const scoreDiff = b.score - a.score;

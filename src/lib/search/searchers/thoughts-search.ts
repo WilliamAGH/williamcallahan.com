@@ -6,11 +6,8 @@
 import type { SearchResult } from "@/types/search";
 import { PAGE_METADATA } from "@/data/metadata";
 import { hybridSearchThoughts } from "@/lib/db/queries/hybrid-search";
-import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
-import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
-import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
-import { envLogger } from "@/lib/utils/env-logger";
 
 const SEARCH_LIMIT = 24;
 
@@ -19,33 +16,6 @@ const trimContent = (content: string): string =>
     .replace(/```[\s\S]*?```/g, "")
     .replace(/\s+/g, " ")
     .trim();
-
-async function buildThoughtQueryEmbedding(query: string): Promise<number[] | undefined> {
-  const embeddingConfig = resolveDefaultEndpointCompatibleEmbeddingConfig();
-  if (!embeddingConfig) {
-    return undefined;
-  }
-
-  try {
-    const vectors = await embedTextsWithEndpointCompatibleModel({
-      config: embeddingConfig,
-      input: [query],
-      timeoutMs: 1_500,
-    });
-    const vector = vectors[0];
-    if (!vector || vector.length !== CONTENT_EMBEDDING_DIMENSIONS) {
-      return undefined;
-    }
-    return vector;
-  } catch (error) {
-    envLogger.log(
-      "Thought query embedding failed; using BM25-only thought search",
-      { error: error instanceof Error ? error.message : String(error) },
-      { category: "Search" },
-    );
-    return undefined;
-  }
-}
 
 function getThoughtsPageResult(): SearchResult {
   const pageTitle =
@@ -71,7 +41,7 @@ export async function searchThoughts(query: string): Promise<SearchResult[]> {
     return [];
   }
 
-  const embedding = await buildThoughtQueryEmbedding(sanitizedQuery);
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchThoughts]");
   const rows = await hybridSearchThoughts({
     query: sanitizedQuery,
     embedding,

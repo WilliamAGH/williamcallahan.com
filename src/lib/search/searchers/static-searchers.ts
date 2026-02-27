@@ -1,8 +1,8 @@
 /**
- * Static Content Search Functions
+ * Static & Domain Content Search Functions
  *
- * Search functions for static content types: investments, experience, education, projects.
- * Uses the createCachedSearchFunction factory for consistent implementation.
+ * - Investments, projects: hybrid PostgreSQL (FTS + trigram + pgvector)
+ * - Experience, education: MiniSearch (no PG tables for these small static datasets)
  *
  * @module lib/search/searchers/static-searchers
  */
@@ -10,51 +10,46 @@
 import type { SearchResult } from "@/types/search";
 import { createCachedSearchFunction } from "../search-factory";
 import {
-  getInvestmentsIndex,
   getExperienceIndex,
   getEducationIndex,
-  getProjectsIndex,
   getEducationItems,
-  investments,
   experiences,
-  projectsData,
 } from "../loaders/static-content";
-import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+import {
+  hybridSearchInvestments,
+  hybridSearchProjects,
+} from "@/lib/db/queries/hybrid-search-investments";
+
+const SEARCH_LIMIT = 50;
 
 /**
- * Search investments by query.
+ * Search investments via hybrid PostgreSQL (FTS + trigram + pgvector).
  */
-export const searchInvestments = createCachedSearchFunction({
-  cacheKey: "investments",
-  getIndex: getInvestmentsIndex,
-  getItems: () => investments,
-  getSearchableFields: (inv) => [
-    inv.name,
-    inv.description,
-    inv.type,
-    inv.status,
-    inv.founded_year,
-    inv.invested_year,
-    inv.acquired_year,
-    inv.shutdown_year,
-  ],
-  getExactMatchField: (inv) => inv.name,
-  transformResult: (inv, score) => ({
-    id: inv.id,
+export async function searchInvestments(query: string): Promise<SearchResult[]> {
+  const sanitizedQuery = sanitizeSearchQuery(query);
+  if (!sanitizedQuery) return [];
+
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchInvestments]");
+  const rows = await hybridSearchInvestments({
+    query: sanitizedQuery,
+    embedding,
+    limit: SEARCH_LIMIT,
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
     type: "project" as const,
-    title: inv.name,
-    description: inv.description,
-    url: `/investments#${inv.id}`,
-    score,
-  }),
-  hybridRerank: {
-    getRerankText: (inv) => [inv.name, inv.description, inv.type, inv.status].join("\n"),
-  },
-});
+    title: r.name,
+    description: r.description,
+    url: `/investments#${r.slug}`,
+    score: r.score,
+  }));
+}
 
 /**
- * Search experience by query.
+ * Search experience by query (MiniSearch — no PG table).
  */
 export const searchExperience = createCachedSearchFunction({
   cacheKey: "experience",
@@ -76,7 +71,7 @@ export const searchExperience = createCachedSearchFunction({
 });
 
 /**
- * Search education by query.
+ * Search education by query (MiniSearch — no PG table).
  */
 export const searchEducation = createCachedSearchFunction({
   cacheKey: "education",
@@ -98,37 +93,33 @@ export const searchEducation = createCachedSearchFunction({
 });
 
 /**
- * Search projects by query.
+ * Search projects via hybrid PostgreSQL (FTS + trigram + pgvector).
  * Includes special handling for exact "projects" query to add navigation result.
  */
 export async function searchProjects(query: string): Promise<SearchResult[]> {
-  const baseSearch = createCachedSearchFunction({
-    cacheKey: "projects",
-    getIndex: getProjectsIndex,
-    getItems: () => projectsData,
-    getSearchableFields: (p) => [p.name, p.description, (p.tags || []).join(" ")],
-    getExactMatchField: (p) => p.name,
-    getItemId: (p) => p.name,
-    transformResult: (p, score) => ({
-      id: p.name,
-      type: "project" as const,
-      title: p.name,
-      description: p.shortSummary || p.description,
-      url: `/projects/${generateProjectSlug(p.name, p.id)}`,
-      score,
-    }),
-    hybridRerank: {
-      getRerankText: (p) => [p.name, p.description, (p.tags || []).join(", ")].join("\n"),
-    },
+  const sanitizedQuery = sanitizeSearchQuery(query);
+  if (!sanitizedQuery) return [];
+
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchProjects]");
+  const rows = await hybridSearchProjects({
+    query: sanitizedQuery,
+    embedding,
+    limit: SEARCH_LIMIT,
   });
 
-  // Widen to SearchResult[] to allow adding navigation results with different types
-  const searchResults: SearchResult[] = await baseSearch(query);
+  const results: SearchResult[] = rows.map((r) => ({
+    id: r.id,
+    type: "project" as const,
+    title: r.name,
+    description: r.shortSummary || r.description,
+    url: `/projects/${r.slug}`,
+    score: r.score,
+  }));
 
   // If the query is exactly "projects", add navigation result at top
-  const sanitized = sanitizeSearchQuery(query).toLowerCase();
-  if (sanitized === "projects" || sanitized === "project") {
-    searchResults.unshift({
+  const lower = sanitizedQuery.toLowerCase();
+  if (lower === "projects" || lower === "project") {
+    results.unshift({
       id: "projects-page",
       type: "page",
       title: "Projects",
@@ -138,5 +129,5 @@ export async function searchProjects(query: string): Promise<SearchResult[]> {
     });
   }
 
-  return searchResults;
+  return results;
 }

@@ -24,12 +24,14 @@ import {
 } from "@/lib/db/bookmark-record-mapper";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
-const DEFAULT_LIMIT = 20;
-const FTS_WEIGHT = 2.0;
-const TRIGRAM_WEIGHT = 0.5;
-const VECTOR_WEIGHT = 10.0;
-const KEYWORD_CANDIDATE_LIMIT = 50;
-const SEMANTIC_CANDIDATE_LIMIT = 50;
+import {
+  FTS_WEIGHT,
+  TRIGRAM_WEIGHT,
+  VECTOR_WEIGHT,
+  KEYWORD_CANDIDATE_LIMIT,
+  SEMANTIC_CANDIDATE_LIMIT,
+  DEFAULT_LIMIT,
+} from "./hybrid-search-config";
 
 /**
  * Full hybrid search: FTS + trigram + pgvector semantic similarity.
