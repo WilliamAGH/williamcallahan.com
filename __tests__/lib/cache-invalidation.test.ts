@@ -12,7 +12,7 @@ vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
   invalidateBookmarksCache: vi.fn(),
 }));
 
-import { invalidateSearchCache, invalidateSearchQueryCache } from "@/lib/search";
+import { invalidateSearchCache, invalidateSearchQueryCache } from "@/lib/search/cache-invalidation";
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import {
   getBookmarksPage,

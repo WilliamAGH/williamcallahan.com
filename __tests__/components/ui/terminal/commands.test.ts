@@ -3,7 +3,7 @@
  */
 import type { Mock } from "vitest";
 import { handleCommand } from "@/components/ui/terminal/commands.client";
-import { isChatCommand } from "@/types";
+import { isChatCommand } from "@/types/terminal";
 
 // Store original fetch and window
 const originalFetch = globalThis.fetch;

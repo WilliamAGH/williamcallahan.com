@@ -9,7 +9,7 @@ describe("Cache Invalidation Functions", () => {
   describe("Search Cache", () => {
     it("should have invalidation functions", async () => {
       // Dynamically import to avoid module loading issues
-      const searchModule = await import("@/lib/search");
+      const searchModule = await import("@/lib/search/cache-invalidation");
 
       expect(searchModule.invalidateSearchCache).toBeDefined();
       expect(typeof searchModule.invalidateSearchCache).toBe("function");
