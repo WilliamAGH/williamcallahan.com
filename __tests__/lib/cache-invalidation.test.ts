@@ -6,6 +6,17 @@
 vi.mock("@/lib/data-access/github-public-api");
 vi.mock("@/lib/data-access/opengraph");
 
+// Mock DB-backed hybrid search (blog posts now use PostgreSQL)
+vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
+  hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
+  hybridSearchBooks: vi.fn().mockResolvedValue([]),
+}));
+
+// Mock query embedding (requires AI endpoint not available in tests)
+vi.mock("@/lib/db/queries/query-embedding", () => ({
+  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock bookmarks module - returns array, not object with .data
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
   getBookmarksPage: vi.fn().mockResolvedValue([]),
