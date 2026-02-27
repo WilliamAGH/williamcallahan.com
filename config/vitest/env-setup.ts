@@ -43,7 +43,7 @@ if (!("markResourceTiming" in globalThis.performance)) {
   });
 }
 
-// Note: Bun 1.2+ provides TextEncoder, ReadableStream, fetch, etc. natively.
+// Note: Node.js 18+ provides TextEncoder, ReadableStream, fetch, etc. natively.
 // We do not polyfill them here to strictly follow [PL1] Anti-Polyfill mandate.
 
 // Add required environment variables for tests
