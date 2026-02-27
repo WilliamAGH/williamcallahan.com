@@ -12,6 +12,8 @@
 
 import { existsSync, unlinkSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import logger from "@/lib/utils/logger";
 
 const MARKER_FILE = "/tmp/needs-initial-data-population";
@@ -19,6 +21,16 @@ const CHECK_INTERVAL = 10000; // Check every 10 seconds
 const INITIAL_DELAY = 30000; // Wait 30 seconds after server start
 const MAX_POPULATION_ATTEMPTS = 3; // Prevent infinite retry loops
 let populationAttempts = 0;
+const MAIN_MODULE_PATH = fileURLToPath(import.meta.url);
+
+const isMainModule = (): boolean => {
+  const invokedPath = process.argv[1];
+  if (!invokedPath) {
+    return false;
+  }
+
+  return resolve(invokedPath) === resolve(MAIN_MODULE_PATH);
+};
 
 /**
  * Run the data updater script in a child process
@@ -143,9 +155,8 @@ async function main(): Promise<void> {
   });
 }
 
-// Start the monitoring if run directly
-// Node.js equivalent of Bun's import.meta.main
-if (process.argv[1]?.endsWith("background-data-populator.ts")) {
+// Start the monitoring if run directly.
+if (isMainModule()) {
   main().catch((error) => {
     logger.error("[BackgroundPopulator] Fatal error:", error);
     process.exit(1);
