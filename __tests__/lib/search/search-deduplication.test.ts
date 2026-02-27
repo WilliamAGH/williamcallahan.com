@@ -2,7 +2,11 @@
  * Tests for search functionality with deduplication
  */
 
-import { searchInvestments, searchExperience, searchEducation } from "@/lib/search";
+import {
+  searchInvestments,
+  searchExperience,
+  searchEducation,
+} from "@/lib/search/searchers/static-searchers";
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
@@ -11,6 +15,23 @@ import type { SearchResult } from "@/types/search";
 
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
   getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
+}));
+
+// Mock DB-backed hybrid search for investments (now uses PostgreSQL)
+vi.mock("@/lib/db/queries/hybrid-search-investments", () => ({
+  hybridSearchInvestments: vi.fn().mockResolvedValue([]),
+  hybridSearchProjects: vi.fn().mockResolvedValue([]),
+}));
+
+// Mock query embedding (requires AI endpoint)
+vi.mock("@/lib/db/queries/query-embedding", () => ({
+  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Mock blog hybrid search
+vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
+  hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
+  hybridSearchBooks: vi.fn().mockResolvedValue([]),
 }));
 
 // Mock console methods to check for duplicate warnings

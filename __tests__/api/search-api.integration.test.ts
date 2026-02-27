@@ -31,7 +31,30 @@ vi.mock("@/lib/blog/server-search", () => ({
   ]),
 }));
 
-vi.mock("@/lib/search", () => ({
+vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
+  searchBookmarks: vi.fn().mockResolvedValue([
+    {
+      id: "bm1",
+      type: "bookmark",
+      title: "Test Bookmark",
+      description: "Test description",
+      url: "/bookmarks/test",
+      score: 0.7,
+    },
+  ]),
+  searchBooks: vi.fn().mockResolvedValue([
+    {
+      id: "book1",
+      type: "book",
+      title: "Test Book",
+      description: "Test book description",
+      url: "/books/test-book",
+      score: 0.65,
+    },
+  ]),
+}));
+
+vi.mock("@/lib/search/searchers/static-searchers", () => ({
   searchInvestments: vi.fn().mockResolvedValue([
     {
       id: "inv1",
@@ -62,16 +85,6 @@ vi.mock("@/lib/search", () => ({
       score: 0.75,
     },
   ]),
-  searchBookmarks: vi.fn().mockResolvedValue([
-    {
-      id: "bm1",
-      type: "bookmark",
-      title: "Test Bookmark",
-      description: "Test description",
-      url: "/bookmarks/test",
-      score: 0.7,
-    },
-  ]),
   searchProjects: vi.fn().mockResolvedValue([
     {
       id: "proj1",
@@ -82,19 +95,18 @@ vi.mock("@/lib/search", () => ({
       score: 0.8,
     },
   ]),
-  searchBooks: vi.fn().mockResolvedValue([
-    {
-      id: "book1",
-      type: "book",
-      title: "Test Book",
-      description: "Test book description",
-      url: "/books/test-book",
-      score: 0.65,
-    },
-  ]),
-  searchTags: vi.fn().mockResolvedValue([]),
-  searchAiAnalysis: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/search/searchers/thoughts-search", () => ({
   searchThoughts: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/search/searchers/tag-search", () => ({
+  searchTags: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/search/searchers/ai-analysis-searcher", () => ({
+  searchAiAnalysis: vi.fn().mockResolvedValue([]),
 }));
 
 /**

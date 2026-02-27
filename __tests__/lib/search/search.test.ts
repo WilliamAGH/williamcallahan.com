@@ -105,13 +105,26 @@ vi.mock("@/lib/ai/openai-compatible/feature-config", async (importOriginal) => {
   };
 });
 
+// Mock DB-backed hybrid search for investments and projects
+const mockHybridSearchInvestments = vi.fn();
+const mockHybridSearchProjects = vi.fn();
+vi.mock("@/lib/db/queries/hybrid-search-investments", () => ({
+  hybridSearchInvestments: (...args: unknown[]) => mockHybridSearchInvestments(...args),
+  hybridSearchProjects: (...args: unknown[]) => mockHybridSearchProjects(...args),
+}));
+
+// Mock query embedding (requires AI endpoint not available in tests)
+vi.mock("@/lib/db/queries/query-embedding", () => ({
+  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+}));
+
 import {
   searchInvestments,
   searchExperience,
   searchEducation,
   searchProjects,
-  searchThoughts,
-} from "@/lib/search";
+} from "@/lib/search/searchers/static-searchers";
+import { searchThoughts } from "@/lib/search/searchers/thoughts-search";
 import { validateSearchQuery } from "@/lib/validators/search";
 
 describe("search", () => {
@@ -165,18 +178,33 @@ describe("search", () => {
   });
 
   describe("searchInvestments", () => {
-    it("should return all investments when query is empty", async () => {
+    it("should return empty array for empty query", async () => {
       const results = await searchInvestments("");
-      expect(results).toHaveLength(2);
+      expect(results).toHaveLength(0);
     });
 
     it("should return array for any query", async () => {
+      mockHybridSearchInvestments.mockResolvedValueOnce([]);
       const results = await searchInvestments("test");
       expect(Array.isArray(results)).toBe(true);
     });
 
     it("should return SearchResult objects with correct shape", async () => {
-      const results = await searchInvestments("");
+      mockHybridSearchInvestments.mockResolvedValueOnce([
+        {
+          id: "1",
+          name: "Test Company 1",
+          slug: "test-company-1",
+          description: "A fintech startup",
+          category: "Fintech",
+          stage: "Seed",
+          status: "Active",
+          operatingStatus: "Operating",
+          location: null,
+          score: 0.9,
+        },
+      ]);
+      const results = await searchInvestments("fintech");
       expect(results.length).toBeGreaterThan(0);
       expect(results[0]).toHaveProperty("id");
       expect(results[0]).toHaveProperty("type");
@@ -187,8 +215,22 @@ describe("search", () => {
     });
 
     it("should have correct URL format", async () => {
-      const results = await searchInvestments("");
-      expect(results[0]?.url).toMatch(/^\/investments#\d+$/);
+      mockHybridSearchInvestments.mockResolvedValueOnce([
+        {
+          id: "1",
+          name: "Test Company 1",
+          slug: "test-company-1",
+          description: "A fintech startup",
+          category: null,
+          stage: "Seed",
+          status: "Active",
+          operatingStatus: "Operating",
+          location: null,
+          score: 0.8,
+        },
+      ]);
+      const results = await searchInvestments("fintech");
+      expect(results[0]?.url).toBe("/investments#test-company-1");
     });
   });
 
@@ -247,39 +289,53 @@ describe("search", () => {
   });
 
   describe("searchProjects", () => {
-    it("should return all projects when query is empty", async () => {
+    it("should return empty array for empty query", async () => {
       const results = await searchProjects("");
-      expect(results).toHaveLength(2);
+      expect(results).toHaveLength(0);
     });
 
-    it("should find projects by name", async () => {
+    it("should find projects by name via hybrid search", async () => {
+      mockHybridSearchProjects.mockResolvedValueOnce([
+        {
+          id: "p1",
+          name: "Test Project 1",
+          slug: "test-project-1",
+          description: "A React-based web application",
+          shortSummary: "React web app",
+          url: "https://example.com/project1",
+          imageKey: "images/projects/project1.png",
+          tags: ["react", "typescript"],
+          score: 0.95,
+        },
+      ]);
       const results = await searchProjects("Test Project 1");
       expect(results.length).toBeGreaterThanOrEqual(1);
       expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
     });
 
-    it("should find projects by description", async () => {
-      const results = await searchProjects("React");
-      expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
-    });
-
-    it("should find projects by tags", async () => {
-      const results = await searchProjects("typescript");
-      expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
-    });
-
     it("should handle special 'projects' query to navigate to projects page", async () => {
+      mockHybridSearchProjects.mockResolvedValueOnce([]);
       const results = await searchProjects("projects");
       expect(results.length).toBeGreaterThanOrEqual(1);
-      // The first result should be the Projects page navigation
       expect(results[0]?.title).toBe("Projects");
       expect(results[0]?.url).toBe("/projects");
       expect(results[0]?.type).toBe("page");
     });
 
     it("should include correct URL in results", async () => {
+      mockHybridSearchProjects.mockResolvedValueOnce([
+        {
+          id: "p1",
+          name: "Test Project 1",
+          slug: "test-project-1",
+          description: "A React-based web application",
+          shortSummary: "React web app",
+          url: "https://example.com/project1",
+          imageKey: "images/projects/project1.png",
+          tags: ["react", "typescript"],
+          score: 0.9,
+        },
+      ]);
       const results = await searchProjects("Test Project 1");
       const project1Result = results.find((r) => r.title === "Test Project 1");
       expect(project1Result?.url).toBe("/projects/test-project-1");

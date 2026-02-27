@@ -1,217 +1,149 @@
 /**
  * Books Search Tests
  *
- * Tests the books search functionality to prevent regressions like:
- * - MiniSearch "duplicate ID" errors from extractField not returning ID
- * - Index building failures
- * - Search result format issues
+ * Tests the books search function which uses hybrid PostgreSQL search
+ * (FTS + trigram + pgvector) via hybridSearchBooks.
  */
 
-import type { Book } from "@/types/schemas/book";
-
-// Mock the audiobookshelf server module
-vi.mock("@/lib/books/audiobookshelf.server", () => ({
-  fetchBooks: vi.fn(),
+// Mock query embedding (requires AI endpoint not available in tests)
+vi.mock("@/lib/db/queries/query-embedding", () => ({
+  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Mock DB-backed search index artifacts to force in-memory index build.
-vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
-  getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
+const mockHybridSearchBooks = vi.fn();
+vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
+  hybridSearchBooks: (...args: unknown[]) => mockHybridSearchBooks(...args),
+  hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
 }));
 
-import { searchBooks } from "@/lib/search";
-import { fetchBooks } from "@/lib/books/audiobookshelf.server";
-import type { Mock } from "vitest";
-
-// Test data: books with valid UUIDs (like real audiobookshelf data)
-const mockBooks: Book[] = [
-  {
-    id: "cd8f9b4a-0555-405b-a95f-8fb8ab3110ea",
-    title: "TypeScript Quickly",
-    authors: ["Yakov Fain", "Anton Moiseev"],
-    coverUrl: "https://example.com/cover1.jpg",
-    slug: "typescript-quickly-cd8f9b4a",
-  },
-  {
-    id: "b8896a01-ab31-4880-8cb8-3ab7ddd582ce",
-    title: "100 Java Mistakes and How to Avoid Them",
-    authors: ["Tagir Valeev"],
-    coverUrl: "https://example.com/cover2.jpg",
-    slug: "100-java-mistakes-b8896a01",
-  },
-  {
-    id: "740583b6-3206-4054-95a3-488141227469",
-    title: "Secrets of the JavaScript Ninja, 2nd Edition",
-    authors: ["John Resig", "Bear Bibeault"],
-    coverUrl: "https://example.com/cover3.jpg",
-    slug: "secrets-of-javascript-ninja-740583b6",
-  },
-  {
-    id: "91e3475d-1bb2-40ab-b820-951a84e2fa2b",
-    title: "The Joy of JavaScript",
-    authors: ["Luis Atencio"],
-    coverUrl: "https://example.com/cover4.jpg",
-    slug: "joy-of-javascript-91e3475d",
-  },
-  {
-    id: "73da20e3-9fa1-421b-9e5e-b0ea885f29b7",
-    title: "React Quickly, Second Edition",
-    authors: ["Morten Barklund", "Azat Mardan"],
-    coverUrl: "https://example.com/cover5.jpg",
-    slug: "react-quickly-73da20e3",
-  },
-];
+import { searchBooks } from "@/lib/search/searchers/dynamic-searchers";
 
 describe("Books Search", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Return mock books
-    (fetchBooks as Mock).mockResolvedValue(mockBooks);
-  });
-
-  describe("Index Building", () => {
-    it("should build index without duplicate ID errors", async () => {
-      // This test catches the regression where extractField returned "" for "id" field,
-      // causing MiniSearch to throw "duplicate ID" error for all documents
-      const results = await searchBooks("typescript");
-
-      // Should not throw, should return results
-      expect(Array.isArray(results)).toBe(true);
-    });
-
-    it("should handle books with UUID-style IDs", async () => {
-      // Real audiobookshelf data uses UUIDs - search for a common term
-      const results = await searchBooks("edition");
-
-      // Should return results - multiple books have "edition" in title
-      expect(results.length).toBeGreaterThan(0);
-      // Verify IDs are UUIDs (36 chars with dashes)
-      for (const result of results) {
-        expect(result.id.length).toBe(36);
-        expect(result.id).toMatch(/^[a-f0-9-]+$/);
-      }
-    });
-
-    it("should correctly extract and use book IDs", async () => {
-      // Search for something that will match
-      const results = await searchBooks("typescript");
-
-      // Each result should have a valid ID matching our mock data
-      expect(results.length).toBeGreaterThan(0);
-      for (const result of results) {
-        expect(result.id).toBeTruthy();
-        expect(typeof result.id).toBe("string");
-        // IDs should be UUIDs, not empty strings
-        expect(result.id.length).toBeGreaterThan(0);
-      }
-    });
   });
 
   describe("Search Functionality", () => {
-    it("should find books by title", async () => {
+    it("should return empty array for empty query", async () => {
+      const results = await searchBooks("");
+      expect(results).toHaveLength(0);
+      expect(mockHybridSearchBooks).not.toHaveBeenCalled();
+    });
+
+    it("should find books by title via hybrid search", async () => {
+      mockHybridSearchBooks.mockResolvedValueOnce([
+        {
+          id: "cd8f9b4a-0555-405b-a95f-8fb8ab3110ea",
+          title: "TypeScript Quickly",
+          slug: "typescript-quickly-cd8f9b4a",
+          authors: ["Yakov Fain", "Anton Moiseev"],
+          description: "Learn TypeScript the fast way",
+          coverUrl: "https://example.com/cover1.jpg",
+          score: 0.85,
+        },
+      ]);
+
       const results = await searchBooks("TypeScript");
-
-      expect(results.length).toBeGreaterThanOrEqual(1);
-      expect(results.some((r) => r.title.toLowerCase().includes("typescript"))).toBe(true);
+      expect(results.length).toBe(1);
+      expect(results[0]?.title).toBe("TypeScript Quickly");
     });
 
-    it("should find books by author", async () => {
-      const results = await searchBooks("Resig");
+    it("should pass sanitized query to hybrid search", async () => {
+      mockHybridSearchBooks.mockResolvedValueOnce([]);
 
-      expect(results.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("should return results for Java-related searches", async () => {
-      // This was the specific failing case - search for "java" should return book results
-      const results = await searchBooks("java");
-
-      expect(results.length).toBeGreaterThanOrEqual(1);
-      // Should find the Java book
-      expect(results.some((r) => r.title.toLowerCase().includes("java"))).toBe(true);
-    });
-
-    it("should return results for JavaScript searches", async () => {
-      const results = await searchBooks("javascript");
-
-      expect(results.length).toBeGreaterThanOrEqual(1);
+      await searchBooks("test.*query[abc]");
+      expect(mockHybridSearchBooks).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "test query abc" }),
+      );
     });
   });
 
   describe("Result Format", () => {
     it("should return SearchResult objects with correct shape", async () => {
-      // Use a query that matches books
-      const results = await searchBooks("typescript");
+      mockHybridSearchBooks.mockResolvedValueOnce([
+        {
+          id: "cd8f9b4a-0555-405b-a95f-8fb8ab3110ea",
+          title: "TypeScript Quickly",
+          slug: "typescript-quickly",
+          authors: ["Yakov Fain"],
+          description: null,
+          coverUrl: null,
+          score: 0.9,
+        },
+      ]);
 
-      expect(results.length).toBeGreaterThan(0);
-      for (const result of results) {
-        expect(result).toHaveProperty("id");
-        expect(result).toHaveProperty("type");
-        expect(result).toHaveProperty("title");
-        expect(result).toHaveProperty("url");
-        expect(result).toHaveProperty("score");
-      }
+      const results = await searchBooks("typescript");
+      expect(results.length).toBe(1);
+      expect(results[0]).toHaveProperty("id");
+      expect(results[0]).toHaveProperty("type");
+      expect(results[0]).toHaveProperty("title");
+      expect(results[0]).toHaveProperty("url");
+      expect(results[0]).toHaveProperty("score");
     });
 
     it("should have type 'page' for book results", async () => {
-      const results = await searchBooks("javascript");
+      mockHybridSearchBooks.mockResolvedValueOnce([
+        {
+          id: "1",
+          title: "Test Book",
+          slug: "test-book",
+          authors: ["Author"],
+          description: null,
+          coverUrl: null,
+          score: 0.8,
+        },
+      ]);
 
-      expect(results.length).toBeGreaterThan(0);
-      for (const result of results) {
-        expect(result.type).toBe("page");
-      }
+      const results = await searchBooks("test");
+      expect(results[0]?.type).toBe("page");
     });
 
     it("should have URL pointing to /books/ path", async () => {
-      const results = await searchBooks("react");
+      mockHybridSearchBooks.mockResolvedValueOnce([
+        {
+          id: "1",
+          title: "React Quickly",
+          slug: "react-quickly",
+          authors: [],
+          description: null,
+          coverUrl: null,
+          score: 0.7,
+        },
+      ]);
 
-      expect(results.length).toBeGreaterThan(0);
-      for (const result of results) {
-        expect(result.url).toMatch(/^\/books\//);
-      }
+      const results = await searchBooks("react");
+      expect(results[0]?.url).toBe("/books/react-quickly");
     });
 
-    it("should return raw book titles (prefix added by API aggregation)", async () => {
-      const results = await searchBooks("java");
+    it("should join authors as description", async () => {
+      mockHybridSearchBooks.mockResolvedValueOnce([
+        {
+          id: "1",
+          title: "Test",
+          slug: "test",
+          authors: ["Author A", "Author B"],
+          description: null,
+          coverUrl: null,
+          score: 0.6,
+        },
+      ]);
 
-      expect(results.length).toBeGreaterThan(0);
-      for (const result of results) {
-        // searchBooks returns raw titles - "[Books]" prefix is added by /api/search/all
-        expect(typeof result.title).toBe("string");
-        expect(result.title.length).toBeGreaterThan(0);
-      }
+      const results = await searchBooks("test");
+      expect(results[0]?.description).toBe("Author A, Author B");
     });
   });
 
   describe("Edge Cases", () => {
-    it("should handle empty books array gracefully", async () => {
-      (fetchBooks as Mock).mockResolvedValue([]);
+    it("should handle empty results from DB", async () => {
+      mockHybridSearchBooks.mockResolvedValueOnce([]);
 
-      const results = await searchBooks("anything");
-
-      expect(Array.isArray(results)).toBe(true);
-      expect(results.length).toBe(0);
-    });
-
-    it("should handle books with missing optional fields", async () => {
-      const booksWithMissingFields: Book[] = [
-        {
-          id: "test-id-1",
-          title: "Book Without Cover",
-          authors: [],
-          slug: "book-without-cover",
-          // coverUrl is optional
-        },
-      ];
-      (fetchBooks as Mock).mockResolvedValue(booksWithMissingFields);
-
-      // Search for the book title
-      const results = await searchBooks("Book Without Cover");
-
-      expect(results.length).toBe(1);
+      const results = await searchBooks("nonexistent");
+      expect(results).toHaveLength(0);
     });
 
     it("should not throw on concurrent searches", async () => {
-      // Simulate multiple concurrent searches
+      mockHybridSearchBooks.mockResolvedValue([]);
+
       const searches = Promise.all([
         searchBooks("typescript"),
         searchBooks("java"),
