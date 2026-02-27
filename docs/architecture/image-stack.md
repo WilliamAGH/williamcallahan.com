@@ -134,7 +134,7 @@ Keep this document synchronized with the other two structure docs whenever you i
 
 4. **`remotePatterns` is the allowlist.** Every CDN hostname must be in `next.config.ts` `images.remotePatterns`. PRs adding hosts must update this config. Domains intentionally excluded (e.g., analytics tracking pixel hosts) must use plain `<img>` instead of `<Image>`.
 
-5. **NEVER proxy CDN images.** Use `getOptimizedImageSrc()` which routes CDN URLs directly and external URLs through the proxy. The function `buildCachedImageUrl()` is deprecated (zero call sites) and should not be used.
+5. **NEVER proxy CDN images.** Use `getOptimizedImageSrc()` which routes CDN URLs directly and external URLs through the proxy.
 
 6. **Static imports stay static.** Assets in `public/` are statically imported so Next infers width/height.
 

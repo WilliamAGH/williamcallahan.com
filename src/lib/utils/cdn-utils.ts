@@ -261,19 +261,6 @@ function buildImageProxyUrl(url: string, width?: number): string {
 }
 
 /**
- * @deprecated Zero call sites. Use `getOptimizedImageSrc()` instead, which
- * routes CDN URLs directly (for Next.js optimization) and external URLs
- * through the proxy (for SSRF protection). This function is retained only
- * because the ast-grep rule `no-cdn-image-proxy.yml` references it to catch
- * accidental future usage.
- *
- * @see docs/architecture/image-handling.md (Image Optimization Decision Matrix)
- */
-export function buildCachedImageUrl(cdnUrl: string, width?: number): string {
-  return buildImageProxyUrl(cdnUrl, width);
-}
-
-/**
  * Returns the appropriate image src for <Image> component.
  * - CDN URLs: return directly (let Next.js optimize via /_next/image)
  * - External URLs: proxy through /api/cache/images for SSRF protection

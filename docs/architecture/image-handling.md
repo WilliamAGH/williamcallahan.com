@@ -185,7 +185,6 @@ Per Next.js docs: without `sizes`, the browser assumes the image is viewport-wid
 | ------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `getOptimizedImageSrc()`  | `lib/utils/cdn-utils.ts` | Routes CDN URLs directly, external URLs through proxy. Use for all `<Image>` `src` values.                                                 |
 | `shouldBypassOptimizer()` | `lib/utils/cdn-utils.ts` | Returns `true` for `/api/cache/images` routes and data URIs. `/api/assets` is excluded (optimized by Next.js). Use for `unoptimized` prop. |
-| `buildCachedImageUrl()`   | `lib/utils/cdn-utils.ts` | **Deprecated** (zero call sites). Do not use; `getOptimizedImageSrc()` supersedes it.                                                      |
 
 ### Next.js Optimizer Guardrails
 
@@ -197,8 +196,8 @@ Per Next.js docs: without `sizes`, the browser assumes the image is viewport-wid
 **Detection Commands:**
 
 ```bash
-# Find deprecated proxy usage (should return zero results)
-rg "buildCachedImageUrl" --type tsx --type ts src/
+# Find direct proxy path usage outside canonical helper (should return zero results)
+rg "/api/cache/images" --type ts --type tsx src/ | rg -v "lib/utils/cdn-utils.ts"
 
 # Find <Image> components missing sizes prop
 rg "<Image" --type tsx -A5 | rg -v "sizes="

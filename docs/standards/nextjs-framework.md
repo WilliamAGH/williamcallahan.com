@@ -20,7 +20,7 @@ Provide a single operational playbook for all work that interacts with our Next.
 
 ## Version Change Log
 
-### Next.js 14 15 (Context7 `version-15.mdx`)
+### Next.js 14 -> 15 (Context7 `version-15.mdx`)
 
 - `experimental.serverComponentsExternalPackages` is now `serverExternalPackages`.
 - `experimental.bundlePagesExternals` is now `bundlePagesRouterDependencies`.
@@ -28,7 +28,7 @@ Provide a single operational playbook for all work that interacts with our Next.
 - Temporary `UnsafeUnwrapped` shims existed for synchronous `cookies()`/`headers()` access—**they are disallowed going forward** because Next.js 16 enforces async semantics.
 - `@next/codemod@canary upgrade latest` remains the sanctioned codemod path for sweeping migrations.
 
-### Next.js 15 16 (Context7 `version-16.mdx` + node_modules inspection)
+### Next.js 15 -> 16 (Context7 `version-16.mdx` + node_modules inspection)
 
 - Turbopack is now default; script flags like `next dev --turbopack` are redundant.
 - `experimental.dynamicIO` and `experimental.ppr` have been folded into `cacheComponents` (`node_modules/next/dist/server/config.js:325-338`). Do **not** add new experimental flags—set `cacheComponents: true` instead.
@@ -155,7 +155,7 @@ grep -r "revalidate.*:.*0" --include="*.ts" --include="*.tsx"
 
 1. **CDN URLs flow through `/_next/image` for optimization.** Use direct CDN URLs (e.g., `https://s3-storage.callahan.cloud/images/foo.jpg`) with `<Image>` and let Next.js optimize. Sharp resizes to the requested width, converts to WebP/AVIF, and caches for 7 days.
 
-2. **NEVER proxy CDN images through `/api/cache/images`.** This bypasses optimization because `/api/*` routes require `unoptimized`. The `buildCachedImageUrl()` function is deprecated (zero call sites); use `getOptimizedImageSrc()` which routes CDN URLs directly and external URLs through the proxy.
+2. **NEVER proxy CDN images through `/api/cache/images`.** This bypasses optimization because `/api/*` routes require `unoptimized`. Use `getOptimizedImageSrc()` which routes CDN URLs directly and external URLs through the proxy.
 
 3. **External URLs must be proxied.** URLs not in `images.remotePatterns` (Twitter, LinkedIn, etc.) go through `/api/cache/images` with `unoptimized`.
 
@@ -176,8 +176,8 @@ grep -r "revalidate.*:.*0" --include="*.ts" --include="*.tsx"
 **Detection Commands:**
 
 ```bash
-# Find deprecated proxy usage (should return zero results)
-rg "buildCachedImageUrl" --type ts src/
+# Find direct proxy path usage outside canonical helper (should return zero results)
+rg "/api/cache/images" --type ts --type tsx src/ | rg -v "lib/utils/cdn-utils.ts"
 
 # Find <Image> components missing sizes prop
 rg "<Image" --type tsx -A5 | rg -v "sizes="
@@ -185,12 +185,12 @@ rg "<Image" --type tsx -A5 | rg -v "sizes="
 
 **Error Symptoms:**
 
-| Pattern                                       | Result                                          |
-| --------------------------------------------- | ----------------------------------------------- |
-| `buildCachedImageUrl(cdnUrl)` + `unoptimized` | No optimization, full-size images served        |
-| Missing `sizes` on responsive `<Image>`       | Browser downloads largest srcset variant        |
-| Direct external URL without proxy             | `/_next/image` rejects as not in remotePatterns |
-| `<Image>` for noscript tracking pixel         | Fails if domain not in remotePatterns           |
+| Pattern                                                     | Result                                          |
+| ----------------------------------------------------------- | ----------------------------------------------- |
+| CDN URL proxied through `/api/cache/images` + `unoptimized` | No optimization, full-size images served        |
+| Missing `sizes` on responsive `<Image>`                     | Browser downloads largest srcset variant        |
+| Direct external URL without proxy                           | `/_next/image` rejects as not in remotePatterns |
+| `<Image>` for noscript tracking pixel                       | Fails if domain not in remotePatterns           |
 
 ### 5. Link Prefetch Behavior (Next.js 16)
 
