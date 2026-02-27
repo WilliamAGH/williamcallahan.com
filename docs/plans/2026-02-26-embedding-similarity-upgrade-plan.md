@@ -627,7 +627,7 @@ Replace MiniSearch-based search functions with PostgreSQL hybrid search.
 - Modify: `src/lib/search/searchers/static-searchers.ts` — rewrite `searchInvestments`, `searchProjects`
 - Modify: `src/lib/search/searchers/dynamic-searchers.ts` — rewrite `searchBooks`
 - Create: `src/lib/search/searchers/blog-search.ts`
-- Modify: `src/lib/search/index.ts` — update exports
+- Modify: `src/lib/search/searchers/tag-search.ts` — update imports for concrete searcher modules
 - Modify: `__tests__/lib/search/search.test.ts`
 
 For each domain:
@@ -677,7 +677,7 @@ Delete now-unused MiniSearch layer.
 
 **Files to modify:**
 
-- `src/lib/search/index.ts` — remove dead re-exports
+- `src/lib/search/searchers/*.ts` — remove dead imports/references after MiniSearch deletion
 - Remaining searcher files — remove dead imports
 
 **Verification:**
@@ -821,7 +821,7 @@ git commit -m "refactor(related-content): hydrate from domain tables, remove agg
 
 **Files to delete:**
 
-- `src/lib/content-similarity/index.ts`
+- `src/lib/content-similarity/*` (legacy files, if present)
 - `src/lib/content-similarity/aggregator.ts`
 - `src/lib/content-similarity/cached-aggregator.ts`
 - `src/lib/content-similarity/tag-ontology.ts`
@@ -849,9 +849,9 @@ git commit -m "refactor: remove heuristic content-similarity engine (replaced by
 - `docs/architecture/README.md` — add embeddings table, new domain tables
 - `docs/file-map.md` — add new files, remove deleted files
 
-**Delete:**
+**Delete (already completed in repo):**
 
-- `docs/architecture/chroma.md` — Chroma was removed long ago
+- `docs/architecture/chroma.md` — removed; verify no reintroduction
 
 ```bash
 git commit -m "docs: update search and architecture docs for unified embedding similarity"

@@ -206,7 +206,7 @@ Existing `BookmarkCardClient` enhanced with additional data (all already in Post
 
 ### 6.1 Current State
 
-`calculateSimilarity()` in `src/lib/content-similarity/index.ts` uses heuristic signals:
+`calculateSimilarity()` in `src/lib/content-similarity/*` uses heuristic signals:
 
 - Tag Jaccard: 0.40
 - Token overlap: 0.30

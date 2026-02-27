@@ -126,7 +126,7 @@ git commit -m "feat(db): add Drizzle connection and drizzle-kit config"
 **Files:**
 
 - Create: `src/lib/db/schema/bookmarks.ts`
-- Create: `src/lib/db/schema/index.ts`
+- Modify callers to import schema modules directly (no schema barrel file)
 
 **Context:** The `UnifiedBookmark` Zod schema (`src/types/schemas/bookmark.ts`) has ~35 fields. The Drizzle table must capture all fields needed for DB queries. Nested JSON objects (`content`, `tags`, `logoData`, `assets`) are stored as `jsonb` columns.
 
@@ -236,11 +236,11 @@ export type BookmarkRow = typeof bookmarks.$inferSelect;
 export type BookmarkInsert = typeof bookmarks.$inferInsert;
 ```
 
-**Step 2: Create schema barrel**
+**Step 2: Use direct schema imports**
 
 ```typescript
-// src/lib/db/schema/index.ts
-export { bookmarks, type BookmarkRow, type BookmarkInsert } from "./bookmarks";
+// Example consumer import (no barrel):
+import { bookmarks, type BookmarkRow, type BookmarkInsert } from "@/lib/db/schema/bookmarks";
 ```
 
 **Step 3: Verify typecheck**
@@ -605,7 +605,7 @@ Replace `writeBookmarkMasterFiles()` internals:
 - `writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarks)` -> `upsertBookmarks(mapped)`
 - Remove `writeBookmarksByIdFiles()` (individual JSON files no longer needed)
 - Remove `writeLocalBookmarksCache()` calls
-- Keep `writePaginatedBookmarks()` temporarily for S3 backward compat (mark deprecated)
+- Keep `writePaginatedBookmarks()` only while S3 backward-compatibility is still required, then remove it.
 
 **Step 2: Run tests, validate**
 
@@ -628,7 +628,7 @@ git commit -m "feat(db): wire bookmark persistence to Drizzle (writes)"
 **Files:**
 
 - Create: `src/lib/db/schema/github-activity.ts`
-- Modify: `src/lib/db/schema/index.ts`
+- Modify: `src/lib/db/schema/*.ts`
 - Create: `src/lib/db/queries/github-activity.ts`
 - Create: `src/lib/db/mutations/github-activity.ts`
 - Create: `scripts/migrate-github-s3-to-postgres.ts`
@@ -646,7 +646,7 @@ git commit -m "feat(db): wire bookmark persistence to Drizzle (writes)"
 ```bash
 git add src/lib/db/schema/github-activity.ts src/lib/db/queries/github-activity.ts \
   src/lib/db/mutations/github-activity.ts scripts/migrate-github-s3-to-postgres.ts \
-  src/lib/data-access/github-storage.ts src/lib/db/schema/index.ts
+  src/lib/data-access/github-storage.ts src/lib/db/schema/*.ts
 git commit -m "feat(db): add GitHub activity PostgreSQL schema and data access"
 ```
 
@@ -867,7 +867,7 @@ git commit -m "feat(db): remove remaining bookmark S3 read paths (slug/cache/og/
 **Files:**
 
 - Create: `src/lib/db/schema/search-index-artifacts.ts`
-- Modify: `src/lib/db/schema/index.ts`
+- Modify: `src/lib/db/schema/*.ts`
 - Create: `src/lib/db/queries/search-index-artifacts.ts`
 - Create: `src/lib/db/mutations/search-index-artifacts.ts`
 - Modify: `src/lib/server/data-fetch-manager.ts`
@@ -914,7 +914,7 @@ bun run validate
 **Step 6: Commit**
 
 ```bash
-git add src/lib/db/schema/search-index-artifacts.ts src/lib/db/schema/index.ts \
+git add src/lib/db/schema/search-index-artifacts.ts src/lib/db/schema/*.ts \
   src/lib/db/queries/search-index-artifacts.ts src/lib/db/mutations/search-index-artifacts.ts \
   src/lib/server/data-fetch-manager.ts src/lib/search/loaders/static-content.ts \
   src/lib/search/loaders/dynamic-content.ts scripts/migrate-search-indexes-s3-to-postgres.ts __tests__
@@ -931,7 +931,7 @@ git commit -m "feat(db): migrate search index artifacts from S3 to PostgreSQL"
 
 - Create/Modify exactly as listed in Task 10:
   - `src/lib/db/schema/github-activity.ts`
-  - `src/lib/db/schema/index.ts`
+  - `src/lib/db/schema/*.ts`
   - `src/lib/db/queries/github-activity.ts`
   - `src/lib/db/mutations/github-activity.ts`
   - `scripts/migrate-github-s3-to-postgres.ts`
@@ -957,7 +957,7 @@ bun run validate
 ```bash
 git add src/lib/db/schema/github-activity.ts src/lib/db/queries/github-activity.ts \
   src/lib/db/mutations/github-activity.ts scripts/migrate-github-s3-to-postgres.ts \
-  src/lib/data-access/github-storage.ts src/lib/db/schema/index.ts __tests__
+  src/lib/data-access/github-storage.ts src/lib/db/schema/*.ts __tests__
 git commit -m "feat(db): migrate GitHub activity storage from S3 to PostgreSQL"
 ```
 
@@ -970,7 +970,7 @@ git commit -m "feat(db): migrate GitHub activity storage from S3 to PostgreSQL"
 **Files:**
 
 - Create: `src/lib/db/schema/books-snapshots.ts`
-- Modify: `src/lib/db/schema/index.ts`
+- Modify: `src/lib/db/schema/*.ts`
 - Create: `src/lib/db/queries/books-snapshots.ts`
 - Create: `src/lib/db/mutations/books-snapshots.ts`
 - Modify: `src/lib/books/books-data-access.server.ts`
@@ -1001,7 +1001,7 @@ bun run validate
 **Step 4: Commit**
 
 ```bash
-git add src/lib/db/schema/books-snapshots.ts src/lib/db/schema/index.ts \
+git add src/lib/db/schema/books-snapshots.ts src/lib/db/schema/*.ts \
   src/lib/db/queries/books-snapshots.ts src/lib/db/mutations/books-snapshots.ts \
   src/lib/books/books-data-access.server.ts src/lib/books/generate.ts \
   scripts/migrate-books-s3-to-postgres.ts __tests__
@@ -1017,7 +1017,7 @@ git commit -m "feat(db): migrate books snapshot storage from S3 to PostgreSQL"
 **Files:**
 
 - Create: `src/lib/db/schema/content-graph.ts`
-- Modify: `src/lib/db/schema/index.ts`
+- Modify: `src/lib/db/schema/*.ts`
 - Create: `src/lib/db/queries/content-graph.ts`
 - Create: `src/lib/db/mutations/content-graph.ts`
 - Modify: `src/lib/content-graph/build.ts`
@@ -1049,7 +1049,7 @@ bun run validate
 **Step 4: Commit**
 
 ```bash
-git add src/lib/db/schema/content-graph.ts src/lib/db/schema/index.ts \
+git add src/lib/db/schema/content-graph.ts src/lib/db/schema/*.ts \
   src/lib/db/queries/content-graph.ts src/lib/db/mutations/content-graph.ts \
   src/lib/content-graph/build.ts src/lib/books/related-content.server.ts \
   scripts/migrate-content-graph-s3-to-postgres.ts __tests__
@@ -1065,7 +1065,7 @@ git commit -m "feat(db): migrate content graph persistence from S3 to PostgreSQL
 **Files:**
 
 - Create: `src/lib/db/schema/ai-analysis.ts`
-- Modify: `src/lib/db/schema/index.ts`
+- Modify: `src/lib/db/schema/*.ts`
 - Create: `src/lib/db/queries/ai-analysis.ts`
 - Create: `src/lib/db/mutations/ai-analysis.ts`
 - Modify: `src/lib/ai-analysis/writer.server.ts`
@@ -1096,7 +1096,7 @@ bun run validate
 **Step 4: Commit**
 
 ```bash
-git add src/lib/db/schema/ai-analysis.ts src/lib/db/schema/index.ts \
+git add src/lib/db/schema/ai-analysis.ts src/lib/db/schema/*.ts \
   src/lib/db/queries/ai-analysis.ts src/lib/db/mutations/ai-analysis.ts \
   src/lib/ai-analysis/writer.server.ts src/lib/ai-analysis/reader.server.ts \
   scripts/migrate-ai-analysis-s3-to-postgres.ts __tests__

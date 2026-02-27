@@ -201,7 +201,7 @@ LIMIT 30;  -- fetch extra for diversity re-ranking
 | Per-domain embedding columns + HNSW indexes | 4 schema files                            | Unified `embeddings` table                            |
 | MiniSearch in-memory indexes                | `search-content.ts`, `search-factory.ts`  | PostgreSQL hybrid search on all domains               |
 | `rerankScoredResultsWithEmbeddings()`       | `search-content.ts:172`                   | Native pgvector in 3-CTE query                        |
-| Heuristic `calculateSimilarity()`           | `content-similarity/index.ts`             | Pre-computed pgvector cosine + blended scoring        |
+| Heuristic `calculateSimilarity()`           | `content-similarity/*`                    | Pre-computed pgvector cosine + blended scoring        |
 | Tag ontology (manual semantic groups)       | `content-similarity/tag-ontology.ts`      | Embeddings capture semantic relationships natively    |
 | `aggregateAllContent()` normalizer          | `content-similarity/aggregator.ts`        | Direct PostgreSQL queries on standardized tables      |
 | `NormalizedContent` intermediary type       | `types/related-content.ts`                | Domain-specific types with shared embedding interface |
@@ -328,7 +328,7 @@ Replace heuristic similarity with pgvector cosine queries:
 
 1. Remove dead code: per-domain embedding constants, MiniSearch imports, NormalizedContent type
 2. Update docs: search.md, architecture/README.md, file-map.md
-3. Delete stale docs: architecture/chroma.md
+3. Confirm stale docs remain deleted: `docs/architecture/chroma.md`
 4. `bun run validate` — zero errors, zero warnings
 5. `bun run build` — production build passes
 6. Manual quality verification: search and related content
