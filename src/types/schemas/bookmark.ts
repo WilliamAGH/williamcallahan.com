@@ -150,6 +150,7 @@ export const unifiedBookmarkSchema = z.object({
   ogDescription: z.string().nullable().optional(),
   ogUrl: z.string().nullable().optional(),
   domain: z.string().optional(),
+  category: z.string().nullable().optional(),
   sourceUpdatedAt: z.string(),
   ogImageLastFetchedAt: z.string().optional(),
   ogImageEtag: z.string().optional(),

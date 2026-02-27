@@ -4,6 +4,7 @@
  * Provides client-side access to bookmarks with pagination support.
  */
 
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getBookmarks, getBookmarksIndex, getBookmarksPage } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
@@ -13,6 +14,8 @@ import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manage
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 import { getMonotonicTime } from "@/lib/utils";
 import { getDiscoveryRankedBookmarks } from "@/lib/db/queries/discovery-scores";
+import { db } from "@/lib/db/connection";
+import { aiAnalysisLatest } from "@/lib/db/schema/ai-analysis";
 
 // This route can leverage the caching within getBookmarks
 
@@ -72,6 +75,42 @@ function applyCategoryDiversity<T extends { category: string | null }>(items: T[
   return diversified;
 }
 
+async function attachBookmarkCategories<T extends { id: string } & Record<string, unknown>>(
+  items: T[],
+): Promise<Array<T & { category: string | null }>> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const bookmarkIds = [...new Set(items.map((item) => item.id))];
+  const categoryExpression = sql<
+    string | null
+  >`nullif(trim(${aiAnalysisLatest.payload} -> 'analysis' ->> 'category'), '')`;
+  const categoryRows = await db
+    .select({
+      entityId: aiAnalysisLatest.entityId,
+      category: categoryExpression,
+    })
+    .from(aiAnalysisLatest)
+    .where(
+      and(
+        eq(aiAnalysisLatest.domain, "bookmarks"),
+        inArray(aiAnalysisLatest.entityId, bookmarkIds),
+      ),
+    );
+
+  const categoryByBookmarkId = new Map(
+    categoryRows
+      .filter((row) => row.category !== null)
+      .map((row) => [row.entityId, row.category] as const),
+  );
+
+  return items.map((item) => ({
+    ...item,
+    category: categoryByBookmarkId.get(item.id) ?? null,
+  }));
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   preventCaching();
   console.log("[API Bookmarks] Received GET request for bookmarks");
@@ -95,7 +134,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (feedMode === "discover" && !tagFilter) {
       const rankedBookmarks = await getDiscoveryRankedBookmarks(page, limit);
       const diversifiedBookmarks = applyCategoryDiversity(rankedBookmarks);
-      const bookmarkData = diversifiedBookmarks.map((entry) => entry.bookmark);
+      const bookmarkData = diversifiedBookmarks.map((entry) => ({
+        ...entry.bookmark,
+        category: entry.category ?? null,
+      }));
       const slugMapping = await loadSlugMapping();
       const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
       const total = indexData?.count ?? bookmarkData.length;
@@ -149,7 +191,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
           return NextResponse.json(
             {
-              data: paginatedBookmarks,
+              data: await attachBookmarkCategories(paginatedBookmarks),
               internalHrefs, // Include slug mappings for URL generation
               meta: {
                 pagination: {
@@ -207,12 +249,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Calculate pagination on filtered results
     const offset = (page - 1) * limit;
     const paginatedBookmarks = filteredBookmarks.slice(offset, offset + limit);
+    const categorizedBookmarks = await attachBookmarkCategories(paginatedBookmarks);
     const totalPages = Math.ceil(filteredBookmarks.length / limit);
 
     // CRITICAL: Generate slug mappings for all bookmarks being returned
     // Without these, the client cannot generate valid URLs and will get 404s
     const slugMapping = await loadSlugMapping();
-    const internalHrefs = buildInternalHrefs(paginatedBookmarks, slugMapping);
+    const internalHrefs = buildInternalHrefs(categorizedBookmarks, slugMapping);
 
     console.log(
       `[API Bookmarks] Returning page ${page}/${totalPages} with ${paginatedBookmarks.length} bookmarks${tagFilter ? ` (filtered by tag: ${tagFilter})` : ""}`,
@@ -220,7 +263,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(
       {
-        data: paginatedBookmarks,
+        data: categorizedBookmarks,
         internalHrefs, // Include slug mappings for URL generation
         meta: {
           pagination: {

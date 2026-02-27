@@ -24,6 +24,7 @@ import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel
 import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
 import { ImpressionTracker } from "./impression-tracker.client";
+import { CategoryRibbon } from "./category-ribbon.client";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
@@ -50,6 +51,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 }) => {
   const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showTagFilters, setShowTagFilters] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -111,13 +114,16 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
   const filteredBookmarks = useMemo(() => {
     if (!Array.isArray(bookmarks)) return [];
-    if (selectedTag && !tag) {
-      return bookmarks.filter((bookmark: UnifiedBookmark) =>
-        getTagsAsStringArray(bookmark.tags).includes(selectedTag),
-      );
-    }
-    return bookmarks;
-  }, [bookmarks, selectedTag, tag]);
+    return bookmarks.filter((bookmark: UnifiedBookmark) => {
+      if (selectedCategory && bookmark.category !== selectedCategory) {
+        return false;
+      }
+      if (selectedTag && !tag) {
+        return getTagsAsStringArray(bookmark.tags).includes(selectedTag);
+      }
+      return true;
+    });
+  }, [bookmarks, selectedCategory, selectedTag, tag]);
 
   const handleTagClick = (clickedTag: string) => {
     if (selectedTag === clickedTag) {
@@ -225,9 +231,35 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         onProductionRefresh={handleProductionRefresh}
       />
 
-      {showFilterBar && allTags.length > 0 && (
-        <div className="mb-6">
-          <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
+      {showFilterBar && (
+        <div className="mb-6 space-y-3">
+          <CategoryRibbon
+            selectedCategory={selectedCategory}
+            onSelectAction={(category) => {
+              setSelectedCategory(category);
+              goToPage(1);
+            }}
+          />
+          {allTags.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowTagFilters((prev) => !prev)}
+                className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              >
+                {showTagFilters ? "Hide tag filters" : "More filters"}
+              </button>
+              {showTagFilters && (
+                <div className="mt-3">
+                  <TagsList
+                    tags={allTags}
+                    selectedTag={selectedTag}
+                    onTagSelectAction={handleTagClick}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -238,6 +270,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-gray-500 dark:text-gray-400">
               {resultsCountText}
+              {selectedCategory && ` in "${selectedCategory}"`}
               {selectedTag && ` tagged with "${selectedTag}"`}
               {lastRefreshed && (
                 <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">

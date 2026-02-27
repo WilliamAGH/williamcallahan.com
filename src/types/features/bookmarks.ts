@@ -83,6 +83,16 @@ export type FeedToggleProps = {
   onChange: (mode: BookmarkFeedMode) => void;
 };
 
+export type BookmarkCategorySummary = {
+  name: string;
+  count: number;
+};
+
+export type CategoryRibbonProps = {
+  selectedCategory: string | null;
+  onSelectAction: (category: string | null) => void;
+};
+
 // Base type for all bookmark list variations
 type BaseBookmarkListProps = {
   bookmarks: UnifiedBookmark[];
@@ -263,6 +273,7 @@ export interface SerializableBookmark {
   ogTitle?: string | null;
   ogDescription?: string | null;
   domain?: string;
+  category?: string | null;
 }
 
 // =============================================================================
