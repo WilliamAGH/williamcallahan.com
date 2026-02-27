@@ -19,8 +19,6 @@ import { useClientBookmarks } from "@/hooks/use-client-bookmarks";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
-/** Number of skeleton placeholder cards shown during SSR */
-const SKELETON_PLACEHOLDER_COUNT = 6;
 /** Number of leading cards eligible for image preloading */
 const IMAGE_PRELOAD_THRESHOLD = 4;
 
@@ -218,18 +216,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         )}
       </div>
 
-      {!mounted && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
-          {bookmarks.slice(0, SKELETON_PLACEHOLDER_COUNT).map((bookmark) => (
-            <div
-              key={bookmark.id}
-              className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"
-              suppressHydrationWarning
-            />
-          ))}
-        </div>
-      )}
-      {mounted && filteredBookmarks.length === 0 && (
+      {filteredBookmarks.length === 0 && (
         <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
           <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -237,7 +224,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           </p>
         </div>
       )}
-      {mounted && filteredBookmarks.length > 0 && (
+      {filteredBookmarks.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
           {filteredBookmarks.map((bookmark, index) => {
             const internalHrefFromMap = internalHrefs[bookmark.id];
