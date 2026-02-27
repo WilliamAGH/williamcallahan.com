@@ -31,6 +31,7 @@ export default defineConfig({
     "projects",
     "books",
     "blog_posts",
+    "content_engagement",
   ],
   schemaFilter: "public",
   dbCredentials: {

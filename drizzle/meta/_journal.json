@@ -141,6 +141,13 @@
       "when": 1775409600000,
       "tag": "0018_blog-posts-table",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1775496000000,
+      "tag": "0019_content-engagement",
+      "breakpoints": true
     }
   ]
 }
