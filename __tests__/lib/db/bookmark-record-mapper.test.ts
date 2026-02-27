@@ -55,6 +55,16 @@ describe("bookmark-record-mapper", () => {
     expect(unified.isFavorite).toBe(true);
   });
 
+  it("repairs an empty row slug with a deterministic fallback", () => {
+    const unified = mapBookmarkRowToUnifiedBookmark({
+      ...BASE_BOOKMARK_ROW,
+      slug: "   ",
+      url: "https://example.com/path/to/resource",
+    });
+
+    expect(unified.slug).toBe("https-example-com-path-to-resource-bookmark");
+  });
+
   it("maps a UnifiedBookmark to BookmarkInsert with explicit nullable DB fields", () => {
     const unifiedBookmark: UnifiedBookmark = {
       id: "bookmark-2",
@@ -82,5 +92,22 @@ describe("bookmark-record-mapper", () => {
     expect(insert.archived).toBe(false);
     expect(insert.isPrivate).toBe(false);
     expect(insert.isFavorite).toBe(true);
+  });
+
+  it("throws when persisting a bookmark with an empty slug", () => {
+    const invalidBookmark: UnifiedBookmark = {
+      id: "bookmark-3",
+      slug: "  ",
+      url: "https://example.com/bookmark-3",
+      title: "Third Bookmark",
+      description: "Third description",
+      tags: [],
+      dateBookmarked: "2026-02-25T10:00:00.000Z",
+      sourceUpdatedAt: "2026-02-25T10:00:00.000Z",
+    };
+
+    expect(() => mapUnifiedBookmarkToBookmarkInsert(invalidBookmark)).toThrow(
+      "[BookmarkMapper] Cannot persist bookmark bookmark-3 with an empty slug.",
+    );
   });
 });

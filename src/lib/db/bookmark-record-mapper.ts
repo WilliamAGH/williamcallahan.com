@@ -14,13 +14,39 @@ const toUrlOrUndefined = (value: string | null): string | undefined => {
   return URL.canParse(value) ? value : undefined;
 };
 
+const SLUG_SANITIZE_PATTERN = /[^a-z0-9]+/gi;
+const SLUG_EDGE_DASH_PATTERN = /(^-+|-+$)/g;
+const FALLBACK_SLUG_ID_PREFIX_LENGTH = 8;
+
+const generateDeterministicFallbackSlug = (url: string, id: string): string => {
+  const normalizedBase = url
+    .replace(SLUG_SANITIZE_PATTERN, "-")
+    .toLowerCase()
+    .replace(SLUG_EDGE_DASH_PATTERN, "");
+  const base = normalizedBase.length > 0 ? normalizedBase : "bookmark";
+  return `${base}-${id.slice(0, FALLBACK_SLUG_ID_PREFIX_LENGTH)}`;
+};
+
+const resolveRowSlug = (row: Pick<BookmarkRow, "id" | "slug" | "url">): string => {
+  const normalizedSlug = row.slug.trim();
+  if (normalizedSlug.length > 0) {
+    return normalizedSlug;
+  }
+
+  const repairedSlug = generateDeterministicFallbackSlug(row.url, row.id);
+  console.error(
+    `[BookmarkMapper] Repaired empty slug for bookmark ${row.id}; using fallback slug ${repairedSlug}.`,
+  );
+  return repairedSlug;
+};
+
 export function mapBookmarkRowToUnifiedBookmark(row: BookmarkRow): UnifiedBookmark {
   return unifiedBookmarkSchema.parse({
     id: row.id,
     url: row.url,
     title: row.title,
     description: row.description,
-    slug: row.slug,
+    slug: resolveRowSlug(row),
     tags: row.tags,
     ogImage: toUrlOrUndefined(row.ogImage),
     dateBookmarked: row.dateBookmarked,
@@ -55,9 +81,14 @@ export function mapBookmarkRowsToUnifiedBookmarks(rows: readonly BookmarkRow[]):
 }
 
 export function mapUnifiedBookmarkToBookmarkInsert(bookmark: UnifiedBookmark): BookmarkInsert {
+  const normalizedSlug = bookmark.slug.trim();
+  if (normalizedSlug.length === 0) {
+    throw new Error(`[BookmarkMapper] Cannot persist bookmark ${bookmark.id} with an empty slug.`);
+  }
+
   return {
     id: bookmark.id,
-    slug: bookmark.slug,
+    slug: normalizedSlug,
     url: bookmark.url,
     title: bookmark.title,
     description: bookmark.description,
