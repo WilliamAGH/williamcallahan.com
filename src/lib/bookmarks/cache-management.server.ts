@@ -1,115 +1,12 @@
 /**
- * @file Bookmark cache compatibility helpers
+ * @file Bookmark cache helpers
  * @module lib/bookmarks/cache-management.server
  *
- * Maintains no-op compatibility wrappers for legacy bookmark cache APIs.
+ * Runtime-safe wrappers around Next.js cache primitives for bookmarks.
  */
 
-import type { UnifiedBookmark, LightweightBookmark } from "@/types/bookmark";
 import { USE_NEXTJS_CACHE, cacheContextGuards } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
-import { LOG_PREFIX } from "@/lib/bookmarks/config";
-
-// ============================================================================
-// Full Dataset Compatibility API
-// ============================================================================
-
-/**
- * Get the current full dataset cache if valid.
- * Cache storage is not maintained in this module.
- */
-export function getFullDatasetCache(): UnifiedBookmark[] | null {
-  return null;
-}
-
-/**
- * Update the full dataset cache.
- * No-op compatibility hook.
- */
-export function setFullDatasetCache(_bookmarks: UnifiedBookmark[]): void {
-  envLogger.log("Skipped full dataset cache update (no-op compatibility path)", undefined, {
-    category: LOG_PREFIX,
-  });
-}
-
-/**
- * Clear the full dataset cache.
- */
-export function clearFullDatasetCache(): void {
-  envLogger.log("Skipped full dataset cache clear (no-op compatibility path)", undefined, {
-    category: LOG_PREFIX,
-  });
-}
-
-/**
- * Check if the full dataset cache is valid.
- * Cache storage is not maintained in this module.
- */
-export function isFullDatasetCacheValid(_bypassForTest: boolean = false): boolean {
-  return false;
-}
-
-// ============================================================================
-// Bookmark-by-ID Compatibility API
-// ============================================================================
-
-/**
- * Clear both bookmark-by-id caches.
- */
-export function invalidateBookmarkByIdCaches(): void {
-  // no-op compatibility hook
-}
-
-/**
- * Get a cached bookmark by ID.
- * @param key - Bookmark ID
- * @param lightweight - Whether to get from the lightweight cache
- * @returns Cached bookmark or null if not found/stale
- */
-export function getCachedBookmarkById(key: string, lightweight: true): LightweightBookmark | null;
-export function getCachedBookmarkById(key: string, lightweight: false): UnifiedBookmark | null;
-export function getCachedBookmarkById(
-  key: string,
-  lightweight: boolean,
-): UnifiedBookmark | LightweightBookmark | null;
-export function getCachedBookmarkById(
-  _key: string,
-  _lightweight: boolean,
-): UnifiedBookmark | LightweightBookmark | null {
-  return null;
-}
-
-/**
- * Cache a bookmark by ID.
- * @param key - Bookmark ID
- * @param value - Bookmark to cache
- * @param lightweight - Whether to store in the lightweight cache
- */
-export function setCachedBookmarkById(
-  key: string,
-  value: LightweightBookmark,
-  lightweight: true,
-): void;
-export function setCachedBookmarkById(
-  key: string,
-  value: UnifiedBookmark,
-  lightweight: false,
-): void;
-export function setCachedBookmarkById(
-  _key: string,
-  _value: UnifiedBookmark | LightweightBookmark,
-  _lightweight: boolean,
-): void {
-  // no-op compatibility hook
-}
-
-/**
- * Remove a specific bookmark from both caches.
- * @param bookmarkId - ID of bookmark to remove
- */
-export function invalidateBookmarkMemoryCache(bookmarkId: string): void {
-  void bookmarkId;
-}
 
 // ============================================================================
 // Next.js Cache Integration

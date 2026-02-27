@@ -14,30 +14,12 @@ import { revalidateTag } from "next/cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import type { LogoResult, LogoInversion, LogoData } from "@/types/logo";
-import type { LogoValidationResult } from "@/types/cache";
 import { USE_NEXTJS_CACHE } from "@/lib/cache";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { DEFAULT_IMAGE_CONTENT_TYPE } from "@/lib/utils/content-type";
 
 // Type assertions for Next.js cache functions to fix ESLint errors
 const safeRevalidateTag = revalidateTag as (tag: string) => void;
-
-/**
- * Resets logo session tracking.
- * Previously cleared legacy cache state; now a no-op.
- */
-export function resetLogoSessionTracking(): void {
-  console.debug("[Logos] Logo session tracking reset (no-op)");
-}
-
-/**
- * Invalidates the S3 store for logos, forcing fresh fetches on next request.
- * This is a placeholder for actual cache invalidation logic if needed.
- */
-export function invalidateLogoS3Cache(): void {
-  // Currently a no-op or can be implemented with a cache-busting mechanism if needed
-  console.debug("[Logos] S3 logo cache invalidated (placeholder operation)");
-}
 
 export async function getLogo(domain: string): Promise<LogoResult | null> {
   const imageService = getUnifiedImageService();
@@ -168,13 +150,6 @@ export function getRuntimeLogoUrl(
 }
 
 /**
- * Get logo validation placeholder.
- */
-export function getLogoValidation(_imageHash: string): LogoValidationResult | null {
-  return null;
-}
-
-/**
  * Set logo validation with Next.js cache invalidation when enabled.
  * Storage for validation payloads is not maintained here.
  */
@@ -183,13 +158,6 @@ export function setLogoValidation(imageHash: string, _isGlobeIcon: boolean): voi
     safeRevalidateTag(`logo-validation-${imageHash}`);
     safeRevalidateTag("logo-validations");
   }
-}
-
-/**
- * Get logo analysis placeholder.
- */
-export function getLogoAnalysis(_cacheKey: string): LogoInversion | null {
-  return null;
 }
 
 /**

@@ -16,15 +16,6 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-// Only allow this endpoint in development
-// Commented out as unused but kept for reference
-// function checkIsDevelopment() {
-//   const isDev = process.env.NODE_ENV === 'development';
-//   if (!isDev) {
-//     throw new Error('This endpoint is only available in development mode');
-//   }
-// }
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   if (isProductionBuild) {
     return NextResponse.json(

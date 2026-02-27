@@ -18,7 +18,7 @@ import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { KNOWN_DOMAINS, IMAGE_S3_PATHS } from "@/lib/constants";
 import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
-import { getLogo, invalidateLogoS3Cache, resetLogoSessionTracking } from "@/lib/data-access/logos";
+import { getLogo } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
@@ -117,7 +117,6 @@ export class DataFetchManager {
         skipExternalFetch: false,
       })) as UnifiedBookmark[];
       const previousCount = previousBookmarks.length;
-      // const previousBookmarkIds = new Set(previousBookmarks.map((b: UnifiedBookmark) => b.id));
 
       // Force fresh data fetch, passing the forceRefresh flag
       const bookmarksResult = await refreshBookmarks(config.forceRefresh);
@@ -134,15 +133,7 @@ export class DataFetchManager {
         `[DataFetchManager] Fetched ${bookmarks.length} bookmarks (previous: ${previousCount})`,
       );
 
-      // DISABLED FOR BOOKMARKS: Don't fetch logos for bookmarks
-      // Bookmarks should only use OpenGraph images, not logos/favicons
-      // But logos are still needed for investments/experience/education pages
-      // if (config.immediate) {
-      //   const newBookmarks = bookmarks.filter((b: UnifiedBookmark) => !previousBookmarkIds.has(b.id));
-      //   if (newBookmarks.length > 0) {
-      //     await this.processNewBookmarkLogos(newBookmarks, config.testLimit);
-      //   }
-      // }
+      // Bookmarks should use OpenGraph images, not logos/favicons.
 
       // Read current index to surface changeDetected/lastFetchedAt consistently
       let changeDetected: boolean | undefined;
@@ -248,10 +239,6 @@ export class DataFetchManager {
     logger.info("[DataFetchManager] Starting logos fetch...");
 
     try {
-      // Reset tracking for bulk processing
-      resetLogoSessionTracking();
-      invalidateLogoS3Cache();
-
       // Collect all domains
       const domains = await this.collectAllDomains(config.testLimit);
       logger.info(`[DataFetchManager] Processing logos for ${domains.size} unique domains`);

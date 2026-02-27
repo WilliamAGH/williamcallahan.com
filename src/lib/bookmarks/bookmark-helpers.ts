@@ -7,9 +7,10 @@
  * @module lib/bookmarks/bookmark-helpers
  */
 
-import type { UnifiedBookmark, BookmarkContent, KarakeepImageFallback } from "@/types";
+import type { UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
+import type { KarakeepImageFallback } from "@/types/opengraph";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
-import { stripWwwPrefix } from "@/lib/utils/url-utils";
+import { extractDomainWithoutWww } from "@/lib/utils/url-utils";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
 /**
@@ -101,12 +102,8 @@ export function selectBestImage(
   const cdnConfig = getCdnConfigFromEnv();
 
   // Prepare context for asset URL generation (for descriptive S3 filenames)
-  let domain: string | undefined;
-  try {
-    domain = bookmark.url ? stripWwwPrefix(new URL(bookmark.url).hostname) : undefined;
-  } catch {
-    domain = undefined;
-  }
+  const domainCandidate = bookmark.url ? extractDomainWithoutWww(bookmark.url) : "";
+  const domain = domainCandidate && domainCandidate !== bookmark.url ? domainCandidate : undefined;
 
   const assetContext = {
     bookmarkId: bookmark.id,

@@ -9,6 +9,7 @@
 import type { RawApiBookmark, UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
 import { envLogger } from "@/lib/utils/env-logger";
 import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
+import { extractDomainWithoutWww } from "@/lib/utils/url-utils";
 import { normalizeScrapedContentText } from "./scraped-content";
 
 const READING_SPEED_WPM = 200;
@@ -28,15 +29,6 @@ function parseAttachedBy(value: string | undefined): "user" | "ai" | undefined {
   if (value === "user") return "user";
   if (value === "ai") return "ai";
   return undefined;
-}
-
-function extractDomain(url: string): string | undefined {
-  if (!url) return undefined;
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return undefined;
-  }
 }
 
 /**
@@ -66,7 +58,8 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       typeof rawHtml === "string" ? rawHtml : null,
     );
     const bookmarkUrl = raw.content?.url || "";
-    const domain = extractDomain(bookmarkUrl);
+    const domainCandidate = bookmarkUrl ? extractDomainWithoutWww(bookmarkUrl) : "";
+    const domain = domainCandidate && domainCandidate !== bookmarkUrl ? domainCandidate : undefined;
     const wordCount = computeWordCount(scrapedContentText);
     const readingTime = computeReadingTime(wordCount);
 

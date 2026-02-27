@@ -21,9 +21,6 @@
 
 import type { BaseMediaResult } from "./image";
 
-// import type { z } from "zod";
-// import type { CompanyDataSchema, LogoConfigSchema } from "@/lib/validators/logo";
-
 /** Logo source function type - takes domain string and returns URL string */
 type LogoSourceFunction = (domain: string) => string;
 
@@ -162,16 +159,6 @@ export interface ValidateLogoProps {
   url: string;
   domain: string;
 }
-
-/**
- * Configuration options for the logo processing system
- */
-// export type LogoConfig = z.infer<typeof LogoConfigSchema>;
-
-/**
- * Represents the data structure for a company, including its logos
- */
-// export type CompanyData = z.infer<typeof CompanyDataSchema>;
 
 /**
  * Domain blocklist entry for persistently failed logo fetches

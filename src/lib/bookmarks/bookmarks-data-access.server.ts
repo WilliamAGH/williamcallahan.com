@@ -2,8 +2,8 @@
 
 import { BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
-import type { UnifiedBookmark } from "@/types";
 import {
+  type UnifiedBookmark,
   type BookmarksIndex,
   type BookmarkLoadOptions,
   type LightweightBookmark,
@@ -24,14 +24,9 @@ import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import {
   safeCacheLife,
   safeCacheTag,
-  getCachedBookmarkById,
-  setCachedBookmarkById,
-  clearFullDatasetCache,
-  invalidateBookmarkByIdCaches,
   invalidateNextJsBookmarksCache,
   invalidatePageCache,
   invalidateTagCache as invalidateTagCacheInternal,
-  invalidateBookmarkMemoryCache as invalidateBookmarkCacheInternal,
 } from "@/lib/bookmarks/cache-management.server";
 
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
@@ -296,18 +291,6 @@ export async function getBookmarkById(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark | LightweightBookmark | null> {
   const includeImageData = options.includeImageData ?? true;
-  // Check compatibility cache hooks first (no-op when runtime cache is disabled).
-  if (includeImageData) {
-    const cached = getCachedBookmarkById(bookmarkId, false);
-    if (cached) {
-      return cached;
-    }
-  } else {
-    const cached = getCachedBookmarkById(bookmarkId, true);
-    if (cached) {
-      return cached;
-    }
-  }
 
   let bookmark: UnifiedBookmark | null = null;
 
@@ -333,13 +316,10 @@ export async function getBookmarkById(
   }
 
   if (includeImageData) {
-    setCachedBookmarkById(bookmarkId, bookmark, false);
     return bookmark;
   }
 
-  const lightweight = stripImageData(bookmark);
-  setCachedBookmarkById(bookmarkId, lightweight, true);
-  return lightweight;
+  return stripImageData(bookmark);
 }
 
 /** Get bookmarks by tag with caching support */
@@ -377,11 +357,8 @@ export async function getBookmarksByTag(
   };
 }
 
-/** Cache invalidation functions (Next.js cache tags plus compatibility no-op hooks) */
+/** Cache invalidation functions */
 export const invalidateBookmarksCache = (): void => {
-  // Clear compatibility no-op hooks and invalidate Next.js tags.
-  clearFullDatasetCache();
-  invalidateBookmarkByIdCaches();
   invalidateNextJsBookmarksCache();
 };
 export const invalidateBookmarksPageCache = (pageNumber: number): void => {
@@ -393,10 +370,6 @@ export const invalidateBookmarksTagCache = (tagSlug: string): void => {
   logBookmarkDataAccessEvent("Cache invalidated for tag", { tagSlug });
 };
 export const invalidateTagCache = invalidateBookmarksTagCache;
-export const invalidateBookmarkCache = (bookmarkId: string): void => {
-  invalidateBookmarkCacheInternal(bookmarkId);
-  logBookmarkDataAccessEvent("Cache invalidated for bookmark", { bookmarkId });
-};
 
 export async function getBookmarksIndex(): Promise<BookmarksIndex | null> {
   if (isProductionBuildPhase()) {

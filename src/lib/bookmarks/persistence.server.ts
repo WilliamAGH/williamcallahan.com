@@ -5,8 +5,7 @@
  * Primary store: PostgreSQL.
  */
 
-import type { UnifiedBookmark } from "@/types";
-import { invalidateBookmarkByIdCaches } from "@/lib/bookmarks/cache-management.server";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 /**
  * Write bookmark master data to PostgreSQL.
@@ -16,7 +15,6 @@ import { invalidateBookmarkByIdCaches } from "@/lib/bookmarks/cache-management.s
 export async function writeBookmarkMasterFiles(
   bookmarksWithSlugs: UnifiedBookmark[],
 ): Promise<void> {
-  invalidateBookmarkByIdCaches();
   const { upsertUnifiedBookmarks } = await import("@/lib/db/mutations/bookmarks");
   await upsertUnifiedBookmarks(bookmarksWithSlugs);
 

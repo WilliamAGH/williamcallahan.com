@@ -96,9 +96,6 @@ export interface CachedSlugMapping {
   timestamp: number;
 }
 
-// OgCacheEntry removed - use import from types/opengraph.ts instead
-// import type { OgCacheEntry } from "./opengraph";
-
 /**
  * Cache statistics interface
  */
