@@ -1,9 +1,22 @@
+/**
+ * Content Graph Builder
+ *
+ * Pre-computes related content mappings and tag co-occurrence graphs
+ * using pgvector cosine similarity on the unified embeddings table.
+ *
+ * @module content-graph/build
+ */
+
 import logger from "@/lib/utils/logger";
 import { getMonotonicTime } from "@/lib/utils";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import { CONTENT_GRAPH_ARTIFACT_TYPES } from "@/lib/db/schema/content-graph";
+import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
+import { applyBlendedScoring } from "./blended-scoring";
 
-// This function was moved from DataFetchManager
+const MAX_RELATED = 20;
+const YIELD_INTERVAL = 10;
+
 async function buildTagGraph(
   allContent: Array<{ type: string; id: string; tags?: string[] }>,
 ): Promise<{
@@ -27,27 +40,20 @@ async function buildTagGraph(
     }
   > = {};
 
-  // Process each content item's tags
   for (let i = 0; i < allContent.length; i++) {
-    // Yield control periodically to prevent blocking
     if (i > 0 && i % 20 === 0) {
       await new Promise((resolve) => setImmediate(resolve));
     }
 
     const content = allContent[i];
-    if (!content) continue; // Safety check for TypeScript
+    if (!content) continue;
     const contentKey = `${content.type}:${content.id}`;
     const uniqueTags = Array.from(new Set(content.tags || [])).filter(Boolean);
     for (const tag of uniqueTags) {
-      if (!tag) continue; // Skip empty tags
+      if (!tag) continue;
 
-      // Initialize tag data if needed
       if (!tagData[tag]) {
-        tagData[tag] = {
-          count: 0,
-          coOccurrences: {},
-          contentIds: [],
-        };
+        tagData[tag] = { count: 0, coOccurrences: {}, contentIds: [] };
       }
 
       tagData[tag].count++;
@@ -55,7 +61,6 @@ async function buildTagGraph(
         tagData[tag].contentIds.push(contentKey);
       }
 
-      // Track co-occurrences with other tags
       for (const otherTag of uniqueTags) {
         if (otherTag && tag !== otherTag) {
           tagData[tag].coOccurrences[otherTag] = (tagData[tag].coOccurrences[otherTag] || 0) + 1;
@@ -64,7 +69,6 @@ async function buildTagGraph(
     }
   }
 
-  // Build final tag graph
   const tags: Record<
     string,
     {
@@ -75,28 +79,19 @@ async function buildTagGraph(
     }
   > = {};
   for (const [tag, data] of Object.entries(tagData)) {
-    // Find most related tags based on co-occurrence
     const relatedTags = Object.entries(data.coOccurrences)
       .toSorted(([, a], [, b]) => b - a)
       .slice(0, 10)
-      .map(([tag]) => tag);
-
-    tags[tag] = {
-      ...data,
-      relatedTags,
-    };
+      .map(([t]) => t);
+    tags[tag] = { ...data, relatedTags };
   }
 
-  // Build simple tag hierarchy based on patterns
   const tagHierarchy: Record<string, string[]> = {};
   for (const tag of Object.keys(tags)) {
     const parts = tag.split("-");
     if (parts.length > 1 && parts[0]) {
       const parent = parts[0];
-      if (!tagHierarchy[parent]) {
-        tagHierarchy[parent] = [];
-      }
-      tagHierarchy[parent].push(tag);
+      (tagHierarchy[parent] ||= []).push(tag);
     }
   }
 
@@ -113,33 +108,45 @@ async function persistContentGraphArtifacts(
   await writeContentGraphArtifacts(artifacts);
 }
 
-// This function was moved from DataFetchManager
+/**
+ * Build the content graph using pgvector cosine similarity.
+ *
+ * For each entity with an embedding, finds nearest neighbors via single-query
+ * HNSW traversal and applies blended scoring (cosine + recency + diversity).
+ */
 export async function buildContentGraph(
   config: DataFetchConfig,
 ): Promise<DataFetchOperationSummary> {
   const startTime = getMonotonicTime();
-  void config; // Mark as acknowledged per project convention
-  logger.info("[DataFetchManager] Starting content graph build...");
+  void config;
+  logger.info("[ContentGraph] Starting content graph build...");
 
   try {
-    // Import required modules dynamically to avoid circular dependencies
-    const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
-    const { findMostSimilar, DEFAULT_WEIGHTS } = await import("@/lib/content-similarity");
+    const { db } = await import("@/lib/db/connection");
+    const { sql } = await import("drizzle-orm");
     const { getAllPosts } = await import("@/lib/blog");
     const { projects } = await import("@/data/projects");
 
-    // Aggregate all content
-    logger.info("[DataFetchManager] Aggregating all content for graph...");
-    let allContent = await aggregateAllContent();
-    if (typeof config.testLimit === "number" && config.testLimit > 0) {
-      allContent = allContent.slice(0, config.testLimit);
-    }
-    const blogPosts = await getAllPosts();
-    const projectsData = projects;
+    // Read all entities that have embeddings
+    const embeddingRows = await db.execute<{
+      domain: string;
+      entity_id: string;
+      title: string;
+      content_date: string | null;
+    }>(sql`
+      SELECT domain, entity_id, title, content_date
+      FROM embeddings
+      WHERE qwen_4b_fp16_embedding IS NOT NULL
+      ORDER BY domain, entity_id
+    `);
 
-    // Early return if no content to process
-    if (allContent.length === 0) {
-      logger.info("[DataFetchManager] No content to process, skipping graph build");
+    let entities = [...embeddingRows];
+    if (typeof config.testLimit === "number" && config.testLimit > 0) {
+      entities = entities.slice(0, config.testLimit);
+    }
+
+    if (entities.length === 0) {
+      logger.info("[ContentGraph] No entities with embeddings, skipping graph build");
       return {
         success: true,
         operation: "content-graph",
@@ -148,94 +155,108 @@ export async function buildContentGraph(
       };
     }
 
-    // Pre-compute related content for every item
-    logger.info("[DataFetchManager] Computing similarity scores for all content...");
+    logger.info(`[ContentGraph] Computing similarity for ${entities.length} entities...`);
+
     const relatedContentMappings: Record<
       string,
-      Array<{
-        type: string;
-        id: string;
-        score: number;
-        title: string;
-      }>
+      Array<{ type: string; id: string; score: number; title: string }>
     > = {};
-    const MAX_RELATED = 20; // Store top 20 for each item
-    const YIELD_INTERVAL = 10; // Yield control every 10 items to prevent blocking
 
-    for (let i = 0; i < allContent.length; i++) {
-      // Yield control periodically to allow HTTP requests to be processed
+    for (let i = 0; i < entities.length; i++) {
       if (i > 0 && i % YIELD_INTERVAL === 0) {
         await new Promise((resolve) => setImmediate(resolve));
-
-        // Log progress for visibility
         if (i % 50 === 0) {
-          logger.info(
-            `[DataFetchManager] Content graph progress: ${i}/${allContent.length} items processed`,
-          );
+          logger.info(`[ContentGraph] Progress: ${i}/${entities.length} entities processed`);
         }
       }
 
-      const sourceContent = allContent[i];
-      if (!sourceContent) continue; // Safety check for TypeScript
-      const contentKey = `${sourceContent.type}:${sourceContent.id}`;
+      const entity = entities[i];
+      if (!entity) continue;
 
-      // Find similar content (excluding self)
-      const candidates = allContent.filter(
-        (item) => !(item.type === sourceContent.type && item.id === sourceContent.id),
-      );
+      const sourceDomain = entity.domain as Parameters<
+        typeof findSimilarByEntity
+      >[0]["sourceDomain"];
+      const contentKey = `${entity.domain}:${entity.entity_id}`;
 
-      const similar = findMostSimilar(sourceContent, candidates, MAX_RELATED, DEFAULT_WEIGHTS);
+      const candidates = await findSimilarByEntity({
+        sourceDomain,
+        sourceId: entity.entity_id,
+        limit: MAX_RELATED + 10, // fetch extra so blended scoring has room after diversity cap
+      });
 
-      // Store with minimal data needed for hydration
-      // Note: Bookmark slugs will be resolved at render time using slug mappings
-      // to ensure consistency and avoid hydration issues
-      relatedContentMappings[contentKey] = similar.map((item) => ({
-        type: item.type,
-        id: item.id,
-        score: item.score,
-        title: item.title,
+      const scored = applyBlendedScoring(candidates, {
+        maxPerDomain: 5,
+        maxTotal: MAX_RELATED,
+      });
+
+      relatedContentMappings[contentKey] = scored.map((c) => ({
+        type: c.domain,
+        id: c.entityId,
+        score: c.score,
+        title: c.title,
       }));
     }
 
-    // Build tag co-occurrence graph in parallel with related content computation
-    const tagGraph = await buildTagGraph(allContent);
+    // Build tag graph from entities that have tag data
+    // Tags come from bookmarks, blog posts, projects, thoughts — query minimally
+    const tagContentRows = await db.execute<{
+      domain: string;
+      entity_id: string;
+      tags: string[] | null;
+    }>(sql`
+      SELECT 'bookmark' AS domain, id AS entity_id, tags::text[]
+      FROM bookmarks WHERE tags IS NOT NULL
+      UNION ALL
+      SELECT 'blog' AS domain, id AS entity_id, tags::text[]
+      FROM blog_posts WHERE tags IS NOT NULL
+      UNION ALL
+      SELECT 'project' AS domain, id AS entity_id, tags::text[]
+      FROM projects WHERE tags IS NOT NULL
+    `);
+
+    const tagContent = tagContentRows.map((r) => ({
+      type: r.domain,
+      id: r.entity_id,
+      tags: r.tags ?? [],
+    }));
+
+    const tagGraph = await buildTagGraph(tagContent);
+
     logger.info(
-      `[DataFetchManager] Computed ${Object.keys(relatedContentMappings).length} related content mappings`,
+      `[ContentGraph] Computed ${Object.keys(relatedContentMappings).length} related content mappings`,
     );
 
-    // Build metadata
+    const blogPosts = await getAllPosts();
     const metadata = {
-      version: "1.0.0",
+      version: "2.0.0",
       generated: new Date().toISOString(),
       counts: {
-        total: allContent.length,
+        total: entities.length,
         blogPosts: blogPosts.length,
-        projects: projectsData.length,
-        bookmarks: allContent.filter((c) => c.type === "bookmark").length,
+        projects: projects.length,
+        bookmarks: entities.filter((e) => e.domain === "bookmark").length,
       },
     };
 
-    // Persist all artifacts via environment-aware strategy
     await persistContentGraphArtifacts([
       { artifactType: "related-content", payload: relatedContentMappings },
       { artifactType: "tag-graph", payload: tagGraph },
       { artifactType: "metadata", payload: metadata },
     ]);
-    logger.info(
-      `[DataFetchManager] Saved tag graph with ${Object.keys(tagGraph.tags).length} tags`,
-    );
+
+    logger.info(`[ContentGraph] Saved tag graph with ${Object.keys(tagGraph.tags).length} tags`);
 
     const duration = ((getMonotonicTime() - startTime) / 1000).toFixed(2);
-    logger.info(`[DataFetchManager] Content graph built in ${duration}s`);
+    logger.info(`[ContentGraph] Content graph built in ${duration}s`);
 
     return {
       success: true,
       operation: "content-graph",
-      itemsProcessed: allContent.length,
+      itemsProcessed: entities.length,
       duration: parseFloat(duration),
     };
   } catch (error) {
-    logger.error("[DataFetchManager] Content graph build failed:", error);
+    logger.error("[ContentGraph] Content graph build failed:", error);
     return {
       success: false,
       operation: "content-graph",

@@ -19,6 +19,23 @@ export interface SimilarityCandidate {
 }
 
 /**
+ * SimilarityCandidate after blended scoring (cosine + recency + quality).
+ */
+export interface ScoredCandidate extends SimilarityCandidate {
+  /** Final blended score incorporating cosine, recency, and quality signals. */
+  score: number;
+}
+
+/**
+ * Lean entry for content hydration: identifies an entity and its score.
+ */
+export interface HydrationEntry {
+  domain: ContentEmbeddingDomain;
+  entityId: string;
+  score: number;
+}
+
+/**
  * Content types that can be related/recommended
  */
 export type RelatedContentType =

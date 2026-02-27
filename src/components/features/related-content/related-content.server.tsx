@@ -2,29 +2,24 @@
  * RelatedContent Server Component
  *
  * Fetches and displays related content recommendations for a given source item.
- * Uses server-side rendering for optimal performance and SEO.
+ * Uses pgvector cosine similarity with blended scoring (recency + diversity).
+ *
+ * Two resolution paths:
+ * 1. Pre-computed: reads from content_graph_artifacts (built by buildContentGraph)
+ * 2. On-demand: runs findSimilarByEntity() live when pre-computed data is missing
  */
 
-import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
-import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
-import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
+import { limitByTypeAndTotal } from "@/lib/content-similarity";
 import { RelatedContentSection } from "./related-content-section";
-import { resolveImageUrl } from "@/lib/seo/url-utils";
 import { debug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { readRelatedContent } from "@/lib/db/queries/content-graph";
-import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
-import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
-import { normalizeDomain } from "@/lib/utils/domain-utils";
-import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
-import type {
-  RelatedContentProps,
-  RelatedContentItem,
-  NormalizedContent,
-} from "@/types/related-content";
+import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
+import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
+import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
+import type { RelatedContentProps, RelatedContentItem } from "@/types/related-content";
+import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 
-// Import configuration with documented rationale
 import {
   DEFAULT_MAX_PER_TYPE,
   DEFAULT_MAX_TOTAL,
@@ -34,167 +29,109 @@ import {
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
 // during build, permanently baking "phase-production-build" into the bundle.
-// Using bracket notation with a variable key prevents static analysis and inlining.
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
+const normalizeTagForComparison = (tag: string): string =>
+  tag.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+
 /**
- * Convert normalized content to related content item
+ * Filter items by include/exclude type sets and excluded tags.
+ * Returns a new array (never mutates input).
  */
-async function toRelatedContentItem(
-  content: NormalizedContent & { score: number },
-): Promise<RelatedContentItem | null> {
-  const display = content.display;
-  const safeDateIso =
-    content.date && Number.isFinite(content.date.getTime())
-      ? content.date.toISOString()
-      : undefined;
-  const baseMetadata: RelatedContentItem["metadata"] = {
-    tags: content.tags,
-    domain: content.domain,
-    date: safeDateIso,
+function applyFilters(
+  items: RelatedContentItem[],
+  options: {
+    includeTypes?: readonly string[];
+    excludeTypes?: readonly string[];
+    excludeIds?: readonly string[];
+    excludeTags?: readonly string[];
+    sourceType: string;
+    sourceId: string;
+  },
+): RelatedContentItem[] {
+  const {
+    includeTypes,
+    excludeTypes,
+    excludeIds = [],
+    excludeTags = [],
+    sourceType,
+    sourceId,
+  } = options;
+
+  const normalizedExcludeTags = new Set(excludeTags.map(normalizeTagForComparison).filter(Boolean));
+  const hasExcludedTag = (tags: readonly string[] | undefined): boolean => {
+    if (normalizedExcludeTags.size === 0 || !tags) return false;
+    return tags.some((t) => normalizedExcludeTags.has(normalizeTagForComparison(t)));
   };
 
-  switch (content.type) {
-    case "bookmark": {
-      const metadata: RelatedContentItem["metadata"] = {
-        ...baseMetadata,
-        imageUrl: resolveImageUrl(display?.imageUrl),
-      };
-
-      return {
-        type: content.type,
-        id: content.id,
-        title: content.title,
-        description: display?.description || "",
-        url: content.url,
-        score: content.score,
-        metadata,
-      };
-    }
-
-    case "blog": {
-      const metadata: RelatedContentItem["metadata"] = {
-        ...baseMetadata,
-        readingTime: display?.readingTime,
-        imageUrl: resolveImageUrl(display?.imageUrl),
-        author: display?.author
-          ? {
-              name: display.author.name,
-              avatar: resolveImageUrl(display.author.avatar),
-            }
-          : undefined,
-      };
-
-      return {
-        type: content.type,
-        id: content.id,
-        title: content.title,
-        description: display?.description || "",
-        url: content.url,
-        score: content.score,
-        metadata,
-      };
-    }
-
-    case "investment": {
-      const investmentDetails = display?.investment;
-      let logoUrl = resolveImageUrl(display?.imageUrl);
-
-      if (!logoUrl) {
-        const effectiveDomain = investmentDetails?.logoOnlyDomain
-          ? normalizeDomain(investmentDetails.logoOnlyDomain)
-          : investmentDetails?.website
-            ? normalizeDomain(investmentDetails.website)
-            : investmentDetails?.name
-              ? normalizeDomain(investmentDetails.name)
-              : undefined;
-
-        if (effectiveDomain) {
-          const manifestEntry = await getLogoFromManifestAsync(effectiveDomain);
-          if (manifestEntry?.cdnUrl) {
-            logoUrl = resolveImageUrl(manifestEntry.cdnUrl);
-          } else {
-            const runtimeUrl = getRuntimeLogoUrl(effectiveDomain, {
-              company: investmentDetails?.name,
-            });
-            logoUrl = runtimeUrl
-              ? resolveImageUrl(runtimeUrl)
-              : resolveImageUrl(getCompanyPlaceholder());
-          }
-        } else {
-          logoUrl = resolveImageUrl(getCompanyPlaceholder());
-        }
-      }
-
-      const metadata: RelatedContentItem["metadata"] = {
-        ...baseMetadata,
-        stage: display?.stage,
-        category: display?.category,
-        imageUrl: logoUrl,
-        aventureUrl: display?.aventureUrl,
-      };
-
-      return {
-        type: content.type,
-        id: content.id,
-        title: content.title,
-        description: display?.description || "",
-        url: content.url,
-        score: content.score,
-        metadata,
-      };
-    }
-
-    case "project": {
-      const imageKey = display?.project?.imageKey;
-      const metadata: RelatedContentItem["metadata"] = imageKey
-        ? { ...baseMetadata, imageUrl: buildCdnUrl(imageKey, getCdnConfigFromEnv()) }
-        : baseMetadata;
-
-      return {
-        type: content.type,
-        id: content.id,
-        title: content.title,
-        description: display?.description || content.text,
-        url: content.url,
-        score: content.score,
-        metadata,
-      };
-    }
-
-    case "book": {
-      const bookDetails = display?.book;
-      const metadata: RelatedContentItem["metadata"] = {
-        ...baseMetadata,
-        imageUrl: resolveImageUrl(display?.imageUrl),
-        authors: bookDetails?.authors,
-        formats: bookDetails?.formats,
-      };
-
-      return {
-        type: content.type,
-        id: content.id,
-        title: content.title,
-        description: display?.description || "",
-        url: content.url,
-        score: content.score,
-        metadata,
-      };
-    }
-
-    default:
-      return {
-        type: content.type,
-        id: content.id,
-        title: content.title,
-        description: content.text,
-        url: content.url,
-        score: content.score,
-        metadata: baseMetadata,
-      };
+  let filtered = items;
+  if (includeTypes) {
+    const inc = new Set(includeTypes);
+    filtered = filtered.filter((i) => inc.has(i.type));
   }
+  if (excludeTypes) {
+    const exc = new Set(excludeTypes);
+    filtered = filtered.filter((i) => !exc.has(i.type));
+  }
+  if (excludeIds.length > 0) {
+    const excIds = new Set(excludeIds);
+    filtered = filtered.filter((i) => !(i.type === sourceType && excIds.has(i.id)));
+  }
+  // Exclude the source entity itself
+  filtered = filtered.filter((i) => !(i.type === sourceType && i.id === sourceId));
+  // Exclude items with excluded tags
+  filtered = filtered.filter((i) => !hasExcludedTag(i.metadata.tags));
+
+  return filtered;
+}
+
+/**
+ * Try pre-computed related content from the content graph artifacts.
+ * Returns hydrated items or null if no pre-computed data exists.
+ */
+async function resolveFromPrecomputed(contentKey: string): Promise<RelatedContentItem[] | null> {
+  const precomputed = await readRelatedContent();
+  const entries = precomputed?.[contentKey];
+  if (!entries || entries.length === 0) return null;
+
+  // Build ScoredCandidate-shaped objects for hydration
+  const candidates = entries.map((e) => ({
+    domain: e.type as ContentEmbeddingDomain,
+    entityId: e.id,
+    title: e.title,
+    similarity: e.score,
+    contentDate: null,
+    score: e.score,
+  }));
+
+  return hydrateRelatedContent(candidates);
+}
+
+/**
+ * Compute related content on-demand via pgvector ANN search.
+ */
+async function resolveOnDemand(
+  sourceType: string,
+  sourceId: string,
+): Promise<RelatedContentItem[]> {
+  const sourceDomain = sourceType as ContentEmbeddingDomain;
+
+  const candidates = await findSimilarByEntity({
+    sourceDomain,
+    sourceId,
+    limit: 30,
+  });
+
+  if (candidates.length === 0) return [];
+
+  const scored = applyBlendedScoring(candidates, {
+    maxPerDomain: 5,
+    maxTotal: 20,
+  });
+
+  return hydrateRelatedContent(scored);
 }
 
 export async function RelatedContent({
@@ -223,7 +160,6 @@ export async function RelatedContent({
       }
     }
 
-    // Extract options with defaults
     const {
       maxPerType = DEFAULT_MAX_PER_TYPE,
       maxTotal = DEFAULT_MAX_TOTAL,
@@ -231,192 +167,43 @@ export async function RelatedContent({
       excludeTypes,
       excludeIds = [],
       excludeTags = [],
-      weights, // Don't default - let algorithm choose appropriate weights
     } = options;
 
-    const normalizeTagForComparison = (tag: string): string =>
-      tag.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
-
-    const normalizedExcludeTags = new Set(
-      excludeTags.map(normalizeTagForComparison).filter(Boolean),
-    );
-
-    // Helper to check if item has any excluded tags
-    const hasExcludedTag = (tags: readonly string[] | undefined): boolean => {
-      if (normalizedExcludeTags.size === 0 || !tags) return false;
-      return tags.some((tag) => normalizedExcludeTags.has(normalizeTagForComparison(tag)));
-    };
-
-    // Try to load pre-computed related content from PostgreSQL first
     const contentKey = `${sourceType}:${actualSourceId}`;
-    const precomputed = await readRelatedContent();
 
-    if (precomputed?.[contentKey]) {
-      // Use pre-computed scores
-      let items = precomputed[contentKey];
+    // Path 1: try pre-computed content graph
+    let items = await resolveFromPrecomputed(contentKey);
 
-      // Apply filters
-      if (includeTypes) {
-        const inc = new Set(includeTypes);
-        items = items.filter((item) => inc.has(item.type));
-      }
-      if (excludeTypes) {
-        const exc = new Set(excludeTypes);
-        items = items.filter((item) => !exc.has(item.type));
-      }
-      if (excludeIds.length > 0) {
-        items = items.filter((item) => !(item.type === sourceType && excludeIds.includes(item.id)));
-      }
-
-      // Get all content for mapping BEFORE limiting - we need tags to filter by excludeTags
-      // Use lazy loading to reduce peak allocations
-      const neededTypes = Array.from(new Set(items.map((item) => item.type)));
-      const contentMap = await getLazyContentMap(neededTypes);
-
-      // Convert to RelatedContentItem format
-      const relatedItemPromises = items.map(async (item) => {
-        const content = contentMap.get(`${item.type}:${item.id}`);
-        if (!content) return null;
-        const relatedItem = await toRelatedContentItem({ ...content, score: item.score });
-        return relatedItem;
-      });
-
-      // Filter by excludeTags BEFORE applying limits to ensure we get the requested count
-      const resolvedItems = await Promise.all(relatedItemPromises);
-      const filteredItems = resolvedItems
-        .filter((i): i is RelatedContentItem => i !== null)
-        .filter((i) => !hasExcludedTag(i.metadata.tags));
-
-      // Apply limits via shared helper AFTER excludeTags filtering
-      const relatedItems = limitByTypeAndTotal(filteredItems, maxPerType, maxTotal);
-
-      // If precomputed items exist but are missing some allowed content types (e.g., projects, books),
-      // compute additional candidates for just the missing types and merge.
-      // Use centralized config to get enabled types (filters out production-hidden types like "thought")
-      const enabledTypes = getEnabledContentTypes();
-      const allAllowedTypes = includeTypes
-        ? new Set(includeTypes.filter((t) => enabledTypes.includes(t)))
-        : new Set(enabledTypes);
-      const presentTypes = new Set(relatedItems.map((i) => i.type));
-      const missingTypes = Array.from(allAllowedTypes).filter((t) => !presentTypes.has(t));
-
-      if (missingTypes.length > 0) {
-        const source = await getContentById(sourceType, actualSourceId);
-        if (source) {
-          // Load all content and filter
-          let allContent = await getCachedAllContent();
-          if (includeTypes || excludeTypes) {
-            allContent = filterByTypes(
-              allContent,
-              includeTypes ? Array.from(new Set(includeTypes)) : undefined,
-              excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
-            );
-          }
-
-          const excludeSet = new Set([...excludeIds, actualSourceId]);
-          const precomputedKeys = new Set(relatedItems.map((i) => `${i.type}:${i.id}`));
-
-          const candidates = allContent
-            .filter((item) => !(item.type === sourceType && excludeSet.has(item.id)))
-            .filter((item) => missingTypes.includes(item.type))
-            .filter((item) => !precomputedKeys.has(`${item.type}:${item.id}`))
-            .filter((item) => !hasExcludedTag(item.tags));
-
-          const extraSimilar = findMostSimilar(source, candidates, maxTotal * 2, weights);
-
-          // Prepare slug mapping only if needed for bookmarks in the extras
-          const extraItemsResolved = await Promise.all(
-            extraSimilar.map((item) => toRelatedContentItem(item)),
-          );
-          const extraItems = extraItemsResolved.filter((i): i is RelatedContentItem => i !== null);
-
-          // Merge, dedupe, and re-limit per type and total
-          const merged: RelatedContentItem[] = [];
-          const seen = new Set<string>();
-          for (const it of [...relatedItems, ...extraItems]) {
-            const key = `${it.type}:${it.id}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              merged.push(it);
-            }
-          }
-
-          const final = limitByTypeAndTotal(merged, maxPerType, maxTotal);
-          if (final.length > 0) {
-            return (
-              <RelatedContentSection
-                title={sectionTitle}
-                items={final}
-                className={className}
-                sourceType={sourceType}
-              />
-            );
-          }
-        }
-      }
-
-      if (relatedItems.length > 0) {
-        return (
-          <RelatedContentSection
-            title={sectionTitle}
-            items={relatedItems}
-            className={className}
-            sourceType={sourceType}
-          />
-        );
-      }
+    // Path 2: fall back to on-demand pgvector search
+    if (!items || items.length === 0) {
+      items = await resolveOnDemand(sourceType, actualSourceId);
     }
 
-    // Get source content
-    const source = await getContentById(sourceType, actualSourceId);
-    if (!source) {
-      console.error(`Content not found: ${sourceType}/${actualSourceId}`);
-      return null;
-    }
+    if (items.length === 0) return null;
 
-    // Get all content using cached version to reduce redundant fetches
-    let allContent = await getCachedAllContent();
-
-    // Filter by include/exclude types
-    if (includeTypes || excludeTypes) {
-      allContent = filterByTypes(
-        allContent,
-        includeTypes ? Array.from(new Set(includeTypes)) : undefined,
-        excludeTypes ? Array.from(new Set(excludeTypes)) : undefined,
-      );
-    }
-
-    // Exclude the source item and any specified IDs
-    const allExcludeIds = new Set([...excludeIds, actualSourceId]);
-
-    const candidates = allContent
-      .filter((item) => !(item.type === sourceType && allExcludeIds.has(item.id)))
-      .filter((item) => !hasExcludedTag(item.tags));
-
-    // Find similar content
-    const similar = findMostSimilar(source, candidates, maxTotal * 2, weights);
-
-    // Apply limits via shared helper
-    const finalItems = limitByTypeAndTotal(similar, maxPerType, maxTotal);
-
-    // Convert to RelatedContentItem format
-    const relatedItemPromises = finalItems.map(async (item) => {
-      const relatedItem = await toRelatedContentItem(item);
-      return relatedItem;
+    // Apply user-specified filters
+    const filtered = applyFilters(items, {
+      includeTypes,
+      excludeTypes,
+      excludeIds,
+      excludeTags,
+      sourceType,
+      sourceId: actualSourceId,
     });
 
-    const resolvedItems = await Promise.all(relatedItemPromises);
-    const relatedItems = resolvedItems.filter((i): i is RelatedContentItem => i !== null);
+    // Filter to only environment-enabled types
+    const enabledTypes = new Set(getEnabledContentTypes());
+    const enabledItems = filtered.filter((i) => enabledTypes.has(i.type));
 
-    // Return nothing if no related items found
-    if (relatedItems.length === 0) {
-      return null;
-    }
+    // Apply per-type and total limits
+    const limited = limitByTypeAndTotal(enabledItems, maxPerType, maxTotal);
+
+    if (limited.length === 0) return null;
 
     return (
       <RelatedContentSection
         title={sectionTitle}
-        items={relatedItems}
+        items={limited}
         className={className}
         sourceType={sourceType}
       />
