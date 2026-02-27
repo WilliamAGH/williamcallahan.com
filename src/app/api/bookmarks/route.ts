@@ -12,6 +12,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 import { getMonotonicTime } from "@/lib/utils";
+import { getDiscoveryRankedBookmarks } from "@/lib/db/queries/discovery-scores";
 
 // This route can leverage the caching within getBookmarks
 
@@ -39,6 +40,38 @@ function buildInternalHrefs(
   return res;
 }
 
+function applyCategoryDiversity<T extends { category: string | null }>(items: T[]): T[] {
+  const diversified = [...items];
+  for (let index = 2; index < diversified.length; index += 1) {
+    const current = diversified[index];
+    const previous = diversified[index - 1];
+    const beforePrevious = diversified[index - 2];
+    if (
+      !current?.category ||
+      current.category !== previous?.category ||
+      current.category !== beforePrevious?.category
+    ) {
+      continue;
+    }
+
+    const swapIndex = diversified.findIndex(
+      (candidate, candidateIndex) =>
+        candidateIndex > index && candidate.category !== current.category,
+    );
+    if (swapIndex === -1) {
+      continue;
+    }
+
+    const swapCandidate = diversified[swapIndex];
+    if (!swapCandidate) {
+      continue;
+    }
+    diversified[index] = swapCandidate;
+    diversified[swapIndex] = current;
+  }
+  return diversified;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   preventCaching();
   console.log("[API Bookmarks] Received GET request for bookmarks");
@@ -53,9 +86,47 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Get tag filter parameter
   const tagFilter = searchParams.get("tag") || null;
+  const feedQuery = searchParams.get("feed");
+  const feedMode = feedQuery === "latest" ? "latest" : "discover";
 
   try {
     const indexData = await getBookmarksIndex();
+
+    if (feedMode === "discover" && !tagFilter) {
+      const rankedBookmarks = await getDiscoveryRankedBookmarks(page, limit);
+      const diversifiedBookmarks = applyCategoryDiversity(rankedBookmarks);
+      const bookmarkData = diversifiedBookmarks.map((entry) => entry.bookmark);
+      const slugMapping = await loadSlugMapping();
+      const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
+      const total = indexData?.count ?? bookmarkData.length;
+      const totalPages = Math.ceil(total / limit);
+      const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
+
+      return NextResponse.json(
+        {
+          data: bookmarkData,
+          internalHrefs,
+          meta: {
+            pagination: {
+              page,
+              limit,
+              total,
+              totalPages,
+              hasNext: page < totalPages,
+              hasPrev: page > 1,
+            },
+            feed: "discover",
+            dataVersion: lastFetchedAt,
+            lastRefreshed: new Date(lastFetchedAt).toISOString(),
+          },
+        },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        },
+      );
+    }
 
     // Fast-path: only when the caller requests **one standard page** worth of data
     // If the client asks for more than BOOKMARKS_PER_PAGE (24) items we must
@@ -89,6 +160,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                   hasNext: page < totalPages,
                   hasPrev: page > 1,
                 },
+                feed: "latest",
                 dataVersion: lastFetchedAt,
                 lastRefreshed: new Date(lastFetchedAt).toISOString(),
               },
@@ -159,6 +231,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             hasNext: page < totalPages,
             hasPrev: page > 1,
           },
+          feed: "latest",
           filter: tagFilter ? { tag: tagFilter } : undefined, // Include filter info
           // Data version for client-side cache invalidation
           dataVersion: lastFetchedAt,
