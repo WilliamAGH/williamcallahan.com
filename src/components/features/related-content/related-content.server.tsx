@@ -9,7 +9,7 @@
  * 2. On-demand: runs findSimilarByEntity() live when pre-computed data is missing
  */
 
-import { limitByTypeAndTotal } from "@/lib/content-similarity";
+import { limitByTypeAndTotal } from "@/lib/utils/limit-by-type";
 import { RelatedContentSection } from "./related-content-section";
 import { debug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";

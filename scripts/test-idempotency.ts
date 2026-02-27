@@ -146,26 +146,6 @@ async function testIdempotency() {
       `✅ Expected cache TTL: ${expectedTTL}ms for ${process.env.NODE_ENV || "development"} environment`,
     );
 
-    // Test 7: Lazy Loading for Content (from performance tests)
-    console.log("\n💾 Test 7: Lazy Content Loading");
-    const { getLazyContentMap, getCachedAllContent } =
-      await import("@/lib/content-similarity/cached-aggregator");
-    const contentTypes = [
-      "blog",
-      "project",
-    ] as import("@/types/related-content").RelatedContentType[];
-    const lazyMap = await getLazyContentMap(contentTypes);
-    const allContentCached = await getCachedAllContent();
-
-    if (lazyMap.size <= allContentCached.length) {
-      console.log(
-        `✅ Lazy loading working: ${lazyMap.size} items (filtered) vs ${allContentCached.length} total`,
-      );
-    } else {
-      console.log(`❌ Lazy loading not filtering correctly`);
-      process.exit(1);
-    }
-
     // Summary
     console.log("\n" + "=".repeat(60));
     console.log("✅ IDEMPOTENCY & PERFORMANCE TEST PASSED!");
