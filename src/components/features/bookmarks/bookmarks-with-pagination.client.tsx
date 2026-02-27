@@ -24,7 +24,6 @@ import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
-const SKELETON_PLACEHOLDER_COUNT = 6;
 const IMAGE_PRELOAD_THRESHOLD = 4;
 
 const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] =>
@@ -252,27 +251,13 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         )}
       </div>
 
-      {!mounted && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
-          {Array.isArray(initialBookmarks) &&
-            initialBookmarks
-              .slice(0, SKELETON_PLACEHOLDER_COUNT)
-              .map((bookmark) => (
-                <div
-                  key={bookmark.id}
-                  className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"
-                  suppressHydrationWarning
-                />
-              ))}
-        </div>
-      )}
-      {mounted && error && (
+      {error && (
         <div className="text-center py-16 px-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
           <p className="text-red-600 dark:text-red-400 text-lg mb-2">Error loading bookmarks</p>
           <p className="text-red-500 dark:text-red-300 text-sm">{error?.message}</p>
         </div>
       )}
-      {mounted && !error && filteredBookmarks.length === 0 && (
+      {!error && filteredBookmarks.length === 0 && (
         <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
           <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -280,7 +265,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           </p>
         </div>
       )}
-      {mounted && !error && filteredBookmarks.length > 0 && (
+      {!error && filteredBookmarks.length > 0 && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             {paginatedSlice(filteredBookmarks).map((bookmark, index) => (
