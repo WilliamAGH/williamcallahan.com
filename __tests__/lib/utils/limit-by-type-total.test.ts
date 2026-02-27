@@ -1,4 +1,4 @@
-import { limitByTypeAndTotal } from "@/lib/content-similarity";
+import { limitByTypeAndTotal } from "@/lib/utils/limit-by-type";
 import type { RelatedContentType } from "@/types/related-content";
 
 type Item = { id: string; type: RelatedContentType; score: number };

@@ -37,8 +37,6 @@ vi.mock("@/lib/db/mutations/search-index-artifacts", () => ({
   upsertAllSearchIndexArtifacts: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/blog/mdx");
-vi.mock("@/lib/content-similarity/aggregator");
-vi.mock("@/lib/content-similarity");
 vi.mock("@/data/projects", () => ({ projects: [] }));
 
 // Mock DB-backed content graph dependencies (pgvector queries)

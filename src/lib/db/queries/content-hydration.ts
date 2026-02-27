@@ -18,6 +18,7 @@ import { booksIndividual } from "@/lib/db/schema/books-individual";
 import { thoughts } from "@/lib/db/schema/thoughts";
 import { resolveImageUrl } from "@/lib/seo/url-utils";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
@@ -72,11 +73,12 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       id: bookmarks.id,
       title: bookmarks.title,
       slug: bookmarks.slug,
+      url: bookmarks.url,
       description: bookmarks.description,
       tags: bookmarks.tags,
       domain: bookmarks.domain,
       ogImage: bookmarks.ogImage,
-      ogImageExternal: bookmarks.ogImageExternal,
+      content: bookmarks.content,
       dateBookmarked: bookmarks.dateBookmarked,
     })
     .from(bookmarks)
@@ -95,7 +97,14 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
       domain: r.domain ?? undefined,
       date: r.dateBookmarked ?? undefined,
-      imageUrl: resolveImageUrl(r.ogImageExternal ?? r.ogImage ?? undefined),
+      imageUrl: resolveImageUrl(
+        selectBestImage({
+          ogImage: r.ogImage ?? undefined,
+          content: r.content ?? undefined,
+          id: r.id,
+          url: r.url,
+        }) ?? undefined,
+      ),
     } satisfies RelatedContentMetadata,
   }));
 }

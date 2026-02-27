@@ -1,11 +1,14 @@
 /**
  * Related Content Types
  *
- * Type definitions for the related content recommendation system that suggests
- * relevant content across bookmarks, blog posts, investments, projects, and books.
+ * Type definitions for the pgvector-based related content recommendation system.
+ * Suggests relevant content across bookmarks, blog posts, investments, projects,
+ * thoughts, and books using cosine similarity with blended scoring.
  */
 
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
+
+// ─── pgvector Pipeline Types ─────────────────────────────────────────────────
 
 /**
  * A single cross-domain similarity result from pgvector cosine ANN search.
@@ -35,8 +38,10 @@ export interface HydrationEntry {
   score: number;
 }
 
+// ─── Domain Types ────────────────────────────────────────────────────────────
+
 /**
- * Content types that can be related/recommended
+ * Content types that can be related/recommended.
  */
 export type RelatedContentType =
   | "bookmark"
@@ -47,7 +52,7 @@ export type RelatedContentType =
   | "book";
 
 /**
- * Base interface for related content items
+ * UI-ready related content item with rich metadata.
  */
 export interface RelatedContentItem {
   /** Type of content */
@@ -60,17 +65,14 @@ export interface RelatedContentItem {
   readonly description: string;
   /** URL to the content (relative or absolute) */
   readonly url: string;
-  /**
-   * Similarity score, expected to be between 0 and 1.
-   * Higher scores indicate a better match.
-   */
+  /** Similarity score, 0-1. Higher = better match. */
   readonly score: number;
   /** Additional metadata for display */
   readonly metadata: RelatedContentMetadata;
 }
 
 /**
- * Metadata for related content display
+ * Metadata for related content display.
  */
 export interface RelatedContentMetadata {
   /** Associated tags */
@@ -100,22 +102,42 @@ export interface RelatedContentMetadata {
   readonly formats?: readonly string[];
 }
 
+// ─── Pre-computed Content Graph Types ────────────────────────────────────────
+
 /**
- * Configuration for similarity scoring
+ * Pre-computed related content entry (from content_graph_artifacts).
  */
-export interface SimilarityWeights {
-  /** Weight for tag matches (0-1) */
-  readonly tagMatch: number;
-  /** Weight for text similarity (0-1) */
-  readonly textSimilarity: number;
-  /** Weight for domain matches (0-1) */
-  readonly domainMatch: number;
-  /** Weight for recency (0-1) */
-  readonly recency: number;
+export interface RelatedContentEntry {
+  /** Content type */
+  type: RelatedContentType;
+  /** Content ID */
+  id: string;
+  /** Similarity score */
+  score: number;
+  /** Display title */
+  title: string;
+  /** Optional metadata */
+  metadata?: RelatedContentMetadata;
 }
 
 /**
- * Options for finding related content
+ * Structure of the books related content JSON stored in content_graph_artifacts.
+ */
+export interface BooksRelatedContentData {
+  /** Data format version */
+  version: string;
+  /** ISO timestamp when generated */
+  generated: string;
+  /** Total number of books processed */
+  booksCount: number;
+  /** Map of book keys to their related content entries */
+  entries: Record<string, RelatedContentEntry[]>;
+}
+
+// ─── Options & Component Props ───────────────────────────────────────────────
+
+/**
+ * Options for configuring related content queries.
  */
 export interface RelatedContentOptions {
   /** Maximum number of results per content type */
@@ -130,119 +152,10 @@ export interface RelatedContentOptions {
   readonly excludeIds?: readonly string[];
   /** Tags to exclude - items with any of these tags are filtered out */
   readonly excludeTags?: readonly string[];
-  /** Custom similarity weights */
-  readonly weights?: Partial<SimilarityWeights>;
-  /** Include debug information in results */
-  readonly debug?: boolean;
 }
 
 /**
- * Response from related content API
- */
-export interface RelatedContentResponse {
-  /** Array of related content items */
-  items: RelatedContentItem[];
-  /** Total number of items found before limiting */
-  totalFound: number;
-  /** Metadata about the search */
-  meta: {
-    /** Time taken to compute results (ms) */
-    computeTime: number;
-    /** Whether results were served from cache */
-    cached: boolean;
-    /** Cache TTL in seconds */
-    cacheTTL?: number;
-  };
-  /** Debug information if requested */
-  debug?: {
-    /** Detailed scoring breakdown per item */
-    scores: Record<string, Record<keyof SimilarityWeights, number>>;
-    /** Source content used for comparison */
-    sourceContent: {
-      type: RelatedContentType;
-      id: string;
-      tags: string[];
-      text: string;
-    };
-  };
-}
-
-/**
- * Normalized content for similarity comparison
- */
-export interface NormalizedContent {
-  /** Unique identifier */
-  id: string;
-  /** Content type */
-  type: RelatedContentType;
-  /** Display title */
-  title: string;
-  /** Text content for similarity matching */
-  text: string;
-  /** Associated tags */
-  tags: string[];
-  /** URL */
-  url: string;
-  /** Domain (for bookmarks) */
-  domain?: string;
-  /** Creation/publication date */
-  date?: Date;
-  /** Precomputed display data for UI consumers */
-  display?: NormalizedContentDisplay;
-}
-
-export interface NormalizedContentDisplay {
-  description?: string;
-  imageUrl?: string;
-  author?: { name: string; avatar?: string };
-  readingTime?: number;
-  stage?: string;
-  category?: string;
-  aventureUrl?: string;
-  bookmark?: {
-    slug: string;
-  };
-  investment?: {
-    name: string;
-    website?: string;
-    logoOnlyDomain?: string;
-    logo?: string;
-  };
-  project?: {
-    imageKey?: string;
-    slug?: string;
-  };
-  book?: {
-    authors?: string[];
-    formats?: string[];
-    slug: string;
-  };
-}
-
-/**
- * Cache entry for aggregated content
- */
-export interface AggregatedContentCacheEntry {
-  /** Normalized content data */
-  data: NormalizedContent[];
-  /** Timestamp when cached */
-  timestamp: number;
-}
-
-/**
- * Cache entry for related content results
- */
-export interface RelatedContentCacheData {
-  /** Related items with scores */
-  items: Array<
-    NormalizedContent & { score: number; breakdown: Record<keyof SimilarityWeights, number> }
-  >;
-  /** Timestamp when cached */
-  timestamp: number;
-}
-
-/**
- * Props for RelatedContent components
+ * Props for RelatedContent server component.
  */
 export interface RelatedContentProps {
   /** Type of the source content */
@@ -260,7 +173,7 @@ export interface RelatedContentProps {
 }
 
 /**
- * Props for individual related content cards
+ * Props for individual related content cards.
  */
 export interface RelatedContentCardProps {
   /** The related content item */
@@ -274,7 +187,7 @@ export interface RelatedContentCardProps {
 }
 
 /**
- * Props for RelatedContentSection component
+ * Props for RelatedContentSection component.
  */
 export interface RelatedContentSectionProps {
   /** Section title */
@@ -290,139 +203,4 @@ export interface RelatedContentSectionProps {
    * Also used to filter out disabled content types in production.
    */
   sourceType?: RelatedContentType;
-}
-
-/**
- * Content graph metadata structure
- */
-export interface ContentGraphMetadata {
-  /** Version of the graph format */
-  version: string;
-  /** Timestamp when generated */
-  generated: string;
-  /** Number of items by type */
-  counts: {
-    total: number;
-    bookmarks: number;
-    blog: number;
-    investments: number;
-    projects: number;
-  };
-  /** Unique tags found */
-  uniqueTags: number;
-  /** Building environment */
-  environment: string;
-}
-
-/**
- * Tag graph structure for co-occurrence analysis
- */
-export interface TagGraph {
-  /** Map of tags to their metadata */
-  tags: Record<
-    string,
-    {
-      /** Total count of this tag */
-      count: number;
-      /** Co-occurrence counts with other tags */
-      coOccurrences: Record<string, number>;
-      /** IDs of content that has this tag */
-      contentIds: string[];
-      /** Most related tags */
-      relatedTags: string[];
-    }
-  >;
-  /** Tag hierarchy (parent -> children mapping) */
-  tagHierarchy: Record<string, string[]>;
-  /** Graph generation metadata */
-  metadata?: {
-    /** Total number of tags */
-    totalTags: number;
-    /** Total number of content items */
-    totalContent: number;
-    /** Generation timestamp */
-    generated: string;
-  };
-}
-
-/**
- * Pre-computed related content entry
- */
-export interface RelatedContentEntry {
-  /** Content type */
-  type: RelatedContentType;
-  /** Content ID */
-  id: string;
-  /** Similarity score */
-  score: number;
-  /** Display title */
-  title: string;
-  /** Optional metadata */
-  metadata?: RelatedContentMetadata;
-}
-
-/**
- * Bookmarks index entry structure
- */
-export interface BookmarksIndexEntry {
-  /** Current page number */
-  currentPage: number;
-  /** Total pages available */
-  totalPages: number;
-  /** Total count of bookmarks */
-  totalCount: number;
-  /** Items per page */
-  pageSize: number;
-  /** Timestamp when generated */
-  generated: string;
-}
-
-/**
- * Structure of the books related content JSON stored in S3
- */
-export interface BooksRelatedContentData {
-  /** Data format version */
-  version: string;
-  /** ISO timestamp when generated */
-  generated: string;
-  /** Total number of books processed */
-  booksCount: number;
-  /** Map of book keys to their related content entries */
-  entries: Record<string, RelatedContentEntry[]>;
-}
-
-/**
- * Parsed and validated debug request parameters
- */
-export interface DebugParams {
-  sourceType: RelatedContentType;
-  sourceId: string;
-  limit: number;
-  enabledTypes: RelatedContentType[];
-}
-
-/**
- * Scored content item with similarity breakdown
- */
-export interface ScoredItem {
-  type: RelatedContentType;
-  id: string;
-  title: string;
-  tags: string[];
-  domain: string | undefined;
-  score: number;
-  breakdown: Record<string, number>;
-  matchedTags: string[];
-}
-
-/**
- * Arguments for building the debug response
- */
-export interface DebugResponseArgs {
-  source: NormalizedContent;
-  sorted: ScoredItem[];
-  candidates: NormalizedContent[];
-  byType: Record<string, ScoredItem[]>;
-  byTypeStats: Record<string, number>;
-  crossContent: ScoredItem[];
 }

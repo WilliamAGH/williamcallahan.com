@@ -9,7 +9,7 @@
  * 2. On-demand: runs findSimilarByEntity() live when pre-computed data is missing
  */
 
-import { limitByTypeAndTotal } from "@/lib/content-similarity";
+import { limitByTypeAndTotal } from "@/lib/utils/limit-by-type";
 import { RelatedContentSection } from "./related-content-section";
 import { debug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
@@ -17,7 +17,11 @@ import { readRelatedContent } from "@/lib/db/queries/content-graph";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
-import type { RelatedContentProps, RelatedContentItem } from "@/types/related-content";
+import type {
+  RelatedContentProps,
+  RelatedContentItem,
+  RelatedContentType,
+} from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 
 import {
@@ -98,7 +102,7 @@ async function resolveFromPrecomputed(contentKey: string): Promise<RelatedConten
 
   // Build ScoredCandidate-shaped objects for hydration
   const candidates = entries.map((e) => ({
-    domain: e.type as ContentEmbeddingDomain,
+    domain: e.type,
     entityId: e.id,
     title: e.title,
     similarity: e.score,
@@ -113,10 +117,10 @@ async function resolveFromPrecomputed(contentKey: string): Promise<RelatedConten
  * Compute related content on-demand via pgvector ANN search.
  */
 async function resolveOnDemand(
-  sourceType: string,
+  sourceType: RelatedContentType,
   sourceId: string,
 ): Promise<RelatedContentItem[]> {
-  const sourceDomain = sourceType as ContentEmbeddingDomain;
+  const sourceDomain: ContentEmbeddingDomain = sourceType;
 
   const candidates = await findSimilarByEntity({
     sourceDomain,
@@ -176,6 +180,9 @@ export async function RelatedContent({
 
     // Path 2: fall back to on-demand pgvector search
     if (!items || items.length === 0) {
+      debug(
+        `[RelatedContent] No pre-computed data for ${contentKey}, falling back to on-demand pgvector`,
+      );
       items = await resolveOnDemand(sourceType, actualSourceId);
     }
 

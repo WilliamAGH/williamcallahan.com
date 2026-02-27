@@ -19,6 +19,17 @@ const EXTERNAL_PRODUCTION_DB_HOST = "167.234.219.57";
 const EXTERNAL_PRODUCTION_DB_PORT = "5438";
 const DEFAULT_INTERNAL_PRODUCTION_DB_HOST = "q0kks8ww044c0o4w4o4ok408";
 const DEFAULT_INTERNAL_PRODUCTION_DB_PORT = "5432";
+const DEFAULT_POSTGRES_PORT = "5432";
+const UNPARSEABLE_DATABASE_URL_TARGET = "<unparseable-database-url>";
+
+const getRedactedDatabaseUrlTarget = (rawUrl: string): string => {
+  try {
+    const parsed = new URL(rawUrl);
+    return `${parsed.protocol}//${parsed.hostname}:${parsed.port || DEFAULT_POSTGRES_PORT}`;
+  } catch {
+    return UNPARSEABLE_DATABASE_URL_TARGET;
+  }
+};
 
 const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string | undefined => {
   if (!rawUrl) return rawUrl;
@@ -42,7 +53,12 @@ const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string
     parsed.hostname = internalHost;
     parsed.port = internalPort;
     return parsed.toString();
-  } catch {
+  } catch (error) {
+    console.warn(
+      "[db/connection] Failed to parse DATABASE_URL for internal rewrite:",
+      getRedactedDatabaseUrlTarget(rawUrl),
+      error instanceof Error ? error.message : String(error),
+    );
     return rawUrl;
   }
 };

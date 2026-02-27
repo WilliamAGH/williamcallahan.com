@@ -223,7 +223,10 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
   if (inFlightRefreshPromise) return inFlightRefreshPromise;
 
   const promise = (async () => {
-    if (isRefreshLocked || !(await acquireRefreshLock())) return null;
+    if (isRefreshLocked || !(await acquireRefreshLock())) {
+      console.warn(`${LOG_PREFIX} Refresh skipped: lock already held by another caller`);
+      return null;
+    }
 
     try {
       const useSelectiveRefresh = process.env.SELECTIVE_OG_REFRESH === "true";
@@ -231,7 +234,12 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
         return selectiveRefreshAndPersistBookmarks();
       }
 
-      if (!refreshBookmarksCallback) return null;
+      if (!refreshBookmarksCallback) {
+        console.error(
+          `${LOG_PREFIX} Refresh callback not set (initializeBookmarksDataAccess may not have completed)`,
+        );
+        return null;
+      }
 
       const freshBookmarks = await refreshBookmarksCallback(force);
       if (freshBookmarks && freshBookmarks.length > 0) {

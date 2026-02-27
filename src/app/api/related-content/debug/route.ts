@@ -1,22 +1,22 @@
 /**
- * Debug endpoint for related content similarity scoring
+ * Debug endpoint for related content similarity scoring.
  *
- * This endpoint helps diagnose why certain content types are or aren't matching
+ * Exposes the pgvector cosine similarity pipeline internals:
+ * raw ANN candidates, blended scores, and hydrated items.
  */
 
 import { preventCaching, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
-import { aggregateAllContent, getContentById } from "@/lib/content-similarity/aggregator";
-import { calculateSimilarity, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
+import {
+  findSimilarByEntity,
+  sourceEmbeddingExists,
+} from "@/lib/db/queries/cross-domain-similarity";
+import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
+import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
 import { getEnabledContentTypes } from "@/config/related-content.config";
 import { createRelatedContentDebugParamsSchema } from "@/types/schemas/related-content";
-import type {
-  RelatedContentType,
-  NormalizedContent,
-  DebugParams,
-  ScoredItem,
-  DebugResponseArgs,
-} from "@/types/related-content";
+import type { RelatedContentType } from "@/types/related-content";
+import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
@@ -28,13 +28,13 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
-const TEXT_PREVIEW_LENGTH = 200;
 
 /**
  * Parse and validate request parameters for the debug endpoint.
- * @returns Validated params or null if validation fails
  */
-function parseDebugParams(searchParams: URLSearchParams): DebugParams | null {
+function parseDebugParams(
+  searchParams: URLSearchParams,
+): { sourceType: RelatedContentType; sourceId: string; limit: number } | null {
   const sourceTypeRaw = searchParams.get("type") ?? undefined;
   const sourceId = searchParams.get("id") ?? undefined;
   const limitParam = searchParams.get("limit");
@@ -51,106 +51,13 @@ function parseDebugParams(searchParams: URLSearchParams): DebugParams | null {
   });
 
   const parsed = schema.safeParse({ type: sourceTypeRaw, id: sourceId, limit: limitRaw });
-  if (!parsed.success) {
-    return null;
-  }
-
-  if (!isEnabledType(parsed.data.type)) {
-    return null;
-  }
+  if (!parsed.success) return null;
+  if (!isEnabledType(parsed.data.type)) return null;
 
   return {
     sourceType: parsed.data.type,
     sourceId: parsed.data.id,
     limit: parsed.data.limit,
-    enabledTypes,
-  };
-}
-
-/**
- * Calculate similarity scores for all candidates against the source content.
- */
-function scoreCandidates(source: NormalizedContent, candidates: NormalizedContent[]): ScoredItem[] {
-  return candidates.map((candidate) => {
-    const { total, breakdown } = calculateSimilarity(source, candidate, DEFAULT_WEIGHTS);
-    return {
-      type: candidate.type,
-      id: candidate.id,
-      title: candidate.title,
-      tags: candidate.tags,
-      domain: candidate.domain,
-      score: total,
-      breakdown,
-      matchedTags: source.tags.filter((tag) =>
-        candidate.tags.some((t) => t.toLowerCase() === tag.toLowerCase()),
-      ),
-    };
-  });
-}
-
-/**
- * Group scored items by content type with statistics.
- */
-function groupByType(
-  sorted: ScoredItem[],
-  candidates: NormalizedContent[],
-  enabledTypes: RelatedContentType[],
-  limit: number,
-): { byType: Record<string, ScoredItem[]>; byTypeStats: Record<string, number> } {
-  const byType: Record<string, ScoredItem[]> = {};
-  const byTypeStats: Record<string, number> = {};
-
-  for (const type of enabledTypes) {
-    byType[type] = sorted.filter((i) => i.type === type).slice(0, limit);
-    byTypeStats[type] = candidates.filter((i) => i.type === type).length;
-  }
-
-  return { byType, byTypeStats };
-}
-
-/**
- * Build the debug response payload.
- */
-function buildDebugResponse({
-  source,
-  sorted,
-  candidates,
-  byType,
-  byTypeStats,
-  crossContent,
-}: DebugResponseArgs) {
-  return {
-    source: {
-      type: source.type,
-      id: source.id,
-      title: source.title,
-      tags: source.tags,
-      domain: source.domain,
-      textPreview: source.text.slice(0, TEXT_PREVIEW_LENGTH) + "...",
-    },
-    statistics: {
-      totalCandidates: candidates.length,
-      byType: byTypeStats,
-      topScores: {
-        overall: sorted[0]?.score || 0,
-        crossContent: crossContent[0]?.score || 0,
-      },
-    },
-    topMatches: {
-      overall: sorted.slice(0, 10),
-      byType,
-      crossContent,
-    },
-    weights: DEFAULT_WEIGHTS,
-    debug: {
-      message: "Use this data to understand why content is or isn't matching",
-      interpretation: {
-        tagMatch: "0-1 score for shared tags (Jaccard similarity)",
-        textSimilarity: "0-1 score for text overlap",
-        domainMatch: "0-1 score for same domain (bookmarks)",
-        recency: "0-1 score based on age (newer = higher)",
-      },
-    },
   };
 }
 
@@ -165,44 +72,90 @@ export async function GET(request: NextRequest) {
   preventCaching();
 
   try {
-    // Parse and validate parameters
     const params = parseDebugParams(request.nextUrl.searchParams);
     if (!params) {
       return createErrorResponse("Missing required parameters: type and id", 400);
     }
 
-    const { sourceType, sourceId, limit, enabledTypes } = params;
+    const { sourceType, sourceId, limit } = params;
+    const sourceDomain: ContentEmbeddingDomain = sourceType;
+    const hasSourceEmbedding = await sourceEmbeddingExists({
+      sourceDomain,
+      sourceId,
+    });
+    if (!hasSourceEmbedding) {
+      return createErrorResponse(`Source embedding not found for: ${sourceType}/${sourceId}`, 404);
+    }
+    const startMs = performance.now();
 
-    // Get source content
-    const source = await getContentById(sourceType, sourceId);
-    if (!source) {
-      return createErrorResponse(`Content not found: ${sourceType}/${sourceId}`, 404);
+    // Step 1: pgvector ANN search — raw cosine candidates
+    const rawCandidates = await findSimilarByEntity({
+      sourceDomain,
+      sourceId,
+      limit: Math.min(limit, MAX_LIMIT),
+    });
+    const annMs = performance.now();
+
+    // Step 2: blended scoring (cosine + recency + quality)
+    const scored = applyBlendedScoring(rawCandidates, {
+      maxPerDomain: 10,
+      maxTotal: limit,
+    });
+    const blendMs = performance.now();
+
+    // Step 3: hydrate scored candidates into display-ready items
+    const hydrated = await hydrateRelatedContent(scored);
+    const hydrateMs = performance.now();
+
+    // Group by domain for statistics
+    const byDomain: Record<string, number> = {};
+    for (const c of rawCandidates) {
+      byDomain[c.domain] = (byDomain[c.domain] ?? 0) + 1;
     }
 
-    // Get all content and filter out source
-    const allContent = await aggregateAllContent();
-    const candidates = allContent.filter(
-      (item) => !(item.type === sourceType && item.id === sourceId),
+    return NextResponse.json(
+      {
+        source: { type: sourceType, id: sourceId },
+        timing: {
+          annSearchMs: Math.round(annMs - startMs),
+          blendedScoringMs: Math.round(blendMs - annMs),
+          hydrationMs: Math.round(hydrateMs - blendMs),
+          totalMs: Math.round(hydrateMs - startMs),
+        },
+        statistics: {
+          rawCandidateCount: rawCandidates.length,
+          scoredCount: scored.length,
+          hydratedCount: hydrated.length,
+          byDomain,
+        },
+        pipeline: {
+          rawCandidates: rawCandidates.slice(0, 10).map((c) => ({
+            domain: c.domain,
+            entityId: c.entityId,
+            title: c.title,
+            cosineSimilarity: c.similarity,
+          })),
+          scoredCandidates: scored.slice(0, 10).map((s) => ({
+            domain: s.domain,
+            entityId: s.entityId,
+            title: s.title,
+            cosineSimilarity: s.similarity,
+            blendedScore: s.score,
+          })),
+          hydratedItems: hydrated.slice(0, 10),
+        },
+        debug: {
+          message: "Scores reflect: 0.80 × cosine + 0.10 × recency + 0.10 × quality",
+          interpretation: {
+            cosineSimilarity: "0-1 from pgvector HNSW (1 - cosine distance)",
+            blendedScore: "0-1 final score after recency and quality adjustments",
+            recencyDecay: "Half-life 180 days; no date = 0.5",
+            qualitySignal: "Currently 1.0 for all curated content",
+          },
+        },
+      },
+      { headers: NO_STORE_HEADERS },
     );
-
-    // Calculate similarity scores
-    const scoredItems = scoreCandidates(source, candidates);
-    const sorted = scoredItems.toSorted((a, b) => b.score - a.score);
-
-    // Group by type and find cross-content matches
-    const { byType, byTypeStats } = groupByType(sorted, candidates, enabledTypes, limit);
-    const crossContent = sorted.filter((i) => i.type !== sourceType).slice(0, limit);
-
-    // Build and return response
-    const responsePayload = buildDebugResponse({
-      source,
-      sorted,
-      candidates,
-      byType,
-      byTypeStats,
-      crossContent,
-    });
-    return NextResponse.json(responsePayload, { headers: NO_STORE_HEADERS });
   } catch (error) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("Debug endpoint error:", details);

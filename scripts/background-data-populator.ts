@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 
 /**
  * Background Data Populator
@@ -10,13 +10,28 @@
  * @module scripts/background-data-populator
  */
 
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import logger from "@/lib/utils/logger";
 
 const MARKER_FILE = "/tmp/needs-initial-data-population";
 const CHECK_INTERVAL = 10000; // Check every 10 seconds
 const INITIAL_DELAY = 30000; // Wait 30 seconds after server start
+const MAX_POPULATION_ATTEMPTS = 3; // Prevent infinite retry loops
+let populationAttempts = 0;
+let isRunning = false;
+const MAIN_MODULE_PATH = fileURLToPath(import.meta.url);
+
+const isMainModule = (): boolean => {
+  const invokedPath = process.argv[1];
+  if (!invokedPath) {
+    return false;
+  }
+
+  return resolve(invokedPath) === resolve(MAIN_MODULE_PATH);
+};
 
 /**
  * Run the data updater script in a child process
@@ -26,8 +41,8 @@ async function runDataUpdater(): Promise<void> {
   return new Promise((resolve, reject) => {
     logger.info("[BackgroundPopulator] Starting data updater process...");
 
-    // Spawn the data updater as a child process
-    const child = spawn("bun", ["scripts/data-updater.ts"], {
+    // Spawn the data updater as a child process using npx tsx for Node.js TLS compatibility
+    const child = spawn("npx", ["tsx", "scripts/data-updater.ts"], {
       env: {
         ...process.env,
         IS_DATA_UPDATER: "true",
@@ -77,25 +92,36 @@ async function runDataUpdater(): Promise<void> {
  * Check for the marker file and run data population if needed
  */
 async function checkAndPopulate(): Promise<void> {
-  if (!existsSync(MARKER_FILE)) {
+  if (isRunning || !existsSync(MARKER_FILE)) {
     return;
   }
 
-  logger.info("[BackgroundPopulator] Marker file detected - initial data population needed");
+  if (populationAttempts >= MAX_POPULATION_ATTEMPTS) {
+    logger.error(
+      `[BackgroundPopulator] Max attempts (${MAX_POPULATION_ATTEMPTS}) reached; removing marker and giving up`,
+    );
+    rmSync(MARKER_FILE, { force: true });
+    return;
+  }
+
+  populationAttempts++;
+  isRunning = true;
+  logger.info(
+    `[BackgroundPopulator] Marker file detected - attempt ${populationAttempts}/${MAX_POPULATION_ATTEMPTS}`,
+  );
 
   try {
-    // Remove the marker file immediately to prevent duplicate runs
-    unlinkSync(MARKER_FILE);
-    logger.info("[BackgroundPopulator] Removed marker file");
-
-    // Run the data updater
+    // Run the data updater first; only remove marker on success
     await runDataUpdater();
 
-    logger.info("[BackgroundPopulator] Initial data population completed");
+    // Success — remove marker so subsequent checks don't re-trigger
+    rmSync(MARKER_FILE, { force: true });
+    logger.info("[BackgroundPopulator] Initial data population completed, marker removed");
   } catch (error) {
     logger.error("[BackgroundPopulator] Failed to populate initial data:", error);
-    // Don't recreate the marker file - we don't want to retry indefinitely
-    // The scheduler will handle regular updates
+    // Leave marker in place so the next interval check retries (up to MAX_POPULATION_ATTEMPTS)
+  } finally {
+    isRunning = false;
   }
 }
 
@@ -133,8 +159,8 @@ async function main(): Promise<void> {
   });
 }
 
-// Start the monitoring if run directly
-if (import.meta.main) {
+// Start the monitoring if run directly.
+if (isMainModule()) {
   main().catch((error) => {
     logger.error("[BackgroundPopulator] Fatal error:", error);
     process.exit(1);

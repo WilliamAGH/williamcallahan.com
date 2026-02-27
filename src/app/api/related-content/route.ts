@@ -7,7 +7,7 @@
 
 import { preventCaching, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import { NextRequest, NextResponse } from "next/server";
-import { limitByTypeAndTotal } from "@/lib/content-similarity";
+import { limitByTypeAndTotal } from "@/lib/utils/limit-by-type";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     const hydratedItems = await requestLock.run<RelatedContentItem[] | null>({
       key: lockKey,
       work: async () => {
-        const sourceDomain = sourceType as ContentEmbeddingDomain;
+        const sourceDomain: ContentEmbeddingDomain = sourceType;
         const candidates = await findSimilarByEntity({
           sourceDomain,
           sourceId: finalSourceId,
