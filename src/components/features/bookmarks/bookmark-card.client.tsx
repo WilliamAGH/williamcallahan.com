@@ -28,6 +28,7 @@ import Link from "next/link";
 import { type JSX } from "react";
 import { normalizeDomain } from "../../../lib/utils/domain-utils";
 import { ExternalLink } from "../../ui/external-link.client";
+import { Badge } from "@/components/ui/badge";
 import { ShareButton } from "./share-button.client";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { usePathname } from "next/navigation";
@@ -177,9 +178,9 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       <div className="flex-1 p-6 flex flex-col gap-3.5">
         {category && (
           <div className="mb-1">
-            <span className="inline-block px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold uppercase tracking-wide">
+            <Badge variant="secondary" className="uppercase tracking-wide">
               {category}
-            </span>
+            </Badge>
           </div>
         )}
 
@@ -260,8 +261,10 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
                   className="inline-block"
                   prefetch={false}
                 >
-                  <span className="inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60 transform hover:scale-[1.02]">
-                    {label}
+                  <span className="inline-block transform hover:scale-[1.02] transition-transform">
+                    <Badge variant="outline" className="hover:bg-accent">
+                      {label}
+                    </Badge>
                   </span>
                 </Link>
               );

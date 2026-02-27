@@ -8,6 +8,18 @@ vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/slug-manager");
 vi.mock("@/lib/db/queries/discovery-scores");
 
+// The route's attachBookmarkCategories queries the DB directly for AI category data.
+// Mock the DB connection so the "latest" path returns bookmarks with category: null.
+vi.mock("@/lib/db/connection", () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve([])),
+      })),
+    })),
+  },
+}));
+
 const mockGetBookmarksPage = vi.mocked(getBookmarksPage);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
 const mockGetDiscoveryRankedBookmarks = vi.mocked(getDiscoveryRankedBookmarks);

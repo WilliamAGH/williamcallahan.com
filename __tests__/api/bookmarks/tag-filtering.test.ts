@@ -10,6 +10,19 @@ import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 // Mock dependencies
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/slug-manager");
+vi.mock("@/lib/db/queries/discovery-scores");
+
+// The route's attachBookmarkCategories queries the DB directly for AI category data.
+// Mock the DB connection so the tests don't need a real database.
+vi.mock("@/lib/db/connection", () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve([])),
+      })),
+    })),
+  },
+}));
 
 const mockGetBookmarks = vi.mocked(getBookmarks);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
@@ -287,9 +300,9 @@ describe("Bookmark API Tag Filtering", () => {
       mockGetBookmarksIndex.mockResolvedValueOnce(null);
 
       const request = {
-        url: "http://localhost:3000/api/bookmarks",
+        url: "http://localhost:3000/api/bookmarks?feed=latest",
         nextUrl: {
-          searchParams: new URLSearchParams(),
+          searchParams: new URLSearchParams({ feed: "latest" }),
         },
       } as any;
 
@@ -308,9 +321,9 @@ describe("Bookmark API Tag Filtering", () => {
       mockGetBookmarks.mockRejectedValueOnce(new Error("Database error"));
 
       const request = {
-        url: "http://localhost:3000/api/bookmarks",
+        url: "http://localhost:3000/api/bookmarks?feed=latest",
         nextUrl: {
-          searchParams: new URLSearchParams(),
+          searchParams: new URLSearchParams({ feed: "latest" }),
         },
       } as any;
 

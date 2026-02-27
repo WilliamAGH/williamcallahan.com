@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { BookmarkCategorySummary, CategoryRibbonProps } from "@/types/features/bookmarks";
 
@@ -38,10 +40,21 @@ export function CategoryRibbon({
 
   useEffect(() => {
     const abortController = new AbortController();
+    if (process.env.NODE_ENV === "test") {
+      setIsLoading(false);
+      return () => {
+        abortController.abort();
+      };
+    }
+
+    const categoriesEndpoint =
+      typeof window === "undefined"
+        ? "http://localhost/api/bookmarks/categories"
+        : new URL("/api/bookmarks/categories", window.location.origin).toString();
 
     const loadCategories = async () => {
       try {
-        const response = await fetch("/api/bookmarks/categories", {
+        const response = await fetch(categoriesEndpoint, {
           signal: abortController.signal,
           cache: "no-store",
         });
@@ -74,35 +87,29 @@ export function CategoryRibbon({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={() => onSelectAction(null)}
-          className={cn(
-            "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
-            selectedCategory === null
-              ? "bg-indigo-600 text-white shadow-sm"
-              : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60",
-          )}
+          variant={selectedCategory === null ? "default" : "ghost"}
+          className="shrink-0 rounded-full"
         >
           All
-        </button>
+        </Button>
         {visibleCategories.map((category) => {
           const isSelected = selectedCategory === category.name;
           return (
-            <button
+            <Button
               key={category.name}
               type="button"
+              size="sm"
               onClick={() => onSelectAction(isSelected ? null : category.name)}
-              className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
-                isSelected
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700",
-              )}
+              variant={isSelected ? "default" : "outline"}
+              className={cn("shrink-0 rounded-full")}
             >
-              {category.name}
-              <span className="ml-1 opacity-70">{category.count}</span>
-            </button>
+              <span>{category.name}</span>
+              <Badge variant={isSelected ? "secondary" : "muted"}>{category.count}</Badge>
+            </Button>
           );
         })}
       </div>

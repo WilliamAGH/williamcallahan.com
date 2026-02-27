@@ -45,7 +45,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [showTagFilters, setShowTagFilters] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -68,7 +67,14 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     initialPage,
     initialTotalPages,
     initialTotalCount,
-    queryParams: tag ? { tag, feed: feedMode } : { feed: feedMode },
+    queryParams:
+      feedMode === "latest"
+        ? tag
+          ? { tag, feed: "latest" }
+          : { feed: "latest" }
+        : tag
+          ? { tag }
+          : {},
   });
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -236,24 +242,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             }}
           />
           {allTags.length > 0 && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowTagFilters((prev) => !prev)}
-                className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-              >
-                {showTagFilters ? "Hide tag filters" : "More filters"}
-              </button>
-              {showTagFilters && (
-                <div className="mt-3">
-                  <TagsList
-                    tags={allTags}
-                    selectedTag={selectedTag}
-                    onTagSelectAction={handleTagClick}
-                  />
-                </div>
-              )}
-            </div>
+            <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
           )}
         </div>
       )}
