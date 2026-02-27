@@ -59,3 +59,10 @@ docker run --rm -v logo_storage:/data -v "$(pwd):/backup" alpine \
 ## Health Checks
 
 - **Application Health**: `curl http://localhost:3000/api/health`
+
+## Production Database Startup Safeguards
+
+When `NEXT_PUBLIC_SITE_URL=https://williamcallahan.com`, startup applies two safeguards:
+
+1. `DATABASE_URL` is rewritten from the public proxy endpoint (`167.234.219.57:5438`) to the internal PostgreSQL service (`q0kks8ww044c0o4w4o4ok408:5432`).
+2. The app startup is gated until the resolved database endpoint is reachable.

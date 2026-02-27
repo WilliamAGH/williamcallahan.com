@@ -14,8 +14,40 @@ import postgres, { type Sql } from "postgres";
 const DEFAULT_DATABASE_POOL_MAX = 5;
 const TEST_DATABASE_URL_PLACEHOLDER = "postgres://invalid:invalid@127.0.0.1:5432/invalid";
 const PRODUCTION_ENVIRONMENT = "production";
+const PRODUCTION_SITE_URL = "https://williamcallahan.com";
+const EXTERNAL_PRODUCTION_DB_HOST = "167.234.219.57";
+const EXTERNAL_PRODUCTION_DB_PORT = "5438";
+const DEFAULT_INTERNAL_PRODUCTION_DB_HOST = "q0kks8ww044c0o4w4o4ok408";
+const DEFAULT_INTERNAL_PRODUCTION_DB_PORT = "5432";
 
-const databaseUrl = process.env.DATABASE_URL?.trim();
+const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string | undefined => {
+  if (!rawUrl) return rawUrl;
+  if (process.env.NEXT_PUBLIC_SITE_URL?.trim() !== PRODUCTION_SITE_URL) {
+    return rawUrl;
+  }
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (
+      parsed.hostname !== EXTERNAL_PRODUCTION_DB_HOST ||
+      parsed.port !== EXTERNAL_PRODUCTION_DB_PORT
+    ) {
+      return rawUrl;
+    }
+
+    const internalHost =
+      process.env.INTERNAL_DATABASE_HOST?.trim() || DEFAULT_INTERNAL_PRODUCTION_DB_HOST;
+    const internalPort =
+      process.env.INTERNAL_DATABASE_PORT?.trim() || DEFAULT_INTERNAL_PRODUCTION_DB_PORT;
+    parsed.hostname = internalHost;
+    parsed.port = internalPort;
+    return parsed.toString();
+  } catch {
+    return rawUrl;
+  }
+};
+
+const databaseUrl = rewriteDatabaseUrlForProductionSite(process.env.DATABASE_URL?.trim());
 const isTestEnvironment = process.env.NODE_ENV === "test";
 
 if (!databaseUrl && !isTestEnvironment) {
