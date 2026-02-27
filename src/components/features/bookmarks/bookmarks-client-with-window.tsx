@@ -96,7 +96,7 @@ export function BookmarksClientWithWindow({
             searchAllBookmarks={searchAllBookmarks}
             showFilterBar={showFilterBar}
             usePagination={usePagination}
-            enableInfiniteScroll={false}
+            enableInfiniteScroll={resolvedFeedMode === "discover"}
             itemsPerPage={24}
             initialPage={initialPage}
             totalPages={totalPages}
