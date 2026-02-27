@@ -22,7 +22,7 @@
 - [Mocks Directory](#mocks-directory)
 
 Legend: `[ ]` = untouched · `[~]` = located/initial note · `[x]` = fully mapped
-Note: 2026-02 barrel-removal pass deleted feature/UI/SEO/types/lib barrel exports; import source modules directly.
+Note: Barrel exports were removed from feature/UI/SEO/types/lib surfaces; import source modules directly.
 
 File/Path Functionality Description
 
@@ -51,7 +51,7 @@ File/Path Functionality Description
     - [x] `books-grid.client.tsx` `books` - Books grid layout
     - [x] `books-window.client.tsx` `books` - Books window wrapper
     - [x] `books.server.tsx` `books` - Server-side books component
-    - [x] `index.ts` `books` - Barrel file for book components
+    - [x] `index.ts` `books` - Removed; import book components from concrete files
   - [x] **blog/**
     - [x] `blog-window.client.tsx` `blog` - Main blog window UI
     - [x] `blog.client.tsx` `blog` - Main component for blog features
@@ -329,9 +329,9 @@ File/Path Functionality Description
   - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component manifest readers for logo/OG/blog maps
   - [x] `image-manifest-loader.ts` `image-handling` - Manifest warm-up + in-memory lookup helpers; production request paths skip lazy S3 loads when warm-up is unavailable
 - [ ] **imageAnalysis/**
-  - [x] `index.ts` `image-handling` - Barrel file for image analysis
+  - [x] `index.ts` `image-handling` - Removed; import image-analysis modules from concrete files
 - [ ] **imageCompare/**
-  - [x] `index.ts` `image-handling` - Barrel file for image comparison
+  - [x] `index.ts` `image-handling` - Removed; import image-compare modules from concrete files
 - [x] **og-image/**
   - [x] `security.ts` `opengraph` - SSRF protection for OG image fetching (host blocking, protocol restriction)
   - [x] `fetch-image.ts` `opengraph` - Image fetch with size/pixel/timeout limits, sharp PNG conversion for Satori
@@ -613,7 +613,7 @@ File/Path Functionality Description
 - [x] `check-duplicate-types.ts` `linting-formatting` - Deterministic build-time check for globally unique type/interface/enum names
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
-- [x] `debug-test-bookmark.ts` `log-error-debug-handling` - Debugging script for bookmarks
+- [x] `bookmark-diagnostics.ts` `log-error-debug-handling` - Diagnostics script for bookmark refresh/cache behavior
 - [x] `entrypoint.sh` `deployment` - Docker entrypoint script
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
@@ -626,7 +626,7 @@ File/Path Functionality Description
 - [x] `backfill-og-etags.node.mjs` `bookmarks` - Node runtime backfill for `og_image_etag` via HEAD requests to bookmark `og_image` URLs; also refreshes `og_image_last_fetched_at`
 - [x] `backfill-domain-embeddings.node.mjs` `data-access` - Node runtime backfill for Qwen3-Embedding-4B embeddings across `ai_analysis_latest`, `opengraph_metadata`, and `thoughts` tables
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
-- [x] `populate-volumes.ts` `deprecated` - DEPRECATED: Use data-updater.ts instead
+- [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `data-updater.ts`
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations
 - [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
@@ -650,7 +650,7 @@ File/Path Functionality Description
     - [x] `*.mdx` `blog-article` - Blog post content files
 - [ ] `*.ts` `data` - Data configuration files
 - [x] `book-enrichments.ts` `books` - Manual per-book enrichment data keyed by ABS item ID
-- [x] `projects.ts` `projects` - Project metadata source (2025-11-05: ComposerAI entry + `images/other/projects/composerai-app.png`)
+- [x] `projects.ts` `projects` - Project metadata source (includes ComposerAI asset metadata)
 
 ## Public Directory
 

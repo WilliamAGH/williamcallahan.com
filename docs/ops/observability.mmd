@@ -7,8 +7,8 @@ graph TD
     end
 
     subgraph "Logging Infrastructure"
-        LOGGER[logger.ts<br/>Global Logger]
-        ENVLOG[utils/logger.ts<br/>Environment Logger]
+        LOGGER[utils/logger.ts<br/>Shared Logger]
+        ENVLOG[utils/env-logger.ts<br/>Environment Logger]
         DEBUG[utils/debug.ts<br/>Debug Functions]
         SILENT{isSilent Flag}
         CONSOLE[Console Output]
@@ -16,7 +16,7 @@ graph TD
 
     subgraph "Error Handling"
         TYPES[types/error.ts<br/>Error Types]
-        ERRORS[lib/errors.ts<br/>Error Classes]
+        ERRORS[types/error.ts<br/>Error Contracts]
         BOUNDARY[Error Boundaries]
         PAGES[Error Pages]
         RECOVERY[Recovery UI]

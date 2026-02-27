@@ -115,7 +115,7 @@ rg "Date\.now\(\)" src/lib src/components
 ## Key Files
 
 - `src/lib/bookmarks/bookmarks-data-access.server.ts`
-- `src/lib/search.ts`
+- `src/lib/search/searchers/*.ts`
 - `src/lib/data-access/github.ts`
 - `src/lib/data-access/github-storage.ts`
 - `src/lib/data-access/images.server.ts`

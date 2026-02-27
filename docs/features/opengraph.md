@@ -37,22 +37,11 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
 
 ### OpenGraph Modules
 
-- **`lib/opengraph/constants.ts`**: Centralized configuration (~65 LoC)
-  - All OPENGRAPH\_\* constants
-  - S3 directory structure
-  - Fetch configuration and timeouts
-  - Circuit breaker settings
-
 - **`lib/opengraph/parser.ts`**: HTML parsing logic (~268 LoC)
   - Extracts OpenGraph tags from HTML
   - Platform-specific extraction (GitHub, Twitter, LinkedIn, Bluesky)
   - Smart partial parsing for large HTML pages
   - Uses Cheerio for DOM manipulation
-
-- **`lib/opengraph/imageSelector.ts`**: Image selection algorithm (~85 LoC)
-  - Priority-based image selection
-  - Handles relative URL resolution
-  - Validates image URLs
 
 - **`lib/opengraph/fallback.ts`**: Unified fallback handling (~215 LoC)
   - Single source of truth for all fallback logic
@@ -60,15 +49,17 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
   - Domain-specific fallback images
   - Contextual fallback selection
 
-- **`lib/opengraph/persistence.ts`**: Background persistence (~42 LoC)
-  - Fire-and-forget image persistence to S3
-  - Non-blocking background operations
-
 - **`lib/opengraph/fetch.ts`**: External fetch logic (~193 LoC)
   - HTTP fetching with retry logic
+  - Image selection from extracted metadata
+  - Background persistence via shared persistence modules
   - Circuit breaker integration
   - Rate limiting support
   - Timeout handling
+
+- **`lib/opengraph/validation.ts`**: OpenGraph validation helpers
+  - Metadata and image URL validation
+  - Shared guard logic used across fetch/refresh flows
 
 ### Utilities
 
@@ -158,9 +149,9 @@ app/api/og-image/route.ts
 lib/data-access/opengraph.ts (orchestrator)
   ├── lib/data-access/opengraph-next-cache.ts
   ├── lib/data-access/opengraph-refresh.ts
-  ├── lib/opengraph/fetch.ts -> lib/opengraph/parser.ts -> lib/opengraph/imageSelector.ts
+  ├── lib/opengraph/fetch.ts -> lib/opengraph/parser.ts + lib/opengraph/validation.ts
   ├── lib/opengraph/fallback.ts
-  └── lib/opengraph/persistence.ts
+  └── lib/persistence/image-persistence.ts
 ```
 
 ## Data Flow

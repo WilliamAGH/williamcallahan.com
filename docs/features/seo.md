@@ -290,7 +290,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
     - Rate limiting (1 second delay between submissions)
     - Retry mechanism with exponential backoff
     - Command line options: `--sitemaps-only`, `--individual-only`, `--all`
-- **`scripts/scheduler.ts`**: Orchestrates automated tasks
+- **`src/lib/server/scheduler.ts`**: Orchestrates automated tasks
   - Bookmark refresh: Every 2 hours -> triggers sitemap submission
   - **Distributed-Lock Aware**: Before starting a refresh it attempts to acquire the `bookmarks/refresh-lock*.json` object in S3. If another
     instance already holds the lock the scheduler skips this cycle to avoid double-refreshing and duplicate sitemap submissions.
@@ -309,7 +309,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 
 ### Supporting Files
 
-- **`lib/seo/constants.ts`**: Centralizes constant values, such as standard field names for metadata, to ensure consistency.
+- **`lib/seo/dynamic-metadata.ts`** and **`lib/seo/url-utils.ts`**: Shared metadata/url constants and helpers used across SEO builders.
 - **`lib/seo/utils.ts`**: Provides helper functions for date formatting (`formatSeoDate`) and URL normalization (`ensureAbsoluteUrl`). `formatSeoDate` formats using Pacific time via `Intl.DateTimeFormat` so server timezone does not skew SEO timestamps.
 - **`components/seo/json-ld.tsx`**: A simple React component that renders the `JSON-LD` schema into a `<script>` tag in the page's head.
 - **Type Definitions (`types/seo/*.ts`)**: A suite of type files that ensure type safety across the entire SEO module. `types/seo.ts` serves as an aggregator, re-exporting types from the other files in its directory.
@@ -328,11 +328,11 @@ This modular architecture ensures a clear separation of concerns, making the SEO
 
 ## Example Usage
 
-### Importing from the Barrel Export
+### Importing from Concrete Modules
 
 ```typescript
-// Import everything SEO-related from one place
-import { SITE_NAME, createArticleMetadata, validateMetadata, SEO_LIMITS } from "@/lib/seo";
+import { createArticleMetadata } from "@/lib/seo/metadata";
+import { safeValidateMetadata, validatePageMetadata } from "@/types/seo/metadata";
 
 // Validate metadata configuration
 const validationResult = safeValidateMetadata(metadata);
@@ -350,8 +350,8 @@ import { validatePageMetadata } from "@/lib/seo";
 const validatedHomeMetadata = validatePageMetadata("home", {
   title: "My Site",
   description: "A great website",
-  dateCreated: "2024-01-01T00:00:00Z",
-  dateModified: "2024-01-01T00:00:00Z",
+  dateCreated: "<ISO-8601 timestamp>",
+  dateModified: "<ISO-8601 timestamp>",
   bio: "Welcome to my site",
 });
 ```
@@ -402,7 +402,7 @@ graph TD
         B -->|Next.js Build| E[/sitemap.xml]
     end
 
-    subgraph "Scheduler (scripts/scheduler.ts)"
+    subgraph "Scheduler (src/lib/server/scheduler.ts)"
         F[node-cron] -->|Every 2 hours| G[Bookmark Refresh]
         G -->|On Success| H[Submit Sitemap]
     end

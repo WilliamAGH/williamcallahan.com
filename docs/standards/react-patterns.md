@@ -1,6 +1,6 @@
 # React Server/Client Architecture
 
-This document outlines the architectural patterns, best practices, and critical rules for React 19 Server Components (RSC) and Next.js 16 server/client coordination. **Use it together with [`next-js-16-usage.md`](./next-js-16-usage.md) for enforcement checklists and framework mandates.**
+This document outlines the architectural patterns, best practices, and critical rules for React 19 Server Components (RSC) and Next.js 16 server/client coordination. **Use it together with [`nextjs-framework.md`](./nextjs-framework.md) for enforcement checklists and framework mandates.**
 
 ## Core Objective
 
@@ -344,7 +344,7 @@ export default function GlobalError({
 - [caching.md](./caching.md) - Caching strategies and implementation
 - [linting-formatting.md](./linting-formatting.md) - Type safety and code quality
 - [state-theme-window-providers.md](./state-theme-window-providers.md) - Client-side state management
-- [next-js-16-usage.md](./next-js-16-usage.md) - Cache Components, async params, and outlawed patterns
+- [nextjs-framework.md](./nextjs-framework.md) - Cache Components, async params, and outlawed patterns
 - [testing-config.md](./testing-config.md) - Vitest 4 enforcement and testing workflow
 
 ## References
@@ -352,5 +352,5 @@ export default function GlobalError({
 - [React Server Components Documentation](https://react.dev/reference/rsc/server-components)
 - [Next.js App Router Documentation](https://nextjs.org/docs/app)
 - [Next.js 16 Upgrade Guide](https://nextjs.org/docs/app/building-your-application/upgrading/version-16)
-- [`next-js-16-usage.md`](./next-js-16-usage.md)
+- [`nextjs-framework.md`](./nextjs-framework.md)
 - [`testing-config.md`](./testing-config.md)

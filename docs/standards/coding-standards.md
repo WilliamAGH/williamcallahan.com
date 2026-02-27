@@ -455,12 +455,12 @@ z.string().email();
 z.string().uuid();
 ```
 
-## Next.js 15 Type Safety
+## Next.js 16 Type Safety
 
 ### 17. Async Route Params
 
 ```typescript
-// Next.js 15 - params are now async
+// Next.js 16 - params are async in App Router boundaries
 type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -647,30 +647,32 @@ When stuck, use:
 | `z.string().url()`   | `z.url()`          |
 | Complex recursion    | Use getter pattern |
 
-### Next.js 15 Changes
+### Next.js 16 Changes
 
-| Feature         | v14     | v15                             |
+| Feature         | v14     | v16                             |
 | --------------- | ------- | ------------------------------- |
 | Route params    | Sync    | `Promise<{}>`                   |
 | Default caching | Enabled | Opt-in with `'use cache'`       |
 | Fetch caching   | Default | Explicit `next: { revalidate }` |
 
-+### Error Handling Patterns
+### Error Handling Patterns
 
-- +| Problem | DON'T | DO |
-  +|---------|----------|-------|
-  +| Unsafe assignment | `const msg = err instanceof Error ? err.message : String(err);` | `if (err instanceof Error) { console.log(err.message); } else { console.log(String(err)); }` |
-  +| Type narrowing | `let parsed = null; const found = items.find(i => { parsed = parse(i); return true; });` | `const found = items.map(i => ({item: i, parsed: parse(i)})).find(...)` |
-  +| Error creation | `throw new Error(unknownValue);` | `throw new Error(String(unknownValue));` |
-  +| Error logging | `console.error(error.message);` | `console.error(error instanceof Error ? error.message : String(error));` |
-- +### Common ESLint Violations & Fixes
-- +| Rule | Common Trigger | Quick Fix |
-  +|------|----------------|-----------|
-  +| `@typescript-eslint/no-unsafe-assignment` | `const x = unknownVar;` | Use type guards or explicit conditionals |
-  +| `@typescript-eslint/no-unsafe-member-access` | `unknownObj.property` | Check with `'property' in obj` first |
-  +| `@typescript-eslint/no-unsafe-call` | `unknownFunc()` | Verify `typeof unknownFunc === 'function'` |
-  +| `@typescript-eslint/no-unsafe-return` | `return unknownValue;` | Validate with Zod or type guards |
-  +| `@typescript-eslint/no-explicit-any` | `const x: any = ...` | Replace with `unknown` and validate |
+| Problem           | DON'T                                                           | DO                                                                       |
+| ----------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Unsafe assignment | `const msg = err instanceof Error ? err.message : String(err);` | Branch explicitly before use                                             |
+| Type narrowing    | `let parsed = null; const found = items.find(i => { ... });`    | Build typed intermediate structures, then filter                         |
+| Error creation    | `throw new Error(unknownValue);`                                | `throw new Error(String(unknownValue));`                                 |
+| Error logging     | `console.error(error.message);`                                 | `console.error(error instanceof Error ? error.message : String(error));` |
+
+### Common ESLint Violations & Fixes
+
+| Rule                                         | Common Trigger          | Quick Fix                                  |
+| -------------------------------------------- | ----------------------- | ------------------------------------------ |
+| `@typescript-eslint/no-unsafe-assignment`    | `const x = unknownVar;` | Use type guards or explicit conditionals   |
+| `@typescript-eslint/no-unsafe-member-access` | `unknownObj.property`   | Check with `'property' in obj` first       |
+| `@typescript-eslint/no-unsafe-call`          | `unknownFunc()`         | Verify `typeof unknownFunc === "function"` |
+| `@typescript-eslint/no-unsafe-return`        | `return unknownValue;`  | Validate with Zod or type guards           |
+| `@typescript-eslint/no-explicit-any`         | `const x: any = ...`    | Replace with `unknown` and validate        |
 
 Remember: **Zero tolerance for type safety violations. Every line must be provably correct.**
 

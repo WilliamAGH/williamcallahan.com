@@ -105,4 +105,4 @@ Keep this file current whenever you add a new prefix, manifest, or lock artifact
 - **Proxy endpoints stream, not redirect.** `/api/cache/images` fetches the CDN resource server-side, decodes multi-encoded `url` parameters, and streams the bytes so `_next/image` always sees a 200 response. ([Image Component docs](https://nextjs.org/docs/app/api-reference/components/image#unoptimized))
 - **Add hosts to `next.config.ts` before storing assets.** If you introduce a new Spaces endpoint or CDN hostname, update `CALLAHAN_IMAGE_HOSTS` and `images.remotePatterns` at the same time or `_next/image` will throw 400s in production.
 
-Changes to this contract must be mirrored in `image-handling.md`, `s3-image-unified-stack.md`, and `next-js-16-usage.md`.
+Changes to this contract must be mirrored in `image-handling.md`, `s3-image-unified-stack.md`, and `../standards/nextjs-framework.md`.

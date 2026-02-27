@@ -22,18 +22,15 @@ The system provides multiple layers of observability and resilience:
 
 #### Core Logger
 
-- **`lib/logger.ts`**: Global logging singleton
-  - Wraps `console.warn` and `console.error` methods
-  - Contains private `isSilent` flag for test environments
-  - Exposes `setSilent(boolean)` for global control
-  - Used by components and API routes for consistent logging
+- **`lib/utils/logger.ts`**: Shared logging utility
+  - Provides leveled output helpers for `debug`, `info`, `warn`, and `error`
+  - Used by server utilities and API routes for consistent log formatting
 
 #### Environment-Aware Logger
 
-- **`lib/utils/logger.ts`**: Environment-based logging utility
-  - Provides log levels: `debug`, `info`, `warn`, `error`
-  - Controlled by `DEBUG` and `VERBOSE` environment variables
-  - Wraps console object with conditional output
+- **`lib/utils/env-logger.ts`**: Environment-aware logger
+  - Supports category-scoped structured metadata
+  - Controlled by environment/runtime context for verbosity
 
 #### Debug Utilities
 
@@ -57,11 +54,11 @@ The system provides multiple layers of observability and resilience:
     - Inconsistent naming conventions
     - Type guards should be in separate utility file
 
-#### Custom Error Classes
+#### Typed Error Contracts
 
-- **`lib/errors.ts`**: Application-specific error classes
-  - Extends built-in Error class with additional context
-  - Provides error categorization and metadata
+- **`types/error.ts`**: Application error contracts and helper utilities
+  - Standardizes error-shape access and timestamp helpers
+  - Provides type guards for shared error handling flows
 
 #### React Error Boundaries
 
@@ -117,11 +114,9 @@ The system provides multiple layers of observability and resilience:
 
 #### Debugging Scripts
 
-- **`scripts/debug-test-bookmark.ts`**: Diagnostic script for bookmark debugging
-  - Checks fetch mocking
-  - Verifies environment variables
-  - Tests fetch behavior
-  - Detects test artifacts
+- **`scripts/bookmark-diagnostics.ts`**: Bookmark diagnostics utility
+  - Captures runtime bookmark pipeline diagnostics
+  - Supports targeted investigations for refresh/cache behavior
 
 ### Middleware Protection
 
@@ -180,9 +175,9 @@ The system provides multiple layers of observability and resilience:
 
 ### CRITICAL Priority Issues
 
-1. **Server/Client Boundary Violations**
-   - `lib/search.ts` imports from `.bookmarks.client` causing production crashes
-   - **Fix**: Separate client and server search implementations
+1. **Server/Client Boundary Regressions**
+   - Search and bookmark modules are now separated by dedicated API routes and searcher modules.
+   - **Guardrail**: Keep client modules from importing server-only search/data-access code.
 
 2. **Unstructured Error Logging**
    - Widespread use of `console.log/error` instead of centralized logger
@@ -191,7 +186,7 @@ The system provides multiple layers of observability and resilience:
 ### MEDIUM Priority Issues
 
 1. **Ambiguous Error Handling**
-   - `lib/imageCompare.ts` returns false for both errors and mismatches
+   - `lib/image-handling/image-compare.ts` falls back to hash equality when signature generation fails
    - `lib/utils/retry.ts` returns null on failure, losing error context
    - **Fix**: Throw errors to distinguish from legitimate false results
 

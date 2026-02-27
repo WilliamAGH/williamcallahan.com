@@ -8,7 +8,7 @@ This document outlines the automated background refresh schedule and batch proce
 
 ## Overview
 
-The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs continuously and triggers background data updates at optimized intervals. All scheduling is done in Pacific Time (America/Los_Angeles).
+The application uses a cron-based scheduler (`src/lib/server/scheduler.ts`) that runs continuously and triggers background data updates at optimized intervals. All scheduling is done in Pacific Time (America/Los_Angeles).
 
 ## Architecture Decisions
 
@@ -44,7 +44,7 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 ### Scheduler Architecture
 
 ```typescript
-// scripts/scheduler.ts - Uses async spawn
+// src/lib/server/scheduler.ts - Uses async spawn
 const updateProcess = spawn("bun", ["run", "update-data", "--", "--bookmarks"], {
   env: process.env,
   stdio: "inherit",
@@ -281,7 +281,7 @@ The scheduler process must remain running for automated updates. Monitor via:
 
 ### Common Issues
 
-1. **Scheduler not running**: Check if `scripts/scheduler.ts` process is alive
+1. **Scheduler not running**: Check if `src/lib/server/scheduler.ts` process is alive
 2. **Authentication failures**: Verify environment secrets are set
 3. **External API failures**: Check rate limits and API availability
 4. **S3 connection issues**: Verify AWS credentials and bucket access

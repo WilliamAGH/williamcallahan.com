@@ -312,7 +312,6 @@ This consolidates deployment details for bookmarks data population and scheduler
 
 - `scripts/entrypoint.sh` ensures slug mappings exist at boot:
   - Runs `scripts/data-updater.ts --bookmarks --force` if missing
-  - Falls back to `scripts/ensure-slug-mappings.ts` on failure
   - Starts scheduler and Next.js server
 
 ### Scheduler Cadence (Pacific Time)

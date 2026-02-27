@@ -124,7 +124,7 @@ For filtering UI and category counts:
   "slug": "subtests-in-pytest",
   "title": "Subtests in pytest 9.0.0+",
   "content": "pytest 9.0.0 introduced native subtest support...",
-  "createdAt": "2025-12-04T21:44:04-08:00",
+  "createdAt": "<ISO-8601 timestamp>",
   "category": "python",
   "tags": ["testing", "pytest"],
   "draft": false
@@ -139,7 +139,7 @@ For filtering UI and category counts:
   "slug": "subtests-in-pytest",
   "title": "Subtests in pytest 9.0.0+",
   "excerpt": "pytest 9.0.0 introduced native subtest support...",
-  "createdAt": "2025-12-04T21:44:04-08:00",
+  "createdAt": "<ISO-8601 timestamp>",
   "category": "python",
   "tags": ["testing", "pytest"]
 }

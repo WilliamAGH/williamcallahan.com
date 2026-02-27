@@ -14,13 +14,13 @@ graph TB
         OG["lib/seo/opengraph.ts<br/>178 lines<br/>OG metadata builder"]
         OGVAL["lib/seo/og-validation.ts<br/>289 lines<br/>Validation & cache-busting"]
         UTILS["lib/seo/utils.ts<br/>Date/URL helpers"]
-        CONST["lib/seo/constants.ts<br/>Field constants"]
+        CONST["lib/seo/dynamic-metadata.ts + lib/seo/url-utils.ts<br/>Shared metadata/url helpers"]
     end
     
     subgraph "OpenGraph Image System"
         OGAPI["app/api/og-image/route.ts<br/>🐛 Missing Zod validation<br/>Universal OG Image API"]
         OGFETCH["lib/opengraph/fetch.ts<br/>🐛 No request deduplication<br/>External OG fetching"]
-        OGPERSIST["lib/opengraph/persistence.ts<br/>Idempotent S3 persistence"]
+        OGPERSIST["lib/persistence/image-persistence.ts<br/>Idempotent S3 persistence"]
         OGFALLBACK["lib/opengraph/fallback.ts<br/>Domain fallbacks"]
     end
     
@@ -43,7 +43,7 @@ graph TB
     end
     
     subgraph "Automated Operations"
-        SCHEDULER["scripts/scheduler.ts<br/>node-cron 4.2.0<br/>2hr bookmark refresh"]
+        SCHEDULER["src/lib/server/scheduler.ts<br/>node-cron 4.2.0<br/>2hr bookmark refresh"]
         SUBMIT["scripts/submit-sitemap.ts<br/>Google & Bing submission<br/>Production only"]
         VALCACHE["scripts/validate-opengraph-clear-cache.ts<br/>Twitter cache clearing<br/>5-10 min propagation"]
     end

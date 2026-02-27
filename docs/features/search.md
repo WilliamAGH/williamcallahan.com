@@ -85,13 +85,13 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 ### Core Search Logic
 
-- **`lib/search.ts`**: Unified search functions with caching
-  - `searchInvestments()`: Searches investment data with caching
-  - `searchExperience()`: Searches work experience with caching
-  - `searchEducation()`: Searches education data with caching
-  - `searchBookmarks()`: Searches bookmarks via API with caching
-  - `searchProjects()`: Searches projects with caching
-  - `searchBooks()`: Searches books with caching
+- **`lib/search/searchers/static-searchers.ts`**: Static-domain searchers
+  - `searchInvestments()`, `searchProjects()`, `searchExperience()`, `searchEducation()`
+- **`lib/search/searchers/dynamic-searchers.ts`**: Dynamic-domain searchers
+  - `searchBookmarks()`, `searchBooks()`
+- **`lib/search/searchers/thoughts-search.ts`**: PostgreSQL-backed hybrid thoughts search
+- **`lib/search/search-content.ts`**: Generic content scoring/reranking utilities
+- **`lib/search/search-factory.ts`**: Shared cached-search factory used by searchers
 
 - **`lib/blog/server-search.ts`**: Blog-specific search
   - `searchBlogPostsServerSide()`: Searches blog posts with caching
@@ -123,7 +123,8 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 ### Caching Layer
 
-- **`lib/search.ts`**: Search data functions use `\"use cache\"`, `cacheLife`, and `cacheTag`
+- **`lib/search/search-factory.ts`** and **`lib/search/cache-invalidation.ts`**
+  - Search functions use `\"use cache\"`, `cacheLife`, and `cacheTag`
   - Search-tag invalidation can be triggered with `revalidateTag(...)`
   - API routes remain `noStore()` when fresh responses are required
 
@@ -246,7 +247,7 @@ function searchContent<T>(
 
 ### Test Coverage
 
-- **Unit Tests**: `__tests__/lib/search.test.ts`
+- **Unit Tests**: `__tests__/lib/search/search.test.ts`
   - Query validation and sanitization
   - Cache behavior verification
   - Search algorithm correctness
@@ -326,7 +327,7 @@ GET /api/search/all?q=nextjs
     "query": "react hooks",
     "scope": "blog",
     "count": 5,
-    "timestamp": "2024-01-01T00:00:00Z"
+    "timestamp": "<ISO-8601 timestamp>"
   }
 }
 ```
