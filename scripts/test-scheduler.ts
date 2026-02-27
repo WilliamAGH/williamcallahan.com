@@ -100,7 +100,7 @@ console.log("  This simulates what the scheduler would do...\n");
 try {
   const { spawn } = await import("node:child_process");
 
-  const updateProcess = spawn("bun", ["run", "update-data", "--", "--bookmarks"], {
+  const updateProcess = spawn("node", ["--run", "update-data", "--", "--bookmarks"], {
     env: process.env,
     stdio: "inherit",
   });

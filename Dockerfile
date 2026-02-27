@@ -274,8 +274,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/data ./data
 #    Copy next.config so runtime uses the build-time image remotePatterns
 COPY --from=builder /app/next.config.ts ./next.config.ts
-#    Ensure TypeScript path-mapping files are available at runtime so that Bun can
-#    resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
+#    Ensure TypeScript path-mapping files are available at runtime so that tsx can
+#    resolve "@/*" import aliases used by our standalone scripts (e.g. update-data).
 COPY --from=builder /app/tsconfig*.json ./
 #    Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
 #    repository (e.g. `@/lib/*`, `@/types/*`). The `@/*` alias maps to `./src/*` in
@@ -287,8 +287,8 @@ COPY --from=builder /app/config ./config
 COPY --from=builder /app/src/app/sitemap.ts ./src/app/sitemap.ts
 
 # 7. Scripts and package definitions (changes occasionally)
-#    IMPORTANT: Database backfill/migration scripts (*.node.mjs) MUST run under
-#    Node.js, NOT bun. Bun's TLS rejects PostgreSQL's SSL signature algorithms.
+#    All runtime scripts use tsx (Node.js + esbuild) for TLS compatibility with PostgreSQL.
+#    Database backfill/migration scripts (*.node.mjs) use #!/usr/bin/env node directly.
 #    See AGENTS.md [RT1] for details.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
@@ -320,5 +320,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
 
 # Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
 ENTRYPOINT ["/app/entrypoint.sh"]
-# Run the package.json start script via Bun (available in the base image)
-CMD ["bun", "run", "start"]
+# Run the package.json start script via Node.js (node --run reads package.json scripts natively)
+CMD ["node", "--run", "start"]

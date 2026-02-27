@@ -106,19 +106,16 @@ describe("DataFetchManager Performance Optimizations", () => {
       expect(domains.has("course-a.com")).toBe(true); // From recent courses
     });
 
-    it("should handle errors gracefully without blocking other sources", async () => {
+    it("should propagate errors from data sources", async () => {
       // Make investments fail
       mockGetInvestmentDomainsAndIds.mockRejectedValue(new Error("Investment fetch failed"));
 
-      // The implementation uses Promise.all which fails fast
+      // collectAllDomains now re-throws errors instead of swallowing them
+      // This surfaces database failures to fetchLogos which returns { success: false }
       const dataFetchManager = new DataFetchManager();
-      const domains = await (dataFetchManager as any).collectAllDomains();
-
-      // When one source fails, Promise.all rejects and collectAllDomains returns empty set
-      expect(domains.size).toBe(0);
-
-      // Verify error was logged but method didn't throw
-      expect(domains).toBeInstanceOf(Set);
+      await expect((dataFetchManager as any).collectAllDomains()).rejects.toThrow(
+        "Investment fetch failed",
+      );
     });
 
     it("should handle invalid URLs gracefully", async () => {

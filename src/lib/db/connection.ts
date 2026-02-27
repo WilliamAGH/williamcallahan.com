@@ -42,7 +42,12 @@ const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string
     parsed.hostname = internalHost;
     parsed.port = internalPort;
     return parsed.toString();
-  } catch {
+  } catch (error) {
+    console.warn(
+      "[db/connection] Failed to parse DATABASE_URL for internal rewrite:",
+      rawUrl?.substring(0, 30),
+      error,
+    );
     return rawUrl;
   }
 };

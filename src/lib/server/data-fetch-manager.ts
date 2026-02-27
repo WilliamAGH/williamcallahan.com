@@ -143,7 +143,7 @@ export class DataFetchManager {
         changeDetected = index.changeDetected ?? undefined;
         lastFetchedAt = index.lastFetchedAt;
       } catch (error) {
-        logger.debug("[DataFetchManager] Failed to read bookmarks index", { error });
+        logger.warn("[DataFetchManager] Failed to read bookmarks index", { error });
       }
 
       const duration = (getMonotonicTime() - startTime) / 1000;
@@ -375,6 +375,7 @@ export class DataFetchManager {
       }
     } catch (error) {
       logger.error("[DataFetchManager] Error collecting domains:", error);
+      throw error;
     }
 
     if (testLimit) {
@@ -438,8 +439,9 @@ export class DataFetchManager {
             }
             return undefined;
           })
-          .catch(() => {
+          .catch((error) => {
             failureCount++;
+            logger.warn("[DataFetchManager] Logo fetch failed", { domain, error });
           }),
       );
 
@@ -527,6 +529,17 @@ export class DataFetchManager {
       searchIndexes: true, // Build search indexes at build time
       immediate: false,
     });
+
+    // Fail the build if critical operations failed (bookmarks or searchIndexes)
+    const criticalFailures = results.filter(
+      (r) => !r.success && ["bookmarks", "searchIndexes"].includes(r.operation),
+    );
+    if (criticalFailures.length > 0) {
+      throw new Error(
+        `Critical prefetch operations failed: ${criticalFailures.map((f) => f.operation).join(", ")}`,
+      );
+    }
+
     logger.info("[DataFetchManager] Prefetch for build completed.");
     return results;
   }

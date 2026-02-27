@@ -41,7 +41,8 @@ try {
     parsed.port = process.env.INTERNAL_DB_PORT ?? parsed.port;
     process.stdout.write(parsed.toString());
   }
-} catch {
+} catch (e) {
+  console.error("[Entrypoint] Failed to parse DATABASE_URL for internal rewrite:", e?.message ?? e);
   process.exit(0);
 }
 NODE
@@ -158,7 +159,7 @@ echo "✅ [Entrypoint] Cache directory /app/cache/s3_data ensured."
 
 echo "📊 [Entrypoint] Checking for initial data population..."
 # Check if critical data exists, if not mark for background population
-if ! bun scripts/debug-slug-mapping.ts 2>/dev/null | grep -q "Slug mapping exists"; then
+if ! npx tsx scripts/debug-slug-mapping.ts 2>&1 | grep -q "Slug mapping exists"; then
     echo "⚠️  [Entrypoint] Slug mapping missing, marking for background population..."
     # Create a marker file to trigger background population
     touch /tmp/needs-initial-data-population
@@ -170,7 +171,7 @@ fi
 if [ "${ENABLE_BACKGROUND_SERVICES}" = "1" ]; then
     echo "🗺️  [Entrypoint] Submitting sitemap..."
     if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ]; then
-        if bun run submit-sitemap; then
+        if node --run submit-sitemap; then
             echo "✅ [Entrypoint] Sitemap submission completed"
         else
             echo "⚠️  [Entrypoint] Sitemap submission failed; continuing startup"
@@ -184,7 +185,7 @@ if [ "${ENABLE_BACKGROUND_SERVICES}" = "1" ]; then
     # Start the background data populator if needed
     if [ -f /tmp/needs-initial-data-population ]; then
         echo "📦 [Entrypoint] Starting background data populator..."
-        bun scripts/background-data-populator.ts > /tmp/data-populator.log 2>&1 &
+        npx tsx scripts/background-data-populator.ts > /tmp/data-populator.log 2>&1 &
         DATA_POPULATOR_PID=$!
         echo "✅ [Entrypoint] Background data populator started (PID: $DATA_POPULATOR_PID)"
     fi
@@ -195,7 +196,7 @@ if [ "${ENABLE_BACKGROUND_SERVICES}" = "1" ]; then
 
     # Start scheduler directly without pipeline to get correct PID
     # Redirect output to both stdout and log file
-    bun run scheduler >> $SCHEDULER_LOG 2>&1 &
+    node --run scheduler >> $SCHEDULER_LOG 2>&1 &
     SCHEDULER_PID=$!
     echo "✅ [Entrypoint] Scheduler started (PID: $SCHEDULER_PID)"
 
@@ -214,9 +215,10 @@ if [ "${ENABLE_BACKGROUND_SERVICES}" = "1" ]; then
         echo "❌ [Entrypoint] ERROR: Scheduler process died immediately after starting"
         echo "❌ [Entrypoint] Last output from scheduler:"
         cat $SCHEDULER_LOG | sed 's/^/    /'
-        echo "❌ [Entrypoint] Debug: Checking if bun exists and scheduler script is accessible"
-        which bun || echo "    bun not found in PATH"
-        ls -la package.json lib/server/scheduler.ts || echo "    scheduler files not found"
+        echo "❌ [Entrypoint] Debug: Checking if node/tsx exist and scheduler script is accessible"
+        which node || echo "    node not found in PATH"
+        which npx || echo "    npx not found in PATH"
+        ls -la package.json src/lib/server/scheduler.ts || echo "    scheduler files not found"
     fi
 else
     echo "⚠️  [Entrypoint] ENABLE_BACKGROUND_SERVICES=${ENABLE_BACKGROUND_SERVICES}; skipping sitemap submission, scheduler, and background data population"
@@ -255,6 +257,6 @@ trap cleanup SIGTERM SIGINT SIGQUIT
 echo "🚀 [Entrypoint] Starting main application..."
 
 # Execute the command passed to the entrypoint (CMD in Dockerfile)
-# The "$@" expands to the CMD specified in the Dockerfile (e.g., ["bun", "run", "start"])
+# The "$@" expands to the CMD specified in the Dockerfile (e.g., ["node", "--run", "start"])
 # Running as non-root user 'nextjs' (UID 1001) for security
 exec "$@"

@@ -6,9 +6,7 @@ loadEnvironmentWithMultilineSupport();
 
 // Log startup immediately to verify process is running
 console.log(`[Scheduler] Process starting at ${new Date().toISOString()}`);
-console.log(
-  `[Scheduler] Node version: ${process.version}, Bun version: ${process.versions.bun || "N/A"}`,
-);
+console.log(`[Scheduler] Node version: ${process.version}, Runtime: tsx (esbuild + Node.js)`);
 console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 
 // Continuous Background Scheduler
@@ -21,7 +19,7 @@ console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 // - Logos: Weekly on Sunday at 1 AM PT (refreshes company logos)
 //
 // How it works:
-// 1. The scheduler starts via 'bun run scheduler' (typically from entrypoint.sh)
+// 1. The scheduler starts via 'node --run scheduler' (typically from entrypoint.sh)
 // 2. It registers cron patterns for each task type
 // 3. It remains running indefinitely, waiting for scheduled times to trigger
 // 4. When triggered, it executes the update-data script with appropriate arguments
@@ -110,10 +108,10 @@ const scheduleCronJob = (
       runningJobs.add(name);
 
       console.log(
-        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Spawning: bun run update-data -- ${flag}`,
+        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Spawning: node --run update-data -- ${flag}`,
       );
 
-      const updateProcess = spawn("bun", ["run", "update-data", "--", flag], {
+      const updateProcess = spawn("node", ["--run", "update-data", "--", flag], {
         env: process.env,
         stdio: "inherit",
         detached: false,
@@ -168,7 +166,20 @@ const scheduleCronJob = (
 
         if (name === "Bookmarks") {
           console.log(`[Scheduler] [${name}] Submitting sitemap...`);
-          spawn("bun", ["run", "submit-sitemap"], { env: process.env, stdio: "inherit" });
+          const sitemapProcess = spawn("node", ["--run", "submit-sitemap"], {
+            env: process.env,
+            stdio: "inherit",
+          });
+          sitemapProcess.on("error", (err) => {
+            console.warn(`[Scheduler] [${name}] Sitemap submission failed to start:`, err);
+          });
+          sitemapProcess.on("close", (sitemapCode) => {
+            if (sitemapCode !== 0) {
+              console.warn(
+                `[Scheduler] [${name}] Sitemap submission exited with code ${sitemapCode}`,
+              );
+            }
+          });
         }
       });
     }, jitter);

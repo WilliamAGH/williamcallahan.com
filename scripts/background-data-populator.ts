@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 
 /**
  * Background Data Populator
@@ -17,6 +17,8 @@ import logger from "@/lib/utils/logger";
 const MARKER_FILE = "/tmp/needs-initial-data-population";
 const CHECK_INTERVAL = 10000; // Check every 10 seconds
 const INITIAL_DELAY = 30000; // Wait 30 seconds after server start
+const MAX_POPULATION_ATTEMPTS = 3; // Prevent infinite retry loops
+let populationAttempts = 0;
 
 /**
  * Run the data updater script in a child process
@@ -26,8 +28,8 @@ async function runDataUpdater(): Promise<void> {
   return new Promise((resolve, reject) => {
     logger.info("[BackgroundPopulator] Starting data updater process...");
 
-    // Spawn the data updater as a child process
-    const child = spawn("bun", ["scripts/data-updater.ts"], {
+    // Spawn the data updater as a child process using npx tsx for Node.js TLS compatibility
+    const child = spawn("npx", ["tsx", "scripts/data-updater.ts"], {
       env: {
         ...process.env,
         IS_DATA_UPDATER: "true",
@@ -81,21 +83,29 @@ async function checkAndPopulate(): Promise<void> {
     return;
   }
 
-  logger.info("[BackgroundPopulator] Marker file detected - initial data population needed");
+  if (populationAttempts >= MAX_POPULATION_ATTEMPTS) {
+    logger.error(
+      `[BackgroundPopulator] Max attempts (${MAX_POPULATION_ATTEMPTS}) reached; removing marker and giving up`,
+    );
+    unlinkSync(MARKER_FILE);
+    return;
+  }
+
+  populationAttempts++;
+  logger.info(
+    `[BackgroundPopulator] Marker file detected - attempt ${populationAttempts}/${MAX_POPULATION_ATTEMPTS}`,
+  );
 
   try {
-    // Remove the marker file immediately to prevent duplicate runs
-    unlinkSync(MARKER_FILE);
-    logger.info("[BackgroundPopulator] Removed marker file");
-
-    // Run the data updater
+    // Run the data updater first; only remove marker on success
     await runDataUpdater();
 
-    logger.info("[BackgroundPopulator] Initial data population completed");
+    // Success — remove marker so subsequent checks don't re-trigger
+    unlinkSync(MARKER_FILE);
+    logger.info("[BackgroundPopulator] Initial data population completed, marker removed");
   } catch (error) {
     logger.error("[BackgroundPopulator] Failed to populate initial data:", error);
-    // Don't recreate the marker file - we don't want to retry indefinitely
-    // The scheduler will handle regular updates
+    // Leave marker in place so the next interval check retries (up to MAX_POPULATION_ATTEMPTS)
   }
 }
 
@@ -134,7 +144,8 @@ async function main(): Promise<void> {
 }
 
 // Start the monitoring if run directly
-if (import.meta.main) {
+// Node.js equivalent of Bun's import.meta.main
+if (process.argv[1]?.endsWith("background-data-populator.ts")) {
   main().catch((error) => {
     logger.error("[BackgroundPopulator] Fatal error:", error);
     process.exit(1);
