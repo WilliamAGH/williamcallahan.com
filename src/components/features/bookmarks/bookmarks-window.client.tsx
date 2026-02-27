@@ -122,7 +122,7 @@ function BookmarksWindowContentInner({
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <FeedToggle mode={feedMode} onChange={handleFeedChange} />
+            {!titleSlug && <FeedToggle mode={feedMode} onChange={handleFeedChange} />}
             <TerminalSearchHint context="bookmarks" />
           </div>
         </div>

@@ -6,7 +6,6 @@
  *
  * @module components/features/bookmarks/bookmarks-with-pagination.client
  */
-
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
@@ -25,6 +24,7 @@ import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
 import { ImpressionTracker } from "./impression-tracker.client";
 import { CategoryRibbon } from "./category-ribbon.client";
+import { HeroRow } from "./hero-row.client";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
@@ -162,6 +162,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     if (items.length <= itemsPerPage) return items;
     return items.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   };
+
+  const displayedBookmarks = paginatedSlice(filteredBookmarks);
+  const heroBookmarks = feedMode === "discover" ? displayedBookmarks.slice(0, 3) : [];
+  const gridBookmarks = feedMode === "discover" ? displayedBookmarks.slice(3) : displayedBookmarks;
 
   // Sync currentPage with URL navigation from <Link> pagination
   useEffect(() => {
@@ -305,8 +309,16 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       )}
       {!error && filteredBookmarks.length > 0 && (
         <>
+          {feedMode === "discover" && (
+            <HeroRow
+              bookmarks={heroBookmarks}
+              internalHrefs={internalHrefs}
+              onImpression={trackImpression}
+            />
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-            {paginatedSlice(filteredBookmarks).map((bookmark, index) => (
+            {gridBookmarks.map((bookmark, index) => (
               <ImpressionTracker
                 key={bookmark.id}
                 contentType="bookmark"

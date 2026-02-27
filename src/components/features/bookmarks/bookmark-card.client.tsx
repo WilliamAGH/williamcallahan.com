@@ -23,7 +23,7 @@
 
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { formatDate as utilFormatDate } from "@/lib/utils";
-import { Calendar, ExternalLink as LucideExternalLinkIcon } from "lucide-react";
+import { Calendar, Clock, ExternalLink as LucideExternalLinkIcon, Star } from "lucide-react";
 import Link from "next/link";
 import { type JSX } from "react";
 import { normalizeDomain } from "../../../lib/utils/domain-utils";
@@ -64,8 +64,14 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     dateBookmarked,
     internalHref,
     preload = false,
+    readingTime,
+    isFavorite,
+    note,
+    category,
+    variant = "default",
   } = props;
   const pathname = usePathname();
+  const isHero = variant === "hero";
 
   /**
    * Determine the correct link target for the image & title
@@ -120,7 +126,11 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   if (!id || !url) return null;
 
   return (
-    <div className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200 hover:scale-[1.005]">
+    <div
+      className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200 hover:scale-[1.005] ${
+        isHero ? "md:shadow-2xl" : ""
+      }`}
+    >
       {/* Image Section with domain overlay */}
       <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
         {/* Image background - clickable link */}
@@ -165,6 +175,14 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       </div>
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
+        {category && (
+          <div className="mb-1">
+            <span className="inline-block px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold uppercase tracking-wide">
+              {category}
+            </span>
+          </div>
+        )}
+
         {/* Title */}
         {effectiveInternalHref ? (
           // When on list/grid views, link to internal bookmark page
@@ -174,7 +192,9 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
             className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
             prefetch={false}
           >
-            <h3 className="text-2xl font-semibold">{displayTitle}</h3>
+            <h3 className={isHero ? "text-3xl font-semibold" : "text-2xl font-semibold"}>
+              {displayTitle}
+            </h3>
           </Link>
         ) : (
           // When on individual bookmark page, link to external URL in new tab
@@ -184,22 +204,41 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
             showIcon={false}
             className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
           >
-            <h3 className="text-2xl font-semibold">{displayTitle}</h3>
+            <h3 className={isHero ? "text-3xl font-semibold" : "text-2xl font-semibold"}>
+              {displayTitle}
+            </h3>
           </ExternalLink>
         )}
 
         {/* Description */}
-        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base line-clamp-4-resilient">
+        <p
+          className={`flex-1 text-gray-700 dark:text-gray-300 line-clamp-4-resilient ${
+            isHero ? "text-base" : "text-sm"
+          }`}
+        >
           {description}
         </p>
+
+        {isHero && note && (
+          <p className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-900/20 px-3 py-2 text-sm text-blue-900 dark:text-blue-100 line-clamp-2">
+            {note}
+          </p>
+        )}
 
         {/* Meta Information */}
         <div className="mt-auto space-y-2 text-sm text-gray-500 dark:text-gray-400">
           {/* Dates */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               <span>Saved {formattedBookmarkDate}</span>
+              {readingTime && (
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {Math.max(1, Math.ceil(readingTime))} min read
+                </span>
+              )}
+              {isFavorite && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
             </div>
 
             {/* Share button right-aligned - only show when we have an internal href */}

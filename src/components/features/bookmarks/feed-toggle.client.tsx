@@ -11,7 +11,7 @@ const FEED_OPTIONS = [
 export function FeedToggle({ mode, onChange }: Readonly<FeedToggleProps>) {
   return (
     <div
-      className="inline-flex items-center rounded-full border border-gray-300/90 dark:border-gray-700 bg-gray-100/80 dark:bg-gray-800/70 p-1"
+      className="inline-flex items-center rounded-md bg-gray-200/70 dark:bg-gray-800/70 p-0.5 font-mono"
       role="tablist"
       aria-label="Bookmark feed mode"
     >
@@ -25,11 +25,11 @@ export function FeedToggle({ mode, onChange }: Readonly<FeedToggleProps>) {
             aria-selected={isActive}
             onClick={() => onChange(option.value)}
             className={cn(
-              "px-3 py-1.5 text-xs font-semibold rounded-full transition-all",
+              "rounded px-2.5 py-1 text-xs font-medium transition-all duration-150",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60",
               isActive
                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100",
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200",
             )}
           >
             {option.label}

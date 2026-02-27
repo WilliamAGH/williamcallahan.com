@@ -48,6 +48,7 @@ export type BookmarkCardClientProps = UnifiedBookmark & {
   className?: string;
   /** Preload the card image for above-the-fold visibility */
   preload?: boolean;
+  variant?: "default" | "hero";
 };
 
 /**
@@ -91,6 +92,12 @@ export type BookmarkCategorySummary = {
 export type CategoryRibbonProps = {
   selectedCategory: string | null;
   onSelectAction: (category: string | null) => void;
+};
+
+export type HeroRowProps = {
+  bookmarks: UnifiedBookmark[];
+  internalHrefs?: Readonly<Record<string, string>>;
+  onImpression: (contentType: EngagementContentType, contentId: string) => void;
 };
 
 // Base type for all bookmark list variations
