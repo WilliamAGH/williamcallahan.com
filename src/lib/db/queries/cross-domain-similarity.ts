@@ -66,6 +66,29 @@ export async function findSimilarByEntity(options: {
 }
 
 /**
+ * Check whether a source entity has a stored embedding row.
+ *
+ * Debug endpoints should distinguish "missing source embedding" from
+ * "valid source with zero neighbors".
+ */
+export async function sourceEmbeddingExists(options: {
+  sourceDomain: ContentEmbeddingDomain;
+  sourceId: string;
+}): Promise<boolean> {
+  const { sourceDomain, sourceId } = options;
+  const rows = await db.execute<{ exists: number }>(sql`
+    SELECT 1 AS exists
+    FROM embeddings
+    WHERE domain = ${sourceDomain}
+      AND entity_id = ${sourceId}
+      AND qwen_4b_fp16_embedding IS NOT NULL
+    LIMIT 1
+  `);
+
+  return rows.length > 0;
+}
+
+/**
  * Find nearest neighbors using a pre-computed embedding vector.
  *
  * Use this when you already have the embedding (e.g., from a search query

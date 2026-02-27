@@ -7,7 +7,10 @@
 
 import { preventCaching, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
-import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
+import {
+  findSimilarByEntity,
+  sourceEmbeddingExists,
+} from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
 import { getEnabledContentTypes } from "@/config/related-content.config";
@@ -75,7 +78,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { sourceType, sourceId, limit } = params;
-    const sourceDomain = sourceType as ContentEmbeddingDomain;
+    const sourceDomain: ContentEmbeddingDomain = sourceType;
+    const hasSourceEmbedding = await sourceEmbeddingExists({
+      sourceDomain,
+      sourceId,
+    });
+    if (!hasSourceEmbedding) {
+      return createErrorResponse(`Source embedding not found for: ${sourceType}/${sourceId}`, 404);
+    }
     const startMs = performance.now();
 
     // Step 1: pgvector ANN search — raw cosine candidates
