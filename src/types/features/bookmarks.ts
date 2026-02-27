@@ -76,6 +76,13 @@ export type ImpressionTrackerProps = {
   children: ReactNode;
 };
 
+export type BookmarkFeedMode = "discover" | "latest";
+
+export type FeedToggleProps = {
+  mode: BookmarkFeedMode;
+  onChange: (mode: BookmarkFeedMode) => void;
+};
+
 // Base type for all bookmark list variations
 type BaseBookmarkListProps = {
   bookmarks: UnifiedBookmark[];
@@ -106,6 +113,7 @@ export type BookmarksPaginatedClientProps = BaseBookmarkListProps &
     initialTag?: string;
     tag?: string;
     description?: string;
+    feedMode?: BookmarkFeedMode;
     readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
@@ -141,6 +149,7 @@ export type BookmarksWithPaginationClientProps = BaseBookmarkListProps &
     tag?: string;
     description?: string;
     className?: string;
+    feedMode?: BookmarkFeedMode;
     readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
@@ -178,6 +187,7 @@ export interface BookmarksClientWithWindowProps {
   itemsPerPage?: number;
   enableInfiniteScroll?: boolean;
   searchAllBookmarks?: boolean;
+  feedMode?: BookmarkFeedMode;
   readonly internalHrefs?: Readonly<Record<string, string>>;
 }
 

@@ -12,18 +12,21 @@
 
 "use client";
 
-import React, { Suspense, useEffect, type JSX } from "react";
+import React, { Suspense, useCallback, useEffect, type JSX } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { Bookmark, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { RegisteredWindowState } from "@/types/ui/window";
 import type {
+  BookmarkFeedMode,
   BookmarksWindowContentProps,
   BookmarksWindowClientPropsExtended as BookmarksWindowClientProps,
 } from "@/types/features/bookmarks";
+import { FeedToggle } from "./feed-toggle.client";
 
 // Define a unique ID for this window instance
 // Use this as the default window ID, but it can be overridden with props
@@ -68,6 +71,10 @@ function BookmarksWindowContentInner({
   windowTitle,
 }: BookmarksWindowContentProps): React.JSX.Element {
   const isMaximized = windowState === "maximized";
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const feedMode: BookmarkFeedMode = searchParams.get("feed") === "latest" ? "latest" : "discover";
 
   // Format the title slug for display
   const formattedTitle = windowTitle
@@ -75,6 +82,22 @@ function BookmarksWindowContentInner({
     : titleSlug
       ? `~/${titleSlug}/bookmarks`
       : "~/bookmarks";
+
+  const handleFeedChange = useCallback(
+    (nextMode: BookmarkFeedMode) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextMode === "discover") {
+        params.delete("feed");
+      } else {
+        params.set("feed", "latest");
+      }
+
+      const query = params.toString();
+      const nextUrl = query.length > 0 ? `${pathname}?${query}` : pathname;
+      router.replace(nextUrl, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   return (
     <div
@@ -98,7 +121,10 @@ function BookmarksWindowContentInner({
               </Link>
             </h1>
           </div>
-          <TerminalSearchHint context="bookmarks" />
+          <div className="flex items-center gap-3">
+            <FeedToggle mode={feedMode} onChange={handleFeedChange} />
+            <TerminalSearchHint context="bookmarks" />
+          </div>
         </div>
       </div>
 

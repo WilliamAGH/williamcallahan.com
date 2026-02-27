@@ -15,6 +15,7 @@ import { BookmarksWindow } from "./bookmarks-window.client";
 import { BookmarksPaginatedClient as BookmarksClient } from "./bookmarks-paginated.client";
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 import type { UnifiedBookmark } from "@/types/bookmark";
+import { useSearchParams } from "next/navigation";
 
 // Loading state when bookmarks are fetching
 function BookmarksLoading() {
@@ -74,8 +75,12 @@ export function BookmarksClientWithWindow({
   usePagination = true,
   initialTag,
   tag,
+  feedMode,
   internalHrefs,
 }: BookmarksClientWithWindowProps) {
+  const searchParams = useSearchParams();
+  const resolvedFeedMode =
+    feedMode ?? (searchParams.get("feed") === "latest" ? "latest" : "discover");
   const unifiedBookmarks: UnifiedBookmark[] = convertSerializableBookmarksToUnified(bookmarks);
 
   // Title is currently unused in this component, acknowledge to satisfy linter rules (no underscore prefixes allowed)
@@ -86,6 +91,7 @@ export function BookmarksClientWithWindow({
       <div className="w-full mx-auto py-8">
         <Suspense fallback={<BookmarksLoading />}>
           <BookmarksClient
+            key={resolvedFeedMode}
             bookmarks={unifiedBookmarks}
             searchAllBookmarks={searchAllBookmarks}
             showFilterBar={showFilterBar}
@@ -99,6 +105,7 @@ export function BookmarksClientWithWindow({
             initialTag={initialTag}
             tag={tag}
             description={description}
+            feedMode={resolvedFeedMode}
             internalHrefs={internalHrefs}
           />
         </Suspense>

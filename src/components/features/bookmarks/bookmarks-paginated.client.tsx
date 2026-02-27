@@ -25,6 +25,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
   initialTag,
   tag,
   description,
+  feedMode,
   internalHrefs,
 }: BookmarksPaginatedClientProps) => {
   // Debug log to check if bookmarks are passed correctly to client component
@@ -56,6 +57,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
         initialTag={initialTag}
         tag={tag}
         description={description}
+        feedMode={feedMode}
         internalHrefs={internalHrefs}
       />
     );

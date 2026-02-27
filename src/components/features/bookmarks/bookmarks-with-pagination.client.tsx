@@ -45,6 +45,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   tag,
   description,
   className,
+  feedMode = "discover",
   internalHrefs,
 }) => {
   const [mounted, setMounted] = useState(false);
@@ -67,11 +68,11 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   } = usePagination<UnifiedBookmark>({
     apiUrl: "/api/bookmarks",
     limit: itemsPerPage,
-    initialData: initialBookmarks,
+    initialData: feedMode === "latest" ? initialBookmarks : [],
     initialPage,
     initialTotalPages,
     initialTotalCount,
-    queryParams: tag ? { tag } : {},
+    queryParams: tag ? { tag, feed: feedMode } : { feed: feedMode },
   });
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
