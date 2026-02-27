@@ -79,13 +79,17 @@ export const handleSitemapCollectorError = <T>(
   fallback: T,
   throwStrategy: "throw-in-test" | "throw-in-production" = "throw-in-test",
 ): T => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`[Sitemap] ${context}:`, message);
-
   const isTestEnv = isTestEnvironment();
   const shouldThrow =
     (throwStrategy === "throw-in-production" && !isTestEnv) ||
     (throwStrategy === "throw-in-test" && isTestEnv);
+
+  const isExpectedTestFallback = isTestEnv && throwStrategy === "throw-in-production";
+  if (!isExpectedTestFallback) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Sitemap] ${context}:`, message);
+  }
+
   if (shouldThrow) {
     throw error;
   }

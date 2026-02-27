@@ -29,6 +29,7 @@ import {
   getLatestDate,
   resolveBookmarkLastModified,
   handleSitemapCollectorError,
+  isTestEnvironment,
 } from "@/lib/sitemap/date-utils";
 
 export const buildPaginatedBookmarkEntries = (
@@ -120,9 +121,11 @@ export const collectBookmarkSitemapData = async (
 
     let bookmarkEntries: MetadataRoute.Sitemap = bookmarkEntriesFromMapping ?? [];
     if (bookmarkEntries.length === 0) {
-      console.info(
-        "[Sitemap] Slug mapping produced no bookmark entries; falling back to page collection",
-      );
+      if (!isTestEnvironment()) {
+        console.info(
+          "[Sitemap] Slug mapping produced no bookmark entries; falling back to page collection",
+        );
+      }
       const pageData = await collectBookmarkEntriesFromPages(siteUrl, totalPages);
       bookmarkEntries = pageData.entries;
     }
