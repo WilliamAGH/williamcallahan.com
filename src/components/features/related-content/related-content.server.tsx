@@ -180,6 +180,9 @@ export async function RelatedContent({
 
     // Path 2: fall back to on-demand pgvector search
     if (!items || items.length === 0) {
+      debug(
+        `[RelatedContent] No pre-computed data for ${contentKey}, falling back to on-demand pgvector`,
+      );
       items = await resolveOnDemand(sourceType, actualSourceId);
     }
 
