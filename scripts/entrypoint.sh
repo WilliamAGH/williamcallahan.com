@@ -43,7 +43,7 @@ try {
   }
 } catch (e) {
   console.error("[Entrypoint] Failed to parse DATABASE_URL for internal rewrite:", e?.message ?? e);
-  process.exit(0);
+  process.exit(1);
 }
 NODE
     )"
