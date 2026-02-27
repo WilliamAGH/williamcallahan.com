@@ -13,7 +13,7 @@ import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
-import type { MacOSWindowExtendedProps as MacOSWindowProps, WindowTab } from "@/types/ui";
+import type { MacOSWindowExtendedProps as MacOSWindowProps, WindowTab } from "@/types/ui/window";
 
 export type { WindowTab };
 

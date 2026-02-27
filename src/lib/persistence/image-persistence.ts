@@ -4,7 +4,7 @@ import { writeBinaryS3 } from "@/lib/s3/binary";
 import { persistImageToS3, findImageInS3 } from "@/lib/image-handling/image-s3-utils";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
-import type { PersistImageResult } from "@/types";
+import type { PersistImageResult } from "@/types/opengraph";
 import { OgError } from "@/types/opengraph";
 
 /** Format image URL for display in logs (truncates base64 data URLs) */

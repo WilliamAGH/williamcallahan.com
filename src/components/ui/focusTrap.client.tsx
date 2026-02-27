@@ -9,7 +9,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import type { FocusTrapExtendedProps as FocusTrapProps } from "@/types/ui";
+import type { FocusTrapExtendedProps as FocusTrapProps } from "@/types/ui/interactive";
 
 /**
  * FocusTrap Component

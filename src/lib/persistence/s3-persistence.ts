@@ -14,7 +14,7 @@ import { debug, isDebug } from "@/lib/utils/debug";
 import { hashUrl, normalizeUrl } from "@/lib/utils/opengraph-utils";
 import { readOgOverride } from "@/lib/db/queries/opengraph";
 import { writeOgOverride } from "@/lib/db/mutations/opengraph";
-import type { OgResult } from "@/types";
+import type { OgResult } from "@/types/opengraph";
 import { OgError } from "@/types/opengraph";
 import { ContentCategory } from "@/types/s3-cdn";
 

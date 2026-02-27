@@ -22,7 +22,7 @@
  */
 
 import { extractBasicImageMeta } from "./image-metadata";
-import type { LogoInversion, LogoBrightnessAnalysis } from "@/types";
+import type { LogoInversion, LogoBrightnessAnalysis } from "@/types/logo";
 
 /**
  * Custom error class for image analysis errors

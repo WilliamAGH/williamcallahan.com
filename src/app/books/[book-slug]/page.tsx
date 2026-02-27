@@ -29,7 +29,7 @@ import {
 import { extractBookIdFromSlug, findBookBySlug } from "@/lib/books/slug-helpers";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";

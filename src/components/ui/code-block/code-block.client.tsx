@@ -34,7 +34,7 @@ import { CopyButton } from "./copy-button.client";
 // Note: Prism CSS is loaded globally in layout.tsx
 // We rely on rehype-prism for build-time syntax highlighting
 
-import type { CodeBlockProps } from "@/types";
+import type { CodeBlockProps } from "@/types/ui/code-block";
 
 /**
  * Extract language from className (e.g., "language-typescript" -> "typescript")

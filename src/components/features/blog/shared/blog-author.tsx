@@ -15,7 +15,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { BlogAuthorProps } from "@/types/features";
+import type { BlogAuthorProps } from "@/types/features/blog";
 import type { AuthorBioSegment } from "@/types/blog";
 
 import { getOptimizedImageSrc, shouldBypassOptimizer } from "@/lib/utils/cdn-utils";

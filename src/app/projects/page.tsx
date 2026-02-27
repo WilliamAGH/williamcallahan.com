@@ -8,7 +8,7 @@
 
 import type { Metadata } from "next";
 import { ProjectsClient } from "@/components/features/projects/projects.client";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";

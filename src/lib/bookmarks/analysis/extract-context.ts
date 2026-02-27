@@ -6,7 +6,7 @@
  * Client-safe (no cheerio/server-only dependencies).
  */
 
-import type { UnifiedBookmark, BookmarkTag } from "@/types";
+import type { UnifiedBookmark, BookmarkTag } from "@/types/schemas/bookmark";
 import type { BookmarkAnalysisContext } from "@/types/bookmark-ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────

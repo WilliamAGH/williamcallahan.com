@@ -16,7 +16,8 @@ import {
   constructKarakeepAssetUrl,
 } from "@/lib/utils/opengraph-utils";
 import { OPENGRAPH_FETCH_CONFIG } from "@/lib/constants";
-import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types";
+import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
+import type { KarakeepImageFallback } from "@/types/seo/opengraph";
 import { SOCIAL_PLATFORMS } from "@/types/social";
 // OgMetadata type not needed in parser - only returns raw Record<string, string | null>
 

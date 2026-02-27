@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
-import type { PaginationControlProps } from "@/types";
+import type { PaginationControlProps } from "@/types/ui/pagination";
 
 export const PaginationControl: React.FC<PaginationControlProps> = ({
   currentPage = 1,

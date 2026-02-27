@@ -5,7 +5,7 @@
  * @module lib/validators/bookmarks
  */
 
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 /**
  * Validates a bookmarks dataset to ensure it is not obviously invalid or test data.

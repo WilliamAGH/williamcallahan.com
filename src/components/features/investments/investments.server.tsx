@@ -9,7 +9,7 @@ import { resolveInvestmentCardData } from "./investment-card.server";
 
 import type { JSX } from "react";
 
-import type { InvestmentsProps } from "@/types";
+import type { InvestmentsProps } from "@/types/features/investments";
 
 const LOGO_RESOLUTION_BATCH_SIZE = 6;
 

@@ -9,7 +9,7 @@
 import type { Metadata } from "next";
 import { ThoughtsWindow } from "@/components/features/thoughts/thoughts-window.client";
 import { ThoughtsListServer } from "@/components/features/thoughts/thoughts-list.server";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";

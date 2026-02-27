@@ -65,6 +65,7 @@ Example schemas:
 - Hybrid search (FTS + trigram + pgvector) is wired for both **bookmarks** and **thoughts** via `src/lib/db/queries/hybrid-search.ts`; the `/api/search/bookmarks` route uses hybrid scoring in production with FTS fallback; thoughts search (`src/lib/search/searchers/thoughts-search.ts`) always uses hybrid. Static content types use MiniSearch with optional embedding reranking.
 - Bookmark refresh now requests Karakeep `includeContent=true`, normalizes crawled HTML to plain text, stores it in `bookmarks.scraped_content_text`, and uses that field in embedding payloads before any legacy HTML fallback.
 - Bookmark normalization computes `word_count` and `reading_time` from `scraped_content_text` during each ingestion cycle; standalone Node backfill scripts populate these and other derived columns (`og_title`, `og_image`, `logo_data`) for existing records (see `bookmarks.md`).
+- Barrel export files were removed from features/UI/SEO/types/lib surfaces; callers now import concrete modules directly.
 - AI upstream pipeline tests are split by responsibility (streaming, tools, analysis validation) and share a dedicated harness module for DRY fixture/mocking (`__tests__/api/ai/upstream-pipeline-test-harness.ts`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
 - Sitemap generation is split into domain-specific collectors under `src/lib/sitemap/` (blog, bookmarks, books/thoughts, constants, date-utils) with `src/app/sitemap.ts` as a thin orchestrator owning only the runtime cache and static-page entries.
@@ -73,7 +74,7 @@ Example schemas:
 
 ## Core Architectural Patterns
 
-### Isomorphic URL Resolution (`lib/get-base-url.ts`)
+### Isomorphic URL Resolution (`lib/utils/get-base-url.ts`)
 
 To ensure API calls work seamlessly on both the client and the server, the application uses a `getBaseUrl()` utility.
 
@@ -129,7 +130,7 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 | `overview`                     | Provide a high-level architectural overview of the repository, focusing on core application structure and patterns.                                                      | [system-overview.md](system-overview.md)                | [Diagram](system-overview.mmd)               |
 | `projects`                     | Display a filterable list of projects using a hybrid server-client approach for fast initial loads and interactive filtering.                                            | [projects.md](../features/projects.md)                  | [Diagram](../features/projects.mmd)          |
 | `rate-limit-and-sanitize`      | Encompass utilities for API rate limiting, input/output sanitization, and Cloudflare origin guards for sensitive endpoints.                                              | [security-rate-limiting.md](security-rate-limiting.md)  | [Diagram](security-rate-limiting.mmd)        |
-| `react-server-client`          | Provide comprehensive guidance for React 19 Server Components, Next.js 15 server/client boundaries, streaming patterns, and environment variable security.               | [react-patterns.md](../standards/react-patterns.md)     |                                              |
+| `react-server-client`          | Provide comprehensive guidance for React 19 Server Components, Next.js 16 server/client boundaries, streaming patterns, and environment variable security.               | [react-patterns.md](../standards/react-patterns.md)     |                                              |
 | `s3-object-storage`            | Provide centralized, S3-compatible object storage with layered abstraction and CDN optimization.                                                                         | [s3-storage.md](s3-storage.md)                          | [Diagram](s3-storage.mmd)                    |
 | `search`                       | Provide site-wide and section-specific search capabilities with fuzzy matching, caching, and security features.                                                          | [search.md](../features/search.md)                      | [Diagram](../features/search.mmd)            |
 | `seo`                          | Comprehensive SEO system with metadata generation, JSON-LD, sitemaps, and universal OpenGraph image API with idempotent persistence and X.com/Twitter fallback handling. | [seo.md](../features/seo.md)                            | [Diagram](../features/seo.mmd)               |

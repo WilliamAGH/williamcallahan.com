@@ -10,7 +10,7 @@ import { Suspense } from "react";
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
 import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { TIME_CONSTANTS } from "@/lib/constants";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -20,14 +20,16 @@ import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
+import { RelatedContent } from "@/components/features/related-content/related-content.server";
+import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
 import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
-import type { BookmarkPageContext, UnifiedBookmark } from "@/types";
+import type { BookmarkPageContext } from "@/types/api";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 // CRITICAL: generateStaticParams() remains intentionally disabled for bookmarks.
 // The sitemap now streams paginated S3 data at request time, so the build no longer

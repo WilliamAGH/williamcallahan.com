@@ -13,7 +13,8 @@ import { getDomainSlug } from "@/lib/utils/domain-utils";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { redirect } from "next/navigation";
 
-import type { DomainPageRedirectorProps } from "@/types";
+import type { DomainPageRedirectorProps } from "@/types/api";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 export default async function DomainPageRedirector({
   params,
@@ -27,7 +28,7 @@ export default async function DomainPageRedirector({
     includeImageData: false,
     skipExternalFetch: false,
     force: false,
-  })) as import("@/types").UnifiedBookmark[];
+  })) as UnifiedBookmark[];
 
   // Load slug mapping - REQUIRED for idempotency
   const slugMapping = await loadSlugMapping();

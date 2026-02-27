@@ -12,12 +12,12 @@ import {
   aiChatStreamErrorKindSchema,
   type AiChatStreamErrorKind,
 } from "@/types/schemas/ai-openai-compatible-client";
-import {
-  isChatCommand,
-  type AiChatQueueConfig,
-  type AiChatQueueResult,
-  type TerminalChatAbortReason,
-} from "@/types";
+import { isChatCommand } from "@/types/terminal";
+import type {
+  AiChatQueueConfig,
+  AiChatQueueResult,
+  TerminalChatAbortReason,
+} from "@/types/ui/terminal";
 
 const ABORT_REASON_USER_CANCEL = "user_cancel";
 const ABORT_REASON_SUPERSEDED = "superseded";

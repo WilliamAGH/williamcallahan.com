@@ -14,8 +14,6 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import {
-  type HistoryProps,
-  type TerminalCommand,
   isTextCommand,
   isNavigationCommand,
   isClearCommand,
@@ -24,7 +22,9 @@ import {
   isSelectionCommand,
   isSearchingCommand,
   isChatCommand,
-} from "@/types";
+} from "@/types/terminal";
+import type { HistoryProps } from "@/types/ui/terminal";
+import type { TerminalCommand } from "@/types/terminal";
 
 const TERMINAL_LINK_CLASS =
   "text-[#7aa2f7] underline underline-offset-2 hover:text-[#9ab7ff] transition-colors";

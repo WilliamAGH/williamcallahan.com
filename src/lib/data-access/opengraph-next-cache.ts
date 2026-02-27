@@ -11,8 +11,7 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { readOgMetadata } from "@/lib/db/queries/opengraph";
-import type { OgResult } from "@/types";
-import { isOgResult, type CachedOpenGraphInput } from "@/types/opengraph";
+import { isOgResult, type CachedOpenGraphInput, type OgResult } from "@/types/opengraph";
 import { safeCacheLife, safeCacheTag } from "./opengraph-cache-context";
 
 export async function getCachedOpenGraphDataInternal({

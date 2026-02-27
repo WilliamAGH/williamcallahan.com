@@ -7,7 +7,8 @@
 import { useCallback, useMemo, useState } from "react";
 import useSWRInfinite from "swr/infinite";
 import type { Fetcher } from "swr";
-import type { UsePaginationOptions, UsePaginationReturn, PaginatedResponse } from "@/types";
+import type { UsePaginationOptions, UsePaginationReturn } from "@/types/ui/pagination";
+import type { PaginatedResponse } from "@/types/lib";
 
 // The fetcher is now defined inside the hook to capture the apiUrl.
 const createFetcher =

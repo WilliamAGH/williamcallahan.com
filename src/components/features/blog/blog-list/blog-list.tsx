@@ -11,7 +11,7 @@
 
 import { BlogCard } from "./blog-card";
 
-import type { BlogListProps } from "@/types/features";
+import type { BlogListProps } from "@/types/features/blog";
 
 export function BlogList({ posts }: BlogListProps) {
   return (

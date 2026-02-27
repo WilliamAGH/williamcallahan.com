@@ -8,7 +8,7 @@
 import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
-import type { OgImageApiResponse } from "@/types";
+import type { OgImageApiResponse } from "@/types/features/social";
 
 export async function GET(request: NextRequest) {
   preventCaching();

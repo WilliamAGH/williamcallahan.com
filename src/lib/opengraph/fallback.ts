@@ -11,7 +11,8 @@
 import { getDomainType, isValidImageUrl } from "@/lib/utils/opengraph-utils";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { getMonotonicTime } from "@/lib/utils";
-import type { OgResult, KarakeepImageFallback } from "@/types";
+import type { OgResult } from "@/types/opengraph";
+import type { KarakeepImageFallback } from "@/types/seo/opengraph";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 import { SOCIAL_PLATFORMS } from "@/types/social";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";

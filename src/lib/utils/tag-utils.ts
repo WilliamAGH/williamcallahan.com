@@ -7,7 +7,7 @@
  * @module lib/utils/tag-utils
  */
 
-import type { BookmarkTag } from "@/types";
+import type { BookmarkTag } from "@/types/schemas/bookmark";
 import { normalizeString } from "@/lib/utils";
 import { sanitizeControlChars } from "@/lib/utils/sanitize";
 

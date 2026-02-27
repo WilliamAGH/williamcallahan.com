@@ -9,7 +9,7 @@
 
 import { forwardRef, useCallback, useRef, useId, useState, useEffect } from "react";
 import { preloadSearch } from "./commands.client";
-import type { CommandInputProps } from "@/types";
+import type { CommandInputProps } from "@/types/ui/terminal";
 
 // Breakpoint for mobile placeholder (matches Tailwind's sm breakpoint)
 const MOBILE_BREAKPOINT = 640;

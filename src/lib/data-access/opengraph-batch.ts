@@ -15,7 +15,9 @@ import { readOgMetadata } from "@/lib/db/queries/opengraph";
 import { writeOgMetadata } from "@/lib/db/mutations/opengraph";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 import { getMonotonicTime } from "@/lib/utils";
-import { isOgResult, type OgResult, type KarakeepImageFallback } from "@/types";
+import { isOgResult } from "@/types/opengraph";
+import type { OgResult } from "@/types/opengraph";
+import type { KarakeepImageFallback } from "@/types/seo/opengraph";
 
 /**
  * Batch-optimized OpenGraph data fetching

@@ -15,7 +15,7 @@
  */
 
 import type { ReactNode } from "react";
-import type { BaseComponentProps } from "./ui";
+import type { BaseComponentProps } from "@/types/ui";
 
 /**
  * @serverComponent

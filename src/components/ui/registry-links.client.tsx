@@ -8,7 +8,8 @@
 
 "use client";
 
-import type { RegistryType, RegistryLinksProps, RegistryConfig } from "@/types";
+import type { RegistryType, RegistryConfig } from "@/types/schemas/registry-link";
+import type { RegistryLinksProps } from "@/types/ui/interactive";
 import { safeExternalHref } from "@/lib/utils/url-utils";
 import { Package, Box, Code2, ExternalLink, Terminal } from "lucide-react";
 import type { JSX } from "react";

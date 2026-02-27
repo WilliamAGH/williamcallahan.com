@@ -12,7 +12,7 @@ import { Suspense } from "react";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -25,7 +25,7 @@ import {
   formatTagDisplay,
 } from "@/lib/seo/dynamic-metadata";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import type { BookmarkTagPageContext } from "@/types";
+import type { BookmarkTagPageContext } from "@/types/api";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { redirect, notFound } from "next/navigation";
 

@@ -9,7 +9,7 @@
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import type { TagsListClientProps } from "@/types";
+import type { TagsListClientProps } from "@/types/features/bookmarks";
 
 export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClientProps) {
   const [mounted, setMounted] = useState(false);

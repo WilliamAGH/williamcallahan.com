@@ -12,17 +12,16 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
+import { searchBookmarks, searchBooks } from "@/lib/search/searchers/dynamic-searchers";
 import {
-  searchBookmarks,
   searchEducation,
   searchExperience,
   searchInvestments,
   searchProjects,
-  searchBooks,
-  searchThoughts,
-  searchTags,
-  searchAiAnalysis,
-} from "@/lib/search";
+} from "@/lib/search/searchers/static-searchers";
+import { searchThoughts } from "@/lib/search/searchers/thoughts-search";
+import { searchTags } from "@/lib/search/searchers/tag-search";
+import { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
 import {
   applySearchGuards,
   createSearchErrorResponse,

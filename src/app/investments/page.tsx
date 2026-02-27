@@ -12,8 +12,8 @@
 "use cache";
 
 import type { Metadata } from "next";
-import { Investments } from "@/components/features";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { Investments } from "@/components/features/investments/investments.server";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";

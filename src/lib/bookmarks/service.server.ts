@@ -18,7 +18,7 @@ import {
   setRefreshBookmarksCallback,
   initializeBookmarksDataAccess,
 } from "./refresh-logic.server";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { envLogger } from "@/lib/utils/env-logger";
 import { isBookmarkServiceLoggingEnabled } from "@/lib/bookmarks/config";

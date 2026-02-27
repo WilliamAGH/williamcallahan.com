@@ -10,7 +10,7 @@ import type { Metadata } from "next";
 import { Blog } from "@/components/features/blog/blog.client";
 import { BlogListServer } from "@/components/features/blog/blog-list/blog-list.server";
 import { getAllPosts } from "@/lib/blog";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";

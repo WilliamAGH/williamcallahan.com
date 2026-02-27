@@ -25,7 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import type { RegisteredWindowState } from "@/types";
+import type { RegisteredWindowState } from "@/types/ui/window";
 import {
   FILE_TYPE_CONFIGS,
   validateFileForType,

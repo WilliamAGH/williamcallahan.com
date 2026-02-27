@@ -9,7 +9,7 @@
 
 import { getBookmarkBySlugFromDatabase } from "@/lib/db/queries/bookmarks";
 import { envLogger } from "@/lib/utils/env-logger";
-import type { BookmarkSlugEntry, BookmarkSlugMapping } from "@/types";
+import type { BookmarkSlugEntry, BookmarkSlugMapping } from "@/types/schemas/bookmark";
 
 export const getSlugShardKey = (slug: string): string =>
   `db://bookmarks/slug/${encodeURIComponent(slug)}`;

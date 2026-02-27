@@ -10,7 +10,7 @@ import { invalidateBlogCache } from "@/lib/blog/mdx";
 import { clearBlogSlugMemos } from "@/lib/blog";
 import { invalidateOpenGraphCache } from "@/lib/data-access/opengraph";
 import { invalidateLogoCache } from "@/lib/data-access/logos";
-import { invalidateSearchCache } from "@/lib/search";
+import { invalidateSearchCache } from "@/lib/search/cache-invalidation";
 import { revalidateTag } from "next/cache";
 import { GITHUB_CACHE_TAGS, invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 

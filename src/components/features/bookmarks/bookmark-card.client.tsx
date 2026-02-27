@@ -33,7 +33,7 @@ import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { usePathname } from "next/navigation";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
-import type { BookmarkCardClientProps } from "@/types";
+import type { BookmarkCardClientProps } from "@/types/features/bookmarks";
 
 // Display configuration
 const MAX_TITLE_WORDS = 10;

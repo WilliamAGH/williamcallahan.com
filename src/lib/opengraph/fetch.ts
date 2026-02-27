@@ -33,9 +33,13 @@ import {
   OPENGRAPH_IMAGES_S3_DIR,
 } from "@/lib/constants";
 import { getDomainType, sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
-import { ogMetadataSchema, type ValidatedOgMetadata } from "@/types/seo/opengraph";
+import {
+  ogMetadataSchema,
+  type KarakeepImageFallback,
+  type ValidatedOgMetadata,
+} from "@/types/seo/opengraph";
 import { extractOpenGraphTags } from "./parser";
-import type { OgResult, KarakeepImageFallback } from "@/types";
+import type { OgResult } from "@/types/opengraph";
 
 /**
  * In-memory map to track ongoing OpenGraph fetch requests

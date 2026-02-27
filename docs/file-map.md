@@ -22,6 +22,7 @@
 - [Mocks Directory](#mocks-directory)
 
 Legend: `[ ]` = untouched · `[~]` = located/initial note · `[x]` = fully mapped
+Note: 2026-02 barrel-removal pass deleted feature/UI/SEO/types/lib barrel exports; import source modules directly.
 
 File/Path Functionality Description
 
@@ -32,7 +33,7 @@ File/Path Functionality Description
 - [x] **analytics/**
   - [x] `analytics.client.tsx` `analytics` - Client-side analytics tracking component
 - [~] **features/**
-  - [x] `index.ts` `components` - Barrel file for all feature components
+  - [x] `index.ts` `components` - Removed; import feature components from concrete files
   - [x] **bookmarks/**
     - [x] `bookmark-ai-analysis.client.tsx` `bookmarks` - AI analysis component for bookmarks with SSR cache support
     - [x] `bookmark-card.client.tsx` `bookmarks` - Bookmark card UI (2025-06: unified OG images)
@@ -40,7 +41,7 @@ File/Path Functionality Description
     - [x] `bookmarks-window.client.tsx` `bookmarks` - UI for the bookmarks window
     - [x] `bookmarks-with-options.client.tsx` `bookmarks` - UI with additional bookmark options
     - [x] `bookmarks.{client,server}.tsx` `bookmarks` - Core bookmarks components
-    - [x] `index.ts` `bookmarks` - Barrel file for bookmark components
+    - [x] `index.ts` `bookmarks` - Removed; import bookmark components from concrete files
     - [x] `share-button.client.tsx` `bookmarks` - Share button for bookmarks
     - [x] `tags-list.client.tsx` `bookmarks` - UI for displaying bookmark tags
   - [x] **books/**
@@ -54,13 +55,13 @@ File/Path Functionality Description
   - [x] **blog/**
     - [x] `blog-window.client.tsx` `blog` - Main blog window UI
     - [x] `blog.client.tsx` `blog` - Main component for blog features
-    - [x] `index.ts` `blog` - Blog components barrel file
+    - [x] `index.ts` `blog` - Removed; import blog components from concrete files
     - [x] `standard-tweet-embed.client.tsx` `blog-article` - Standard tweet embedding component
     - [x] `tweet-embed.tsx` `blog-article` - Embeds tweets using react-tweet and an image proxy
   - [x] **blog-article/**
     - [x] `blog-article.client.tsx` `blog-article` - Renders article content and metadata
     - [x] `blog-wrapper.tsx` `blog-article` - Dynamic import wrapper for hydration
-    - [x] `index.ts` `blog-article` - Blog article components barrel file
+    - [x] `index.ts` `blog-article` - Removed; import blog article components from concrete files
     - [x] `mdx-content.tsx` `blog-article` - Server wrapper for the MDX renderer, now delegating to a React 19-safe cached evaluator instead of `next-mdx-remote`
     - [x] `software-schema.tsx` `terminal` - Inserts SoftwareApplication schema.org metadata
     - [x] `mdx-table.server.tsx` `blog-article` - Styled table components for MDX
@@ -68,33 +69,33 @@ File/Path Functionality Description
     - [x] `blog-card.tsx` `blog` - Blog card UI
     - [x] `blog-list.server.tsx` `blog` - Pre-renders the blog list
     - [x] `blog-list.tsx` `blog` - Client-side blog list grid
-    - [x] `index.ts` `blog` - Blog list barrel file
+    - [x] `index.ts` `blog` - Removed; import blog list components from concrete files
   - [x] **shared/**
     - [x] `blog-author.tsx` `blog` - Author avatar, name & bio
     - [x] `blog-tags.tsx` `blog` - Tag list display
-    - [x] `index.ts` `blog` - Blog shared components barrel file
+    - [x] `index.ts` `blog` - Removed; import shared blog components from concrete files
   - [x] **education/**
     - [x] `certification-card.{client,server}.tsx` `education` - list of education certifications cards
     - [x] `education-card.{client,server}.tsx` `education` - list of education/university cards
     - [x] `education.{client,server}.tsx` `education` - list/cards for education
   - [x] **experience/**
     - [x] `experience.client.tsx` `experience` - Experience window UI
-    - [x] `index.ts` `experience` - Experience barrel file
+    - [x] `index.ts` `experience` - Removed; import experience components from concrete files
     - [x] `skills.tsx` `experience` - Skills display component
   - [x] **github/**
     - [x] `cumulative-github-stats-cards.tsx` `github-activity` - Displays GitHub stats cards
     - [x] `github-activity.client.tsx` `github-activity` - Contribution calendar & stats dashboard
   - [x] **home/**
     - [x] `home.tsx` `home` - Main home page component
-    - [x] `index.ts` `home` - Barrel file for home components
+    - [x] `index.ts` `home` - Removed; import home components from concrete files
     - [x] `profile-image.tsx` `home` - Profile image display
   - [x] **investments/**
-    - [x] `index.ts` `investments` - Exports `Investments` (server component)
+    - [x] `index.ts` `investments` - Removed; import `investments.server.tsx` directly
     - [x] `investment-card.{client,server}.tsx` `investments` - ind card for each investment made
     - [x] `investments.{client,server}.tsx` `investments` - list investments
     - [x] `theme-wrapper.client.tsx` `investments` - theme wrapper for investments list
   - [x] **projects/**
-    - [x] `index.ts` `projects` - Projects barrel file
+    - [x] `index.ts` `projects` - Removed; import projects components from concrete files
     - [x] `project-ai-analysis.client.tsx` `projects` - AI analysis component for projects with SSR cache support
     - [x] `project-card.{client,server}.tsx` `projects` - Individual project cards; client cards disable detail-link prefetch and fall back safely when CDN config is missing
     - [x] `project-detail.tsx` `projects` - Project detail view with AI analysis integration
@@ -104,13 +105,13 @@ File/Path Functionality Description
     - [x] `projects.client.tsx` `projects` - Projects feature wrapper
   - [x] **social/**
     - [x] `contact.client.tsx` `social-links` - Contact form
-    - [x] `index.ts` `social-links` - Social components barrel file
+    - [x] `index.ts` `social-links` - Removed; import social components from concrete files
     - [x] `social-card-effects.client.tsx` `social-links` - Handles social card hover effects
     - [x] `social-card.client.tsx` `social-links` - Individual social link card
     - [x] `social-list.client.tsx` `social-links` - List of social links
     - [x] `social-window.client.tsx` `social-links` - Wrapper window for social links
 - [x] **seo/**
-  - [x] `index.ts` `seo` - Barrel file for SEO components
+  - [x] `index.ts` `seo` - Removed; import SEO components from concrete files
   - [x] `json-ld.tsx` `seo` - JSON-LD structured data component
   - [x] `opengraph-logo.tsx` `seo` - OpenGraph logo meta tag component
 - [~] **ui/**
@@ -131,7 +132,7 @@ File/Path Functionality Description
   - [x] `external-link.client.tsx` `interactive-containers` - Styled external link
   - [x] `financial-metrics.server.tsx` `investments` - Renders financial metrics
   - [x] `focusTrap.client.tsx` `accessibility` - Focus trapping utility
-  - [x] `index.ts` `` - Barrel file for UI components
+  - [x] `index.ts` `` - Removed; import UI components from concrete files
   - [x] `instruction-macos-frame-tabs.client.tsx` `macos-gui` - macOS-style tabs for instructions
   - [x] `logo-image.client.tsx` `image-handling` - Logo image component
   - [x] `macos-window.client.tsx` `macos-gui` - macOS-style window frame
@@ -140,7 +141,7 @@ File/Path Functionality Description
   - [x] `simple-tabs.client.tsx` `blog-article` - Simple tab component
   - [x] `simple-tabs.css` `css` - CSS for simple tabs
   - [x] **social-icons/**
-    - [x] `index.ts` `social-links` - Barrel file for social icons
+    - [x] `index.ts` `social-links` - Removed; import social icon components from concrete files
     - [x] `social-icon.tsx` `social-links` - Individual social icon link
     - [x] `social-icons.client.tsx` `social-links` - Social icons list component
     - [x] `social-links.ts` `social-links` - Data for social links
@@ -165,9 +166,9 @@ File/Path Functionality Description
       - [x] `prism.js` `code-block` - Prism syntax highlighting library
   - [ ] **experience-card/**
     - [x] `experience-card.{client,server}.tsx` `experience` - Card for displaying a single work experience
-    - [x] `index.ts` `experience` - Barrel file for experience card
+    - [x] `index.ts` `experience` - Removed; import experience-card components from concrete files
   - [x] **navigation/**
-    - [x] `index.ts` `navigation` - Barrel file for navigation components
+    - [x] `index.ts` `navigation` - Removed; import navigation components from concrete files
     - [x] `navigation-link.client.tsx` `navigation` - Individual navigation link component
     - [x] `navigation-links.ts` `navigation` - Navigation link definitions
     - [x] `navigation.client.tsx` `navigation` - Main navigation component
@@ -236,12 +237,12 @@ File/Path Functionality Description
   - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer utilities
 - [x] `utils.ts` `shared-utils` - Shared utility helpers
 - [ ] **blog/**
-  - [x] `index.ts` `blog` - Barrel file for blog library functions
+  - [x] `index.ts` `blog` - Removed; import blog library modules directly
   - [x] `mdx.ts` `blog` - MDX processing utilities
   - [x] `server-search.ts` `blog` - Server-side blog search
   - [x] `validation.ts` `blog` - Blog data validation schemas
 - [ ] **bookmarks/**
-  - [x] `index.ts` `bookmarks` - Barrel file for bookmark library functions
+  - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
   - [x] `slug-shards.ts` `bookmarks` - S3 shard helpers for bookmark slugs
   - [x] **analysis/**
@@ -256,7 +257,7 @@ File/Path Functionality Description
     - [x] `build-prompt.ts` `books` - LLM prompt builder for book analysis
     - [x] `extract-context.ts` `books` - Context extraction for book analysis
 - [ ] **cache/**
-  - [x] `index.ts` `caching` - Barrel file for cache utilities
+  - [x] `index.ts` `caching` - Removed; import cache helpers directly
 - [ ] **context/**
   - [x] `global-window-registry-context.client.tsx` `state-theme-window-providers` - Global context for window management
   - [x] `terminal-window-state-context.client.tsx` `terminal` - Context for terminal window state
@@ -366,7 +367,7 @@ File/Path Functionality Description
 - [x] **seo/**
   - [x] `constants.ts` `seo` - SEO constants
   - [x] `dynamic-metadata.ts` `seo` - Dynamic title generation with length limits
-  - [x] `index.ts` `seo` - Barrel export and core orchestration for SEO utilities
+  - [x] `index.ts` `seo` - Removed; import SEO utilities from concrete modules
   - [x] `metadata.ts` `seo` - Metadata generation helpers
   - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
@@ -455,7 +456,7 @@ File/Path Functionality Description
   - [x] `data-display.ts` `investments` - Types for data display components (e.g., financial metrics)
   - [x] `forms.ts` `interactive-containers`- Types for form and input components
   - [x] `image.ts` `image-handling` - Types for image-related components
-  - [x] `index.ts` `ui-framework` - Barrel file for all modular UI component types
+  - [x] `index.ts` `ui-framework` - Base UI interfaces only (no re-export barrel)
   - [x] `interactive.ts` `interactive-containers`- Types for interactive components (e.g., dropdowns, focus traps)
   - [x] `layout.ts` `app-layout` - Types for layout and structural components
   - [x] `pagination.ts` `ui-framework` - Types for pagination components

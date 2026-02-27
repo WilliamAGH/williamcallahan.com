@@ -15,7 +15,7 @@ import { useRegisteredWindowState } from "@/lib/context/global-window-registry-c
 import { cn } from "@/lib/utils";
 import { BookOpen, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import type { RegisteredWindowState } from "@/types";
+import type { RegisteredWindowState } from "@/types/ui/window";
 import type { BooksWindowProps, BooksWindowContentProps } from "@/types/features/books";
 
 const DEFAULT_BOOKS_WINDOW_ID = "books-window";

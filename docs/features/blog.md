@@ -8,17 +8,17 @@ The "blog" functionality encompasses components and utilities that manage the di
 
 - **components/features/blog/blog-window.client.tsx**: Main UI component for the blog window, providing the primary interface for blog interactions.
 - **components/features/blog/blog.client.tsx**: Core client-side component for blog features, handling blog content rendering.
-- **components/features/blog/index.ts**: Barrel file for exporting blog-related components.
+- **components/features/blog/\***: Blog-related components are imported directly from concrete files (barrel removed).
 - **components/features/blog-list/blog-card.tsx**: UI component for individual blog cards in a list view.
 - **components/features/blog-list/blog-list.server.tsx**: Server-side component for pre-rendering the blog list.
 - **components/features/blog-list/blog-list.tsx**: Client-side component for rendering a grid of blog entries.
-- **components/features/blog-list/index.ts**: Barrel file for blog list components.
+- **components/features/blog/blog-list/\***: Blog list components are imported directly from concrete files (barrel removed).
 - **components/features/shared/blog-author.tsx**: Displays author information including avatar, name, and bio.
 - **components/features/shared/blog-tags.tsx**: Renders a list of tags associated with blog content.
-- **components/features/shared/index.ts**: Barrel file for shared blog components.
+- **components/features/blog/shared/\***: Shared blog components are imported directly from concrete files (barrel removed).
 - **components/ui/background-info.client.tsx**: A client-side component that renders a collapsible box for supplementary background information, typically used in blog posts to highlight contextual details with mobile-friendly toggle functionality.
 - **lib/blog.ts**: Helper functions for blog data management.
-- **lib/blog/index.ts**: Barrel file for blog library functions.
+- **lib/blog/\***: Blog library modules are imported directly from concrete files (barrel removed).
 - **lib/blog/mdx.ts**: Utilities for processing MDX content in blogs.
 - **lib/blog/server-search.ts**: Server-side search functionality for blog content.
 - **lib/blog/validation.ts**: Validation schemas for blog data.

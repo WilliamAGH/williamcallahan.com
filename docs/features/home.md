@@ -9,7 +9,7 @@ The Home feature comprises the components responsible for rendering the main lan
 - **`app/page.tsx`**: The root page for the website. It handles the SEO metadata (including a `ProfilePage` JSON-LD schema) and renders the main `Home` component. It's configured for ISR with a one-hour revalidation.
 - **`components/features/home/home.tsx`**: The main server component for the home page. It orchestrates the display of the introductory content.
 - **`components/features/home/profile-image.tsx`**: A client component responsible for rendering the profile image, likely with optimizations (e.g., using `next/image`).
-- **`components/features/home/index.ts`**: A barrel file that provides a clean, centralized export for the `Home` component, simplifying imports from other parts of the application.
+- **`components/features/home/home.tsx`**: Imported directly by pages and feature consumers (home barrel removed).
 
 ## Logic Flow
 

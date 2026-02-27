@@ -7,7 +7,7 @@
  */
 "use client";
 
-import type { BookmarksPaginatedClientProps } from "@/types";
+import type { BookmarksPaginatedClientProps } from "@/types/features/bookmarks";
 import { BookmarksWithOptions } from "./bookmarks-with-options.client";
 
 export function BookmarksClient({

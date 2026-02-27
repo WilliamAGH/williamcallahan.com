@@ -9,7 +9,7 @@
 
 import { generateSlugMapping, loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 async function testIdempotency() {
   console.log("🧪 Testing Slug Generation Idempotency...\n");

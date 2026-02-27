@@ -24,6 +24,3 @@ const TerminalComponent = dynamic(
 export function ClientTerminal() {
   return <TerminalComponent />;
 }
-
-// Optional: Export as default if preferred
-// export default ClientTerminal;

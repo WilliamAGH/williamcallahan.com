@@ -14,7 +14,7 @@ import { BlogCard } from "./blog-card";
 
 import type { JSX } from "react";
 
-import type { BlogListServerProps } from "@/types/features";
+import type { BlogListServerProps } from "@/types/features/blog";
 
 /**
  * Server component that renders a grid of blog post cards

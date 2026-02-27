@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { SocialListClient } from "./social-list.client";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 
-import type { SocialWindowContentProps } from "@/types";
+import type { SocialWindowContentProps } from "@/types/features/social";
 
 const SOCIAL_LOADING_KEYS = ["social-loading-1", "social-loading-2", "social-loading-3"] as const;
 

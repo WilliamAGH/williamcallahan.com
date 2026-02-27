@@ -41,7 +41,7 @@ export interface Experience {
   cvFeatured?: boolean; // Highlight in app/cv
 }
 
-// types/index.ts (LogoData)
+// types/logo.ts (LogoData)
 export interface LogoData {
   url: string; // Always CDN URL when available
   source: string | null; // "manifest" | "s3-store" | "static" | null

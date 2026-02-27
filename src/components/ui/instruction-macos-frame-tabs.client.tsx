@@ -6,7 +6,6 @@
 
 "use client";
 
-// import type { ReactNode, ReactElement } from 'react'; // Combined into the line above
 import { cn } from "@/lib/utils";
 import React, {
   type JSX,
@@ -27,7 +26,7 @@ import type {
   InstructionMACOSTabProps,
   InstructionMacOSFrameTabsProps,
   InstructionMacOSFrameTabsContextProps,
-} from "@/types/ui";
+} from "@/types/ui/tabs";
 
 /**
  * Context to track when we're inside a macOS frame to prevent double nesting

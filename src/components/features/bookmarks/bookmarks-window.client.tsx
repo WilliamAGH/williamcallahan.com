@@ -19,11 +19,11 @@ import { useRegisteredWindowState } from "@/lib/context/global-window-registry-c
 import { cn } from "@/lib/utils";
 import { Bookmark, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import type { RegisteredWindowState } from "@/types/ui/window";
 import type {
-  RegisteredWindowState,
   BookmarksWindowContentProps,
   BookmarksWindowClientPropsExtended as BookmarksWindowClientProps,
-} from "@/types";
+} from "@/types/features/bookmarks";
 
 // Define a unique ID for this window instance
 // Use this as the default window ID, but it can be overridden with props

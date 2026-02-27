@@ -17,7 +17,7 @@
 
 import { BlogWindow } from "./blog-window.client";
 
-import type { BlogPropsWithChildren } from "@/types/features";
+import type { BlogPropsWithChildren } from "@/types/features/blog";
 
 /**
  * Main Blog component using a hybrid architecture for optimal performance

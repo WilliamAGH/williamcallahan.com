@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
-import type { BookmarkTag } from "@/types";
+import type { BookmarkTag } from "@/types/schemas/bookmark";
 import type { BookmarkDetailProps } from "@/types/bookmark-ai-analysis";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import {

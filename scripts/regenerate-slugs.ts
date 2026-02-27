@@ -7,7 +7,7 @@
 import "dotenv/config";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { generateSlugMapping, saveSlugMapping } from "@/lib/bookmarks/slug-manager";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 /**
  * Runtime validation helper to ensure bookmark data conforms to expected structure

@@ -12,7 +12,7 @@ import { Tag, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import type { BlogTagsPropsExtended, TagWrapperProps } from "@/types/features";
+import type { BlogTagsPropsExtended, TagWrapperProps } from "@/types/features/blog";
 
 function TagWrapper({ children, className, href, prefetch }: TagWrapperProps) {
   if (href) {

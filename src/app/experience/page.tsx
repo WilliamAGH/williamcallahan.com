@@ -9,8 +9,8 @@
 "use cache";
 
 import type { Metadata } from "next";
-import { Experience } from "@/components/features";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { Experience } from "@/components/features/experience/experience.client";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -20,7 +20,11 @@ import { getLogoCdnData } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
-import type { Experience as ExperienceType, LogoData, ProcessedExperienceItem } from "@/types";
+import type {
+  Experience as ExperienceType,
+  ProcessedExperienceItem,
+} from "@/types/schemas/experience";
+import type { LogoData } from "@/types/logo";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 const EXPERIENCE_LOGO_BATCH_SIZE = 6;

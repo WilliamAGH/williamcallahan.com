@@ -1,9 +1,0 @@
-/**
- * Related Content Components
- *
- * Export barrel for related content feature components
- */
-
-export { RelatedContent } from "./related-content.server";
-export { RelatedContentSection, RelatedContentFallback } from "./related-content-section";
-export { RelatedContentCard } from "./related-content-card";

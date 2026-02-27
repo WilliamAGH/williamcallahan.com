@@ -19,7 +19,7 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { readOgMetadata } from "@/lib/db/queries/opengraph";
-import type { OgResult } from "@/types";
+import type { OgResult } from "@/types/opengraph";
 import { isOgResult } from "@/types/opengraph";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 import { getCachedOpenGraphDataInternal } from "./opengraph-next-cache";

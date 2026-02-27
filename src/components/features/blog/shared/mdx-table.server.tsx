@@ -8,7 +8,7 @@
 
 import { Children, type FC, type ReactNode } from "react";
 
-import type { TableProps, TheadProps, TrProps, ThProps, TdProps } from "@/types";
+import type { TableProps, TheadProps, TrProps, ThProps, TdProps } from "@/types/ui/table";
 
 /**
  * Extracts plain text from children without forcing Object stringification.

@@ -1,5 +1,6 @@
 import { envLogger } from "@/lib/utils/env-logger";
-import type { UnifiedBookmark, RefreshBookmarksCallback } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { RefreshBookmarksCallback } from "@/types/lib";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
@@ -178,7 +179,7 @@ export function initializeBookmarksDataAccess(): void {
   if (isInitialized) return;
   isInitialized = true;
   if (!refreshBookmarksCallback) {
-    import("@/lib/bookmarks")
+    import("@/lib/bookmarks/bookmarks")
       .then(({ refreshBookmarksData }) => setRefreshBookmarksCallback(refreshBookmarksData))
       .catch((error) =>
         console.error("[Bookmarks] Failed to initialize refresh callback:", String(error)),

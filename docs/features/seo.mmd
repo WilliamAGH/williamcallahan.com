@@ -8,7 +8,7 @@ graph TB
     end
     
     subgraph "Core SEO Library"
-        INDEX["lib/seo/index.ts<br/>387 lines<br/>Orchestration & barrel exports"]
+        INDEX["lib/seo/*<br/>Direct module imports<br/>No barrel exports"]
         META["lib/seo/metadata.ts<br/>293 lines<br/>Platform-specific generation"]
         SCHEMA["lib/seo/schema.ts<br/>456 lines<br/>JSON-LD @graph builder"]
         OG["lib/seo/opengraph.ts<br/>178 lines<br/>OG metadata builder"]

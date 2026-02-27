@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Code, GitBranch, GitCommit, GitPullRequest } from "lucide-react";
 import type React from "react";
 
-import type { CumulativeGitHubStatsCardsProps } from "@/types";
+import type { CumulativeGitHubStatsCardsProps } from "@/types/features/github";
 
 /**
  * Displays cumulative GitHub statistics in a responsive card grid layout.

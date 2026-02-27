@@ -4,7 +4,7 @@
  */
 
 import { getBaseUrl } from "@/lib/utils/get-base-url";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 /**
  * Generates a consistent log prefix for bookmark operations

@@ -11,7 +11,7 @@
 
 import { generateHash, getBufferHash } from "./hash-utils";
 import { stripWwwPrefix } from "./url-utils";
-import type { OgMetadata } from "@/types";
+import type { OgMetadata } from "@/types/opengraph";
 
 /**
  * Validates a URL for OpenGraph fetching.

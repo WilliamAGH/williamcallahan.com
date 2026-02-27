@@ -10,7 +10,7 @@ import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
 import { writeOgMetadata } from "@/lib/db/mutations/opengraph";
 import { hashUrl, normalizeUrl } from "@/lib/utils/opengraph-utils";
-import type { OgResult } from "@/types";
+import type { OgResult } from "@/types/opengraph";
 import { OgError } from "@/types/opengraph";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 

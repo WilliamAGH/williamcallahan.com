@@ -9,7 +9,7 @@ import { kebabCase } from "@/lib/utils/formatters";
 import { Tag } from "lucide-react";
 import Link from "next/link";
 
-import type { BlogTagsPropsExtended, TagWrapperProps } from "@/types/features";
+import type { BlogTagsPropsExtended, TagWrapperProps } from "@/types/features/blog";
 
 function TagWrapper({ children, className, href, prefetch }: Readonly<TagWrapperProps>) {
   if (href) {

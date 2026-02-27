@@ -6,7 +6,7 @@
  * error handling, and test-environment detection.
  */
 
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 /**
  * Strip non-printable-ASCII characters from a URL path segment.

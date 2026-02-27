@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { Lightbulb, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ThoughtsWindowProps, ThoughtsWindowContentProps } from "@/types/features/thoughts";
-import type { RegisteredWindowState } from "@/types";
+import type { RegisteredWindowState } from "@/types/ui/window";
 
 /**
  * Blinking cursor component for terminal-style aesthetic

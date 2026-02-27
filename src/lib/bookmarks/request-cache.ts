@@ -11,7 +11,7 @@ import { cache } from "react";
 import { getBookmarks } from "./service.server";
 import { getBulkBookmarkSlugs } from "./slug-helpers";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { stripImageData } from "./utils";
 
 /**

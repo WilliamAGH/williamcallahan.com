@@ -9,7 +9,7 @@
 
 import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
 import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants/client";
-import type { BookmarkShareButtonProps } from "@/types";
+import type { BookmarkShareButtonProps } from "@/types/features/bookmarks";
 import { Check } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
 

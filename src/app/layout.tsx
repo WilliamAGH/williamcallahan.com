@@ -24,7 +24,9 @@ import { AnchorScrollManager } from "@/components/utils/anchor-scroll-manager.cl
 import { BodyClassManager } from "@/components/utils/body-class-manager.client";
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
 // Re-add direct imports
-import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
+import { Navigation } from "@/components/ui/navigation/navigation.client";
+import { SocialIcons } from "@/components/ui/social-icons/social-icons.client";
+import { ThemeToggle } from "@/components/ui/theme/theme-toggle";
 // Terminal is lazy-loaded inside TerminalLoader (dynamic import)
 import {
   SITE_DESCRIPTION,
@@ -37,12 +39,13 @@ import { Providers } from "./providers.client";
 
 import { Analytics } from "@/components/analytics/analytics.client";
 import { ErrorBoundary } from "@/components/ui/error-boundary.client";
-import { OpenGraphLogo } from "@/components/seo";
+import { OpenGraphLogo } from "@/components/seo/opengraph-logo";
 import { SvgTransformFixer } from "../components/utils/svg-transform-fixer.client";
 import { cn } from "../lib/utils";
 
 // Import the client-side terminal loader
-import { TerminalLoader, TerminalProvider } from "@/components/ui/terminal";
+import { TerminalLoader } from "@/components/ui/terminal/terminal-loader.client";
+import { TerminalProvider } from "@/components/ui/terminal/terminal-context.client";
 
 /** Load Inter font with Latin subset and display swap */
 const inter = Inter({

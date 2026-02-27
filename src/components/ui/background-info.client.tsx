@@ -10,7 +10,7 @@
 
 import { ChevronDown, ChevronUp, InfoIcon } from "lucide-react";
 import { type JSX, useEffect, useId, useRef, useState } from "react";
-import type { LocalBackgroundInfoProps } from "@/types/ui";
+import type { LocalBackgroundInfoProps } from "@/types/ui/layout";
 import { cn } from "../../lib/utils";
 
 /**

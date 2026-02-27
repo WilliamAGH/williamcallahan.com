@@ -19,7 +19,7 @@ import { BlogTags } from "../shared/blog-tags";
 import { formatDate } from "@/lib/utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
-import type { BlogArticleProps } from "@/types/features";
+import type { BlogArticleProps } from "@/types/features/blog";
 
 /**
  * BlogArticle Component

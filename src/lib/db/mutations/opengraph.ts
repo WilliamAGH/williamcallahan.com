@@ -5,7 +5,7 @@
 
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { opengraphMetadata, opengraphOverrides } from "@/lib/db/schema/opengraph";
-import type { OgResult } from "@/types";
+import type { OgResult } from "@/types/opengraph";
 
 /**
  * Upsert cached OpenGraph metadata for a URL.

@@ -10,7 +10,8 @@
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { type UnifiedBookmark, type BookmarksWithPaginationClientProps } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { BookmarksWithPaginationClientProps } from "@/types/features/bookmarks";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";

@@ -38,13 +38,13 @@ import {
   getCdnConfigFromEnv,
 } from "@/lib/utils/cdn-utils";
 import coverImageManifest from "@/data/blog/cover-image-map.json";
-import {
-  BlogImageResolutionError,
-  type ArticleImageProps,
-  type ArticleGalleryProps,
-  type MDXContentProps,
-} from "@/types/features";
-import type { MetricsGroupProps } from "@/types/ui";
+import { BlogImageResolutionError } from "@/types/features/blog";
+import type {
+  ArticleImageProps,
+  ArticleGalleryProps,
+  MDXContentProps,
+} from "@/types/features/blog";
+import type { MetricsGroupProps } from "@/types/ui/data-display";
 import { BackgroundInfo } from "../../../ui/background-info.client";
 import { MDXCodeBlock } from "../../../ui/code-block/mdx-code-block-wrapper.client";
 import { CollapseDropdown } from "../../../ui/collapse-dropdown.client";

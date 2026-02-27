@@ -26,7 +26,7 @@ import {
   getSlugForBookmark,
   loadSlugMapping,
 } from "@/lib/bookmarks/slug-manager";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 const VALID_COMMANDS = ["counts", "integrity", "structure", "prod", "all"] as const;
 const commandInput = process.argv[2]?.trim() || "counts";

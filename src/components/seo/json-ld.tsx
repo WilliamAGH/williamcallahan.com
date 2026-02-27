@@ -12,7 +12,7 @@
 import type { JSX } from "react";
 import Script from "next/script";
 
-import type { JsonLdScriptProps } from "@/types";
+import type { JsonLdScriptProps } from "@/types/features/seo";
 
 export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element {
   /**

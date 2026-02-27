@@ -12,7 +12,7 @@ import type { RepoToUpdate } from "@/types/lib";
 
 import "dotenv/config"; // Load .env variables
 
-import type { GithubContributorStatsEntry, RepoRawWeeklyStat } from "@/types";
+import type { GithubContributorStatsEntry, RepoRawWeeklyStat } from "@/types/github";
 import { writeRepoWeeklyStatsToDb } from "@/lib/db/mutations/github-activity";
 
 // Support both the new preferred env var and legacy common names to reduce mis-config issues.

@@ -8,7 +8,7 @@
 "use client";
 
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
-import type { ExternalLinkProps } from "@/types";
+import type { ExternalLinkProps } from "@/types/ui/forms";
 
 import React, { Children, isValidElement, type JSX } from "react";
 

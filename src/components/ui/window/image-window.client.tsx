@@ -13,7 +13,7 @@ import { type JSX, useCallback, useEffect, useRef, useState } from "react"; // I
 import { useWindowSize } from "../../../lib/hooks/use-window-size.client";
 import { cn } from "../../../lib/utils";
 import { WindowControls } from "../navigation/window-controls";
-import type { ImageWindowProps } from "@/types/ui";
+import type { ImageWindowProps } from "@/types/ui/window";
 
 /**
  * A component that renders an image within a macOS-style window frame

@@ -10,8 +10,8 @@
  */
 
 import type { Metadata } from "next";
-import { Home } from "@/components/features";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { Home } from "@/components/features/home/home";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";

@@ -8,7 +8,8 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
-import { type UnifiedBookmark, type BookmarksWithOptionsClientProps } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { BookmarksWithOptionsClientProps } from "@/types/features/bookmarks";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";

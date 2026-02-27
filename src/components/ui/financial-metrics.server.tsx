@@ -8,7 +8,7 @@
 import { formatPercentage, cn } from "../../lib/utils";
 
 import type { JSX } from "react";
-import type { FinancialMetricsProps } from "@/types/ui";
+import type { FinancialMetricsProps } from "@/types/ui/data-display";
 
 /**
  * Financial Metrics Component

@@ -9,7 +9,7 @@
  */
 
 import type { UnifiedBookmark, BookmarkTag, BookmarkContent } from "../bookmark";
-import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from "../ui";
+import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from "@/types/ui";
 
 // =============================================================================
 // ACTUALLY USED CLIENT COMPONENT PROPS

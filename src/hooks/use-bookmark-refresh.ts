@@ -10,7 +10,8 @@
 
 "use client";
 
-import { getErrorMessage, type BookmarkRefreshActions, type BookmarkRefreshState } from "@/types";
+import { getErrorMessage } from "@/types/error";
+import type { BookmarkRefreshActions, BookmarkRefreshState } from "@/types/features/bookmarks";
 import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
 import { useCallback, useEffect, useRef, useState } from "react";
 

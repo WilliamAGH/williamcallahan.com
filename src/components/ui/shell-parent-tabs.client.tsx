@@ -19,7 +19,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { ShellTabProps, ShellParentTabsContextProps } from "@/types/ui";
+import type { ShellTabProps, ShellParentTabsContextProps } from "@/types/ui/tabs";
 
 /**
  * Represents a single tab within a ShellParentTabs container.

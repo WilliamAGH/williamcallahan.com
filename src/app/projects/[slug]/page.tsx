@@ -19,7 +19,7 @@ import { RelatedContentFallback } from "@/components/features/related-content/re
 import { findProjectBySlug, getAllProjectSlugs } from "@/lib/projects/slug-helpers";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";

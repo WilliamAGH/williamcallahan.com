@@ -14,6 +14,7 @@ import { BookmarksWindow } from "./bookmarks-window.client";
 // Alias BookmarksPaginatedClient as BookmarksClient for backwards compatibility with tests and type checks
 import { BookmarksPaginatedClient as BookmarksClient } from "./bookmarks-paginated.client";
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 // Loading state when bookmarks are fetching
 function BookmarksLoading() {
@@ -57,7 +58,7 @@ function BookmarksLoading() {
   );
 }
 
-import type { BookmarksClientWithWindowProps } from "@/types";
+import type { BookmarksClientWithWindowProps } from "@/types/features/bookmarks";
 
 export function BookmarksClientWithWindow({
   bookmarks,
@@ -75,8 +76,7 @@ export function BookmarksClientWithWindow({
   tag,
   internalHrefs,
 }: BookmarksClientWithWindowProps) {
-  const unifiedBookmarks: import("@/types").UnifiedBookmark[] =
-    convertSerializableBookmarksToUnified(bookmarks);
+  const unifiedBookmarks: UnifiedBookmark[] = convertSerializableBookmarksToUnified(bookmarks);
 
   // Title is currently unused in this component, acknowledge to satisfy linter rules (no underscore prefixes allowed)
   void title;

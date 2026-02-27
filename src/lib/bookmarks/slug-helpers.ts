@@ -6,7 +6,7 @@
  */
 
 import { readSlugShard } from "./slug-shards";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarkSlugMapping } from "@/types/bookmark";
 import { getSlugCacheTTL } from "@/config/related-content.config";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";

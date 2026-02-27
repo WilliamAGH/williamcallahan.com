@@ -7,7 +7,7 @@
  * @module lib/bookmarks.client
  */
 
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { callBookmarksApi, getLogPrefix } from "./api-client";
 
 /**

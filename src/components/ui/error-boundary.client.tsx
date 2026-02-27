@@ -9,7 +9,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { Component, type ReactNode, type ErrorInfo } from "react";
-import type { LocalErrorBoundaryProps, ErrorBoundaryState } from "@/types/ui";
+import type { LocalErrorBoundaryProps, ErrorBoundaryState } from "@/types/ui/boundaries";
 
 /**
  * Generic Error Boundary component to prevent component errors from crashing the entire app

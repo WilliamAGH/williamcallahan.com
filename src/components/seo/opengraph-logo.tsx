@@ -13,7 +13,7 @@
 
 import { metadata } from "@/data/metadata";
 import { DEFAULT_IMAGES } from "@/lib/constants/client";
-import type { OpenGraphLogoProps } from "@/types";
+import type { OpenGraphLogoProps } from "@/types/features/seo";
 
 /**
  * OpenGraph Logo Component

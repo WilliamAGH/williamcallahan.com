@@ -28,11 +28,10 @@ Provides comprehensive search engine optimization through metadata generation, s
 
 ### Core Infrastructure
 
-- **`lib/seo/index.ts`** (387 lines): Central orchestration and barrel exports
-  - Re-exports all SEO utilities with single import point
-  - Core functions: `getStaticPageMetadata`, `getBlogPostMetadata`, `getProfilePageMetadata`
-  - Integrates metadata, validation, and schema generation
-  - Type-safe metadata construction with Next.js 15 compatibility
+- **`lib/seo/*` modules**: Direct module imports (barrel removed)
+  - Entry imports now target concrete modules like `metadata.ts`, `schema.ts`, and `utils.ts`
+  - Core functions remain: `getStaticPageMetadata`, `getBlogPostMetadata`, `getProfilePageMetadata`
+  - Integrates metadata, validation, and schema generation without a barrel surface
 
 - **`lib/seo/metadata.ts`** (293 lines): Metadata generation engine
   - Creates platform-specific metadata (Twitter, OpenGraph, Dublin Core)
@@ -317,7 +316,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 
 ## Data Flow for a Blog Post
 
-1. `[slug]/page.tsx` calls `getBlogPostMetadata` from `lib/seo/index.ts`.
+1. `[slug]/page.tsx` calls `getBlogPostMetadata` from `lib/seo/metadata.ts`.
 2. `getBlogPostMetadata` fetches post data and calls `createArticleMetadata` in `lib/seo/metadata.ts`.
 3. `createArticleMetadata` orchestrates calls to:
    - `generateSchemaGraph` (`lib/seo/schema.ts`) to build the `JSON-LD` graph.

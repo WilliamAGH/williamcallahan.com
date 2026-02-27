@@ -1,5 +1,5 @@
 import { Suspense, type JSX } from "react";
-import { BlogList } from "@/components/features/blog/blog-list";
+import { BlogList } from "@/components/features/blog/blog-list/blog-list";
 import { Blog } from "@/components/features/blog/blog.client";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -14,7 +14,8 @@ import {
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
 import { getAllPosts } from "@/lib/blog";
 import type { Metadata } from "next";
-import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
+import { RelatedContent } from "@/components/features/related-content/related-content.server";
+import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 
 /**
  * Generates metadata for the tag page.

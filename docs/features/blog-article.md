@@ -12,7 +12,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 - **components/features/blog/tweet-embed.tsx**: Embeds tweets using react-tweet with an image proxy for enhanced display in blog content.
 - **components/features/blog/blog-article/blog-article.client.tsx**: Client-side component for rendering article content and metadata.
 - **components/features/blog/blog-article/blog-wrapper.tsx**: Dynamic import wrapper for hydration optimization of blog articles.
-- **components/features/blog/blog-article/index.ts**: Barrel file for blog article components.
+- **components/features/blog/blog-article/\***: Blog article components are imported directly from concrete files (barrel removed).
 - **components/features/blog/blog-article/mdx-content.tsx**: MDX renderer with styled elements for blog article content. Uses an internal, cached evaluator (not `next-mdx-remote`'s hook-driven renderer) so React 19 server renders don't trip the `useState` dispatcher error.
 - **components/features/blog/blog-article/software-schema.tsx**: Inserts SoftwareApplication schema.org metadata for SEO in blog articles.
 - **components/features/blog/blog-article/mdx-table.server.tsx**: Server-side component for styled table rendering in MDX content.

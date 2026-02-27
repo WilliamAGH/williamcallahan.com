@@ -10,14 +10,15 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ThoughtDetail } from "@/components/features/thoughts/thought-detail";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
-import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
+import { RelatedContent } from "@/components/features/related-content/related-content.server";
+import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { getThoughtBySlug } from "@/lib/thoughts/service.server";
 import type { ThoughtPageContext } from "@/types/features/thoughts";
 

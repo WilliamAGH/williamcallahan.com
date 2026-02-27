@@ -15,7 +15,7 @@ import Link from "next/link";
 import { BlogTagsExpandable } from "../shared/blog-tags-expandable.client";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
-import type { BlogCardPropsExtended } from "@/types/features";
+import type { BlogCardPropsExtended } from "@/types/features/blog";
 
 export function BlogCard({ post, preload = false }: BlogCardPropsExtended) {
   return (

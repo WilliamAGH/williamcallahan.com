@@ -14,7 +14,7 @@ import type {
   TableRow,
   TableData,
   ResponsiveTableContainerProps as ResponsiveTableProps,
-} from "@/types/ui";
+} from "@/types/ui/table";
 
 /**
  * Parses the children of a <table> element to extract headers and rows.
@@ -121,7 +121,6 @@ export function ResponsiveTable({
         Could not render responsive table data.
       </div>
     );
-    // return null;
   }
 
   // Always render the grid layout if data is valid

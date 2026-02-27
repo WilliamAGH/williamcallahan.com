@@ -12,7 +12,7 @@ import { LogoImage } from "../logo-image.client";
 
 import type { JSX } from "react";
 
-import type { ExperienceCardExtendedProps } from "@/types";
+import type { ExperienceCardExtendedProps } from "@/types/features/experience";
 
 /**
  * Client-side experience card component that displays professional experience information

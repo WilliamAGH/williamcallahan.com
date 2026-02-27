@@ -9,7 +9,7 @@
 "use client";
 
 import { useEffect, useRef, type JSX } from "react";
-import type { CollapseDropdownExtendedProps as CollapseDropdownProps } from "@/types/ui";
+import type { CollapseDropdownExtendedProps as CollapseDropdownProps } from "@/types/ui/interactive";
 import { useCollapseDropdownContext } from "../../lib/context/collapse-dropdown-context.client";
 import { cn } from "../../lib/utils";
 

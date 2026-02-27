@@ -10,7 +10,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
-import type { CopyButtonExtendedProps as CopyButtonProps } from "@/types/ui";
+import type { CopyButtonExtendedProps as CopyButtonProps } from "@/types/ui/code-block";
 import { cn } from "../../../lib/utils";
 
 /**

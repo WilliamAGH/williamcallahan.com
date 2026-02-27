@@ -24,9 +24,6 @@ import { ExperienceCardClient } from "@/components/ui/experience-card/experience
  */
 const EXPERIENCE_WINDOW_ID = "experience-window";
 
-// Force static generation for the content component if possible (may need adjustment)
-// export const dynamic = 'force-static'; // This directive likely belongs with data fetching/rendering logic
-
 /**
  * Client component wrapper for the Experience section.
  * This component manages the window state (visibility, minimize, maximize) for the experience display

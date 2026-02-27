@@ -38,7 +38,11 @@ const loadSafeBookmarkSlugResolver = async () => {
 };
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 
-import type { UnifiedBookmark, BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type {
+  BookmarksServerExtendedProps,
+  SerializableBookmark,
+} from "@/types/features/bookmarks";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";

@@ -4,7 +4,7 @@ import type React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
-import type { PaginationControlUrlProps } from "@/types";
+import type { PaginationControlUrlProps } from "@/types/ui/pagination";
 
 const LinkButton = ({
   page,

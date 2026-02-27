@@ -17,7 +17,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { AiChatHeaderProps, AiChatInputProps } from "@/types";
+import type { AiChatHeaderProps, AiChatInputProps } from "@/types/ui/terminal";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading Animation - Claude Code inspired

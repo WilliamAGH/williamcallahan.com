@@ -2,7 +2,8 @@
 "use client";
 
 import { formatDate as utilFormatDate } from "@/lib/utils";
-import { getErrorTimestamp, type ErrorPageProps } from "@/types";
+import { getErrorTimestamp } from "@/types/error";
+import type { ErrorPageProps } from "@/types/api";
 import { useEffect, useState } from "react";
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {

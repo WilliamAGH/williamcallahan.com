@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
 import { opengraphMetadata, opengraphOverrides } from "@/lib/db/schema/opengraph";
 import { ogResultSchema } from "@/types/seo/opengraph";
-import type { OgResult } from "@/types";
+import type { OgResult } from "@/types/opengraph";
 
 /**
  * Parse and validate a JSONB payload as an OgResult.

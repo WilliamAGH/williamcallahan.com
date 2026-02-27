@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 
-import type { StandardTweetEmbedProps } from "@/types";
+import type { StandardTweetEmbedProps } from "@/types/features/blog";
 
 const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) => {
   const embedContainerRef = useRef<HTMLDivElement>(null);

@@ -7,7 +7,7 @@
  */
 
 import type { Metadata } from "next";
-import { UploadWindow } from "@/components/features/upload";
+import { UploadWindow } from "@/components/features/upload/upload-window.client";
 
 export const metadata: Metadata = {
   title: "Upload Document | William Callahan",

@@ -20,11 +20,12 @@ import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { ExtendedMetadata } from "@/types/seo";
 import { notFound } from "next/navigation";
-import { BlogArticle } from "../../../components/features/blog";
+import { BlogArticle } from "@/components/features/blog/blog-article/blog-article.client";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-import { RelatedContent, RelatedContentFallback } from "@/components/features/related-content";
+import { RelatedContent } from "@/components/features/related-content/related-content.server";
+import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 
 /**
  * Software application details by slug.

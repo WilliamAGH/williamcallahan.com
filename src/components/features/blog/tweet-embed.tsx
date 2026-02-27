@@ -66,8 +66,8 @@ const proxy = (srcInput: string | Blob): string => {
   return `/api/twitter-image/${cleanPath}${suffix}`;
 };
 
-import type { TweetEmbedProps } from "@/types";
-import type { ImgProxyProps } from "@/types/ui";
+import type { TweetEmbedProps } from "@/types/features/blog";
+import type { ImgProxyProps } from "@/types/ui/image";
 
 /**
  * An image component that uses the `proxy` function to serve Twitter images.

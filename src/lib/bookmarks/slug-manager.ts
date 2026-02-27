@@ -14,7 +14,7 @@ import {
   getBookmarkBySlugFromDatabase,
   getSlugMappingRowsFromDatabase,
 } from "@/lib/db/queries/bookmarks";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
+import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
 import logger from "@/lib/utils/logger";
 import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";

@@ -15,7 +15,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
-import { getStaticPageMetadata } from "@/lib/seo";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -23,7 +23,7 @@ import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
-import type { PaginatedBookmarkContext } from "@/types";
+import type { PaginatedBookmarkContext } from "@/types/api";
 import { PageNumberSchema } from "@/types/lib";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 

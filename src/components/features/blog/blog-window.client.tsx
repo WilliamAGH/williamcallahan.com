@@ -18,7 +18,7 @@ import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hin
 import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
-import type { BlogWindowClientProps } from "@/types/features";
+import type { BlogWindowClientProps } from "@/types/features/blog";
 import { Newspaper } from "lucide-react";
 import dynamic from "next/dynamic";
 

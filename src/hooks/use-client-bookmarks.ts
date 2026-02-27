@@ -10,7 +10,7 @@
 
 "use client";
 
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { bookmarksRefreshResponseSchema } from "@/types/schemas/bookmark";
 import { useCallback, useEffect, useState } from "react";
 
