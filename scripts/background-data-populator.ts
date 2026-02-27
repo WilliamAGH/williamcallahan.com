@@ -10,7 +10,7 @@
  * @module scripts/background-data-populator
  */
 
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +21,7 @@ const CHECK_INTERVAL = 10000; // Check every 10 seconds
 const INITIAL_DELAY = 30000; // Wait 30 seconds after server start
 const MAX_POPULATION_ATTEMPTS = 3; // Prevent infinite retry loops
 let populationAttempts = 0;
+let isRunning = false;
 const MAIN_MODULE_PATH = fileURLToPath(import.meta.url);
 
 const isMainModule = (): boolean => {
@@ -91,7 +92,7 @@ async function runDataUpdater(): Promise<void> {
  * Check for the marker file and run data population if needed
  */
 async function checkAndPopulate(): Promise<void> {
-  if (!existsSync(MARKER_FILE)) {
+  if (isRunning || !existsSync(MARKER_FILE)) {
     return;
   }
 
@@ -99,11 +100,12 @@ async function checkAndPopulate(): Promise<void> {
     logger.error(
       `[BackgroundPopulator] Max attempts (${MAX_POPULATION_ATTEMPTS}) reached; removing marker and giving up`,
     );
-    unlinkSync(MARKER_FILE);
+    rmSync(MARKER_FILE, { force: true });
     return;
   }
 
   populationAttempts++;
+  isRunning = true;
   logger.info(
     `[BackgroundPopulator] Marker file detected - attempt ${populationAttempts}/${MAX_POPULATION_ATTEMPTS}`,
   );
@@ -113,11 +115,13 @@ async function checkAndPopulate(): Promise<void> {
     await runDataUpdater();
 
     // Success — remove marker so subsequent checks don't re-trigger
-    unlinkSync(MARKER_FILE);
+    rmSync(MARKER_FILE, { force: true });
     logger.info("[BackgroundPopulator] Initial data population completed, marker removed");
   } catch (error) {
     logger.error("[BackgroundPopulator] Failed to populate initial data:", error);
     // Leave marker in place so the next interval check retries (up to MAX_POPULATION_ATTEMPTS)
+  } finally {
+    isRunning = false;
   }
 }
 
