@@ -344,7 +344,6 @@ export function getOptimizedImageSrc(
  */
 export function shouldBypassOptimizer(src: string | undefined): boolean {
   if (!src) return false;
-  return (
-    src.startsWith(IMAGE_PROXY_PATH) || src.startsWith(ASSET_PROXY_PATH) || src.startsWith("data:")
-  );
+  // /api/cache/images bypasses optimizer (already processed). /api/assets excluded — Next.js optimizes those.
+  return src.startsWith(IMAGE_PROXY_PATH) || src.startsWith("data:");
 }
