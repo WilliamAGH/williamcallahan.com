@@ -18,11 +18,9 @@ vi.mock("@/lib/utils/cdn-utils", () => ({
   },
   shouldBypassOptimizer: (src: string | undefined) => {
     if (!src) return false;
-    return (
-      src.startsWith("/api/cache/images") ||
-      src.startsWith("/api/assets/") ||
-      src.startsWith("data:")
-    );
+    // /api/cache/images does its own processing — bypass Next.js optimizer.
+    // /api/assets streams raw bytes — let Next.js optimize (removed from bypass list).
+    return src.startsWith("/api/cache/images") || src.startsWith("data:");
   },
   getCdnConfigFromEnv: () => ({
     cdnBaseUrl: "https://s3-storage.callahan.cloud",
@@ -67,9 +65,6 @@ vi.mock("next/image", () => ({
     );
   },
 }));
-
-// Static import after mocking
-// import Image from 'next/image'; // This import is no longer needed
 
 import { LogoImage, OptimizedCardImage } from "../../../src/components/ui/logo-image.client";
 
@@ -245,21 +240,34 @@ describe("LogoImage Conditional Rendering", () => {
 describe("OptimizedCardImage", () => {
   const cardSrc = "https://s3-storage.callahan.cloud/images/other/projects/aventurevc-homepage.png";
 
-  it("renders dual-Image LQIP: blur preview + main image", () => {
+  it("renders single Image with native blur placeholder", () => {
     render(<OptimizedCardImage src={cardSrc} alt="Project screenshot" />);
     const images = screen.getAllByTestId("next-image-mock");
 
-    // Dual-Image LQIP: blur preview + main image
-    expect(images).toHaveLength(2);
-
-    // Blur preview: same src, tiny quality/size for fast loading
+    // Single image with native blur (no LQIP overlay)
+    expect(images).toHaveLength(1);
     expect(images[0]).toHaveAttribute("src", cardSrc);
-    expect(images[0]).toHaveAttribute("quality", "40");
-    expect(images[0]).toHaveAttribute("sizes", "64px");
+    expect(images[0]).toHaveAttribute("data-placeholder", "blur");
+    // In production, blurDataURL comes from Next.js's webpack loader on the static
+    // opengraph-placeholder.png import. In Vitest, Vite's asset pipeline returns a
+    // URL string (not StaticImageData), so blurDataURL is unavailable. The caller-
+    // provided blurDataURL test below validates the passthrough logic.
+    expect(images[0]).toHaveAttribute("data-blur-data-url");
+  });
 
-    // Main image: full quality, no blurDataURL (blur is the separate Image)
-    expect(images[1]).toHaveAttribute("src", cardSrc);
-    expect(images[1]).toHaveAttribute("data-placeholder", "empty");
+  it("uses provided blurDataURL over default when given", () => {
+    const customBlur = "data:image/png;base64,CUSTOM";
+    render(<OptimizedCardImage src={cardSrc} alt="Book cover" blurDataURL={customBlur} />);
+    const image = screen.getByTestId("next-image-mock");
+    expect(image).toHaveAttribute("data-placeholder", "blur");
+    expect(image).toHaveAttribute("data-blur-data-url", customBlur);
+  });
+
+  it("does not set unoptimized for /api/assets URLs", () => {
+    const assetSrc = "/api/assets/abc123?bid=1&url=https://example.com&domain=example.com";
+    render(<OptimizedCardImage src={assetSrc} alt="Bookmark screenshot" />);
+    const image = screen.getByTestId("next-image-mock");
+    expect(image).toHaveAttribute("data-unoptimized", "false");
   });
 
   it("uses opengraph placeholder when src is missing", () => {
