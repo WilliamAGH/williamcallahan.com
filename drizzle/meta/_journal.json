@@ -148,6 +148,20 @@
       "when": 1775496000000,
       "tag": "0019_content-engagement",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1775582400000,
+      "tag": "0020_bookmark-categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1775668800000,
+      "tag": "0021_bookmark-tags-taxonomy",
+      "breakpoints": true
     }
   ]
 }
