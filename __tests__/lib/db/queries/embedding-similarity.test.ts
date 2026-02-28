@@ -10,6 +10,7 @@ vi.mock("@/lib/db/connection", () => ({
 
 import {
   computeEmbeddingBlendScore,
+  findRelatedBookmarkIdsForSeeds,
   findSimilarByEmbedding,
   rankEmbeddingCandidates,
 } from "@/lib/db/queries/embedding-similarity";
@@ -93,5 +94,51 @@ describe("embedding-similarity query helpers", () => {
     expect(score).toBeCloseTo(0.8573, 3);
     expect(ranked[0]?.domain).toBe("bookmark");
     vi.useRealTimers();
+  });
+
+  it("aggregates related bookmark IDs across multiple seed bookmarks", async () => {
+    mockExecute
+      .mockResolvedValueOnce([{ exists: 1 }])
+      .mockResolvedValueOnce([
+        {
+          domain: "bookmark",
+          entity_id: "related-1",
+          title: "Related 1",
+          content_date: "2026-02-22T00:00:00.000Z",
+          similarity: 0.82,
+        },
+        {
+          domain: "blog",
+          entity_id: "blog-1",
+          title: "Blog",
+          content_date: "2026-02-22T00:00:00.000Z",
+          similarity: 0.99,
+        },
+      ])
+      .mockResolvedValueOnce([{ exists: 1 }])
+      .mockResolvedValueOnce([
+        {
+          domain: "bookmark",
+          entity_id: "related-2",
+          title: "Related 2",
+          content_date: "2026-02-24T00:00:00.000Z",
+          similarity: 0.93,
+        },
+        {
+          domain: "bookmark",
+          entity_id: "related-1",
+          title: "Related 1",
+          content_date: "2026-02-22T00:00:00.000Z",
+          similarity: 0.9,
+        },
+      ]);
+
+    const result = await findRelatedBookmarkIdsForSeeds({
+      seedBookmarkIds: ["seed-1", "seed-2"],
+      limit: 5,
+      minSimilarity: 0.8,
+    });
+
+    expect(result).toEqual(["related-2", "related-1"]);
   });
 });

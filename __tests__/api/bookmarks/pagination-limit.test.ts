@@ -11,15 +11,11 @@ vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/slug-manager");
 vi.mock("@/lib/db/queries/discovery-scores");
 
-// The route's attachBookmarkCategories queries the DB directly for AI category data.
+// The route's attachBookmarkCategories queries the DB directly for bookmark category data.
 // Mock the DB connection so the tests don't need a real database.
 vi.mock("@/lib/db/connection", () => ({
   db: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => Promise.resolve([])),
-      })),
-    })),
+    execute: vi.fn(() => Promise.resolve([])),
   },
 }));
 

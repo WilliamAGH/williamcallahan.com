@@ -40,6 +40,12 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 const normalizeTagForComparison = (tag: string): string =>
   tag.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
 
+const stableRelatedContentTieBreak = (a: RelatedContentItem, b: RelatedContentItem): number => {
+  const typeDiff = a.type.localeCompare(b.type);
+  if (typeDiff !== 0) return typeDiff;
+  return a.id.localeCompare(b.id);
+};
+
 /**
  * Filter items by include/exclude type sets and excluded tags.
  * Returns a new array (never mutates input).
@@ -203,7 +209,12 @@ export async function RelatedContent({
     const enabledItems = filtered.filter((i) => enabledTypes.has(i.type));
 
     // Apply per-type and total limits
-    const limited = limitByTypeAndTotal(enabledItems, maxPerType, maxTotal);
+    const limited = limitByTypeAndTotal(
+      enabledItems,
+      maxPerType,
+      maxTotal,
+      stableRelatedContentTieBreak,
+    );
 
     if (limited.length === 0) return null;
 

@@ -27,7 +27,7 @@ export const navigationLinks: NavigationLink[] = [
     ],
   },
   { name: "Projects", path: "/projects" },
-  { name: "Cool Stuff", path: "/bookmarks" },
+  { name: "Bookmarks", path: "/bookmarks" },
   { name: "Investments", path: "/investments" },
   // Contact tab is shown before Blog, but only on XL viewports and above
   {

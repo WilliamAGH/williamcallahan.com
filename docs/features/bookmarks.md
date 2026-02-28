@@ -11,7 +11,7 @@ The bookmarks system orchestrates fetching, processing, enriching, and serving b
 ### Data Flow
 
 ```
-Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/index tables)
+Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/index tables + bookmarks_tags + bookmarks_tags_links)
                                                    |
                               PostgreSQL read model (lists/pages/tags/index joins)
                                                    |
@@ -36,7 +36,7 @@ Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/i
 3. **API Endpoints (always `unstable_noStore`)**
    - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering and feed mode (`?feed=discover|latest`); responds with `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`
    - `/api/bookmarks/refresh` - Manual refresh trigger (secret protected)
-   - `/api/bookmarks/categories` - AI-derived category listing from `ai_analysis_latest`
+   - `/api/bookmarks/categories` - Canonical tag-topic listing from `bookmark_tag_links` with alias rollups from `bookmarks_tags_links`
    - `/api/engagement` - Client engagement event ingestion (impression, click, dwell, external_click)
    - `/api/og-image` - Unified OpenGraph image serving
 
@@ -85,6 +85,26 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-logo-data.no
 DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-embeddings.node.mjs --force --batch-size 4
 ```
 
+### Tag Alias Canonicalization Ingestion
+
+- `scripts/ingest-bookmark-tag-aliases.node.mjs` runs tag alias canonicalization from bookmark tag context plus embedding-nearest related bookmarks.
+- Each run can process one seed bookmark (plus up to 8 similar bookmarks by default), ask the LLM for alias-to-canonical tag mappings, and write results to `bookmarks_tags` + `bookmarks_tags_links`.
+- Alias tags are stored in `bookmarks_tags` (`tag_status='alias'`) and mapped to canonical primary tags through `bookmarks_tags_links`.
+- Incremental mode: `node scripts/ingest-bookmark-tag-aliases.node.mjs --limit=1`
+- Retrofit mode: `node scripts/ingest-bookmark-tag-aliases.node.mjs --retrofit --limit=1`
+- One-bookmark test run: `node scripts/ingest-bookmark-tag-aliases.node.mjs --bookmark-id=<bookmark-id>`
+- Dry-run preview: append `--dry-run` to print before/after without writes.
+
+### Scheduler / Cron Pipeline
+
+- `scripts/data-updater.ts` now accepts:
+  - `--bookmark-tags`
+  - `--bookmark-tags-retrofit`
+- `src/lib/server/scheduler.ts` schedules:
+  - `S3_BOOKMARK_TAGS_CRON` (default `30 */4 * * *`, every 4 hours)
+  - `S3_BOOKMARK_TAGS_RETROFIT_CRON` (default `45 3 * * *`, daily at 3:45 AM PT)
+- Both tag alias cron jobs trigger bookmark cache revalidation via `/api/revalidate/bookmarks`.
+
 ### Runtime Fetch Strategy
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds read bookmarks from PostgreSQL in runtime paths.
@@ -127,6 +147,7 @@ Client events → POST /api/engagement → content_engagement table
 **Key Modules**:
 
 - `src/lib/db/schema/content-engagement.ts`: Drizzle schema for `content_engagement` table
+- `src/lib/db/schema/bookmark-taxonomy.ts`: Includes `bookmarks_tags` + `bookmarks_tags_links` for primary/alias tag canonicalization
 - `src/lib/db/queries/discovery-scores.ts`: `computeDiscoveryScore()`, `getDiscoveryRankedBookmarks()`
 - `src/hooks/use-engagement-tracker.ts`: Client-side hook for batching and flushing events
 - `src/components/features/bookmarks/impression-tracker.client.tsx`: IntersectionObserver wrapper
@@ -139,11 +160,11 @@ Client events → POST /api/engagement → content_engagement table
 
 ### Pagination System
 
-- **URL-based**: `/bookmarks/page/2`, `/bookmarks/page/3`
+- **Root Discover Feed**: `/bookmarks` uses auto-scroll loading for topic sections
+- **Tag Pages**: URL-based pagination remains on `/bookmarks/tags/[tagSlug]/page/[n]`
 - **Efficient Loading**: 24 items per page, served from PostgreSQL pagination + RSC cache
-- **Dual Modes**: Manual pagination or infinite scroll
-- **SEO Optimized**: Proper canonical, prev/next tags
-- **Sitemap Integration**: All pages included automatically
+- **Dual Modes**: Tag pagination controls or infinite scroll where explicitly enabled
+- **SEO Optimized**: Canonical tag pagination URLs in sitemap generation
 
 ### Tag System
 

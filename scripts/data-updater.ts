@@ -1,56 +1,132 @@
 #!/usr/bin/env tsx
 
-/**
- * Data Updater CLI
- *
- * Thin CLI wrapper for DataFetchManager operations.
- * Handles all data update operations including S3 updates and prefetching.
- *
- * Runs under tsx (Node.js + esbuild) for full TLS compatibility with PostgreSQL.
- * See CLAUDE.md [RT1] for the runtime isolation policy.
- */
-
-import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import logger from "@/lib/utils/logger";
+import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
 
-// Set flag to indicate this is the data updater process
+loadEnvironmentWithMultilineSupport();
+
 process.env.IS_DATA_UPDATER = "true";
 
 const args = process.argv.slice(2);
-
-// 12-hour check for dev environment
 const LAST_RUN_SUCCESS_FILE = join(process.cwd(), ".populate-volumes-last-run-success");
 const LAST_RUN_DETAILS_FILE = join(process.cwd(), ".data-update-details.json");
 const RUN_INTERVAL_HOURS = 12;
+const DEPRECATED_TAG_FLAGS: Readonly<Record<string, string>> = {
+  "--bookmark-categories": "--bookmark-tags",
+  "--bookmark-categories-retrofit": "--bookmark-tags-retrofit",
+};
 
-async function checkRecentRun(): Promise<boolean> {
-  // Only check in development mode and when not forced
-  if (process.env.NODE_ENV !== "development" || hasFlag(args, DATA_UPDATER_FLAGS.FORCE)) {
-    return false; // Continue with update
+function hasTagOperation(argsToCheck: readonly string[]): boolean {
+  return (
+    hasFlag(argsToCheck, DATA_UPDATER_FLAGS.BOOKMARK_TAGS) ||
+    hasFlag(argsToCheck, DATA_UPDATER_FLAGS.BOOKMARK_TAGS_RETROFIT)
+  );
+}
+
+function buildTagScriptArgs(
+  sourceArgs: readonly string[],
+  mode: "incremental" | "retrofit",
+  testLimit?: number,
+): string[] {
+  const forwarded: string[] = [];
+  let hasExplicitLimit = false;
+
+  for (let i = 0; i < sourceArgs.length; i += 1) {
+    const value = sourceArgs[i];
+    if (!value) continue;
+    if (value === "--bookmark-id" || value === "--limit" || value === "--related-limit") {
+      if (value === "--limit") hasExplicitLimit = true;
+      const next = sourceArgs[i + 1];
+      if (next) {
+        forwarded.push(value, next);
+        i += 1;
+      }
+      continue;
+    }
+    if (
+      value.startsWith("--bookmark-id=") ||
+      value.startsWith("--limit=") ||
+      value.startsWith("--related-limit=")
+    ) {
+      if (value.startsWith("--limit=")) hasExplicitLimit = true;
+      forwarded.push(value);
+      continue;
+    }
+    if (value === "--dry-run") forwarded.push(value);
   }
 
-  // Skip check if specific operations are requested (not the default all operations)
+  if (!hasExplicitLimit && testLimit && testLimit > 0) forwarded.push(`--limit=${testLimit}`);
+  if (mode === "retrofit" && !forwarded.includes("--retrofit")) forwarded.push("--retrofit");
+  return forwarded;
+}
+
+async function runTagIngestionTask(
+  mode: "incremental" | "retrofit",
+  sourceArgs: readonly string[],
+  testLimit?: number,
+): Promise<DataFetchOperationSummary> {
+  const operation = mode === "retrofit" ? "bookmark-tags-retrofit" : "bookmark-tags";
+  const startedAt = Date.now();
+  const scriptArgs = buildTagScriptArgs(sourceArgs, mode, testLimit);
+
+  logger.info(
+    `[DataUpdaterCLI] Starting ${operation} with args: ${scriptArgs.length > 0 ? scriptArgs.join(" ") : "(none)"}`,
+  );
+
+  return new Promise((resolve) => {
+    const child = spawn("node", ["scripts/ingest-bookmark-tag-aliases.node.mjs", ...scriptArgs], {
+      env: process.env,
+      stdio: "inherit",
+      detached: false,
+    });
+
+    child.once("error", (error) => {
+      resolve({
+        success: false,
+        operation,
+        error: error instanceof Error ? error.message : String(error),
+        duration: (Date.now() - startedAt) / 1000,
+      });
+    });
+
+    child.once("close", (code) => {
+      resolve({
+        success: code === 0,
+        operation,
+        error: code === 0 ? undefined : `Tag ingestion exited with code ${code ?? -1}`,
+        duration: (Date.now() - startedAt) / 1000,
+      });
+    });
+  });
+}
+
+async function checkRecentRun(): Promise<boolean> {
+  if (process.env.NODE_ENV !== "development" || hasFlag(args, DATA_UPDATER_FLAGS.FORCE)) {
+    return false;
+  }
+
   if (
     hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS) ||
     hasFlag(args, DATA_UPDATER_FLAGS.BOOKS) ||
     hasFlag(args, DATA_UPDATER_FLAGS.GITHUB) ||
     hasFlag(args, DATA_UPDATER_FLAGS.LOGOS) ||
-    hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES)
+    hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES) ||
+    hasTagOperation(args)
   ) {
-    return false; // Continue with update
+    return false;
   }
 
   if (!existsSync(LAST_RUN_SUCCESS_FILE)) {
-    return false; // Continue with update
+    return false;
   }
 
   try {
-    // Read the actual timestamp from file content (UTC)
     const timestampContent = await readFile(LAST_RUN_SUCCESS_FILE, "utf-8");
     const lastRunTime = new Date(timestampContent.trim()).getTime();
     const hoursSinceLastRun = (Date.now() - lastRunTime) / (1000 * 60 * 60);
@@ -59,22 +135,19 @@ async function checkRecentRun(): Promise<boolean> {
       console.log(
         `✅ Data updated within the last ${RUN_INTERVAL_HOURS} hours (${hoursSinceLastRun.toFixed(2)}h ago). Skipping update.`,
       );
-      return true; // Skip update
+      return true;
     }
   } catch (error) {
     logger.warn("Error checking last run timestamp:", error);
   }
 
-  return false; // Continue with update
+  return false;
 }
 
 async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<void> {
   if (process.env.NODE_ENV === "development") {
     try {
-      // Always update the timestamp file to prevent repeated runs
       await writeFile(LAST_RUN_SUCCESS_FILE, new Date().toISOString());
-
-      // Also write detailed results for debugging
       const details = {
         lastRun: new Date().toISOString(),
         results: results.reduce(
@@ -97,10 +170,8 @@ async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<vo
   }
 }
 
-// Handle metadata-only refresh mode for bookmarks
 if (hasFlag(args, DATA_UPDATER_FLAGS.METADATA_ONLY)) {
   process.env.BOOKMARK_METADATA_ONLY_REFRESH = "true";
-  // Allow custom limit if provided
   const limitIndex = args.indexOf(DATA_UPDATER_FLAGS.METADATA_LIMIT);
   if (limitIndex !== -1 && args[limitIndex + 1]) {
     process.env.BOOKMARK_METADATA_REFRESH_LIMIT = args[limitIndex + 1];
@@ -114,6 +185,11 @@ if (hasFlag(args, DATA_UPDATER_FLAGS.HELP) || hasFlag(args, DATA_UPDATER_FLAGS.H
 
 Options:
   --bookmarks          Fetch and update bookmarks data
+  --bookmark-tags       Run bookmark tag canonicalization + alias ingestion
+  --bookmark-tags-retrofit Run retrofit pass for bookmarks missing tag-alias review
+  --bookmark-id ID      Restrict tag ingestion to one bookmark
+  --related-limit N     Tag ingestion context size for similar bookmarks (default: 8)
+  --limit N             Max bookmarks to process for tag ingestion (default: 1)
   --books              Regenerate books dataset from AudioBookShelf
   --metadata-only      Use lightweight metadata refresh (titles/descriptions only)
   --metadata-limit N   Max items to refresh in metadata mode (default: 50)
@@ -133,9 +209,18 @@ Environment Variables:
   process.exit(0);
 }
 
+const deprecatedFlagsUsed = args.filter((arg) => Object.hasOwn(DEPRECATED_TAG_FLAGS, arg));
+if (deprecatedFlagsUsed.length > 0) {
+  console.error("[DataUpdaterCLI] Deprecated bookmark category flags are no longer supported.");
+  for (const flag of deprecatedFlagsUsed) {
+    const replacement = DEPRECATED_TAG_FLAGS[flag];
+    console.error(`  - ${flag} -> ${replacement}`);
+  }
+  process.exit(1);
+}
+
 logger.info(`[DataFetchManager] CLI execution started. Args: ${args.join(" ")}`);
 
-// Safety check: Prevent S3 writes during build phase
 if (
   process.env.NEXT_PHASE === "phase-production-build" &&
   !hasFlag(args, DATA_UPDATER_FLAGS.ALLOW_BUILD_WRITES)
@@ -147,12 +232,9 @@ if (
   process.exit(0);
 }
 
-// Handle dry-run mode
 if (process.env.DRY_RUN === "true") {
   console.log("DRY RUN mode - skipping all update processes");
   logger.info(`Args: ${args.join(" ")}`);
-
-  // Handle test limit environment variable for dry-run logging
   if (process.env.S3_TEST_LIMIT) {
     console.log(`Test limit active: ${process.env.S3_TEST_LIMIT} items per operation`);
   }
@@ -160,19 +242,15 @@ if (process.env.DRY_RUN === "true") {
   process.exit(0);
 }
 
-const manager = new DataFetchManager();
-
 const config: DataFetchConfig = {};
-
-// Check if any specific operations were requested
 const hasSpecificOperation =
   hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS) ||
+  hasTagOperation(args) ||
   hasFlag(args, DATA_UPDATER_FLAGS.BOOKS) ||
   hasFlag(args, DATA_UPDATER_FLAGS.LOGOS) ||
   hasFlag(args, DATA_UPDATER_FLAGS.GITHUB) ||
   hasFlag(args, DATA_UPDATER_FLAGS.SEARCH_INDEXES);
 
-// If no specific operations, run all
 if (!hasSpecificOperation) {
   config.bookmarks = true;
   config.books = true;
@@ -180,7 +258,6 @@ if (!hasSpecificOperation) {
   config.githubActivity = true;
   config.searchIndexes = true;
 } else {
-  // Otherwise only run what was requested
   if (hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARKS)) {
     config.bookmarks = true;
   }
@@ -202,24 +279,31 @@ if (hasFlag(args, DATA_UPDATER_FLAGS.FORCE)) {
   config.forceRefresh = true;
 }
 
-// Parse test limit using centralized utility
 const testLimit = parseTestLimit(args);
 if (testLimit !== undefined) {
   config.testLimit = testLimit;
   logger.info(`[DataUpdaterCLI] Applying test limit of ${testLimit}`);
 }
 
-// Main execution
 (async () => {
-  // Check if we should skip due to recent run
   const shouldSkip = await checkRecentRun();
   if (shouldSkip) {
     process.exit(0);
   }
 
-  // Execute data fetch
   try {
-    const results = await manager.fetchData(config);
+    const { DataFetchManager } = await import("@/lib/server/data-fetch-manager");
+    const manager = new DataFetchManager();
+    const tagResults: DataFetchOperationSummary[] = [];
+    if (hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARK_TAGS)) {
+      tagResults.push(await runTagIngestionTask("incremental", args, testLimit));
+    }
+    if (hasFlag(args, DATA_UPDATER_FLAGS.BOOKMARK_TAGS_RETROFIT)) {
+      tagResults.push(await runTagIngestionTask("retrofit", args, testLimit));
+    }
+
+    const managerResults = await manager.fetchData(config);
+    const results = [...tagResults, ...managerResults];
 
     logger.info("[DataUpdaterCLI] All tasks complete.");
 
@@ -235,7 +319,6 @@ if (testLimit !== undefined) {
       }
     });
 
-    // --- Final Summary Table ---
     console.log("\n--- Data Updater Final Summary ---");
     console.table(
       results.map((r) => ({
@@ -248,11 +331,8 @@ if (testLimit !== undefined) {
     );
     console.log("------------------------------------\n");
 
-    // Always update timestamp to prevent rate limit spiral
-    // Even if operations fail, we don't want to retry immediately
     await updateTimestamp(results);
 
-    // Log warning if GitHub failed due to rate limiting
     const githubResult = results.find((r) => r.operation === "github-activity");
     if (githubResult && !githubResult.success && githubResult.error?.includes("rate")) {
       logger.warn(
@@ -260,14 +340,12 @@ if (testLimit !== undefined) {
       );
     }
 
-    // Check for any failures and exit with a non-zero code
     const hasFailures = results.some((r) => !r.success);
     if (hasFailures) {
       logger.error("[DataUpdaterCLI] One or more operations failed. Exiting with status 1.");
       process.exit(1);
     }
 
-    // Explicitly exit to prevent hanging due to active timers/intervals
     process.exit(0);
   } catch (error: unknown) {
     logger.error("[DataUpdaterCLI] An unexpected error occurred:", error);

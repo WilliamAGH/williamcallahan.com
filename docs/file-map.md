@@ -45,7 +45,7 @@ File/Path Functionality Description
     - [x] `bookmarks-with-options.client.tsx` `bookmarks` - UI with additional bookmark options
     - [x] `bookmarks-with-pagination.client.tsx` `bookmarks` - Main paginated bookmarks view with discover/latest modes
     - [x] `bookmarks.{client,server}.tsx` `bookmarks` - Core bookmarks components
-    - [x] `category-ribbon.client.tsx` `bookmarks` - AI category filter ribbon (fetches from `/api/bookmarks/categories`)
+    - [x] `category-ribbon.client.tsx` `bookmarks` - Canonical category filter ribbon (fetches from `/api/bookmarks/categories`)
     - [x] `feed-toggle.client.tsx` `bookmarks` - Discover/Latest segmented control
     - [x] `hero-row.client.tsx` `bookmarks` - Top-3 hero cards for discover mode
     - [x] `impression-tracker.client.tsx` `bookmarks` - IntersectionObserver wrapper for engagement tracking
@@ -297,7 +297,7 @@ File/Path Functionality Description
   - [x] `bookmark-record-mapper.ts` `bookmarks` - Row/insert mapping helpers between Drizzle bookmark records and `UnifiedBookmark`
   - [x] **schema/**
     - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmarks table definition with generated FTS vector plus trigram/HNSW indexes
-    - [x] `bookmark-taxonomy.ts` `bookmarks` - Drizzle tag-link and bookmark/tag index-state tables for DB-backed tag pagination and index metadata
+    - [x] `bookmark-taxonomy.ts` `bookmarks` - Drizzle tag-link and bookmark/tag index-state tables plus `bookmarks_tags` + `bookmarks_tags_links` (primary/alias tag canonicalization)
     - [x] `github-activity.ts` `github-activity` - Unified GitHub JSON document store (`github_activity_store`) keyed by `(data_type, qualifier)`
     - [x] `content-graph.ts` `search` - Precomputed related-content artifact table (`content_graph_artifacts`)
     - [x] `books.ts` `books` - Books dataset latest pointer + immutable snapshots tables
@@ -394,7 +394,7 @@ File/Path Functionality Description
 - [x] **server/**
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
-  - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates
+  - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
 - [ ] **services/**
   - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
@@ -515,6 +515,8 @@ File/Path Functionality Description
 - [x] `components.json` `config` - ShadCN UI component configuration
 - [x] `Dockerfile` `deployment` - Docker container configuration
 - [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
+- [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
+- [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
 - [x] `eslint.config.ts` `linting-formatting` - ESLint configuration
 - [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync (`bookmarks`, taxonomy/index tables, `github_activity_store`, `content_graph_artifacts`, books/AI/OpenGraph tables)
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
@@ -636,6 +638,7 @@ File/Path Functionality Description
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
 - [x] `backfill-bookmark-embeddings.ts` `bookmarks` - CLI backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings`
 - [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings` with resilient postgres-js connectivity; supports `--force` to regenerate all embeddings
+- [x] `ingest-bookmark-tag-aliases.node.mjs` `bookmarks` - Node runtime LLM-driven tag alias ingestion using bookmark tag context + embedding-nearest related bookmarks; writes to `bookmarks_tags` + `bookmarks_tags_links`
 - [x] `backfill-scraped-content.node.mjs` `bookmarks` - Node runtime backfill for `scraped_content_text` column from Karakeep `content.htmlContent` via HTML-to-plain-text conversion
 - [x] `backfill-computed-fields.node.mjs` `bookmarks` - Node runtime backfill for `word_count` and `reading_time` derived from `scraped_content_text` (whitespace split, 200 WPM)
 - [x] `backfill-og-metadata.node.mjs` `bookmarks` - Node runtime backfill for `og_title`, `og_description`, `og_image` by fetching bookmark URLs and parsing `<meta property="og:*">` tags
@@ -645,7 +648,7 @@ File/Path Functionality Description
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
 - [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `data-updater.ts`
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
-- [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations
+- [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
 - [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests

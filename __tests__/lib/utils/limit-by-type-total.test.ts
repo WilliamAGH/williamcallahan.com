@@ -49,6 +49,16 @@ describe("limitByTypeAndTotal", () => {
     expect(out.every((i) => i.type === "blog")).toBe(true);
   });
 
+  it("uses tiebreak for deterministic ordering when scores are equal", () => {
+    const items: Item[] = [
+      { id: "c", type: "blog", score: 0.8 },
+      { id: "a", type: "blog", score: 0.8 },
+      { id: "b", type: "blog", score: 0.8 },
+    ];
+    const out = limitByTypeAndTotal(items, 3, 3, (left, right) => left.id.localeCompare(right.id));
+    expect(out.map((i) => i.id)).toEqual(["a", "b", "c"]);
+  });
+
   it("treats non-positive limits as zero (returns empty)", () => {
     const items: Item[] = [
       { id: "a", type: "blog", score: 0.9 },

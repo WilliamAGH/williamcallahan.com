@@ -99,6 +99,16 @@ html {
   color: inherit;
 }
 
+/* Hidden scrollbar — for horizontal nav ribbons where scroll is via wheel/trackpad/touch */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Custom scrollbar */
 .custom-scrollbar {
   /* WebKit scrollbar styling */

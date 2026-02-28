@@ -58,9 +58,9 @@ These are the failure modes that blocked >100 deploy attempts. Follow each check
 
 - **Mandatory pattern:** Resolve `params`/`searchParams`/`id` immediately via `const resolved = await params` or `await Promise.resolve(params)` before destructuring.
 - **Reference implementations:**
-  - `app/bookmarks/page/[pageNumber]/page.tsx:34-111` – uses `const paramsResolved = await Promise.resolve(params)` for both `generateMetadata` and the page component.
+  - `app/bookmarks/page.tsx:36-43` – resolves `searchParams` with `await` before applying feed/filter logic.
   - `app/blog/[slug]/page.tsx:78-118` – destructures `{ slug } = await params` before any lookups.
-  - `app/bookmarks/tags/[...slug]/page.tsx:86-147` and `app/bookmarks/[slug]/page.tsx:182-297` follow the same pattern for complex Zod validation.
+  - `app/bookmarks/tags/[...slug]/page.tsx:132-152` and `app/bookmarks/[slug]/page.tsx:182-297` follow the same pattern for complex Zod validation.
 - **Sitemap / metadata builders:** `app/sitemap.ts` enforces `dynamic = "force-dynamic"` and prioritizes low-latency reads (slug mapping + bounded tag-index lookups). Never reintroduce build-phase `NEXT_PHASE` gating that removes sitemap sections, and avoid unbounded per-tag S3 index scans in request paths.
 - **Action items when adding new routes:** copy one of the reference patterns, add a code comment citing this section, and include tests under `__tests__/app/` that cover invalid params so we catch missing `await` calls.
 

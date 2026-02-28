@@ -3,30 +3,35 @@
  */
 
 import { GET } from "@/app/api/bookmarks/route";
-import { getBookmarks, getBookmarksIndex } from "@/lib/bookmarks/service.server";
+import {
+  getBookmarks,
+  getBookmarksIndex,
+  resolveBookmarkTagSlug,
+} from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { findRelatedBookmarkIdsForSeeds } from "@/lib/db/queries/embedding-similarity";
+import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 
 // Mock dependencies
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/slug-manager");
 vi.mock("@/lib/db/queries/discovery-scores");
+vi.mock("@/lib/db/queries/embedding-similarity");
 
-// The route's attachBookmarkCategories queries the DB directly for AI category data.
+// The route's attachBookmarkCategories queries the DB directly for bookmark category data.
 // Mock the DB connection so the tests don't need a real database.
 vi.mock("@/lib/db/connection", () => ({
   db: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => Promise.resolve([])),
-      })),
-    })),
+    execute: vi.fn(() => Promise.resolve([])),
   },
 }));
 
 const mockGetBookmarks = vi.mocked(getBookmarks);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
+const mockResolveBookmarkTagSlug = vi.mocked(resolveBookmarkTagSlug);
 const mockLoadSlugMapping = vi.mocked(loadSlugMapping);
+const mockFindRelatedBookmarkIdsForSeeds = vi.mocked(findRelatedBookmarkIdsForSeeds);
 
 /**
  * Helper to generate a mock slug mapping from bookmarks
@@ -55,6 +60,27 @@ function createMockSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugMappin
     slugs,
     reverseMap,
   };
+}
+
+function createIndexData(count: number, pageSize: number = 24) {
+  return {
+    count,
+    lastFetchedAt: Date.now(),
+    totalPages: Math.max(1, Math.ceil(count / pageSize)),
+    pageSize,
+    lastModified: new Date().toISOString(),
+    lastAttemptedAt: Date.now(),
+    checksum: "test-checksum",
+    changeDetected: false,
+  };
+}
+
+function createRequest(searchParams: Record<string, string>) {
+  const query = new URLSearchParams(searchParams);
+  return {
+    url: `http://localhost:3000/api/bookmarks?${query.toString()}`,
+    nextUrl: { searchParams: query },
+  } as any;
 }
 
 describe("Bookmark API Tag Filtering", () => {
@@ -91,9 +117,20 @@ describe("Bookmark API Tag Filtering", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "log").mockImplementation(() => {}); // Suppress console logs in tests
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     // Set up default slug mapping mock
     mockLoadSlugMapping.mockResolvedValue(createMockSlugMapping(mockBookmarks));
     mockGetBookmarksIndex.mockResolvedValue(null);
+    mockResolveBookmarkTagSlug.mockImplementation(async (rawTag) => {
+      const canonicalSlug = tagToSlug(rawTag);
+      return {
+        requestedSlug: canonicalSlug,
+        canonicalSlug,
+        canonicalTagName: null,
+        isAlias: false,
+      };
+    });
+    mockFindRelatedBookmarkIdsForSeeds.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -103,54 +140,45 @@ describe("Bookmark API Tag Filtering", () => {
   describe("Tag parameter handling", () => {
     it("should filter bookmarks by tag in slug format", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockGetBookmarksIndex.mockResolvedValueOnce({
-        count: mockBookmarks.length,
-        lastFetchedAt: Date.now(),
-        totalPages: 1,
-        pageSize: 24,
-        lastModified: new Date().toISOString(),
-        lastAttemptedAt: Date.now(),
-        checksum: "test-checksum",
-        changeDetected: false,
-      });
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
-      const request = {
-        url: "http://localhost:3000/api/bookmarks?tag=web-development",
-        nextUrl: {
-          searchParams: new URLSearchParams({ tag: "web-development" }),
-        },
-      } as any;
-
-      const response = await GET(request);
+      const response = await GET(createRequest({ tag: "web-development" }));
       const data = await response.json();
 
       expect(response.status).toBe(200);
       expect(data.data).toHaveLength(1);
       expect(data.data[0].id).toBe("1");
-      expect(data.meta.filter).toEqual({ tag: "web-development" });
+      expect(data.meta.filter).toMatchObject({
+        tag: "web-development",
+        exactCount: 1,
+        relatedCount: 0,
+        mode: "exact_plus_related",
+      });
+    });
+
+    it("should append semantically related bookmarks after exact tag matches on page 1", async () => {
+      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
+      mockFindRelatedBookmarkIdsForSeeds.mockResolvedValueOnce(["2"]);
+
+      const response = await GET(createRequest({ tag: "web-development" }));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.data.map((bookmark: UnifiedBookmark) => bookmark.id)).toEqual(["1", "2"]);
+      expect(data.meta.filter).toMatchObject({
+        tag: "web-development",
+        exactCount: 1,
+        relatedCount: 1,
+        mode: "exact_plus_related",
+      });
     });
 
     it("should handle multi-word tags with hyphens", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockGetBookmarksIndex.mockResolvedValueOnce({
-        count: mockBookmarks.length,
-        lastFetchedAt: Date.now(),
-        totalPages: 1,
-        pageSize: 24,
-        lastModified: new Date().toISOString(),
-        lastAttemptedAt: Date.now(),
-        checksum: "test-checksum",
-        changeDetected: false,
-      });
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
-      const request = {
-        url: "http://localhost:3000/api/bookmarks?tag=software-development-tools",
-        nextUrl: {
-          searchParams: new URLSearchParams({ tag: "software-development-tools" }),
-        },
-      } as any;
-
-      const response = await GET(request);
+      const response = await GET(createRequest({ tag: "software-development-tools" }));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -160,25 +188,9 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should handle URL-encoded tags", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockGetBookmarksIndex.mockResolvedValueOnce({
-        count: mockBookmarks.length,
-        lastFetchedAt: Date.now(),
-        totalPages: 1,
-        pageSize: 24,
-        lastModified: new Date().toISOString(),
-        lastAttemptedAt: Date.now(),
-        checksum: "test-checksum",
-        changeDetected: false,
-      });
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
-      const request = {
-        url: "http://localhost:3000/api/bookmarks?tag=web%20development",
-        nextUrl: {
-          searchParams: new URLSearchParams({ tag: "web development" }),
-        },
-      } as any;
-
-      const response = await GET(request);
+      const response = await GET(createRequest({ tag: "web development" }));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -188,25 +200,9 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should perform case-insensitive tag matching", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockGetBookmarksIndex.mockResolvedValueOnce({
-        count: mockBookmarks.length,
-        lastFetchedAt: Date.now(),
-        totalPages: 1,
-        pageSize: 24,
-        lastModified: new Date().toISOString(),
-        lastAttemptedAt: Date.now(),
-        checksum: "test-checksum",
-        changeDetected: false,
-      });
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
-      const request = {
-        url: "http://localhost:3000/api/bookmarks?tag=WEB-DEVELOPMENT",
-        nextUrl: {
-          searchParams: new URLSearchParams({ tag: "WEB-DEVELOPMENT" }),
-        },
-      } as any;
-
-      const response = await GET(request);
+      const response = await GET(createRequest({ tag: "WEB-DEVELOPMENT" }));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -216,25 +212,9 @@ describe("Bookmark API Tag Filtering", () => {
 
     it("should return empty array for non-existent tags", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
-      mockGetBookmarksIndex.mockResolvedValueOnce({
-        count: mockBookmarks.length,
-        lastFetchedAt: Date.now(),
-        totalPages: 1,
-        pageSize: 24,
-        lastModified: new Date().toISOString(),
-        lastAttemptedAt: Date.now(),
-        checksum: "test-checksum",
-        changeDetected: false,
-      });
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
-      const request = {
-        url: "http://localhost:3000/api/bookmarks?tag=non-existent-tag",
-        nextUrl: {
-          searchParams: new URLSearchParams({ tag: "non-existent-tag" }),
-        },
-      } as any;
-
-      const response = await GET(request);
+      const response = await GET(createRequest({ tag: "non-existent-tag" }));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -259,27 +239,11 @@ describe("Bookmark API Tag Filtering", () => {
         );
 
       mockGetBookmarks.mockResolvedValueOnce(largeSet);
-      mockGetBookmarksIndex.mockResolvedValueOnce({
-        count: largeSet.length,
-        lastFetchedAt: Date.now(),
-        totalPages: Math.ceil(largeSet.length / 20),
-        pageSize: 20,
-        lastModified: new Date().toISOString(),
-        lastAttemptedAt: Date.now(),
-        checksum: "test-checksum",
-        changeDetected: false,
-      });
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(largeSet.length, 20));
       // Override default slug mapping for this test's larger dataset
       mockLoadSlugMapping.mockResolvedValueOnce(createMockSlugMapping(largeSet));
 
-      const request = {
-        url: "http://localhost:3000/api/bookmarks?tag=test-tag&page=2&limit=20",
-        nextUrl: {
-          searchParams: new URLSearchParams({ tag: "test-tag", page: "2", limit: "20" }),
-        },
-      } as any;
-
-      const response = await GET(request);
+      const response = await GET(createRequest({ tag: "test-tag", page: "2", limit: "20" }));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -299,14 +263,7 @@ describe("Bookmark API Tag Filtering", () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
       mockGetBookmarksIndex.mockResolvedValueOnce(null);
 
-      const request = {
-        url: "http://localhost:3000/api/bookmarks?feed=latest",
-        nextUrl: {
-          searchParams: new URLSearchParams({ feed: "latest" }),
-        },
-      } as any;
-
-      const response = await GET(request);
+      const response = await GET(createRequest({ feed: "latest" }));
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -320,14 +277,7 @@ describe("Bookmark API Tag Filtering", () => {
       mockGetBookmarksIndex.mockResolvedValueOnce(null);
       mockGetBookmarks.mockRejectedValueOnce(new Error("Database error"));
 
-      const request = {
-        url: "http://localhost:3000/api/bookmarks?feed=latest",
-        nextUrl: {
-          searchParams: new URLSearchParams({ feed: "latest" }),
-        },
-      } as any;
-
-      const response = await GET(request);
+      const response = await GET(createRequest({ feed: "latest" }));
       const data = await response.json();
 
       expect(response.status).toBe(500);

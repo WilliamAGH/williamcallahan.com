@@ -1,13 +1,3 @@
-/**
- * Terminal Context Component
- * @module components/ui/context-notes/terminal-context.client
- * @description
- * Code comment-style context for detail pages with three-phase interaction.
- * Phase 1: "What is this?" → streams inline answer
- * Phase 2: "Why?" → expands to multi-line formatted block
- * Phase 3: "Tell me more..." → reveals full rich context
- */
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -20,13 +10,16 @@ import type {
   TerminalContextPhase,
 } from "@/types/schemas/personal-context-note";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Content Configuration
-// ─────────────────────────────────────────────────────────────────────────────
+const CLOSE_BUTTON_CLASSES = cn(
+  "text-zinc-900 dark:text-zinc-100",
+  "hover:text-amber-500 dark:hover:text-amber-400",
+  "transition-colors cursor-pointer",
+  "focus:outline-none focus-visible:text-amber-500",
+);
 
 const CONTENT: Record<ContextType, ContextContent> = {
   bookmark: {
-    what: "cool stuff I found on the web",
+    what: "bookmarks I found on the web",
     why: [
       "The internet is full of incredible tools, ideas, and resources.",
       "I organize what I find to make it searchable and discoverable.",
@@ -60,10 +53,6 @@ const CONTENT: Record<ContextType, ContextContent> = {
     ],
   },
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Typing Animation Hook
-// ─────────────────────────────────────────────────────────────────────────────
 
 function useTypingAnimation(text: string, isActive: boolean, onComplete?: () => void) {
   const [displayedText, setDisplayedText] = useState("");
@@ -105,17 +94,6 @@ function useTypingAnimation(text: string, isActive: boolean, onComplete?: () => 
   return { displayedText, isTyping };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * TerminalContext - Three-phase code comment context
- *
- * 1. "What is this?" → types inline answer
- * 2. "Why?" → expands to formatted multi-line block
- * 3. "Tell me more..." → reveals full context
- */
 export function TerminalContext({ type, className }: TerminalContextProps) {
   const [phase, setPhase] = useState<TerminalContextPhase>("idle");
   const content = CONTENT[type];
@@ -149,6 +127,10 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
     if (phase === "why-expanded") {
       setPhase("more-expanded");
     }
+  };
+
+  const handleClose = () => {
+    setPhase("idle");
   };
 
   // Inline phase (idle, what-typing, what-done)
@@ -189,7 +171,7 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
             </span>
           )}
 
-          {/* What done: "Why?" trigger */}
+          {/* What done: "Why?" and "close" options */}
           {phase === "what-done" && (
             <>
               <span className="font-mono text-[0.7rem] text-zinc-300 dark:text-zinc-600 mx-0.5">
@@ -207,6 +189,16 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
                 )}
               >
                 Why?
+              </button>
+              <span className="font-mono text-[0.7rem] text-zinc-300 dark:text-zinc-600 mx-0.5">
+                /
+              </span>
+              <button
+                type="button"
+                onClick={handleClose}
+                className={cn("font-mono text-[0.7rem]", CLOSE_BUTTON_CLASSES)}
+              >
+                close
               </button>
             </>
           )}
@@ -240,7 +232,6 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
                 "relative",
                 "font-mono text-[0.72rem] leading-relaxed",
                 "text-zinc-500 dark:text-zinc-400",
-                // Subtle left border like a blockquote
                 "pl-3 border-l-2 border-zinc-200 dark:border-zinc-700",
               )}
             >
@@ -259,21 +250,26 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
                 ))}
               </div>
 
-              {/* "Tell me more..." trigger or expanded more content */}
+              {/* Action row: "tell me more..." / "close" */}
               {phase === "why-expanded" && (
-                <button
-                  type="button"
-                  onClick={handleMoreClick}
-                  className={cn(
-                    "mt-3 block",
-                    "text-zinc-400 dark:text-zinc-500",
-                    "hover:text-amber-500 dark:hover:text-amber-400",
-                    "transition-colors cursor-pointer",
-                    "focus:outline-none focus-visible:text-amber-500",
-                  )}
-                >
-                  tell me more...
-                </button>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleMoreClick}
+                    className={cn(
+                      "text-zinc-400 dark:text-zinc-500",
+                      "hover:text-amber-500 dark:hover:text-amber-400",
+                      "transition-colors cursor-pointer",
+                      "focus:outline-none focus-visible:text-amber-500",
+                    )}
+                  >
+                    tell me more...
+                  </button>
+                  <span className="text-zinc-300 dark:text-zinc-600">/</span>
+                  <button type="button" onClick={handleClose} className={CLOSE_BUTTON_CLASSES}>
+                    close
+                  </button>
+                </div>
               )}
 
               {/* More content (expanded) */}
@@ -296,6 +292,17 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Close option at fully-expanded state */}
+              {phase === "more-expanded" && (
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className={cn("mt-3 block", CLOSE_BUTTON_CLASSES)}
+                >
+                  close
+                </button>
+              )}
 
               {/* Closing comment */}
               <p className="mt-3 text-zinc-300 dark:text-zinc-600">{"*/"}</p>
