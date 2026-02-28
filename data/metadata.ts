@@ -203,7 +203,7 @@ export const PAGE_METADATA = {
     description:
       "A curated collection of noteworthy tools, articles, and resources from across the web — searchable, organized, and enriched with AI analysis.",
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: new Date().toISOString(),
+    dateModified: "2025-11-04T12:42:00",
   } as CollectionPageMetadata,
   blog: {
     title: `Blog - ${SITE_NAME}`,
