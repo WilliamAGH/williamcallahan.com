@@ -1,24 +1,3 @@
-/**
- * Bookmark Card Client Component
- * @module components/features/bookmarks/bookmark-card.client
- * @description
- * Client component that handles the display of individual bookmark entries.
- * Integrates with the site's logo fetching system and supports dark mode.
- *
- * @example
- * ```tsx
- * <BookmarkCardClient
- *   id="1"
- *   url="https://example.com"
- *   title="Example Title"
- *   description="Example description"
- *   tags={["tag1", "tag2"]}
- *   dateBookmarked="2024-03-20T08:00:00Z"
- *   isDarkTheme={true}
- * />
- * ```
- */
-
 "use client";
 
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
@@ -39,20 +18,6 @@ import type { BookmarkCardClientProps } from "@/types/features/bookmarks";
 // Display configuration
 const MAX_TITLE_WORDS = 10;
 
-/**
- * Bookmark Card Client Component
- * @param {BookmarkCardClientProps} props - Component properties
- * @returns {JSX.Element} Rendered bookmark card
- *
- * @remarks
- * This component is responsible for:
- * - Displaying bookmark information (title, description, dates)
- * - Showing website logos using the site's logo fetching system
- * - Rendering tags with consistent styling
- * - Supporting dark mode
- * - Handling external links
- */
-
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
   const {
     id,
@@ -70,43 +35,30 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     note,
     category,
     variant = "default",
+    showCategoryBadge = true,
   } = props;
   const pathname = usePathname();
   const isHero = variant === "hero";
+  const isCompact = variant === "compact";
 
-  /**
-   * Determine the correct link target for the image & title
-   *
-   * Rationale:
-   * - On list/grid views we want to link to the internal bookmark detail page (`internalHref`)
-   * - When the same component is rendered **inside** that detail page the internal link would be
-   *   self-referential; in that context we instead fall back to the external `url` so users can still
-   *   navigate to the original source
-   */
+  // Avoid self-referential links when the card is rendered on its own detail route.
   const effectiveInternalHref =
     internalHref && pathname !== internalHref ? internalHref : undefined;
 
   // Use stable date formatting to avoid hydration issues
   const formattedBookmarkDate = dateBookmarked ? utilFormatDate(dateBookmarked) : "";
+  const parts = formattedBookmarkDate.split(" ");
+  const compactBookmarkDate =
+    parts.length >= 3
+      ? `${parts[0]?.slice(0, 3)} ${parts[1]?.replace(",", "")}, ${parts[2]}`
+      : formattedBookmarkDate;
+  const hoverDateLabel = formattedBookmarkDate ? `Bookmark saved on ${formattedBookmarkDate}` : "";
 
-  // Use centralized image selection logic that properly handles all fallback cases
-  // This ensures consistency across server and client components
+  // Centralized image selection keeps fallback behavior consistent.
   const displayImageUrl = selectBestImage(
     { ogImage, content, id, url },
     { includeScreenshots: true },
   );
-
-  // DEV-ONLY: Log the image selection result for debugging
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[BookmarkCardClient:${id}] Image selection:`, {
-      ogImage,
-      contentExists: !!content,
-      imageUrl: content?.imageUrl,
-      imageAssetId: content?.imageAssetId,
-      screenshotAssetId: content?.screenshotAssetId,
-      selectedImage: displayImageUrl,
-    });
-  }
 
   // normalizeDomain already strips www prefix via stripWwwPrefix()
   const domainWithoutWWW = normalizeDomain(url);
@@ -121,10 +73,103 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       ? `${titleWords.slice(0, MAX_TITLE_WORDS).join(" ")}...`
       : title;
 
-  // Don't use a placeholder for SSR - render full card without interactive elements
-  // Server will render as much as possible for SEO, client will hydrate
-
   if (!id || !url) return null;
+
+  if (isCompact) {
+    const COMPACT_TAG_LIMIT = 3;
+    return (
+      <div className="relative flex h-[23rem] flex-col overflow-hidden rounded-2xl bg-white/50 shadow-xl ring-0 backdrop-blur-lg transition-all duration-200 hover:scale-[1.005] hover:shadow-2xl dark:bg-gray-800/50">
+        <div className="relative w-full aspect-video overflow-hidden rounded-t-2xl bg-gray-100 dark:bg-gray-800">
+          {effectiveInternalHref ? (
+            <Link
+              href={effectiveInternalHref}
+              title={title}
+              className="absolute inset-0 block"
+              prefetch={false}
+            >
+              <div className="relative w-full h-full">
+                <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
+              </div>
+            </Link>
+          ) : (
+            <ExternalLink
+              href={url}
+              title={title}
+              showIcon={false}
+              className="absolute inset-0 block"
+            >
+              <div className="relative w-full h-full">
+                <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
+              </div>
+            </ExternalLink>
+          )}
+          <ExternalLink
+            href={url}
+            title={`Visit ${domainWithoutWWW}`}
+            showIcon={false}
+            className="absolute bottom-2 left-2 bg-white/80 dark:bg-gray-800/80 px-2 py-0.5 flex items-center space-x-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
+          >
+            <LucideExternalLinkIcon className="w-3 h-3 text-gray-700 dark:text-gray-200" />
+            <span className="text-xs text-gray-700 dark:text-gray-200">{domainWithoutWWW}</span>
+          </ExternalLink>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col p-3">
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {effectiveInternalHref ? (
+              <Link
+                href={effectiveInternalHref}
+                title={displayTitle}
+                className="text-gray-900 transition-colors hover:text-blue-600 dark:text-white"
+                prefetch={false}
+              >
+                <h3 className="line-clamp-3 text-sm font-semibold leading-5">{displayTitle}</h3>
+              </Link>
+            ) : (
+              <ExternalLink
+                href={url}
+                title={displayTitle}
+                showIcon={false}
+                className="text-gray-900 transition-colors hover:text-blue-600 dark:text-white"
+              >
+                <h3 className="line-clamp-3 text-sm font-semibold leading-5">{displayTitle}</h3>
+              </ExternalLink>
+            )}
+            {rawTags.length > 0 && (
+              <div className="mt-2 flex flex-wrap content-start gap-1.5 overflow-hidden">
+                {rawTags.slice(0, COMPACT_TAG_LIMIT).map((raw) => (
+                  <Link
+                    key={raw}
+                    href={`/bookmarks/tags/${tagToSlug(raw)}`}
+                    className="inline-block"
+                    prefetch={false}
+                  >
+                    <Badge
+                      variant="outline"
+                      className="max-w-[11rem] truncate text-[10px] hover:bg-accent"
+                    >
+                      {formatTagDisplay(raw)}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            {formattedBookmarkDate && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-[11px]"
+                title={hoverDateLabel}
+                aria-label={hoverDateLabel}
+              >
+                <Calendar className="w-3 h-3" />
+                {compactBookmarkDate}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -176,7 +221,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       </div>
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
-        {category && (
+        {showCategoryBadge && category && (
           <div className="mb-1">
             <Badge variant="secondary" className="uppercase tracking-wide">
               {category}
@@ -232,7 +277,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              <span>Saved {formattedBookmarkDate}</span>
+              <span title={hoverDateLabel}>Saved {formattedBookmarkDate}</span>
               {readingTime && (
                 <span className="inline-flex items-center gap-1">
                   <Clock className="w-4 h-4" />

@@ -24,6 +24,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
   baseUrl,
   initialTag,
   tag,
+  initialCategory,
   description,
   feedMode,
   internalHrefs,
@@ -56,6 +57,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
         baseUrl={baseUrl}
         initialTag={initialTag}
         tag={tag}
+        initialCategory={initialCategory}
         description={description}
         feedMode={feedMode}
         internalHrefs={internalHrefs}

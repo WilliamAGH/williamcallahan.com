@@ -15,7 +15,6 @@ import { BookmarksWindow } from "./bookmarks-window.client";
 import { BookmarksPaginatedClient as BookmarksClient } from "./bookmarks-paginated.client";
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 import type { UnifiedBookmark } from "@/types/bookmark";
-import { useSearchParams } from "next/navigation";
 
 // Loading state when bookmarks are fetching
 function BookmarksLoading() {
@@ -75,19 +74,28 @@ export function BookmarksClientWithWindow({
   usePagination = true,
   initialTag,
   tag,
+  initialCategory,
   feedMode,
   internalHrefs,
 }: BookmarksClientWithWindowProps) {
-  const searchParams = useSearchParams();
-  const resolvedFeedMode =
-    feedMode ?? (searchParams.get("feed") === "latest" ? "latest" : "discover");
+  const hasCategoryFilter = Boolean(initialCategory?.trim());
+  const hasExplicitTagFilter = Boolean(initialTag || tag);
+  const resolvedFeedMode: "discover" | "latest" =
+    titleSlug || hasCategoryFilter || hasExplicitTagFilter ? "latest" : (feedMode ?? "discover");
+  const normalizedBaseUrl = baseUrl ?? "/bookmarks";
+  const shouldEnableInfiniteScroll =
+    resolvedFeedMode === "discover" &&
+    !hasExplicitTagFilter &&
+    !hasCategoryFilter &&
+    !titleSlug &&
+    normalizedBaseUrl === "/bookmarks";
   const unifiedBookmarks: UnifiedBookmark[] = convertSerializableBookmarksToUnified(bookmarks);
 
   // Title is currently unused in this component, acknowledge to satisfy linter rules (no underscore prefixes allowed)
   void title;
 
   return (
-    <BookmarksWindow titleSlug={titleSlug}>
+    <BookmarksWindow titleSlug={titleSlug} feedMode={resolvedFeedMode} showFeedToggle={!titleSlug}>
       <div className="w-full mx-auto py-8">
         <Suspense fallback={<BookmarksLoading />}>
           <BookmarksClient
@@ -96,7 +104,7 @@ export function BookmarksClientWithWindow({
             searchAllBookmarks={searchAllBookmarks}
             showFilterBar={showFilterBar}
             usePagination={usePagination}
-            enableInfiniteScroll={resolvedFeedMode === "discover"}
+            enableInfiniteScroll={shouldEnableInfiniteScroll}
             itemsPerPage={24}
             initialPage={initialPage}
             totalPages={totalPages}
@@ -104,6 +112,7 @@ export function BookmarksClientWithWindow({
             baseUrl={baseUrl}
             initialTag={initialTag}
             tag={tag}
+            initialCategory={initialCategory}
             description={description}
             feedMode={resolvedFeedMode}
             internalHrefs={internalHrefs}

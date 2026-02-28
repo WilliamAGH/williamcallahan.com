@@ -11,12 +11,15 @@
 
 import type { Metadata } from "next";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
+import { DiscoverFeed } from "@/components/features/bookmarks/discover-feed.client";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
+import { getDiscoveryGroupedBookmarks } from "@/lib/db/queries/discovery-grouped";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import type { DiscoverFeedData } from "@/types/features/discovery";
 
 /**
  * Generate metadata for the Bookmarks page
@@ -34,9 +37,14 @@ export function generateMetadata(): Metadata {
 export default async function BookmarksPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
-  // Ensure request data is read before any downstream code that may synchronously
-  // access current time (Next.js `next-prerender-current-time` constraint).
-  await searchParams;
+  const params = await searchParams;
+  const categoryParam = Array.isArray(params.category) ? params.category[0] : params.category;
+  const tagParam = Array.isArray(params.tag) ? params.tag[0] : params.tag;
+  const feedMode = params.feed === "latest" ? "latest" : "discover";
+  const hasTagFilter = Boolean(tagParam && tagParam.trim().length > 0);
+  const hasCategoryFilter = Boolean(categoryParam && categoryParam.trim().length > 0);
+  const initialTag = hasTagFilter ? tagParam?.trim() : undefined;
+  const initialCategory = hasCategoryFilter ? categoryParam?.trim() : undefined;
 
   const pageMetadata = PAGE_METADATA.bookmarks;
 
@@ -64,6 +72,40 @@ export default async function BookmarksPage({
 
   const jsonLdData = generateSchemaGraph(schemaParams);
 
+  if (feedMode === "discover" && !hasTagFilter && !hasCategoryFilter) {
+    let discoverData: DiscoverFeedData;
+    try {
+      discoverData = await getDiscoveryGroupedBookmarks({ sectionPage: 1, sectionsPerPage: 4 });
+    } catch (error) {
+      console.error(
+        "[BookmarksPage] Discover feed failed. Rendering explicit degraded mode.",
+        error,
+      );
+      discoverData = {
+        recentlyAdded: [],
+        topicSections: [],
+        internalHrefs: {},
+        pagination: {
+          sectionPage: 1,
+          sectionsPerPage: 4,
+          totalSections: 0,
+          hasNextSectionPage: false,
+          nextSectionPage: null,
+        },
+        degradation: {
+          isDegraded: true,
+          reasons: ["Discover feed is temporarily unavailable. Please retry or use latest feed."],
+        },
+      };
+    }
+    return (
+      <>
+        <JsonLdScript data={jsonLdData} />
+        <DiscoverFeed data={discoverData} />
+      </>
+    );
+  }
+
   return (
     <>
       <JsonLdScript data={jsonLdData} />
@@ -73,6 +115,12 @@ export default async function BookmarksPage({
           description={pageMetadata.description}
           initialPage={1}
           includeImageData={true}
+          initialTag={initialTag}
+          tag={initialTag}
+          initialCategory={initialCategory}
+          feedMode={
+            feedMode === "latest" || hasTagFilter || hasCategoryFilter ? "latest" : undefined
+          }
         />
       </div>
     </>

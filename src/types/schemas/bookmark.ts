@@ -248,43 +248,96 @@ export const bookmarksIndexSchema = z.object({
 });
 
 export type BookmarksIndex = z.infer<typeof bookmarksIndexSchema>;
-
 export const bookmarksSearchResponseSchema = z.object({
   data: z.array(unifiedBookmarkSchema),
 });
-
 export type BookmarksSearchResponse = z.infer<typeof bookmarksSearchResponseSchema>;
-
 export const bookmarksRefreshResponseSchema = z.object({
   data: z.array(unifiedBookmarkSchema),
   internalHrefs: z.record(z.string(), z.string()).optional(),
   meta: z.unknown().optional(),
 });
-
 export type BookmarksRefreshResponse = z.infer<typeof bookmarksRefreshResponseSchema>;
-
 export const bookmarkRefreshResponseSchema = z.object({
   status: z.enum(["success", "error"]).optional(),
   message: z.string().optional(),
   data: z.record(z.string(), z.unknown()).optional(),
   error: z.string().optional(),
 });
-
 export type BookmarkRefreshResponse = z.infer<typeof bookmarkRefreshResponseSchema>;
 
+const discoverSerializableBookmarkSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string().min(1),
+    title: z.string().min(1),
+    url: z.url(),
+    description: z.string(),
+    dateBookmarked: z.string(),
+    tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
+    isPrivate: z.boolean(),
+    isFavorite: z.boolean(),
+    ogImage: z.string().optional(),
+    ogImageExternal: z.string().optional(),
+    dateCreated: z.string().optional(),
+    content: bookmarkContentSchema.optional(),
+    logoData: z
+      .object({
+        url: z.url(),
+        alt: z.string(),
+        width: z.number().int().positive().optional(),
+        height: z.number().int().positive().optional(),
+      })
+      .nullable()
+      .optional(),
+    readingTime: z.number().int().min(0).optional(),
+    wordCount: z.number().int().min(0).optional(),
+    ogTitle: z.string().nullable().optional(),
+    ogDescription: z.string().nullable().optional(),
+    domain: z.string().optional(),
+    category: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const discoverPaginationSchema = z.object({
+  sectionPage: z.number().int().min(1),
+  sectionsPerPage: z.number().int().min(1),
+  totalSections: z.number().int().min(0),
+  hasNextSectionPage: z.boolean(),
+  nextSectionPage: z.number().int().min(1).nullable(),
+});
+
+const discoverDegradationSchema = z.object({
+  isDegraded: z.boolean(),
+  reasons: z.array(z.string()),
+});
+export const discoverGroupedApiResponseSchema = z.object({
+  data: z.object({
+    recentlyAdded: z.array(discoverSerializableBookmarkSchema),
+    topicSections: z.array(
+      z.object({
+        category: z.string().min(1),
+        topScore: z.number(),
+        totalCount: z.number().int().min(0),
+        bookmarks: z.array(discoverSerializableBookmarkSchema),
+      }),
+    ),
+    internalHrefs: z.record(z.string(), z.string()),
+    pagination: discoverPaginationSchema,
+    degradation: discoverDegradationSchema,
+  }),
+});
+export type DiscoverGroupedApiResponse = z.infer<typeof discoverGroupedApiResponseSchema>;
 // ─────────────────────────────────────────────────────────────────────────────
 // Slug Mapping Schemas
 // ─────────────────────────────────────────────────────────────────────────────
-
 export const bookmarkSlugEntrySchema = z.object({
   id: z.string(),
   slug: z.string().min(1),
   url: z.url(),
   title: z.string(),
 });
-
 export type BookmarkSlugEntry = z.infer<typeof bookmarkSlugEntrySchema>;
-
 export const bookmarkSlugMappingSchema = z.object({
   version: z.string(),
   generated: z.iso.datetime(),
@@ -293,5 +346,4 @@ export const bookmarkSlugMappingSchema = z.object({
   slugs: z.record(z.string(), bookmarkSlugEntrySchema),
   reverseMap: z.record(z.string(), z.string()),
 });
-
 export type BookmarkSlugMapping = z.infer<typeof bookmarkSlugMappingSchema>;

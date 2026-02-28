@@ -12,7 +12,7 @@
  * - Content-type validation for images only
  *
  * Caching strategy:
- * - Check S3 for existing asset (with descriptive filename if context provided)
+ * - Check S3 for existing asset using canonical `assetId` key resolution
  * - Fetch from Karakeep if not in S3
  * - Save to S3 in background for future requests
  *
@@ -33,7 +33,6 @@ import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/conte
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
-import { stripWwwPrefix } from "@/lib/utils/url-utils";
 import { createMonitoredStream, streamToBufferWithLimits } from "@/lib/utils/stream-utils";
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
@@ -75,63 +74,21 @@ function getAssetBaseUrl(apiUrl: string): string {
  * Check if an asset exists in S3 and return its key if found.
  *
  * Lookup strategy:
- * 1. If context provided: Try descriptive filename (domain-hash.ext)
- * 2. Fallback: Try UUID-based filename (assetId.ext)
+ * 1. Resolve canonical key by `assetId` + known image extension.
+ * 2. Return first matching object.
  *
  * @param assetId - Karakeep asset ID
- * @param context - Optional bookmark context for descriptive filenames
- * @param context.bookmarkId - Bookmark ID for hash generation
- * @param context.url - Bookmark URL for domain extraction
  * @returns S3 key and content type if found, null otherwise
  */
 async function findAssetInS3(
   assetId: string,
-  context?: {
-    bookmarkId?: string;
-    url?: string;
-    domain?: string;
-  },
 ): Promise<{ key: string; contentType: string } | null> {
   const { bucket, s3Client } = getS3Context();
 
   // Build list once from central IMAGE_EXTENSIONS
   const extensions = IMAGE_EXTENSIONS.map((e) => `.${e}`);
 
-  // First, try to find with descriptive filename if context is available
-  if (context?.bookmarkId && context?.url) {
-    // Generate the expected descriptive key pattern
-    // We need to compute the actual hash, not use "dummy"
-    const { hashImageContent } = await import("@/lib/utils/opengraph-utils");
-    const hash = hashImageContent(Buffer.from(`${context.url}:${context.bookmarkId}`)).substring(
-      0,
-      8,
-    );
-    const domain = stripWwwPrefix(new URL(context.url).hostname).replaceAll(".", "-");
-
-    for (const ext of extensions) {
-      const descriptiveKey = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${domain}-${hash}${ext}`;
-
-      try {
-        const command = new HeadObjectCommand({
-          Bucket: bucket,
-          Key: descriptiveKey,
-        });
-
-        const response = await s3Client.send(command);
-        console.log(`[Assets API] Found asset in S3 with descriptive name: ${descriptiveKey}`);
-
-        return {
-          key: descriptiveKey,
-          contentType: response.ContentType || `image/${ext.substring(1)}`,
-        };
-      } catch {
-        // S3 object not found at descriptive path - expected during key resolution
-        console.debug(`[Assets API] S3 object not found: ${descriptiveKey}`);
-      }
-    }
-  }
-
-  // Fallback to UUID-based naming
+  // Resolve canonical key by assetId
   for (const ext of extensions) {
     const key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}${ext}`;
     try {
@@ -250,11 +207,10 @@ function createSingleChunkStream(chunk: Uint8Array): ReadableStream<Uint8Array> 
 }
 
 /**
- * Save an asset to S3 with a descriptive filename when context is available.
+ * Save an asset to S3 using canonical asset ID naming.
  *
  * Features:
- * - Generates descriptive filenames (domain-hash.ext) when context available
- * - Falls back to UUID-based names (assetId.ext) without context
+ * - Uses canonical UUID-based names (assetId.ext)
  * - Uses centralized persistence for consistent ACL settings
  * - Performs content-based deduplication via S3 HEAD check
  * - Uses in-memory lock to prevent concurrent writes (see saveAssetToS3Atomic for S3-level alternative)
@@ -262,39 +218,17 @@ function createSingleChunkStream(chunk: Uint8Array): ReadableStream<Uint8Array> 
  * @param assetId - Karakeep asset ID
  * @param buffer - Image data to save
  * @param contentType - MIME type of the image
- * @param context - Optional bookmark context for descriptive filenames
  * @returns S3 key where asset was saved
  */
 async function saveAssetToS3(
   assetId: string,
   buffer: Buffer,
   contentType: string,
-  context?: {
-    bookmarkId?: string;
-    url?: string;
-    domain?: string;
-  },
 ): Promise<string> {
   const { bucket, s3Client } = getS3Context();
 
   const extension = getExtensionFromContentType(contentType);
-  let key: string;
-
-  // Generate descriptive filename if context is available
-  if (context?.bookmarkId && context?.url) {
-    const { getOgImageS3Key, hashImageContent } = await import("@/lib/utils/opengraph-utils");
-    // Include extension in the synthetic URL so getOgImageS3Key extracts the correct extension
-    key = getOgImageS3Key(
-      `karakeep-asset-${assetId}.${extension}`,
-      IMAGE_S3_PATHS.OPENGRAPH_DIR,
-      context.url,
-      context.bookmarkId,
-      hashImageContent(buffer),
-    );
-  } else {
-    // Fallback to simple assetId-based naming
-    key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}.${extension}`;
-  }
+  const key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}.${extension}`;
 
   // Check if file already exists to avoid duplicate writes (content deduplication)
   try {
@@ -346,9 +280,7 @@ async function saveAssetToS3(
  * GET /api/assets/[assetId] - Proxy endpoint for Karakeep/Hoarder assets.
  *
  * Query parameters:
- * - bid: Bookmark ID for generating descriptive filenames
- * - url: Bookmark URL for domain extraction (validated for security)
- * - domain: Pre-extracted domain (optional optimization)
+ * - Additional query parameters are ignored (for backward compatibility with older links)
  *
  * Response:
  * - 200: Image data with appropriate content-type
@@ -362,35 +294,10 @@ async function saveAssetToS3(
  * @returns Image response or error
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ assetId: string }> },
 ) {
   const { assetId } = await params;
-
-  // Extract context from query parameters for descriptive S3 filenames
-  const requestUrl = new URL(request.url);
-  const searchParams = requestUrl.searchParams;
-
-  // Validate URL parameter to prevent security issues
-  let validatedUrl: string | undefined;
-  const urlParam = searchParams.get("url");
-  if (urlParam) {
-    try {
-      const parsed = new URL(urlParam);
-      // Only allow http/https URLs
-      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-        validatedUrl = parsed.toString();
-      }
-    } catch {
-      // Invalid URL, ignore it
-    }
-  }
-
-  const context = {
-    bookmarkId: searchParams.get("bid") || undefined,
-    url: validatedUrl,
-    domain: searchParams.get("domain") || undefined,
-  };
 
   console.log(`[Assets API] Request for assetId: ${assetId}`);
 
@@ -410,7 +317,7 @@ export async function GET(
 
   try {
     // STEP 1: Check if asset exists in S3
-    const s3Asset = await findAssetInS3(assetId, context);
+    const s3Asset = await findAssetInS3(assetId);
     if (s3Asset) {
       console.log(`[Assets API] Serving from S3 storage: ${s3Asset.key}`);
       return streamFromS3(s3Asset.key, s3Asset.contentType);
@@ -560,7 +467,7 @@ export async function GET(
 
       if (shouldPersist && persistStream) {
         void streamToBufferWithLimits(persistStream, assetId)
-          .then((buffer) => saveAssetToS3(assetId, buffer, contentType, context))
+          .then((buffer) => saveAssetToS3(assetId, buffer, contentType))
           .catch((error) => {
             console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
           });

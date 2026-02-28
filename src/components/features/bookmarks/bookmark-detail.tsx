@@ -86,7 +86,13 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
   }, [bookmark.id, trackDwell]);
 
   return (
-    <BookmarksWindow windowTitle="~/bookmarks" windowId={`bookmark-detail-${bookmark.id}`}>
+    <BookmarksWindow
+      windowTitle="~/bookmarks"
+      windowId={`bookmark-detail-${bookmark.id}`}
+      // Guard against stale runtime variants that still key feed toggle visibility off !titleSlug.
+      titleSlug={bookmark.slug || bookmark.id}
+      showFeedToggle={false}
+    >
       <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           {/* Library Context */}
