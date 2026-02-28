@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import {
@@ -8,6 +8,7 @@ import {
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import {
   bookmarkIndexState,
+  bookmarkTags,
   bookmarkTagIndexState,
   bookmarkTagLinks,
 } from "@/lib/db/schema/bookmark-taxonomy";
@@ -196,8 +197,16 @@ export async function rebuildBookmarkTaxonomyState(
   }
 
   const tagIndexRows: Array<typeof bookmarkTagIndexState.$inferInsert> = [];
+  const tagDefinitionRows: Array<typeof bookmarkTags.$inferInsert> = [];
   for (const [tagSlug, bucket] of tagsBySlug) {
     const count = bucket.bookmarks.length;
+    tagDefinitionRows.push({
+      tagSlug,
+      tagName: bucket.tagName,
+      tagStatus: "primary",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
     tagIndexRows.push({
       tagSlug,
       tagName: bucket.tagName,
@@ -224,6 +233,19 @@ export async function rebuildBookmarkTaxonomyState(
   };
 
   await db.transaction(async (tx) => {
+    if (tagDefinitionRows.length > 0) {
+      await tx
+        .insert(bookmarkTags)
+        .values(tagDefinitionRows)
+        .onConflictDoUpdate({
+          target: bookmarkTags.tagSlug,
+          set: {
+            tagName: sql`excluded.tag_name`,
+            updatedAt: timestamp,
+          },
+        });
+    }
+
     await tx.delete(bookmarkTagLinks);
     if (tagLinkRows.length > 0) {
       await tx.insert(bookmarkTagLinks).values(tagLinkRows);

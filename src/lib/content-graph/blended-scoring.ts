@@ -12,6 +12,7 @@
 
 import type { SimilarityCandidate, ScoredCandidate } from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
+import { getMonotonicTime } from "@/lib/utils";
 
 export type { ScoredCandidate } from "@/types/related-content";
 
@@ -47,6 +48,19 @@ function computeQualityScore(_candidate: SimilarityCandidate): number {
   return 1.0;
 }
 
+function compareScoredCandidates(a: ScoredCandidate, b: ScoredCandidate): number {
+  const scoreDiff = b.score - a.score;
+  if (scoreDiff !== 0) return scoreDiff;
+
+  const domainDiff = a.domain.localeCompare(b.domain);
+  if (domainDiff !== 0) return domainDiff;
+
+  const entityDiff = a.entityId.localeCompare(b.entityId);
+  if (entityDiff !== 0) return entityDiff;
+
+  return a.title.localeCompare(b.title);
+}
+
 /**
  * Apply blended scoring and diversity limits to raw similarity candidates.
  *
@@ -60,7 +74,7 @@ export function applyBlendedScoring(
   options?: { maxPerDomain?: number; maxTotal?: number },
 ): ScoredCandidate[] {
   const { maxPerDomain = 5, maxTotal = 20 } = options ?? {};
-  const now = Date.now();
+  const now = getMonotonicTime();
 
   // Score all candidates
   const scored: ScoredCandidate[] = candidates.map((c) => ({
@@ -71,8 +85,8 @@ export function applyBlendedScoring(
       QUALITY_WEIGHT * computeQualityScore(c),
   }));
 
-  // Sort by blended score descending
-  scored.sort((a, b) => b.score - a.score);
+  // Sort by blended score descending with deterministic tie-breaking.
+  scored.sort(compareScoredCandidates);
 
   // Apply per-domain diversity cap
   const domainCounts = new Map<ContentEmbeddingDomain, number>();

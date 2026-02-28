@@ -14,6 +14,7 @@ loadEnvironmentWithMultilineSupport();
 import logger from "@/lib/utils/logger";
 import { getMonotonicTime } from "@/lib/utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
+import { pathToFileURL } from "node:url";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { KNOWN_DOMAINS, IMAGE_S3_PATHS } from "@/lib/constants";
@@ -672,7 +673,10 @@ export class DataFetchManager {
   }
 }
 
-if (require.main === module) {
+const isDirectExecution =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectExecution) {
   const args = process.argv.slice(2);
   const manager = new DataFetchManager();
 

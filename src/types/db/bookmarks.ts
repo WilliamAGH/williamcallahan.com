@@ -14,6 +14,13 @@ export type BookmarkFtsSearchPageResult = {
   totalCount: number;
 };
 
+export type BookmarkTagResolution = {
+  requestedSlug: string;
+  canonicalSlug: string;
+  canonicalTagName: string | null;
+  isAlias: boolean;
+};
+
 /** Row shape for embedding backfill queries (subset of bookmark columns). */
 export type BookmarkEmbeddingRow = {
   id: string;

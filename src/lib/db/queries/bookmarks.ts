@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import {
   mapBookmarkRowToUnifiedBookmark,
@@ -7,12 +7,18 @@ import {
 import { db } from "@/lib/db/connection";
 import {
   bookmarkIndexState,
+  bookmarkTagAliasLinks,
   bookmarkTagIndexState,
   bookmarkTagLinks,
+  bookmarkTags,
 } from "@/lib/db/schema/bookmark-taxonomy";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import type { BookmarkFtsSearchPageResult, BookmarkRow } from "@/types/db/bookmarks";
+import type {
+  BookmarkFtsSearchPageResult,
+  BookmarkRow,
+  BookmarkTagResolution,
+} from "@/types/db/bookmarks";
 import type { BookmarksIndex, UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const GLOBAL_BOOKMARK_INDEX_STATE_ID = "global";
@@ -55,6 +61,83 @@ const buildFallbackIndex = (count: number, pageSize: number): BookmarksIndex => 
     changeDetected: false,
   };
 };
+
+async function resolveCanonicalTagSlugInternal(tagSlug: string): Promise<BookmarkTagResolution> {
+  const requestedSlug = tagToSlug(tagSlug);
+  if (requestedSlug.length === 0) {
+    return {
+      requestedSlug: "",
+      canonicalSlug: "",
+      canonicalTagName: null,
+      isAlias: false,
+    };
+  }
+
+  const tagRows = await db
+    .select({
+      tagSlug: bookmarkTags.tagSlug,
+      tagName: bookmarkTags.tagName,
+      tagStatus: bookmarkTags.tagStatus,
+    })
+    .from(bookmarkTags)
+    .where(eq(bookmarkTags.tagSlug, requestedSlug))
+    .limit(1);
+  const tagRow = tagRows[0];
+
+  if (!tagRow) {
+    return {
+      requestedSlug,
+      canonicalSlug: requestedSlug,
+      canonicalTagName: null,
+      isAlias: false,
+    };
+  }
+
+  if (tagRow.tagStatus !== "alias") {
+    return {
+      requestedSlug,
+      canonicalSlug: requestedSlug,
+      canonicalTagName: tagRow.tagName,
+      isAlias: false,
+    };
+  }
+
+  const aliasRows = await db
+    .select({
+      canonicalSlug: bookmarkTagAliasLinks.targetTagSlug,
+      canonicalTagName: bookmarkTags.tagName,
+    })
+    .from(bookmarkTagAliasLinks)
+    .innerJoin(bookmarkTags, eq(bookmarkTags.tagSlug, bookmarkTagAliasLinks.targetTagSlug))
+    .where(
+      and(
+        eq(bookmarkTagAliasLinks.sourceTagSlug, requestedSlug),
+        eq(bookmarkTagAliasLinks.linkType, "alias"),
+      ),
+    )
+    .limit(1);
+  const aliasRow = aliasRows[0];
+
+  if (!aliasRow) {
+    return {
+      requestedSlug,
+      canonicalSlug: requestedSlug,
+      canonicalTagName: tagRow.tagName,
+      isAlias: false,
+    };
+  }
+
+  return {
+    requestedSlug,
+    canonicalSlug: aliasRow.canonicalSlug,
+    canonicalTagName: aliasRow.canonicalTagName,
+    isAlias: aliasRow.canonicalSlug !== requestedSlug,
+  };
+}
+
+export async function resolveCanonicalTagSlug(tagSlug: string): Promise<BookmarkTagResolution> {
+  return resolveCanonicalTagSlugInternal(tagSlug);
+}
 
 export async function getAllBookmarkRows(): Promise<BookmarkRow[]> {
   return db.select().from(bookmarks).orderBy(desc(bookmarks.dateBookmarked), desc(bookmarks.id));
@@ -149,8 +232,8 @@ export async function getBookmarksPageByTag(
   assertPositiveInteger(pageNumber, "pageNumber");
   assertPositiveInteger(pageSize, "pageSize");
 
-  const normalizedTagSlug = tagToSlug(tagSlug);
-  if (normalizedTagSlug.length === 0) {
+  const resolution = await resolveCanonicalTagSlugInternal(tagSlug);
+  if (resolution.canonicalSlug.length === 0) {
     return [];
   }
 
@@ -159,7 +242,7 @@ export async function getBookmarksPageByTag(
     .select({ bookmark: bookmarks })
     .from(bookmarkTagLinks)
     .innerJoin(bookmarks, eq(bookmarkTagLinks.bookmarkId, bookmarks.id))
-    .where(eq(bookmarkTagLinks.tagSlug, normalizedTagSlug))
+    .where(eq(bookmarkTagLinks.tagSlug, resolution.canonicalSlug))
     .orderBy(desc(bookmarkTagLinks.dateBookmarked), desc(bookmarkTagLinks.bookmarkId))
     .limit(pageSize)
     .offset(offset);
@@ -201,15 +284,15 @@ export async function getTagBookmarksIndexFromDatabase(
 ): Promise<BookmarksIndex | null> {
   assertPositiveInteger(pageSize, "pageSize");
 
-  const normalizedTagSlug = tagToSlug(tagSlug);
-  if (normalizedTagSlug.length === 0) {
+  const resolution = await resolveCanonicalTagSlugInternal(tagSlug);
+  if (resolution.canonicalSlug.length === 0) {
     return null;
   }
 
   const rows = await db
     .select()
     .from(bookmarkTagIndexState)
-    .where(eq(bookmarkTagIndexState.tagSlug, normalizedTagSlug))
+    .where(eq(bookmarkTagIndexState.tagSlug, resolution.canonicalSlug))
     .limit(1);
   const stateRow = rows[0];
   if (stateRow) {
@@ -219,7 +302,7 @@ export async function getTagBookmarksIndexFromDatabase(
   const countRows = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(bookmarkTagLinks)
-    .where(eq(bookmarkTagLinks.tagSlug, normalizedTagSlug));
+    .where(eq(bookmarkTagLinks.tagSlug, resolution.canonicalSlug));
   const count = countRows[0]?.count ?? 0;
   if (count === 0) {
     return null;
@@ -228,19 +311,12 @@ export async function getTagBookmarksIndexFromDatabase(
 }
 
 export async function listTagSlugsFromDatabase(): Promise<string[]> {
-  const stateRows = await db
-    .select({ tagSlug: bookmarkTagIndexState.tagSlug })
-    .from(bookmarkTagIndexState)
-    .orderBy(asc(bookmarkTagIndexState.tagSlug));
-  if (stateRows.length > 0) {
-    return stateRows.map((row) => row.tagSlug);
-  }
-
-  const linkRows = await db
-    .selectDistinct({ tagSlug: bookmarkTagLinks.tagSlug })
-    .from(bookmarkTagLinks)
-    .orderBy(asc(bookmarkTagLinks.tagSlug));
-  return linkRows.map((row) => row.tagSlug);
+  const tagRows = await db
+    .select({ tagSlug: bookmarkTags.tagSlug })
+    .from(bookmarkTags)
+    .where(eq(bookmarkTags.tagStatus, "primary"))
+    .orderBy(asc(bookmarkTags.tagSlug));
+  return tagRows.map((row) => row.tagSlug);
 }
 
 export async function searchBookmarksFtsPage(

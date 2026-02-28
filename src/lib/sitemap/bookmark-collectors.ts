@@ -3,7 +3,7 @@
  * @module lib/sitemap/bookmark-collectors
  * @description
  * Collects sitemap entries for individual bookmarks (via slug mapping or
- * paginated fallback), paginated bookmark list pages, and bookmark tag pages.
+ * paginated fallback) and bookmark tag pages.
  */
 
 import type { MetadataRoute } from "next";
@@ -31,26 +31,6 @@ import {
   handleSitemapCollectorError,
   isTestEnvironment,
 } from "@/lib/sitemap/date-utils";
-
-export const buildPaginatedBookmarkEntries = (
-  siteUrl: string,
-  totalPages: number,
-  latestBookmarkUpdateTime: Date | undefined,
-): MetadataRoute.Sitemap => {
-  const entries: MetadataRoute.Sitemap = [];
-  for (let page = 2; page <= totalPages; page++) {
-    const entry: MetadataRoute.Sitemap[number] = {
-      url: `${siteUrl}/bookmarks/page/${page}`,
-      changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
-      priority: BOOKMARK_PRIORITY,
-    };
-    if (latestBookmarkUpdateTime) {
-      entry.lastModified = latestBookmarkUpdateTime;
-    }
-    entries.push(entry);
-  }
-  return entries;
-};
 
 const collectBookmarkEntriesFromPages = async (
   siteUrl: string,
@@ -93,7 +73,6 @@ export const collectBookmarkSitemapData = async (
   siteUrl: string,
 ): Promise<{
   entries: MetadataRoute.Sitemap;
-  paginatedEntries: MetadataRoute.Sitemap;
   latestBookmarkUpdateTime?: Date;
 }> => {
   try {
@@ -101,7 +80,6 @@ export const collectBookmarkSitemapData = async (
     if (!index || !index.totalPages || index.totalPages < 1) {
       return {
         entries: [],
-        paginatedEntries: [],
         latestBookmarkUpdateTime: undefined,
       };
     }
@@ -130,15 +108,8 @@ export const collectBookmarkSitemapData = async (
       bookmarkEntries = pageData.entries;
     }
 
-    const paginatedEntries = buildPaginatedBookmarkEntries(
-      siteUrl,
-      totalPages,
-      latestBookmarkUpdateTime,
-    );
-
     return {
       entries: bookmarkEntries,
-      paginatedEntries,
       latestBookmarkUpdateTime,
     };
   } catch (error) {
@@ -147,7 +118,6 @@ export const collectBookmarkSitemapData = async (
       error,
       {
         entries: [],
-        paginatedEntries: [],
         latestBookmarkUpdateTime: undefined,
       },
       "throw-in-production",
