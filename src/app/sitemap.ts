@@ -173,7 +173,6 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     ...bookData.entries,
     ...thoughtData.entries,
     ...bookmarkData.entries,
-    ...bookmarkData.paginatedEntries,
     ...tagData.tagEntries,
     ...tagData.paginatedTagEntries,
   ];
