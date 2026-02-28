@@ -19,12 +19,16 @@ export type ScoredBookmarkRow = {
     "id" | "url" | "title" | "description" | "slug" | "tags" | "dateBookmarked"
   > &
     Partial<UnifiedBookmark>;
-  category: string | null;
+  primaryTag: {
+    slug: string;
+    name: string;
+  } | null;
   discoveryScore: number;
 };
 
 export type TopicSection = {
-  category: string;
+  tagSlug: string;
+  tagName: string;
   topScore: number;
   totalCount: number;
   bookmarks: ScoredBookmarkRow["bookmark"][];
@@ -49,7 +53,8 @@ export type { GroupOptions, RecentOptions };
 export type DiscoverFeedData = {
   recentlyAdded: SerializableBookmark[];
   topicSections: Array<{
-    category: string;
+    tagSlug: string;
+    tagName: string;
     topScore: number;
     totalCount: number;
     bookmarks: SerializableBookmark[];
@@ -78,7 +83,8 @@ export type DiscoverFeedProps = {
 
 export type TopicSectionProps = {
   id: string;
-  category: string;
+  tagSlug: string;
+  tagName: string;
   totalCount: number;
   bookmarks: SerializableBookmark[];
   internalHrefs: Readonly<Record<string, string>>;

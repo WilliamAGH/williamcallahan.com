@@ -2,7 +2,6 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 
 import { mapBookmarkRowToUnifiedBookmark } from "@/lib/db/bookmark-record-mapper";
 import { db } from "@/lib/db/connection";
-import { aiAnalysisLatest } from "@/lib/db/schema/ai-analysis";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
 
@@ -92,7 +91,6 @@ export async function getDiscoveryRankedBookmarks(
 ): Promise<
   Array<{
     bookmark: ReturnType<typeof mapBookmarkRowToUnifiedBookmark>;
-    category: string | null;
     discoveryScore: number;
     hasEngagement: boolean;
   }>
@@ -153,17 +151,8 @@ export async function getDiscoveryRankedBookmarks(
   );
 
   const bookmarkRows = await db
-    .select({
-      bookmark: bookmarks,
-      category: sql<
-        string | null
-      >`nullif(trim(${aiAnalysisLatest.payload} -> 'analysis' ->> 'category'), '')`,
-    })
+    .select({ bookmark: bookmarks })
     .from(bookmarks)
-    .leftJoin(
-      aiAnalysisLatest,
-      and(eq(aiAnalysisLatest.domain, "bookmarks"), eq(aiAnalysisLatest.entityId, bookmarks.id)),
-    )
     .orderBy(desc(bookmarks.dateBookmarked));
 
   const engagementCoverage =
@@ -180,7 +169,6 @@ export async function getDiscoveryRankedBookmarks(
       });
       return {
         bookmark: mapBookmarkRowToUnifiedBookmark(row.bookmark),
-        category: row.category,
         discoveryScore: score,
         hasEngagement: engagementSignal !== null,
       };

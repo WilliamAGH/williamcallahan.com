@@ -9,22 +9,15 @@ import type { DiscoverFeedData, DiscoverFeedProps } from "@/types/features/disco
 
 const OBSERVER_ROOT_MARGIN = "280px 0px";
 
-function slugify(category: string): string {
-  return category
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 function mergeTopicSections(
   currentSections: ReadonlyArray<DiscoverFeedData["topicSections"][number]>,
   incomingSections: ReadonlyArray<DiscoverFeedData["topicSections"][number]>,
 ): DiscoverFeedData["topicSections"][number][] {
-  const sectionByCategory = new Map(currentSections.map((section) => [section.category, section]));
+  const sectionByTagSlug = new Map(currentSections.map((section) => [section.tagSlug, section]));
   for (const section of incomingSections) {
-    sectionByCategory.set(section.category, section);
+    sectionByTagSlug.set(section.tagSlug, section);
   }
-  return Array.from(sectionByCategory.values());
+  return Array.from(sectionByTagSlug.values());
 }
 
 function parseGroupedDiscoverPayload(payload: unknown): DiscoverFeedData {
@@ -71,11 +64,11 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
-  const categories = useMemo(
+  const topicNavigation = useMemo(
     () =>
       topicSections.map((s) => ({
-        name: s.category,
-        id: slugify(s.category),
+        name: s.tagName,
+        id: s.tagSlug,
       })),
     [topicSections],
   );
@@ -260,7 +253,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
           <TerminalContext type="bookmark" />
         </div>
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-          {categories.map((cat) => (
+          {topicNavigation.map((cat) => (
             <Button
               key={cat.id}
               type="button"
@@ -301,7 +294,8 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
         <div className="mb-12">
           <TopicSection
             id="recently-added"
-            category="Recently Added"
+            tagSlug="recently-added"
+            tagName="Recently Added"
             totalCount={data.recentlyAdded.length}
             bookmarks={data.recentlyAdded}
             internalHrefs={data.internalHrefs}
@@ -314,9 +308,10 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
       <div className="space-y-12">
         {topicSections.map((section) => (
           <TopicSection
-            key={section.category}
-            id={slugify(section.category)}
-            category={section.category}
+            key={section.tagSlug}
+            id={section.tagSlug}
+            tagSlug={section.tagSlug}
+            tagName={section.tagName}
             totalCount={section.totalCount}
             bookmarks={section.bookmarks}
             internalHrefs={internalHrefs}

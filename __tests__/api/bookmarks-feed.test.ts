@@ -8,14 +8,6 @@ vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/slug-manager");
 vi.mock("@/lib/db/queries/discovery-scores");
 
-// The route's attachBookmarkCategories queries the DB directly for bookmark category data.
-// Mock the DB connection so the "latest" path returns bookmarks with category: null.
-vi.mock("@/lib/db/connection", () => ({
-  db: {
-    execute: vi.fn(() => Promise.resolve([])),
-  },
-}));
-
 const mockGetBookmarksPage = vi.mocked(getBookmarksPage);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
 const mockGetDiscoveryRankedBookmarks = vi.mocked(getDiscoveryRankedBookmarks);
@@ -96,12 +88,12 @@ describe("Bookmark feed modes", () => {
     expect(mockGetDiscoveryRankedBookmarks).not.toHaveBeenCalled();
   });
 
-  it("returns scored data when feed=discover with category diversity", async () => {
+  it("returns scored data when feed=discover in ranking order", async () => {
     const ranked = [
-      { bookmark: createBookmark("a1", "2026-02-27T10:00:00.000Z"), category: "AI" },
-      { bookmark: createBookmark("a2", "2026-02-26T10:00:00.000Z"), category: "AI" },
-      { bookmark: createBookmark("a3", "2026-02-25T10:00:00.000Z"), category: "AI" },
-      { bookmark: createBookmark("b1", "2026-02-24T10:00:00.000Z"), category: "Design" },
+      { bookmark: createBookmark("a1", "2026-02-27T10:00:00.000Z") },
+      { bookmark: createBookmark("a2", "2026-02-26T10:00:00.000Z") },
+      { bookmark: createBookmark("a3", "2026-02-25T10:00:00.000Z") },
+      { bookmark: createBookmark("b1", "2026-02-24T10:00:00.000Z") },
     ].map((row, index) => ({
       ...row,
       discoveryScore: 100 - index,
@@ -123,8 +115,8 @@ describe("Bookmark feed modes", () => {
     expect(payload.data.map((bookmark: UnifiedBookmark) => bookmark.id)).toEqual([
       "a1",
       "a2",
-      "b1",
       "a3",
+      "b1",
     ]);
     expect(mockGetDiscoveryRankedBookmarks).toHaveBeenCalledWith(1, 4);
   });

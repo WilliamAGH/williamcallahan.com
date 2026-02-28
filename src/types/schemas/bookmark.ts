@@ -150,7 +150,6 @@ export const unifiedBookmarkSchema = z.object({
   ogDescription: z.string().nullable().optional(),
   ogUrl: z.string().nullable().optional(),
   domain: z.string().optional(),
-  category: z.string().nullable().optional(),
   sourceUpdatedAt: z.string(),
   ogImageLastFetchedAt: z.string().optional(),
   ogImageEtag: z.string().optional(),
@@ -295,7 +294,6 @@ const discoverSerializableBookmarkSchema = z
     ogTitle: z.string().nullable().optional(),
     ogDescription: z.string().nullable().optional(),
     domain: z.string().optional(),
-    category: z.string().nullable().optional(),
   })
   .passthrough();
 
@@ -316,7 +314,8 @@ export const discoverGroupedApiResponseSchema = z.object({
     recentlyAdded: z.array(discoverSerializableBookmarkSchema),
     topicSections: z.array(
       z.object({
-        category: z.string().min(1),
+        tagSlug: z.string().min(1),
+        tagName: z.string().min(1),
         topScore: z.number(),
         totalCount: z.number().int().min(0),
         bookmarks: z.array(discoverSerializableBookmarkSchema),

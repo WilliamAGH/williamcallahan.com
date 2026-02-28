@@ -6,7 +6,7 @@ import {
   resolveBookmarkTagSlug,
 } from "@/lib/bookmarks/service.server";
 import { findRelatedBookmarkIdsForSeeds } from "@/lib/db/queries/embedding-similarity";
-import { tagToSlug, canonicalizeCategoryLabel } from "@/lib/utils/tag-utils";
+import { tagToSlug } from "@/lib/utils/tag-utils";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
@@ -41,33 +41,6 @@ function buildInternalHrefs(
   return res;
 }
 
-function applyCategoryDiversity<T extends { category: string | null }>(items: T[]): T[] {
-  const diversified = [...items];
-  for (let index = 2; index < diversified.length; index += 1) {
-    const current = diversified[index];
-    const previous = diversified[index - 1];
-    const beforePrevious = diversified[index - 2];
-    if (
-      !current?.category ||
-      current.category !== previous?.category ||
-      current.category !== beforePrevious?.category
-    ) {
-      continue;
-    }
-
-    const swapIndex = diversified.findIndex(
-      (candidate, candidateIndex) =>
-        candidateIndex > index && candidate.category !== current.category,
-    );
-    if (swapIndex === -1) continue;
-    const swapCandidate = diversified[swapIndex];
-    if (!swapCandidate) continue;
-    diversified[index] = swapCandidate;
-    diversified[swapIndex] = current;
-  }
-  return diversified;
-}
-
 function extractTagNames(rawTags: unknown): string[] {
   if (!Array.isArray(rawTags)) {
     return [];
@@ -98,47 +71,9 @@ function extractTagNames(rawTags: unknown): string[] {
   return tags;
 }
 
-async function attachBookmarkCategories<T extends { id: string; tags?: unknown }>(
-  items: T[],
-): Promise<Array<T & { category: string | null }>> {
-  return items.map((item) => ({
-    ...item,
-    category: deriveBookmarkCategory(item),
-  }));
-}
-
-function deriveBookmarkCategory(bookmark: { tags?: unknown }): string | null {
-  const tags = extractTagNames(bookmark.tags);
-  const firstTag = tags.find((tag) => tag.trim().length > 0)?.trim();
-  if (!firstTag) {
-    return null;
-  }
-  const normalized = canonicalizeCategoryLabel(firstTag);
-  return normalized.length > 0 ? normalized : firstTag;
-}
-
 function bookmarkHasTagSlug(bookmark: { tags?: unknown }, normalizedTagSlug: string): boolean {
   const tags = extractTagNames(bookmark.tags);
   return tags.some((tag) => tagToSlug(tag).toLowerCase() === normalizedTagSlug);
-}
-
-async function resolveCanonicalCategoryFilter(rawFilter: string): Promise<{
-  slug: string;
-  name: string;
-} | null> {
-  const trimmedFilter = rawFilter.trim();
-  if (trimmedFilter.length === 0) {
-    return null;
-  }
-
-  const resolution = await resolveBookmarkTagSlug(trimmedFilter);
-  const canonicalSlug = resolution.canonicalSlug.trim();
-  if (!canonicalSlug) return null;
-
-  return {
-    slug: canonicalSlug,
-    name: resolution.canonicalTagName?.trim() || trimmedFilter,
-  };
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -152,8 +87,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const limit = Number.isNaN(rawLimit) ? 20 : Math.min(100, Math.max(1, rawLimit));
 
   const tagFilter = searchParams.get("tag") || null;
-  const rawCategoryFilter = searchParams.get("category");
-  const categoryFilter = rawCategoryFilter ? decodeURIComponent(rawCategoryFilter).trim() : null;
   const feedQuery = searchParams.get("feed");
   const feedMode = feedQuery === "latest" ? "latest" : "discover";
   const discoverView = searchParams.get("discoverView");
@@ -168,7 +101,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const indexData = await getBookmarksIndex();
     const discoverDegradationReasons: string[] = [];
 
-    if (feedMode === "discover" && !tagFilter && !categoryFilter) {
+    if (feedMode === "discover" && !tagFilter) {
       if (discoverView === "grouped") {
         const groupedDiscoverData = await getDiscoveryGroupedBookmarks({
           sectionPage,
@@ -202,11 +135,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       if (rankedBookmarks.length > 0) {
-        const diversifiedBookmarks = applyCategoryDiversity(rankedBookmarks);
-        const bookmarkData = diversifiedBookmarks.map((entry) => ({
-          ...entry.bookmark,
-          category: entry.category ? canonicalizeCategoryLabel(entry.category) : null,
-        }));
+        const bookmarkData = rankedBookmarks.map((entry) => entry.bookmark);
         const slugMapping = await loadSlugMapping();
         const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
         const total = indexData?.count ?? bookmarkData.length;
@@ -247,7 +176,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!tagFilter && !categoryFilter && page > 0 && limit <= BOOKMARKS_PER_PAGE) {
+    if (!tagFilter && page > 0 && limit <= BOOKMARKS_PER_PAGE) {
       if (indexData) {
         const { totalPages, count: total, lastFetchedAt = getMonotonicTime() } = indexData;
 
@@ -259,7 +188,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
           return NextResponse.json(
             {
-              data: await attachBookmarkCategories(paginatedBookmarks),
+              data: paginatedBookmarks,
               internalHrefs,
               meta: {
                 pagination: {
@@ -289,8 +218,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
     const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 
-    let filteredBookmarks: Array<(typeof allBookmarks)[number] & { category?: string | null }> =
-      allBookmarks;
+    let filteredBookmarks: typeof allBookmarks = allBookmarks;
 
     const normalizedTagFilter = tagFilter ? decodeURIComponent(tagFilter).trim() : null;
     const resolvedTagFilter = normalizedTagFilter
@@ -303,20 +231,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const normalizedCategoryFilter = categoryFilter
-      ? await resolveCanonicalCategoryFilter(categoryFilter)
-      : null;
-    if (normalizedCategoryFilter?.slug) {
-      filteredBookmarks = filteredBookmarks.filter((bookmark) =>
-        bookmarkHasTagSlug(bookmark, normalizedCategoryFilter.slug),
-      );
-    }
-
     const offset = (page - 1) * limit;
     const exactPageBookmarks = filteredBookmarks.slice(offset, offset + limit);
     let relatedBookmarks: typeof allBookmarks = [];
 
-    if ((tagFilter || categoryFilter) && page === 1 && exactPageBookmarks.length < limit) {
+    if (tagFilter && page === 1 && exactPageBookmarks.length < limit) {
       try {
         const relatedIds = await findRelatedBookmarkIdsForSeeds({
           seedBookmarkIds: filteredBookmarks.slice(0, 3).map((bookmark) => bookmark.id),
@@ -341,15 +260,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ...exactPageBookmarks,
       ...relatedBookmarks.slice(0, Math.max(0, limit - exactPageBookmarks.length)),
     ];
-    const categorizedBookmarks = await attachBookmarkCategories(paginatedBookmarks);
     const totalPages = Math.ceil(filteredBookmarks.length / limit);
 
     const slugMapping = await loadSlugMapping();
-    const internalHrefs = buildInternalHrefs(categorizedBookmarks, slugMapping);
+    const internalHrefs = buildInternalHrefs(paginatedBookmarks, slugMapping);
 
     return NextResponse.json(
       {
-        data: categorizedBookmarks,
+        data: paginatedBookmarks,
         internalHrefs,
         meta: {
           pagination: {
@@ -361,16 +279,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             hasPrev: page > 1,
           },
           feed: "latest",
-          filter:
-            tagFilter || categoryFilter
-              ? {
-                  ...(tagFilter ? { tag: tagFilter } : {}),
-                  ...(normalizedCategoryFilter ? { category: normalizedCategoryFilter.name } : {}),
-                  exactCount: filteredBookmarks.length,
-                  relatedCount: relatedBookmarks.length,
-                  mode: "exact_plus_related",
-                }
-              : undefined,
+          filter: tagFilter
+            ? {
+                tag: tagFilter,
+                exactCount: filteredBookmarks.length,
+                relatedCount: relatedBookmarks.length,
+                mode: "exact_plus_related",
+              }
+            : undefined,
           dataVersion: lastFetchedAt,
           lastRefreshed: new Date(lastFetchedAt).toISOString(),
         },

@@ -11,7 +11,8 @@ const IMAGE_PRELOAD_COUNT = 2;
 
 export function TopicSection({
   id,
-  category,
+  tagSlug,
+  tagName,
   totalCount,
   bookmarks,
   internalHrefs,
@@ -20,13 +21,13 @@ export function TopicSection({
 }: Readonly<TopicSectionProps>) {
   if (bookmarks.length === 0) return null;
 
-  const seeAllHref = `/bookmarks?feed=latest&category=${encodeURIComponent(category)}`;
+  const seeAllHref = `/bookmarks/tags/${tagSlug}`;
 
   return (
-    <section id={id} className="scroll-mt-16" aria-label={category}>
+    <section id={id} className="scroll-mt-16" aria-label={tagName}>
       <div className="flex items-center gap-4 mb-4">
         <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground shrink-0">
-          {category}
+          {tagName}
         </h2>
         <Separator className="flex-1" />
         {showSeeAll && totalCount > bookmarks.length && (
@@ -66,8 +67,6 @@ export function TopicSection({
               domain={bookmark.domain}
               slug={bookmark.slug}
               variant="compact"
-              showCategoryBadge={false}
-              category={undefined}
               internalHref={internalHrefs[bookmark.id]}
               preload={index < IMAGE_PRELOAD_COUNT}
             />
