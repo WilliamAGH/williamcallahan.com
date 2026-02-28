@@ -176,3 +176,47 @@ export async function findSimilarByEmbedding(
       contentDate: row.content_date,
     }));
 }
+
+export async function findRelatedBookmarkIdsForSeeds(options: {
+  seedBookmarkIds: string[];
+  excludeIds?: readonly string[];
+  limit?: number;
+  perSeedLimit?: number;
+  minSimilarity?: number;
+}): Promise<string[]> {
+  const {
+    seedBookmarkIds,
+    excludeIds = [],
+    limit = 24,
+    perSeedLimit = DEFAULT_LIMIT,
+    minSimilarity = 0.72,
+  } = options;
+  const uniqueSeeds = Array.from(new Set(seedBookmarkIds.filter(Boolean))).slice(0, 3);
+  if (uniqueSeeds.length === 0 || limit < 1) {
+    return [];
+  }
+
+  const excluded = new Set(excludeIds);
+  const bestSimilarityById = new Map<string, number>();
+
+  for (const seedId of uniqueSeeds) {
+    const candidates = await findSimilarByEmbedding("bookmark", seedId, perSeedLimit);
+    for (const candidate of candidates) {
+      if (candidate.domain !== "bookmark") {
+        continue;
+      }
+      if (candidate.similarity < minSimilarity || excluded.has(candidate.entityId)) {
+        continue;
+      }
+      const existing = bestSimilarityById.get(candidate.entityId);
+      if (existing === undefined || candidate.similarity > existing) {
+        bestSimilarityById.set(candidate.entityId, candidate.similarity);
+      }
+    }
+  }
+
+  return Array.from(bestSimilarityById.entries())
+    .toSorted((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([entityId]) => entityId);
+}
