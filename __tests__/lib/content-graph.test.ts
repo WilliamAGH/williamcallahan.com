@@ -44,7 +44,9 @@ vi.mock("@/lib/db/connection", () => ({
 vi.mock("drizzle-orm", () => ({
   sql: Object.assign(
     (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values, _tag: "sql" }),
-    { raw: (s: string) => ({ raw: s, _tag: "sql-raw" }) },
+    {
+      raw: (s: string) => ({ raw: s, _tag: "sql-raw" }),
+    },
   ),
 }));
 
@@ -93,9 +95,9 @@ describe("Content Graph Pre-computation", () => {
         .mockResolvedValueOnce(embeddingRows)
         .mockResolvedValueOnce(tagContentRows);
 
-      // Mock findSimilarByEmbedding to return similarity candidates
-      mockFindSimilarByEmbedding.mockImplementation((_domain: string, entityId: string) => {
-        if (entityId === "b1") {
+      // Mock findSimilarByEntity to return similarity candidates (replaces findSimilarByEmbedding)
+      mockFindSimilarByEntity.mockImplementation((options: { sourceId: string }) => {
+        if (options.sourceId === "b1") {
           return Promise.resolve([
             {
               domain: "blog",
@@ -213,7 +215,28 @@ describe("Content Graph Pre-computation", () => {
         .mockResolvedValueOnce(tagContentRows);
 
       mockFindSimilarByEmbedding.mockResolvedValue([]);
-      mockRankEmbeddingCandidates.mockImplementation(() => []);
+      mockFindSimilarByEntity.mockImplementation(() => [
+        {
+          domain: "bookmark",
+          entityId: "2",
+          title: "JS Vue",
+          similarity: 0.85,
+          contentDate: "2024-01-02",
+        },
+      ]);
+      mockRankEmbeddingCandidates.mockImplementation(
+        ({
+          candidates,
+        }: {
+          candidates: Array<{ domain: string; entityId: string; title: string }>;
+        }) =>
+          candidates.map((c, i) => ({
+            domain: c.domain,
+            entityId: c.entityId,
+            title: c.title,
+            score: 0.85 - i * 0.1,
+          })),
+      );
 
       const { getAllPosts } = await import("@/lib/blog");
       (getAllPosts as any).mockResolvedValue([]);
