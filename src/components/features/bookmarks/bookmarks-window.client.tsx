@@ -93,7 +93,6 @@ function BookmarksWindowContentInner({
       const params = new URLSearchParams(searchParams.toString());
       if (nextMode === "discover") {
         params.delete("feed");
-        params.delete("category");
         params.delete("tag");
       } else {
         params.set("feed", "latest");

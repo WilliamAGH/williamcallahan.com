@@ -171,7 +171,6 @@ export const convertBookmarksToSerializable = (
     ogTitle: b.ogTitle ?? undefined,
     ogDescription: b.ogDescription ?? undefined,
     domain: b.domain,
-    category: b.category,
   }));
 
 /**

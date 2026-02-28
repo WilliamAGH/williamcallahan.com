@@ -137,6 +137,7 @@ async function resolveOnDemand(
   if (candidates.length === 0) return [];
 
   const scored = applyBlendedScoring(candidates, {
+    sourceDomain,
     maxPerDomain: 5,
     maxTotal: 20,
   });

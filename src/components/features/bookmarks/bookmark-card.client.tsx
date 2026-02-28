@@ -33,9 +33,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     readingTime,
     isFavorite,
     note,
-    category,
     variant = "default",
-    showCategoryBadge = true,
   } = props;
   const pathname = usePathname();
   const isHero = variant === "hero";
@@ -221,14 +219,6 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       </div>
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
-        {showCategoryBadge && category && (
-          <div className="mb-1">
-            <Badge variant="secondary" className="uppercase tracking-wide">
-              {category}
-            </Badge>
-          </div>
-        )}
-
         {/* Title */}
         {effectiveInternalHref ? (
           // When on list/grid views, link to internal bookmark page

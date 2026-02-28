@@ -12,10 +12,7 @@ import { getMonotonicTime } from "@/lib/utils";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import { CONTENT_GRAPH_ARTIFACT_TYPES } from "@/lib/db/schema/content-graph";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
-import {
-  findSimilarByEmbedding,
-  rankEmbeddingCandidates,
-} from "@/lib/db/queries/embedding-similarity";
+import { rankEmbeddingCandidates } from "@/lib/db/queries/embedding-similarity";
 
 const MAX_RELATED = 20;
 const YIELD_INTERVAL = 10;
@@ -204,22 +201,14 @@ export async function buildContentGraph(
       >[0]["sourceDomain"];
       const contentKey = `${entity.domain}:${entity.entity_id}`;
 
-      const vectorCandidates = await findSimilarByEmbedding(
+      const candidates = await findSimilarByEntity({
         sourceDomain,
-        entity.entity_id,
-        MAX_RELATED + 10,
-      );
-      const fallbackCandidates =
-        vectorCandidates.length > 0
-          ? vectorCandidates
-          : await findSimilarByEntity({
-              sourceDomain,
-              sourceId: entity.entity_id,
-              limit: MAX_RELATED + 10,
-            });
+        sourceId: entity.entity_id,
+        limit: MAX_RELATED + 10,
+      });
       const scored = rankEmbeddingCandidates({
         sourceDomain,
-        candidates: fallbackCandidates,
+        candidates,
         bookmarkQualityById,
         maxPerDomain: 5,
         maxTotal: MAX_RELATED,

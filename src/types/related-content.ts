@@ -19,6 +19,8 @@ export interface SimilarityCandidate {
   title: string;
   similarity: number;
   contentDate: string | null;
+  /** Jaccard overlap of canonical tag slugs for bookmark-to-bookmark candidates (0..1). */
+  tagOverlap?: number;
 }
 
 /**

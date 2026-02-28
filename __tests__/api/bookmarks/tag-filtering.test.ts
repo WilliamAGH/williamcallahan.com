@@ -19,14 +19,6 @@ vi.mock("@/lib/bookmarks/slug-manager");
 vi.mock("@/lib/db/queries/discovery-scores");
 vi.mock("@/lib/db/queries/embedding-similarity");
 
-// The route's attachBookmarkCategories queries the DB directly for bookmark category data.
-// Mock the DB connection so the tests don't need a real database.
-vi.mock("@/lib/db/connection", () => ({
-  db: {
-    execute: vi.fn(() => Promise.resolve([])),
-  },
-}));
-
 const mockGetBookmarks = vi.mocked(getBookmarks);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
 const mockResolveBookmarkTagSlug = vi.mocked(resolveBookmarkTagSlug);

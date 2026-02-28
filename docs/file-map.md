@@ -45,7 +45,6 @@ File/Path Functionality Description
     - [x] `bookmarks-with-options.client.tsx` `bookmarks` - UI with additional bookmark options
     - [x] `bookmarks-with-pagination.client.tsx` `bookmarks` - Main paginated bookmarks view with discover/latest modes
     - [x] `bookmarks.{client,server}.tsx` `bookmarks` - Core bookmarks components
-    - [x] `category-ribbon.client.tsx` `bookmarks` - Canonical category filter ribbon (fetches from `/api/bookmarks/categories`)
     - [x] `feed-toggle.client.tsx` `bookmarks` - Discover/Latest segmented control
     - [x] `hero-row.client.tsx` `bookmarks` - Top-3 hero cards for discover mode
     - [x] `impression-tracker.client.tsx` `bookmarks` - IntersectionObserver wrapper for engagement tracking

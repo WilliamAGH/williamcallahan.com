@@ -38,13 +38,10 @@ export default async function BookmarksPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const params = await searchParams;
-  const categoryParam = Array.isArray(params.category) ? params.category[0] : params.category;
   const tagParam = Array.isArray(params.tag) ? params.tag[0] : params.tag;
   const feedMode = params.feed === "latest" ? "latest" : "discover";
   const hasTagFilter = Boolean(tagParam && tagParam.trim().length > 0);
-  const hasCategoryFilter = Boolean(categoryParam && categoryParam.trim().length > 0);
   const initialTag = hasTagFilter ? tagParam?.trim() : undefined;
-  const initialCategory = hasCategoryFilter ? categoryParam?.trim() : undefined;
 
   const pageMetadata = PAGE_METADATA.bookmarks;
 
@@ -72,7 +69,7 @@ export default async function BookmarksPage({
 
   const jsonLdData = generateSchemaGraph(schemaParams);
 
-  if (feedMode === "discover" && !hasTagFilter && !hasCategoryFilter) {
+  if (feedMode === "discover" && !hasTagFilter) {
     let discoverData: DiscoverFeedData;
     try {
       discoverData = await getDiscoveryGroupedBookmarks({ sectionPage: 1, sectionsPerPage: 4 });
@@ -117,10 +114,7 @@ export default async function BookmarksPage({
           includeImageData={true}
           initialTag={initialTag}
           tag={initialTag}
-          initialCategory={initialCategory}
-          feedMode={
-            feedMode === "latest" || hasTagFilter || hasCategoryFilter ? "latest" : undefined
-          }
+          feedMode={feedMode === "latest" || hasTagFilter ? "latest" : undefined}
         />
       </div>
     </>

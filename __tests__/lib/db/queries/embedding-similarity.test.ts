@@ -91,9 +91,41 @@ describe("embedding-similarity query helpers", () => {
       maxTotal: 2,
     });
 
-    expect(score).toBeCloseTo(0.8573, 3);
+    expect(score).toBeCloseTo(0.8173, 3);
     expect(ranked[0]?.domain).toBe("bookmark");
     vi.useRealTimers();
+  });
+
+  it("boosts bookmark ranking when canonical tag overlap is higher", () => {
+    const ranked = rankEmbeddingCandidates({
+      sourceDomain: "bookmark",
+      candidates: [
+        {
+          domain: "bookmark",
+          entityId: "low-overlap",
+          title: "Low overlap",
+          similarity: 0.8,
+          contentDate: null,
+          tagOverlap: 0,
+        },
+        {
+          domain: "bookmark",
+          entityId: "high-overlap",
+          title: "High overlap",
+          similarity: 0.79,
+          contentDate: null,
+          tagOverlap: 1,
+        },
+      ],
+      bookmarkQualityById: new Map([
+        ["low-overlap", { hasDescription: true, isFavorite: true, hasWordCount: true }],
+        ["high-overlap", { hasDescription: true, isFavorite: true, hasWordCount: true }],
+      ]),
+      maxPerDomain: 5,
+      maxTotal: 2,
+    });
+
+    expect(ranked[0]?.entityId).toBe("high-overlap");
   });
 
   it("aggregates related bookmark IDs across multiple seed bookmarks", async () => {

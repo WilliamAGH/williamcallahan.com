@@ -17,10 +17,7 @@ const args = process.argv.slice(2);
 const LAST_RUN_SUCCESS_FILE = join(process.cwd(), ".populate-volumes-last-run-success");
 const LAST_RUN_DETAILS_FILE = join(process.cwd(), ".data-update-details.json");
 const RUN_INTERVAL_HOURS = 12;
-const DEPRECATED_TAG_FLAGS: Readonly<Record<string, string>> = {
-  "--bookmark-categories": "--bookmark-tags",
-  "--bookmark-categories-retrofit": "--bookmark-tags-retrofit",
-};
+const LEGACY_CATEGORY_FLAGS = new Set(["--bookmark-categories", "--bookmark-categories-retrofit"]);
 
 function hasTagOperation(argsToCheck: readonly string[]): boolean {
   return (
@@ -209,13 +206,13 @@ Environment Variables:
   process.exit(0);
 }
 
-const deprecatedFlagsUsed = args.filter((arg) => Object.hasOwn(DEPRECATED_TAG_FLAGS, arg));
-if (deprecatedFlagsUsed.length > 0) {
-  console.error("[DataUpdaterCLI] Deprecated bookmark category flags are no longer supported.");
-  for (const flag of deprecatedFlagsUsed) {
-    const replacement = DEPRECATED_TAG_FLAGS[flag];
-    console.error(`  - ${flag} -> ${replacement}`);
+const legacyCategoryFlagsUsed = args.filter((arg) => LEGACY_CATEGORY_FLAGS.has(arg));
+if (legacyCategoryFlagsUsed.length > 0) {
+  console.error("[DataUpdaterCLI] Legacy bookmark category flags were removed.");
+  for (const flag of legacyCategoryFlagsUsed) {
+    console.error(`  - ${flag}`);
   }
+  console.error("Use bookmark tag operations only: --bookmark-tags or --bookmark-tags-retrofit.");
   process.exit(1);
 }
 

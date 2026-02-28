@@ -74,7 +74,6 @@ export async function BookmarksServer({
   usePagination = true,
   initialTag,
   tag,
-  initialCategory,
   feedMode,
   includeImageData = true,
   totalPages: propsTotalPages,
@@ -236,7 +235,6 @@ export async function BookmarksServer({
       usePagination={usePagination}
       initialTag={initialTag}
       tag={tag}
-      initialCategory={initialCategory}
       feedMode={feedMode}
       internalHrefs={Object.fromEntries(internalHrefs)}
     />

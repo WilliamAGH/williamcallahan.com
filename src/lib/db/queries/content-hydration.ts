@@ -18,7 +18,6 @@ import { booksIndividual } from "@/lib/db/schema/books-individual";
 import { thoughts } from "@/lib/db/schema/thoughts";
 import { resolveImageUrl } from "@/lib/seo/url-utils";
 import { buildCdnUrl, getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
-import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
@@ -78,7 +77,6 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       tags: bookmarks.tags,
       domain: bookmarks.domain,
       ogImage: bookmarks.ogImage,
-      content: bookmarks.content,
       dateBookmarked: bookmarks.dateBookmarked,
     })
     .from(bookmarks)
@@ -104,17 +102,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
         tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
         domain: r.domain ?? undefined,
         date: r.dateBookmarked ?? undefined,
-        imageUrl: resolveImageUrl(
-          selectBestImage(
-            {
-              ogImage: trustedOgImage,
-              content: r.content ?? undefined,
-              id: r.id,
-              url: r.url,
-            },
-            { includeImageAssets: false, includeScreenshots: true, preferScreenshots: true },
-          ) ?? undefined,
-        ),
+        imageUrl: resolveImageUrl(trustedOgImage),
       } satisfies RelatedContentMetadata,
     };
   });

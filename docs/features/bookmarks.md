@@ -36,7 +36,6 @@ Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/i
 3. **API Endpoints (always `unstable_noStore`)**
    - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering and feed mode (`?feed=discover|latest`); responds with `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`
    - `/api/bookmarks/refresh` - Manual refresh trigger (secret protected)
-   - `/api/bookmarks/categories` - Canonical tag-topic listing from `bookmark_tag_links` with alias rollups from `bookmarks_tags_links`
    - `/api/engagement` - Client engagement event ingestion (impression, click, dwell, external_click)
    - `/api/og-image` - Unified OpenGraph image serving
 
@@ -46,7 +45,7 @@ Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/i
    - Tag navigation with URL-based routing
    - Share functionality with pre-generated URLs
    - Feed toggle (Discover/Latest) in BookmarksWindow title bar
-   - Category ribbon, hero row, and section breaks for magazine-style discover layout
+   - Hero row and section breaks for magazine-style discover layout
 
 ### Scraped Content Normalization
 
@@ -153,7 +152,6 @@ Client events → POST /api/engagement → content_engagement table
 - `src/components/features/bookmarks/impression-tracker.client.tsx`: IntersectionObserver wrapper
 - `src/components/features/bookmarks/feed-toggle.client.tsx`: Discover/Latest segmented control
 - `src/components/features/bookmarks/hero-row.client.tsx`: Top-3 hero cards in discover mode
-- `src/components/features/bookmarks/category-ribbon.client.tsx`: AI category filter ribbon
 - `src/components/features/bookmarks/section-break.client.tsx`: Thematic section dividers
 
 ## Key Features

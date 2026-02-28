@@ -61,8 +61,6 @@ export type BookmarkCardClientProps = BookmarkCardRequiredFields &
     /** Preload the card image for above-the-fold visibility */
     preload?: boolean;
     variant?: "default" | "hero" | "compact";
-    /** Hide category badge when card is already grouped under a category heading */
-    showCategoryBadge?: boolean;
   };
 
 /**
@@ -98,16 +96,6 @@ export type FeedToggleProps = {
   onChange: (mode: BookmarkFeedMode) => void;
 };
 
-export type BookmarkCategorySummary = {
-  name: string;
-  count: number;
-};
-
-export type CategoryRibbonProps = {
-  selectedCategory: string | null;
-  onSelectAction: (category: string | null) => void;
-};
-
 export type HeroRowProps = {
   bookmarks: UnifiedBookmark[];
   internalHrefs?: Readonly<Record<string, string>>;
@@ -115,7 +103,7 @@ export type HeroRowProps = {
 };
 
 export type SectionBreakProps = {
-  category: string;
+  label: string;
 };
 
 // Base type for all bookmark list variations
@@ -125,7 +113,6 @@ type BaseBookmarkListProps = {
   initialBookmarks?: UnifiedBookmark[];
   baseUrl?: string;
   tag?: string;
-  initialCategory?: string;
 };
 
 // Pagination-specific props
@@ -222,7 +209,6 @@ export interface BookmarksClientWithWindowProps {
   usePagination?: boolean;
   initialTag?: string;
   tag?: string;
-  initialCategory?: string;
   itemsPerPage?: number;
   enableInfiniteScroll?: boolean;
   searchAllBookmarks?: boolean;
@@ -266,7 +252,6 @@ export interface BookmarksServerExtendedProps {
   usePagination?: boolean;
   initialTag?: string;
   tag?: string;
-  initialCategory?: string;
   feedMode?: BookmarkFeedMode;
   includeImageData?: boolean;
   readonly internalHrefs?: Readonly<Record<string, string>>;
@@ -306,7 +291,6 @@ export interface SerializableBookmark {
   ogTitle?: string | null;
   ogDescription?: string | null;
   domain?: string;
-  category?: string | null;
 }
 
 // =============================================================================

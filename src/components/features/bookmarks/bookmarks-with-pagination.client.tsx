@@ -4,7 +4,7 @@ import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarksWithPaginationClientProps } from "@/types/features/bookmarks";
 import { Loader2, RefreshCw } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
@@ -15,7 +15,6 @@ import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel
 import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
 import { ImpressionTracker } from "./impression-tracker.client";
-import { CategoryRibbon } from "./category-ribbon.client";
 import { HeroRow } from "./hero-row.client";
 import { SectionBreak } from "./section-break.client";
 
@@ -25,7 +24,13 @@ const IMAGE_PRELOAD_THRESHOLD = 4;
 
 const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] =>
   normalizeTagsToStrings(tags);
-const normalizeCategoryValue = (value: string): string => value.trim().toLowerCase();
+
+function getSectionLabel(bookmarks: UnifiedBookmark[]): string {
+  const firstTag = bookmarks
+    .flatMap((bookmark) => getTagsAsStringArray(bookmark.tags))
+    .find((tag) => tag.trim().length > 0);
+  return firstTag ?? "More";
+}
 
 export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProps> = ({
   initialBookmarks = [],
@@ -38,27 +43,17 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   baseUrl = "/bookmarks",
   initialTag,
   tag,
-  initialCategory,
   description,
   className,
   feedMode = "discover",
   internalHrefs,
 }) => {
-  const normalizedInitialCategory = initialCategory?.trim() ? initialCategory.trim() : null;
   const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    normalizedInitialCategory,
-  );
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const isRootBookmarksRoute = pathname === "/bookmarks";
-  const showCategoryRibbon = pathname === "/bookmarks";
-  const effectiveCategory = selectedCategory ?? normalizedInitialCategory;
-  const normalizedEffectiveCategory = effectiveCategory
-    ? normalizeCategoryValue(effectiveCategory)
-    : null;
+
   const paginationQueryParams = useMemo<Record<string, string | number>>(() => {
     const params: Record<string, string | number> = {};
     if (feedMode === "latest") {
@@ -67,11 +62,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     if (tag) {
       params.tag = tag;
     }
-    if (effectiveCategory) {
-      params.category = effectiveCategory;
-    }
     return params;
-  }, [effectiveCategory, feedMode, tag]);
+  }, [feedMode, tag]);
 
   const {
     items: bookmarks,
@@ -88,7 +80,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   } = usePagination<UnifiedBookmark>({
     apiUrl: "/api/bookmarks",
     limit: itemsPerPage,
-    initialData: feedMode === "latest" && !normalizedInitialCategory ? initialBookmarks : [],
+    initialData: feedMode === "latest" ? initialBookmarks : [],
     initialPage,
     initialTotalPages,
     initialTotalCount,
@@ -121,14 +113,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     if (initialPage > 1) goToPage(initialPage);
   }, [initialPage, goToPage]);
 
-  useEffect(() => {
-    const category = searchParams.get("category");
-    const normalizedCategory = category?.trim() ? category.trim() : null;
-    setSelectedCategory((current) =>
-      current === normalizedCategory ? current : normalizedCategory,
-    );
-  }, [pathname, searchParams]);
-
   const allTags = useMemo(() => {
     if (!Array.isArray(bookmarks)) return [];
     return bookmarks
@@ -140,19 +124,12 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const filteredBookmarks = useMemo(() => {
     if (!Array.isArray(bookmarks)) return [];
     return bookmarks.filter((bookmark: UnifiedBookmark) => {
-      if (
-        normalizedEffectiveCategory &&
-        (typeof bookmark.category !== "string" ||
-          normalizeCategoryValue(bookmark.category) !== normalizedEffectiveCategory)
-      ) {
-        return false;
-      }
       if (selectedTag && !tag) {
         return getTagsAsStringArray(bookmark.tags).includes(selectedTag);
       }
       return true;
     });
-  }, [bookmarks, normalizedEffectiveCategory, selectedTag, tag]);
+  }, [bookmarks, selectedTag, tag]);
 
   const handleTagClick = (clickedTag: string) => {
     if (selectedTag === clickedTag) {
@@ -164,28 +141,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     }
     goToPage(1);
   };
-
-  const handleCategorySelect = useCallback(
-    (category: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      const normalizedCategory = category?.trim() ? category.trim() : null;
-
-      if (normalizedCategory) {
-        params.set("category", normalizedCategory);
-        params.set("feed", "latest");
-      } else {
-        params.delete("category");
-        params.set("feed", "latest");
-      }
-
-      setSelectedCategory(normalizedCategory);
-      const query = params.toString();
-      const nextUrl = query.length > 0 ? `${pathname}?${query}` : pathname;
-      router.replace(nextUrl, { scroll: false });
-      goToPage(1);
-    },
-    [goToPage, pathname, router, searchParams],
-  );
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -287,12 +242,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
       {showFilterBar && (
         <div className="mb-6 space-y-3">
-          {showCategoryRibbon && (
-            <CategoryRibbon
-              selectedCategory={effectiveCategory}
-              onSelectAction={handleCategorySelect}
-            />
-          )}
           {allTags.length > 0 && (
             <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
           )}
@@ -308,7 +257,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-gray-500 dark:text-gray-400">
               {resultsCountText}
-              {effectiveCategory && ` in "${effectiveCategory}"`}
               {selectedTag && ` tagged with "${selectedTag}"`}
               {lastRefreshed && (
                 <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
@@ -371,14 +319,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             {gridBookmarks.map((bookmark, index) => (
               <React.Fragment key={bookmark.id}>
                 {feedMode === "discover" && index > 0 && index % 8 === 0 && (
-                  <SectionBreak
-                    category={
-                      gridBookmarks
-                        .slice(index, index + 8)
-                        .map((item) => item.category)
-                        .find((category): category is string => Boolean(category)) ?? "More"
-                    }
-                  />
+                  <SectionBreak label={getSectionLabel(gridBookmarks.slice(index, index + 8))} />
                 )}
                 <ImpressionTracker
                   contentType="bookmark"

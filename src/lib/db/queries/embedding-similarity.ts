@@ -6,6 +6,12 @@ import type { ScoredCandidate, SimilarityCandidate } from "@/types/related-conte
 
 const DEFAULT_LIMIT = 30;
 const RECENCY_HALF_LIFE_DAYS = 180;
+const COSINE_WEIGHT = 0.65;
+const RECENCY_WEIGHT = 0.1;
+const DOMAIN_DIVERSITY_WEIGHT = 0.05;
+const QUALITY_WEIGHT = 0.1;
+const TAG_ALIGNMENT_WEIGHT = 0.1;
+const NEUTRAL_TAG_ALIGNMENT = 0.5;
 
 function computeRecencyBoost(contentDate: string | null): number {
   if (!contentDate) {
@@ -38,6 +44,13 @@ function computeQualityProxy(input: {
   return signalCount / signals.length;
 }
 
+function computeTagAlignmentBoost(tagOverlap: number | undefined): number {
+  if (typeof tagOverlap !== "number" || !Number.isFinite(tagOverlap)) {
+    return NEUTRAL_TAG_ALIGNMENT;
+  }
+  return Math.min(1, Math.max(0, tagOverlap));
+}
+
 export function computeEmbeddingBlendScore(input: {
   similarity: number;
   contentDate: string | null;
@@ -46,6 +59,7 @@ export function computeEmbeddingBlendScore(input: {
   hasDescription: boolean;
   isFavorite: boolean;
   hasWordCount: boolean;
+  tagOverlap?: number;
 }): number {
   const recencyBoost = computeRecencyBoost(input.contentDate);
   const domainDiversityBoost = computeDomainDiversityBoost(
@@ -57,9 +71,14 @@ export function computeEmbeddingBlendScore(input: {
     isFavorite: input.isFavorite,
     hasWordCount: input.hasWordCount,
   });
+  const tagAlignmentBoost = computeTagAlignmentBoost(input.tagOverlap);
 
   return (
-    0.7 * input.similarity + 0.1 * recencyBoost + 0.1 * domainDiversityBoost + 0.1 * qualityProxy
+    COSINE_WEIGHT * input.similarity +
+    RECENCY_WEIGHT * recencyBoost +
+    DOMAIN_DIVERSITY_WEIGHT * domainDiversityBoost +
+    QUALITY_WEIGHT * qualityProxy +
+    TAG_ALIGNMENT_WEIGHT * tagAlignmentBoost
   );
 }
 
@@ -105,6 +124,7 @@ export function rankEmbeddingCandidates(options: {
           hasDescription: quality.hasDescription,
           isFavorite: quality.isFavorite,
           hasWordCount: quality.hasWordCount,
+          tagOverlap: candidate.tagOverlap,
         }),
       };
     })

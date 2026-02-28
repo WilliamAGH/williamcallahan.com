@@ -74,19 +74,16 @@ export function BookmarksClientWithWindow({
   usePagination = true,
   initialTag,
   tag,
-  initialCategory,
   feedMode,
   internalHrefs,
 }: BookmarksClientWithWindowProps) {
-  const hasCategoryFilter = Boolean(initialCategory?.trim());
   const hasExplicitTagFilter = Boolean(initialTag || tag);
   const resolvedFeedMode: "discover" | "latest" =
-    titleSlug || hasCategoryFilter || hasExplicitTagFilter ? "latest" : (feedMode ?? "discover");
+    titleSlug || hasExplicitTagFilter ? "latest" : (feedMode ?? "discover");
   const normalizedBaseUrl = baseUrl ?? "/bookmarks";
   const shouldEnableInfiniteScroll =
     resolvedFeedMode === "discover" &&
     !hasExplicitTagFilter &&
-    !hasCategoryFilter &&
     !titleSlug &&
     normalizedBaseUrl === "/bookmarks";
   const unifiedBookmarks: UnifiedBookmark[] = convertSerializableBookmarksToUnified(bookmarks);
@@ -112,7 +109,6 @@ export function BookmarksClientWithWindow({
             baseUrl={baseUrl}
             initialTag={initialTag}
             tag={tag}
-            initialCategory={initialCategory}
             description={description}
             feedMode={resolvedFeedMode}
             internalHrefs={internalHrefs}
