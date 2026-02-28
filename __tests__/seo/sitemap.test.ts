@@ -216,7 +216,6 @@ describe("Sitemap Collector Error Handling", () => {
 
     await expect(collectBookmarkSitemapData(siteUrl)).resolves.toEqual({
       entries: [],
-      paginatedEntries: [],
       latestBookmarkUpdateTime: undefined,
     });
   });
