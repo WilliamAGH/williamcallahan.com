@@ -10,6 +10,21 @@ import type { SerializableBookmark } from "./bookmarks";
 import type { EngagementContentType } from "../schemas/engagement";
 
 // ---------------------------------------------------------------------------
+// Tag Taxonomy (shared across discovery modules)
+// ---------------------------------------------------------------------------
+
+export interface TagTaxonomyMaps {
+  primaryBySlug: ReadonlyMap<string, string>;
+  aliasToCanonical: ReadonlyMap<string, string>;
+}
+
+export type BookmarkForDiscovery = Pick<
+  UnifiedBookmark,
+  "id" | "url" | "title" | "description" | "slug" | "tags" | "dateBookmarked"
+> &
+  Partial<UnifiedBookmark>;
+
+// ---------------------------------------------------------------------------
 // Scoring & Grouping
 // ---------------------------------------------------------------------------
 

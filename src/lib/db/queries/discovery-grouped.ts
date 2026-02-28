@@ -4,8 +4,10 @@ import { mapBookmarkRowToUnifiedBookmark } from "@/lib/db/bookmark-record-mapper
 import { db } from "@/lib/db/connection";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
-import { bookmarkTagAliasLinks, bookmarkTags } from "@/lib/db/schema/bookmark-taxonomy";
-import { formatTagDisplay, tagToSlug } from "@/lib/utils/tag-utils";
+import { loadCanonicalTagMaps } from "@/lib/db/queries/discovery-tag-taxonomy";
+import { findSimilarBookmarkIds } from "@/lib/db/queries/discovery-similarity";
+import { resolvePrimaryTag, type BookmarkForDiscovery } from "@/lib/bookmarks/tag-resolver";
+import { createSerializeWithHref } from "@/lib/bookmarks/discovery-serialization";
 import type {
   DiscoverFeedData,
   GroupOptions,
@@ -29,78 +31,6 @@ const RECENT_DAYS = 7,
   RECENT_LIMIT = 8;
 const DEFAULT_SECTIONS_PER_PAGE = 4,
   MAX_SECTIONS_PER_PAGE = 12;
-
-function extractTagNames(rawTags: unknown): string[] {
-  if (!Array.isArray(rawTags)) return [];
-  const names: string[] = [];
-  for (const rawTag of rawTags) {
-    if (typeof rawTag === "string") {
-      const trimmed = rawTag.trim();
-      if (trimmed.length > 0) names.push(trimmed);
-      continue;
-    }
-    if (typeof rawTag !== "object" || rawTag === null) continue;
-    const maybeName = Reflect.get(rawTag, "name");
-    if (typeof maybeName !== "string") continue;
-    const trimmed = maybeName.trim();
-    if (trimmed.length > 0) names.push(trimmed);
-  }
-  return names;
-}
-
-async function loadCanonicalTagMaps(): Promise<{
-  primaryBySlug: ReadonlyMap<string, string>;
-  aliasToCanonical: ReadonlyMap<string, string>;
-}> {
-  const [primaryRows, aliasRows] = await Promise.all([
-    db
-      .select({ tagSlug: bookmarkTags.tagSlug, tagName: bookmarkTags.tagName })
-      .from(bookmarkTags)
-      .where(eq(bookmarkTags.tagStatus, "primary")),
-    db
-      .select({
-        sourceTagSlug: bookmarkTagAliasLinks.sourceTagSlug,
-        targetTagSlug: bookmarkTagAliasLinks.targetTagSlug,
-      })
-      .from(bookmarkTagAliasLinks)
-      .where(eq(bookmarkTagAliasLinks.linkType, "alias")),
-  ]);
-
-  return {
-    primaryBySlug: new Map(primaryRows.map((row) => [row.tagSlug, row.tagName] as const)),
-    aliasToCanonical: new Map(
-      aliasRows.map((row) => [row.sourceTagSlug, row.targetTagSlug] as const),
-    ),
-  };
-}
-
-function resolvePrimaryTag(
-  bookmark: ScoredBookmarkRow["bookmark"],
-  taxonomy: {
-    primaryBySlug: ReadonlyMap<string, string>;
-    aliasToCanonical: ReadonlyMap<string, string>;
-  } | null,
-): { slug: string; name: string } | null {
-  const tags = extractTagNames(bookmark.tags);
-  if (tags.length === 0) return null;
-
-  if (taxonomy) {
-    for (const rawTag of tags) {
-      const slug = tagToSlug(rawTag);
-      if (!slug) continue;
-      const canonicalSlug = taxonomy.aliasToCanonical.get(slug) ?? slug;
-      const canonicalName = taxonomy.primaryBySlug.get(canonicalSlug);
-      if (!canonicalName) continue;
-      return { slug: canonicalSlug, name: canonicalName };
-    }
-  }
-
-  const first = tags[0];
-  if (!first) return null;
-  const fallbackSlug = tagToSlug(first);
-  if (!fallbackSlug) return null;
-  return { slug: fallbackSlug, name: formatTagDisplay(first) };
-}
 
 export function groupByPrimaryTag(
   rows: ScoredBookmarkRow[],
@@ -148,60 +78,6 @@ export function filterRecentlyAdded(
     .toSorted((a, b) => b.discoveryScore - a.discoveryScore)
     .slice(0, options.limit)
     .map((row) => row.bookmark);
-}
-
-function serializeBookmark(
-  bookmark: ScoredBookmarkRow["bookmark"],
-): DiscoverFeedData["recentlyAdded"][number] {
-  return {
-    id: bookmark.id,
-    url: bookmark.url,
-    title: bookmark.title,
-    description: bookmark.description,
-    slug: bookmark.slug,
-    tags: Array.isArray(bookmark.tags) ? bookmark.tags : [],
-    dateBookmarked: bookmark.dateBookmarked,
-    ogImage: bookmark.ogImage,
-    ogImageExternal: bookmark.ogImageExternal,
-    content: bookmark.content,
-    isPrivate: bookmark.isPrivate ?? false,
-    isFavorite: bookmark.isFavorite ?? false,
-    readingTime: bookmark.readingTime,
-    wordCount: bookmark.wordCount,
-    ogTitle: bookmark.ogTitle,
-    ogDescription: bookmark.ogDescription,
-    domain: bookmark.domain,
-    logoData: bookmark.logoData
-      ? {
-          url: bookmark.logoData.url,
-          alt: bookmark.logoData.alt ?? "Logo",
-          width: bookmark.logoData.width,
-          height: bookmark.logoData.height,
-        }
-      : null,
-  };
-}
-
-async function findSimilarBookmarkIds(
-  anchorId: string,
-  excludeIds: ReadonlySet<string>,
-  limit: number,
-): Promise<string[]> {
-  const rows = await db.execute<{ entity_id: string }>(sql`
-    SELECT e2.entity_id
-    FROM embeddings e1, embeddings e2
-    WHERE e1.domain = 'bookmark' AND e1.entity_id = ${anchorId}
-      AND e2.domain = 'bookmark'
-      AND e2.entity_id != e1.entity_id
-      AND e2.qwen_4b_fp16_embedding IS NOT NULL
-    ORDER BY e2.qwen_4b_fp16_embedding <=> e1.qwen_4b_fp16_embedding
-    LIMIT ${limit + excludeIds.size}
-  `);
-
-  return rows
-    .map((row) => row.entity_id)
-    .filter((bookmarkId) => !excludeIds.has(bookmarkId))
-    .slice(0, limit);
 }
 
 async function loadEngagementMap(): Promise<Map<string, number>> {
@@ -322,7 +198,7 @@ export async function getDiscoveryGroupedBookmarks(
     const engagementSignal = engagementMap.get(row.bookmark.id) ?? null;
     return {
       bookmark: mappedBookmark,
-      primaryTag: resolvePrimaryTag(mappedBookmark, taxonomyMaps),
+      primaryTag: resolvePrimaryTag(mappedBookmark as BookmarkForDiscovery, taxonomyMaps),
       discoveryScore: computeDiscoveryScore({
         baseRecencyScore: computeBaseRecencyScore(mappedBookmark.dateBookmarked),
         engagementSignal,
@@ -351,10 +227,7 @@ export async function getDiscoveryGroupedBookmarks(
   const hasNextSectionPage = offset + sectionsPerPage < totalSections;
 
   const internalHrefs: Record<string, string> = {};
-  const serializeWithHref = (bookmark: ScoredBookmarkRow["bookmark"]) => {
-    internalHrefs[bookmark.id] = `/bookmarks/${bookmark.slug}`;
-    return serializeBookmark(bookmark);
-  };
+  const serializeWithHref = createSerializeWithHref(internalHrefs);
 
   return {
     recentlyAdded:
