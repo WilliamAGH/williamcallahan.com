@@ -2,7 +2,11 @@ import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
-import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import {
+  sanitizePath,
+  IMAGE_SECURITY_HEADERS,
+  IMAGE_CDN_CACHE_HEADERS,
+} from "@/lib/validators/url";
 
 export async function GET(
   request: NextRequest,
@@ -70,7 +74,8 @@ export async function GET(
       return NextResponse.redirect(result.cdnUrl, {
         status: 302,
         headers: {
-          "Cache-Control": "public, max-age=86400", // 24h
+          "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+          ...IMAGE_CDN_CACHE_HEADERS,
         },
       });
     }
@@ -80,10 +85,10 @@ export async function GET(
       const cacheHitSources = new Set(["cache", "s3"]);
       const responseHeaders = new Headers({
         "Content-Type": result.contentType,
-        // Enhanced caching: 24 hours with stale-while-revalidate for better performance
-        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
+        "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400, immutable",
         "X-Cache": cacheHitSources.has(result.source) ? "HIT" : "MISS",
         "X-Source": result.source,
+        ...IMAGE_CDN_CACHE_HEADERS,
         ...IMAGE_SECURITY_HEADERS,
       });
 
@@ -107,7 +112,8 @@ export async function GET(
         const arrayBuffer = await upstreamResp.arrayBuffer();
         const responseHeaders = new Headers({
           "Content-Type": contentType,
-          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
+          "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400, immutable",
+          ...IMAGE_CDN_CACHE_HEADERS,
           ...IMAGE_SECURITY_HEADERS,
         });
         return new NextResponse(new Uint8Array(arrayBuffer), { headers: responseHeaders });

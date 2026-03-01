@@ -21,19 +21,15 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import {
-  HeadObjectCommand,
-  GetObjectCommand,
-  type GetObjectCommandOutput,
-} from "@aws-sdk/client-s3";
-import { Readable } from "node:stream";
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Client } from "@/lib/s3/client";
 import { getS3Config } from "@/lib/s3/config";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
-import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { createMonitoredStream, streamToBufferWithLimits } from "@/lib/utils/stream-utils";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 const DEFAULT_BOOKMARKS_API_URL = "https://bookmark.iocloudhost.net/api/v1";
@@ -114,94 +110,28 @@ async function findAssetInS3(
 }
 
 /**
- * Stream an asset from S3
+ * Stream an asset via the CDN URL instead of fetching directly from S3 origin.
+ * This routes bandwidth through DigitalOcean Spaces CDN (and eventually Cloudflare)
+ * rather than hitting the S3 API directly with GetObjectCommand.
  */
-async function streamFromS3(key: string, contentType: string): Promise<NextResponse> {
-  const { bucket, s3Client } = getS3Context();
+async function streamFromCdn(key: string, contentType: string): Promise<NextResponse> {
+  const cdnBaseUrl = getS3CdnUrl();
+  const cleanBase = cdnBaseUrl.endsWith("/") ? cdnBaseUrl.slice(0, -1) : cdnBaseUrl;
+  const cleanKey = key.startsWith("/") ? key.slice(1) : key;
+  const cdnUrl = `${cleanBase}/${cleanKey}`;
 
-  const command = new GetObjectCommand({
-    Bucket: bucket,
-    Key: key,
-  });
-
-  const response = await s3Client.send(command);
-
-  if (!response.Body) {
-    throw new Error("No body in S3 response");
+  const upstream = await fetch(cdnUrl);
+  if (!upstream.ok || !upstream.body) {
+    throw new Error(`CDN fetch failed for ${cdnUrl}: ${upstream.status}`);
   }
 
-  const stream = convertS3BodyToWebStream(response.Body);
-
-  return new NextResponse(stream, {
+  return new NextResponse(upstream.body, {
     status: 200,
     headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
+      "Content-Type": upstream.headers.get("content-type") ?? contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      ...IMAGE_CDN_CACHE_HEADERS,
       ...IMAGE_SECURITY_HEADERS,
-    },
-  });
-}
-
-function hasTransformToWebStream(
-  body: unknown,
-): body is { transformToWebStream: () => ReadableStream<Uint8Array> } {
-  return typeof (body as { transformToWebStream?: unknown }).transformToWebStream === "function";
-}
-
-function isReadableStream(body: unknown): body is ReadableStream<Uint8Array> {
-  return typeof ReadableStream !== "undefined" && body instanceof ReadableStream;
-}
-
-function isBlob(body: unknown): body is Blob {
-  return typeof Blob !== "undefined" && body instanceof Blob;
-}
-
-function convertS3BodyToWebStream(
-  body: NonNullable<GetObjectCommandOutput["Body"]>,
-): ReadableStream<Uint8Array> {
-  const candidateBody: unknown = body;
-
-  if (hasTransformToWebStream(candidateBody)) {
-    return candidateBody.transformToWebStream() as unknown as ReadableStream<Uint8Array>;
-  }
-
-  if (isReadableStream(candidateBody)) {
-    return candidateBody;
-  }
-
-  if (candidateBody instanceof Readable) {
-    return Readable.toWeb(candidateBody) as unknown as ReadableStream<Uint8Array>;
-  }
-
-  if (isBlob(candidateBody)) {
-    return candidateBody.stream() as unknown as ReadableStream<Uint8Array>;
-  }
-
-  if (candidateBody instanceof Uint8Array) {
-    return createSingleChunkStream(candidateBody);
-  }
-
-  if (typeof candidateBody === "string") {
-    return createSingleChunkStream(new TextEncoder().encode(candidateBody));
-  }
-
-  if (candidateBody instanceof ArrayBuffer) {
-    return createSingleChunkStream(new Uint8Array(candidateBody));
-  }
-
-  if (ArrayBuffer.isView(candidateBody as ArrayBufferView)) {
-    const view = candidateBody as ArrayBufferView;
-    return createSingleChunkStream(new Uint8Array(view.buffer));
-  }
-
-  throw new Error("Unsupported S3 body type for streaming");
-}
-
-function createSingleChunkStream(chunk: Uint8Array): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(chunk);
-      controller.close();
     },
   });
 }
@@ -319,8 +249,8 @@ export async function GET(
     // STEP 1: Check if asset exists in S3
     const s3Asset = await findAssetInS3(assetId);
     if (s3Asset) {
-      console.log(`[Assets API] Serving from S3 storage: ${s3Asset.key}`);
-      return streamFromS3(s3Asset.key, s3Asset.contentType);
+      console.log(`[Assets API] Serving from CDN: ${s3Asset.key}`);
+      return streamFromCdn(s3Asset.key, s3Asset.contentType);
     }
 
     // STEP 2: Asset not in S3, fetch from Karakeep/Hoarder
@@ -477,7 +407,8 @@ export async function GET(
         status: 200,
         headers: {
           "Content-Type": contentType,
-          "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
+          "Cache-Control": "public, max-age=31536000, immutable",
+          ...IMAGE_CDN_CACHE_HEADERS,
           ...IMAGE_SECURITY_HEADERS,
         },
       });
@@ -499,7 +430,8 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
+        "Cache-Control": "public, max-age=31536000, immutable",
+        ...IMAGE_CDN_CACHE_HEADERS,
         ...IMAGE_SECURITY_HEADERS,
       },
     });

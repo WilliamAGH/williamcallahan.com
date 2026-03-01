@@ -13,7 +13,7 @@ import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { openGraphUrlSchema } from "@/types/schemas/url";
-import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 import type { CdnConfig } from "@/types/s3-cdn";
 
@@ -81,6 +81,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const passthroughHeaders = new Headers({
         "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream",
         "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
+        ...IMAGE_CDN_CACHE_HEADERS,
         ...IMAGE_SECURITY_HEADERS,
       });
 
@@ -120,6 +121,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           "Cache-Control":
             upstream.headers.get("cache-control") ?? `public, max-age=${CACHE_DURATION}, immutable`,
           "X-Source": "cdn",
+          ...IMAGE_CDN_CACHE_HEADERS,
           ...IMAGE_SECURITY_HEADERS,
         });
 
@@ -142,6 +144,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
           "X-Cache": cacheHitSources.has(result.source) ? "HIT" : "MISS",
           "X-Source": result.source,
+          ...IMAGE_CDN_CACHE_HEADERS,
           ...IMAGE_SECURITY_HEADERS,
         },
       });

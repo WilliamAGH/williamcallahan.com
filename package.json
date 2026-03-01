@@ -34,6 +34,8 @@
     "deploy:verify": "bun scripts/verify-deployment-readiness.ts",
     "deploy:verify:dev": "bun scripts/verify-deployment-readiness.ts development",
     "deploy:smoke-test": "bun scripts/smoke-test-production.ts",
+    "deploy:cf-cache-rules": "node --env-file=.env scripts/deploy-cf-cache-rules.node.mjs",
+    "deploy:cf-cache-rules:dry-run": "node --env-file=.env scripts/deploy-cf-cache-rules.node.mjs --dry-run",
     "lint": "bun run format && bun run lint:checks",
     "lint:checks": "bun run lint:ox && bun run lint:es && bun run check:duplicate-types",
     "lint:es": "eslint . --config eslint.config.ts --format stylish",

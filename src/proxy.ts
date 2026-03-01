@@ -157,6 +157,8 @@ function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): v
 
   if (url.includes("/_next/image")) {
     response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    response.headers.set("CDN-Cache-Control", "public, max-age=31536000, immutable");
+    response.headers.set("Cloudflare-CDN-Cache-Control", "public, max-age=31536000, immutable");
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
     return;
@@ -165,6 +167,8 @@ function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): v
   const hasStaticExtension = STATIC_EXTENSIONS.has(url.slice(url.lastIndexOf(".")));
   if (url.includes("/_next/static") || hasStaticExtension) {
     response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    response.headers.set("CDN-Cache-Control", "public, max-age=31536000, immutable");
+    response.headers.set("Cloudflare-CDN-Cache-Control", "public, max-age=31536000, immutable");
     response.headers.set("X-Content-Type-Options", "nosniff");
 
     if (/\.(jpe?g|png|webp|avif)$/.test(url)) {
