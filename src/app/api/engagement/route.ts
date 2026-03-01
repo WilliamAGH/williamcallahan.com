@@ -81,7 +81,11 @@ export async function POST(request: Request): Promise<Response> {
         ),
       );
 
-    const existingCount = rows[0]?.count ?? 0;
+    const firstRow = rows[0];
+    if (!firstRow) {
+      throw new Error("[Engagement API] Rate-limit count query returned no rows");
+    }
+    const existingCount = firstRow.count;
     if (existingCount + events.length > RATE_LIMIT_MAX_EVENTS_PER_WINDOW) {
       return true;
     }
