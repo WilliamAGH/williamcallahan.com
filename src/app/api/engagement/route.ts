@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -31,14 +31,14 @@ function buildVisitorHash(headers: Headers): string {
   const userAgent = headers.get("user-agent")?.trim() || null;
   if (!ip || !userAgent) {
     console.warn(
-      "[Engagement API] Missing request fingerprint headers; using non-colliding fallback seed.",
+      "[Engagement API] Missing request fingerprint headers; using deterministic fallback seed.",
       {
         hasIp: Boolean(ip),
         hasUserAgent: Boolean(userAgent),
       },
     );
   }
-  const seed = ip && userAgent ? `${ip}:${userAgent}` : `fallback:${randomUUID()}`;
+  const seed = `${ip ?? "missing-ip"}:${userAgent ?? "missing-ua"}`;
   return createHash("sha256").update(seed).digest("hex");
 }
 
