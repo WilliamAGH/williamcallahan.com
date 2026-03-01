@@ -2,7 +2,7 @@
  * Bookmark Helper Utilities
  *
  * Provides consistent URL construction and image selection for bookmarks.
- * Handles Karakeep/Hoarder asset URLs with optional context for S3 filenames.
+ * Handles Karakeep/Hoarder asset URLs.
  *
  * @module lib/bookmarks/bookmark-helpers
  */
@@ -10,18 +10,15 @@
 import type { UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
 import type { KarakeepImageFallback } from "@/types/opengraph";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
-import { extractDomainWithoutWww } from "@/lib/utils/url-utils";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
 /**
  * Constructs a consistent asset URL for Karakeep assets.
  *
- * Appends optional context as query parameters to enable descriptive S3 filenames.
- * The assets API uses this context to generate filenames like 'github-com-abc123.png'
- * instead of UUID-only names.
+ * Returns a canonical asset URL keyed by the upstream asset ID.
  *
  * @param assetId - The asset ID from Karakeep/Hoarder
- * @param context - Optional bookmark context for descriptive filenames
+ * @param context - Deprecated and ignored (kept for call-site compatibility)
  * @param context.bookmarkId - Used for hash generation in filenames
  * @param context.url - Used for domain extraction in filenames
  * @param context.domain - Pre-extracted domain (optimization)
@@ -32,7 +29,7 @@ import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
  *   bookmarkId: 'bm-456',
  *   url: 'https://github.com/example'
  * })
- * // Returns: '/api/assets/abc-123?bid=bm-456&url=https%3A%2F%2Fgithub.com%2Fexample'
+ * // Returns: '/api/assets/abc-123'
  */
 export function getAssetUrl(
   assetId: string | undefined | null,
@@ -44,17 +41,8 @@ export function getAssetUrl(
 ): string | undefined {
   if (!assetId) return undefined;
 
-  // Build query parameters for context if provided
-  // URLSearchParams automatically handles encoding
-  const params = new URLSearchParams();
-  if (context?.bookmarkId) params.append("bid", context.bookmarkId);
-  if (context?.url) params.append("url", context.url);
-  if (context?.domain) params.append("domain", context.domain);
-
-  // Always use API proxy to ensure correct content-type is preserved
-  // This guarantees that images work regardless of their actual format (jpg, png, gif, webp, etc.)
-  const queryString = params.toString();
-  return queryString ? `/api/assets/${assetId}?${queryString}` : `/api/assets/${assetId}`;
+  void context;
+  return `/api/assets/${assetId}`;
 }
 
 /**
@@ -62,15 +50,15 @@ export function getAssetUrl(
  *
  * Priority order (highest to lowest):
  * 1. Already persisted S3 CDN URLs (from ogImage) - Best performance
- * 2. Karakeep image asset (content.imageAssetId) - May be OpenGraph or favicon
- * 3. Karakeep screenshot asset (content.screenshotAssetId) - Reliable fallback
- * 4. Any other ogImage we might have fetched ourselves
+ * 2. Karakeep screenshot asset (content.screenshotAssetId) when preferScreenshots=true
+ * 3. Karakeep image asset (content.imageAssetId) when includeImageAssets=true
+ * 4. Karakeep screenshot asset (content.screenshotAssetId) fallback
+ * 5. Any other ogImage we might have fetched ourselves
  *
  * IMPORTANT: content.imageUrl is intentionally EXCLUDED as it's typically
  * a low-quality logo/favicon unsuitable for preview cards.
  *
- * The function automatically passes bookmark context to getAssetUrl() to enable
- * descriptive S3 filenames when assets are cached.
+ * The function passes bookmark context to getAssetUrl() for compatibility only.
  *
  * @param bookmark - Bookmark object with image data
  * @param bookmark.ogImage - OpenGraph image URL (may be S3 or external)
@@ -79,6 +67,8 @@ export function getAssetUrl(
  * @param bookmark.url - Bookmark URL for domain extraction
  * @param options - Configuration for image selection
  * @param options.includeScreenshots - Whether to use screenshots as fallback (default: true)
+ * @param options.includeImageAssets - Whether imageAssetId is eligible (default: true)
+ * @param options.preferScreenshots - Prioritize screenshotAssetId before imageAssetId (default: false)
  * @param options.returnUndefined - Return undefined instead of null when no image (default: false)
  * @returns Selected image URL, null if none available (or undefined if returnUndefined=true)
  *
@@ -95,37 +85,36 @@ export function selectBestImage(
   bookmark: Pick<UnifiedBookmark, "ogImage" | "content" | "id" | "url">,
   options: ImageSelectionOptions = {},
 ): string | null | undefined {
-  const { includeScreenshots = true, returnUndefined = false } = options;
+  const {
+    includeScreenshots = true,
+    includeImageAssets = true,
+    preferScreenshots = false,
+    returnUndefined = false,
+  } = options;
 
   const { content } = bookmark;
   const noImageResult = returnUndefined ? undefined : null;
   const cdnConfig = getCdnConfigFromEnv();
-
-  // Prepare context for asset URL generation (for descriptive S3 filenames)
-  const domainCandidate = bookmark.url ? extractDomainWithoutWww(bookmark.url) : "";
-  const domain = domainCandidate && domainCandidate !== bookmark.url ? domainCandidate : undefined;
-
-  const assetContext = {
-    bookmarkId: bookmark.id,
-    url: bookmark.url,
-    domain,
-  };
 
   // PRIORITY 1: Already persisted to our S3 (best performance)
   if (bookmark.ogImage && isOurCdnUrl(bookmark.ogImage, cdnConfig)) {
     return bookmark.ogImage;
   }
 
+  // Optional strict mode: prefer screenshot assets before image assets.
+  if (preferScreenshots && includeScreenshots && content?.screenshotAssetId) {
+    return getAssetUrl(content.screenshotAssetId);
+  }
+
   // PRIORITY 2: Karakeep image asset (could be OpenGraph image OR favicon)
-  // We can't know at runtime if it's a favicon without fetching it
-  // The batch processor will validate sizes and use screenshot as fallback if needed
-  if (content?.imageAssetId) {
-    return getAssetUrl(content.imageAssetId, assetContext);
+  // We can't know at runtime if it's a favicon without fetching it.
+  if (includeImageAssets && content?.imageAssetId) {
+    return getAssetUrl(content.imageAssetId);
   }
 
   // PRIORITY 3: Karakeep screenshot asset (good quality fallback)
   if (includeScreenshots && content?.screenshotAssetId) {
-    return getAssetUrl(content.screenshotAssetId, assetContext);
+    return getAssetUrl(content.screenshotAssetId);
   }
 
   // PRIORITY 4: Any other ogImage we might have fetched ourselves

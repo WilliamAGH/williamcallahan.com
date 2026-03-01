@@ -46,6 +46,41 @@ export const bookmarkTagLinks = pgTable(
   ],
 );
 
+export const bookmarkTags = pgTable(
+  "bookmarks_tags",
+  {
+    tagSlug: text("tag_slug").primaryKey(),
+    tagName: text("tag_name").notNull(),
+    tagStatus: text("tag_status").notNull().default("primary"),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+    updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+  },
+  (table) => [index("idx_bookmarks_tags_status").on(table.tagStatus)],
+);
+
+export const bookmarkTagAliasLinks = pgTable(
+  "bookmarks_tags_links",
+  {
+    sourceTagSlug: text("source_tag_slug")
+      .notNull()
+      .references(() => bookmarkTags.tagSlug, { onDelete: "cascade", onUpdate: "cascade" }),
+    targetTagSlug: text("target_tag_slug")
+      .notNull()
+      .references(() => bookmarkTags.tagSlug, { onDelete: "cascade", onUpdate: "cascade" }),
+    linkType: text("link_type").notNull().default("alias"),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+    updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.sourceTagSlug, table.targetTagSlug],
+      name: "bookmarks_tags_links_pk",
+    }),
+    index("idx_bookmarks_tags_links_source").on(table.sourceTagSlug),
+    index("idx_bookmarks_tags_links_target").on(table.targetTagSlug),
+  ],
+);
+
 export const bookmarkIndexState = pgTable("bookmark_index_state", {
   id: text("id").primaryKey(),
   ...buildBookmarkIndexStateColumns(),

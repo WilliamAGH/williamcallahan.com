@@ -12,7 +12,7 @@ import { getMonotonicTime } from "@/lib/utils";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import { CONTENT_GRAPH_ARTIFACT_TYPES } from "@/lib/db/schema/content-graph";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
-import { applyBlendedScoring } from "./blended-scoring";
+import { rankEmbeddingCandidates } from "@/lib/db/queries/embedding-similarity";
 
 const MAX_RELATED = 20;
 const YIELD_INTERVAL = 10;
@@ -126,6 +126,29 @@ export async function buildContentGraph(
     const { sql } = await import("drizzle-orm");
     const { getAllPosts } = await import("@/lib/blog");
     const { projects } = await import("@/data/projects");
+    const bookmarkQualityRows = await db.execute<{
+      id: string;
+      has_description: boolean;
+      is_favorite: boolean;
+      has_word_count: boolean;
+    }>(sql`
+      SELECT
+        id,
+        (coalesce(description, '') <> '') AS has_description,
+        is_favorite,
+        (coalesce(word_count, 0) > 0) AS has_word_count
+      FROM bookmarks
+    `);
+    const bookmarkQualityById = new Map(
+      bookmarkQualityRows.map((row) => [
+        row.id,
+        {
+          hasDescription: row.has_description,
+          isFavorite: row.is_favorite,
+          hasWordCount: row.has_word_count,
+        },
+      ]),
+    );
 
     // Read all entities that have embeddings
     const embeddingRows = await db.execute<{
@@ -181,10 +204,12 @@ export async function buildContentGraph(
       const candidates = await findSimilarByEntity({
         sourceDomain,
         sourceId: entity.entity_id,
-        limit: MAX_RELATED + 10, // fetch extra so blended scoring has room after diversity cap
+        limit: MAX_RELATED + 10,
       });
-
-      const scored = applyBlendedScoring(candidates, {
+      const scored = rankEmbeddingCandidates({
+        sourceDomain,
+        candidates,
+        bookmarkQualityById,
         maxPerDomain: 5,
         maxTotal: MAX_RELATED,
       });

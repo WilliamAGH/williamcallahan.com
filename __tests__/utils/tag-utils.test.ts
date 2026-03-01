@@ -3,7 +3,10 @@
  */
 
 import {
+  canonicalizeCategoryLabel,
+  categoriesSemanticallyMatch,
   formatTagDisplay,
+  getCanonicalCategoryKey,
   normalizeTagsToStrings,
   sanitizeUnicode,
   sanitizeTagSlug,
@@ -186,6 +189,26 @@ describe("Tag Utility Functions", () => {
         expect(slug).toBeTruthy();
         expect(displayTag).toBeTruthy();
       }
+    });
+  });
+
+  describe("Category canonicalization", () => {
+    it("should canonicalize common category aliases", () => {
+      expect(canonicalizeCategoryLabel("CLI")).toBe("Command Line Tools");
+      expect(canonicalizeCategoryLabel("command-line")).toBe("Command Line Tools");
+      expect(canonicalizeCategoryLabel("developer tooling")).toBe("Developer Tools");
+    });
+
+    it("should generate stable canonical keys independent of formatting", () => {
+      expect(getCanonicalCategoryKey("Machine Learning")).toBe("ai");
+      expect(getCanonicalCategoryKey("Artificial intelligence")).toBe("ai");
+      expect(getCanonicalCategoryKey("Tooling")).toBe("developer tools");
+    });
+
+    it("should match semantically equivalent category names", () => {
+      expect(categoriesSemanticallyMatch("CLI", "Command Line Tool")).toBe(true);
+      expect(categoriesSemanticallyMatch("Developer Tooling", "DevTools")).toBe(true);
+      expect(categoriesSemanticallyMatch("Design", "AI")).toBe(false);
     });
   });
 });

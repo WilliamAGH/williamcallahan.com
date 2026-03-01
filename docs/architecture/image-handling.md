@@ -29,7 +29,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
      │
      ▼
 ┌─────────────┐  selectBestImage, manifest helpers choose canonical source,
-│Selection    │  enforce env-based host allowlists, attach context (domain/bid)
+│Selection    │  enforce env-based host allowlists, return canonical asset IDs
 └────┬────────┘
      │
      ▼
@@ -71,7 +71,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 ### Bookmark Cards & Sharing Links
 
 1. `selectBestImage` (bookmarks) or `selectBestOpenGraphImage` (OG fetch path) chooses between CDN hashes, Karakeep `imageAssetId`, `screenshotAssetId`, or standard OG URLs.
-2. `/api/assets/[assetId]` (Karakeep proxy) validates UUID + context query params, checks S3 via `HeadObjectCommand`, and writes missing assets using `createMonitoredStream` + `writeBinaryS3`.
+2. `/api/assets/[assetId]` (Karakeep proxy) validates UUID, resolves S3 keys by canonical `assetId + extension`, and writes missing assets using `createMonitoredStream` + `writeBinaryS3`.
 3. `/api/og-image` handles S3 keys, asset IDs, direct URLs, and bookmark fallbacks. It uses `openGraphUrlSchema`, `sanitizePath`, `IMAGE_SECURITY_HEADERS`, and `getUnifiedImageService().getImage()` for external fetches.
 4. `<OptimizedCardImage>` uses Next/Image to render whichever URL results. If the URL points to `/api/assets` or `/api/og-image`, the API response returns a CDN redirect or raw bytes with 1-year TTLs.
 

@@ -9,6 +9,8 @@ import type { BookmarkSlugMapping } from "@/types/bookmark";
 // Mock dependencies used inside the route
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/slug-manager");
+vi.mock("@/lib/db/queries/discovery-scores");
+
 import * as slugManagerModule from "@/lib/bookmarks/slug-manager";
 
 const mockGetBookmarks = vi.mocked(getBookmarks);
@@ -70,9 +72,9 @@ describe("Bookmark API – large limit behavior", () => {
 
   it("returns the full dataset when limit exceeds BOOKMARKS_PER_PAGE", async () => {
     const request = {
-      url: "http://localhost:3000/api/bookmarks?limit=1000&page=1",
+      url: "http://localhost:3000/api/bookmarks?limit=1000&page=1&feed=latest",
       nextUrl: {
-        searchParams: new URLSearchParams({ limit: "1000", page: "1" }),
+        searchParams: new URLSearchParams({ limit: "1000", page: "1", feed: "latest" }),
       },
     } as unknown as import("next/server").NextRequest;
 

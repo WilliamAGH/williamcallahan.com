@@ -20,10 +20,18 @@ vi.mock("@/data/projects", () => ({
   projects: [],
 }));
 
-// Mock cross-domain similarity (pgvector queries)
+// Mock cross-domain similarity (pgvector queries) — fallback path
 const mockFindSimilarByEntity = vi.fn();
 vi.mock("@/lib/db/queries/cross-domain-similarity", () => ({
   findSimilarByEntity: (...args: unknown[]) => mockFindSimilarByEntity(...args),
+}));
+
+// Mock embedding-based similarity — primary path
+const mockFindSimilarByEmbedding = vi.fn();
+const mockRankEmbeddingCandidates = vi.fn();
+vi.mock("@/lib/db/queries/embedding-similarity", () => ({
+  findSimilarByEmbedding: (...args: unknown[]) => mockFindSimilarByEmbedding(...args),
+  rankEmbeddingCandidates: (...args: unknown[]) => mockRankEmbeddingCandidates(...args),
 }));
 
 // Mock DB connection for direct SQL queries in buildContentGraph
@@ -36,7 +44,9 @@ vi.mock("@/lib/db/connection", () => ({
 vi.mock("drizzle-orm", () => ({
   sql: Object.assign(
     (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values, _tag: "sql" }),
-    { raw: (s: string) => ({ raw: s, _tag: "sql-raw" }) },
+    {
+      raw: (s: string) => ({ raw: s, _tag: "sql-raw" }),
+    },
   ),
 }));
 
@@ -73,12 +83,21 @@ describe("Content Graph Pre-computation", () => {
         { domain: "blog", entity_id: "p1", tags: ["javascript"] },
       ];
 
-      // First call: embedding rows; second call: tag content rows
-      mockDbExecute.mockResolvedValueOnce(embeddingRows).mockResolvedValueOnce(tagContentRows);
+      // Bookmark quality rows (first db.execute call)
+      const bookmarkQualityRows = [
+        { id: "b1", has_description: true, is_favorite: false, has_word_count: true },
+        { id: "b2", has_description: true, is_favorite: false, has_word_count: false },
+      ];
 
-      // Mock findSimilarByEntity to return similarity candidates
-      mockFindSimilarByEntity.mockImplementation(({ sourceId }: { sourceId: string }) => {
-        if (sourceId === "b1") {
+      // First: bookmark quality; second: embedding rows; third: tag content rows
+      mockDbExecute
+        .mockResolvedValueOnce(bookmarkQualityRows)
+        .mockResolvedValueOnce(embeddingRows)
+        .mockResolvedValueOnce(tagContentRows);
+
+      // Mock findSimilarByEntity to return similarity candidates (replaces findSimilarByEmbedding)
+      mockFindSimilarByEntity.mockImplementation((options: { sourceId: string }) => {
+        if (options.sourceId === "b1") {
           return Promise.resolve([
             {
               domain: "blog",
@@ -106,6 +125,12 @@ describe("Content Graph Pre-computation", () => {
           },
         ]);
       });
+
+      // Mock rankEmbeddingCandidates to pass through candidates with scores
+      mockRankEmbeddingCandidates.mockImplementation(
+        ({ candidates }: { candidates: Array<{ similarity: number }> }) =>
+          candidates.map((c) => ({ ...c, score: c.similarity })),
+      );
 
       // Mock blog posts and projects for metadata
       const { getAllPosts } = await import("@/lib/blog");
@@ -178,9 +203,40 @@ describe("Content Graph Pre-computation", () => {
         { domain: "blog", entity_id: "3", tags: ["react", "typescript"] },
       ];
 
-      mockDbExecute.mockResolvedValueOnce(embeddingRows).mockResolvedValueOnce(tagContentRows);
+      // Bookmark quality rows (first db.execute call)
+      const bookmarkQualityRows = [
+        { id: "1", has_description: true, is_favorite: false, has_word_count: false },
+        { id: "2", has_description: true, is_favorite: false, has_word_count: false },
+      ];
 
-      mockFindSimilarByEntity.mockResolvedValue([]);
+      mockDbExecute
+        .mockResolvedValueOnce(bookmarkQualityRows)
+        .mockResolvedValueOnce(embeddingRows)
+        .mockResolvedValueOnce(tagContentRows);
+
+      mockFindSimilarByEmbedding.mockResolvedValue([]);
+      mockFindSimilarByEntity.mockImplementation(() => [
+        {
+          domain: "bookmark",
+          entityId: "2",
+          title: "JS Vue",
+          similarity: 0.85,
+          contentDate: "2024-01-02",
+        },
+      ]);
+      mockRankEmbeddingCandidates.mockImplementation(
+        ({
+          candidates,
+        }: {
+          candidates: Array<{ domain: string; entityId: string; title: string }>;
+        }) =>
+          candidates.map((c, i) => ({
+            domain: c.domain,
+            entityId: c.entityId,
+            title: c.title,
+            score: 0.85 - i * 0.1,
+          })),
+      );
 
       const { getAllPosts } = await import("@/lib/blog");
       (getAllPosts as any).mockResolvedValue([]);

@@ -24,6 +24,10 @@ export type { DataUpdaterFlag } from "@/types/lib";
 export const DATA_UPDATER_FLAGS = {
   /** Refresh bookmarks data from external API */
   BOOKMARKS: "--bookmarks",
+  /** LLM-driven bookmark tag canonicalization + alias ingestion (incremental) */
+  BOOKMARK_TAGS: "--bookmark-tags",
+  /** LLM-driven bookmark tag canonicalization + alias ingestion retrofit mode */
+  BOOKMARK_TAGS_RETROFIT: "--bookmark-tags-retrofit",
   /** Regenerate consolidated books dataset from AudioBookShelf */
   BOOKS: "--books",
   /** Refresh GitHub activity data - NOTE: NOT --github-activity! */

@@ -44,9 +44,6 @@ export function POST(request: NextRequest): NextResponse {
     // Individual bookmark pages (dynamic route)
     revalidatePath("/bookmarks/[slug]", "page");
 
-    // Paginated bookmark pages
-    revalidatePath("/bookmarks/page/[pageNumber]", "page");
-
     // Domain-filtered bookmark pages
     revalidatePath("/bookmarks/domain/[domainSlug]", "page");
 

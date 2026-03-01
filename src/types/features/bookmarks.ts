@@ -8,44 +8,60 @@
  * Everything else is just UI variations that should use composition.
  */
 
+import type { ReactNode } from "react";
+
 import type { UnifiedBookmark, BookmarkTag, BookmarkContent } from "../bookmark";
 import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from "@/types/ui";
+import type { EngagementContentType } from "@/types/schemas/engagement";
 
 // =============================================================================
 // ACTUALLY USED CLIENT COMPONENT PROPS
 // =============================================================================
 
 /**
+ * Bookmark card required fields — the minimal set the card component actually destructures.
+ * Everything else from UnifiedBookmark is accepted but optional (Partial).
+ *
+ * This allows both full UnifiedBookmark and the narrower SerializableBookmark to satisfy
+ * the type via structural subtyping, eliminating the need for unsafe casts at call sites.
+ */
+type BookmarkCardRequiredFields = Pick<
+  UnifiedBookmark,
+  "id" | "url" | "title" | "description" | "tags" | "dateBookmarked"
+>;
+
+/**
  * Bookmark card client props - USED in bookmark-card.client.tsx
  *
- * This type combines UnifiedBookmark with additional UI props needed for the card component.
- * When bookmarks are passed to this component, they should maintain all content fields
- * including screenshotAssetId for proper fallback image rendering.
+ * Combines required bookmark fields with optional extras from UnifiedBookmark and UI props.
+ * Callers may pass full UnifiedBookmark objects or serialized subsets — both satisfy this type.
  */
-export type BookmarkCardClientProps = UnifiedBookmark & {
-  /**
-   * Internal route to this bookmark detail page (e.g. "/bookmarks/github-com-google-gemini-gemini-cli").
-   *
-   * Behaviour contract:
-   * 1. On list/grid views (bookmarks root, paginated pages, tag pages) **MUST** be supplied so that the
-   *    bookmark image & title link to the internal page instead of the external URL.
-   * 2. On the bookmark **detail** page itself the component still receives this value, however the
-   *    component detects that `usePathname()` already equals this path and intentionally disables the
-   *    internal link, making the image & title fall back to the original external `url`.
-   *
-   * This dual-behavior ensures we never confuse the two link targets while allowing one reusable
-   * component to cover both contexts without prop explosions.
-   *
-   * NEVER pass an external URL here – it must always start with "/bookmarks/".
-   */
-  internalHref?: string;
-  showDetails?: boolean;
-  isInteractive?: boolean;
-  onClick?: (bookmark: UnifiedBookmark) => void;
-  className?: string;
-  /** Preload the card image for above-the-fold visibility */
-  preload?: boolean;
-};
+export type BookmarkCardClientProps = BookmarkCardRequiredFields &
+  Partial<Omit<UnifiedBookmark, keyof BookmarkCardRequiredFields>> & {
+    /**
+     * Internal route to this bookmark detail page (e.g. "/bookmarks/github-com-google-gemini-gemini-cli").
+     *
+     * Behaviour contract:
+     * 1. On list/grid views (bookmarks root, paginated pages, tag pages) **MUST** be supplied so that the
+     *    bookmark image & title link to the internal page instead of the external URL.
+     * 2. On the bookmark **detail** page itself the component still receives this value, however the
+     *    component detects that `usePathname()` already equals this path and intentionally disables the
+     *    internal link, making the image & title fall back to the original external `url`.
+     *
+     * This dual-behavior ensures we never confuse the two link targets while allowing one reusable
+     * component to cover both contexts without prop explosions.
+     *
+     * NEVER pass an external URL here – it must always start with "/bookmarks/".
+     */
+    internalHref?: string;
+    showDetails?: boolean;
+    isInteractive?: boolean;
+    onClick?: (bookmark: UnifiedBookmark) => void;
+    className?: string;
+    /** Preload the card image for above-the-fold visibility */
+    preload?: boolean;
+    variant?: "default" | "hero" | "compact";
+  };
 
 /**
  * Tags list client props - USED in tags-list.client.tsx
@@ -64,6 +80,30 @@ export type TagsListClientProps = BaseComponentProps & {
 export type BookmarkShareButtonProps = BaseComponentProps & {
   bookmark: Pick<UnifiedBookmark, "id" | "url">;
   shareUrl: string;
+};
+
+export type ImpressionTrackerProps = {
+  contentType: EngagementContentType;
+  contentId: string;
+  onImpression: (contentType: EngagementContentType, contentId: string) => void;
+  children: ReactNode;
+};
+
+export type BookmarkFeedMode = "discover" | "latest";
+
+export type FeedToggleProps = {
+  mode: BookmarkFeedMode;
+  onChange: (mode: BookmarkFeedMode) => void;
+};
+
+export type HeroRowProps = {
+  bookmarks: UnifiedBookmark[];
+  internalHrefs?: Readonly<Record<string, string>>;
+  onImpression: (contentType: EngagementContentType, contentId: string) => void;
+};
+
+export type SectionBreakProps = {
+  label: string;
 };
 
 // Base type for all bookmark list variations
@@ -96,6 +136,7 @@ export type BookmarksPaginatedClientProps = BaseBookmarkListProps &
     initialTag?: string;
     tag?: string;
     description?: string;
+    feedMode?: BookmarkFeedMode;
     readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
@@ -131,6 +172,7 @@ export type BookmarksWithPaginationClientProps = BaseBookmarkListProps &
     tag?: string;
     description?: string;
     className?: string;
+    feedMode?: BookmarkFeedMode;
     readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
@@ -143,6 +185,8 @@ export type BookmarksWindowClientPropsExtended = import("../component-types").Wi
   BaseFilterableProps & {
     pageTitle?: string;
     pageDescription?: string;
+    feedMode?: BookmarkFeedMode;
+    showFeedToggle?: boolean;
     forceClientFetch?: boolean;
     totalPages?: number;
     totalCount?: number;
@@ -168,6 +212,7 @@ export interface BookmarksClientWithWindowProps {
   itemsPerPage?: number;
   enableInfiniteScroll?: boolean;
   searchAllBookmarks?: boolean;
+  feedMode?: BookmarkFeedMode;
   readonly internalHrefs?: Readonly<Record<string, string>>;
 }
 
@@ -180,6 +225,8 @@ export interface BookmarksWindowContentProps {
   onClose: () => void;
   onMinimize: () => void;
   onMaximize: () => void;
+  feedMode?: BookmarkFeedMode;
+  showFeedToggle?: boolean;
   titleSlug?: string;
   windowTitle?: string;
 }
@@ -205,6 +252,7 @@ export interface BookmarksServerExtendedProps {
   usePagination?: boolean;
   initialTag?: string;
   tag?: string;
+  feedMode?: BookmarkFeedMode;
   includeImageData?: boolean;
   readonly internalHrefs?: Readonly<Record<string, string>>;
 }
@@ -254,6 +302,8 @@ export interface SerializableBookmark {
  */
 export interface ImageSelectionOptions {
   includeScreenshots?: boolean;
+  includeImageAssets?: boolean;
+  preferScreenshots?: boolean;
   returnUndefined?: boolean;
 }
 

@@ -144,4 +144,15 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
       expect(logoImage.getAttribute("src")).toBe("/api/assets/test-screenshot-asset-id");
     }
   });
+
+  it("hides category badge when showCategoryBadge is false", () => {
+    const bookmarkWithCategory = {
+      ...mockBookmark,
+      category: "Platform",
+    };
+
+    render(<BookmarkCardClient {...bookmarkWithCategory} showCategoryBadge={false} />);
+
+    expect(screen.queryByText("Platform")).not.toBeInTheDocument();
+  });
 });

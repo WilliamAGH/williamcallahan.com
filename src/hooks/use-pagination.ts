@@ -98,7 +98,7 @@ export function usePagination<T>({
                 }
               : null,
           )
-        : [],
+        : undefined,
   });
 
   const items: T[] = data ? data.flatMap((page) => page?.data ?? []) : [];

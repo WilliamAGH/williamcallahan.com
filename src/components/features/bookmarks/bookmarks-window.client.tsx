@@ -12,18 +12,26 @@
 
 "use client";
 
-import React, { Suspense, useEffect, type JSX } from "react";
+import React, { Suspense, useCallback, type JSX } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { Bookmark, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { RegisteredWindowState } from "@/types/ui/window";
 import type {
+  BookmarkFeedMode,
   BookmarksWindowContentProps,
   BookmarksWindowClientPropsExtended as BookmarksWindowClientProps,
 } from "@/types/features/bookmarks";
+
+const FeedToggle = dynamic(
+  () => import("./feed-toggle.client").then((module) => module.FeedToggle),
+  { ssr: false, loading: () => null },
+);
 
 // Define a unique ID for this window instance
 // Use this as the default window ID, but it can be overridden with props
@@ -64,10 +72,14 @@ function BookmarksWindowContentInner({
   onClose,
   onMinimize,
   onMaximize,
+  feedMode = "discover",
+  showFeedToggle = false,
   titleSlug,
   windowTitle,
 }: BookmarksWindowContentProps): React.JSX.Element {
   const isMaximized = windowState === "maximized";
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Format the title slug for display
   const formattedTitle = windowTitle
@@ -75,6 +87,24 @@ function BookmarksWindowContentInner({
     : titleSlug
       ? `~/${titleSlug}/bookmarks`
       : "~/bookmarks";
+
+  const handleFeedChange = useCallback(
+    (nextMode: BookmarkFeedMode) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextMode === "discover") {
+        params.delete("feed");
+        params.delete("tag");
+      } else {
+        params.set("feed", "latest");
+      }
+
+      const query = params.toString();
+      const basePath = "/bookmarks";
+      const nextUrl = query.length > 0 ? `${basePath}?${query}` : basePath;
+      router.replace(nextUrl, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   return (
     <div
@@ -98,7 +128,10 @@ function BookmarksWindowContentInner({
               </Link>
             </h1>
           </div>
-          <TerminalSearchHint context="bookmarks" />
+          <div className="flex items-center gap-3">
+            {showFeedToggle && <FeedToggle mode={feedMode} onChange={handleFeedChange} />}
+            <TerminalSearchHint context="bookmarks" />
+          </div>
         </div>
       </div>
 
@@ -125,6 +158,8 @@ function BookmarksWindowContentInner({
  */
 export function BookmarksWindow({
   children,
+  feedMode,
+  showFeedToggle = false,
   titleSlug,
   windowTitle,
   windowId,
@@ -132,6 +167,7 @@ export function BookmarksWindow({
   // Generate a unique windowId if a slug is provided
   const uniqueId =
     windowId || (titleSlug ? `bookmarks-${titleSlug}-window` : DEFAULT_BOOKMARKS_WINDOW_ID);
+  const shouldRenderFeedToggle = showFeedToggle && !uniqueId.startsWith("bookmark-detail-");
 
   // Add display title for restore button
   const restoreTitle = titleSlug ? `Restore ${titleSlug} Bookmarks` : "Restore Bookmarks";
@@ -141,20 +177,12 @@ export function BookmarksWindow({
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered,
   }: RegisteredWindowState = useRegisteredWindowState(
     uniqueId,
     Bookmark as LucideIcon,
     restoreTitle,
     "normal",
   );
-
-  // Log state changes for debugging purposes
-  useEffect(() => {
-    if (isRegistered) {
-      console.log(`BookmarksWindow Render (${uniqueId}) - Window State:`, windowState);
-    }
-  }, [windowState, isRegistered, uniqueId]);
 
   // Handle closed state
   if (windowState === "closed") {
@@ -172,6 +200,8 @@ export function BookmarksWindow({
       onClose={closeWindow}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
+      feedMode={feedMode}
+      showFeedToggle={shouldRenderFeedToggle}
       titleSlug={titleSlug}
       windowTitle={windowTitle}
     >

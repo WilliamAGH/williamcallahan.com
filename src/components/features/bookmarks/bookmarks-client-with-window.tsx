@@ -74,23 +74,34 @@ export function BookmarksClientWithWindow({
   usePagination = true,
   initialTag,
   tag,
+  feedMode,
   internalHrefs,
 }: BookmarksClientWithWindowProps) {
+  const hasExplicitTagFilter = Boolean(initialTag || tag);
+  const resolvedFeedMode: "discover" | "latest" =
+    titleSlug || hasExplicitTagFilter ? "latest" : (feedMode ?? "discover");
+  const normalizedBaseUrl = baseUrl ?? "/bookmarks";
+  const shouldEnableInfiniteScroll =
+    resolvedFeedMode === "discover" &&
+    !hasExplicitTagFilter &&
+    !titleSlug &&
+    normalizedBaseUrl === "/bookmarks";
   const unifiedBookmarks: UnifiedBookmark[] = convertSerializableBookmarksToUnified(bookmarks);
 
   // Title is currently unused in this component, acknowledge to satisfy linter rules (no underscore prefixes allowed)
   void title;
 
   return (
-    <BookmarksWindow titleSlug={titleSlug}>
+    <BookmarksWindow titleSlug={titleSlug} feedMode={resolvedFeedMode} showFeedToggle={!titleSlug}>
       <div className="w-full mx-auto py-8">
         <Suspense fallback={<BookmarksLoading />}>
           <BookmarksClient
+            key={resolvedFeedMode}
             bookmarks={unifiedBookmarks}
             searchAllBookmarks={searchAllBookmarks}
             showFilterBar={showFilterBar}
             usePagination={usePagination}
-            enableInfiniteScroll={false}
+            enableInfiniteScroll={shouldEnableInfiniteScroll}
             itemsPerPage={24}
             initialPage={initialPage}
             totalPages={totalPages}
@@ -99,6 +110,7 @@ export function BookmarksClientWithWindow({
             initialTag={initialTag}
             tag={tag}
             description={description}
+            feedMode={resolvedFeedMode}
             internalHrefs={internalHrefs}
           />
         </Suspense>

@@ -17,8 +17,7 @@ import { projects } from "@/lib/db/schema/projects";
 import { booksIndividual } from "@/lib/db/schema/books-individual";
 import { thoughts } from "@/lib/db/schema/thoughts";
 import { resolveImageUrl } from "@/lib/seo/url-utils";
-import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
+import { buildCdnUrl, getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
@@ -78,35 +77,35 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       tags: bookmarks.tags,
       domain: bookmarks.domain,
       ogImage: bookmarks.ogImage,
-      content: bookmarks.content,
       dateBookmarked: bookmarks.dateBookmarked,
     })
     .from(bookmarks)
     .where(inArray(bookmarks.id, ids));
 
   const scoreMap = new Map(entries.map((e) => [e.entityId, e.score]));
+  const cdnConfig = getCdnConfigFromEnv();
 
-  return rows.map((r) => ({
-    type: "bookmark" as const,
-    id: r.id,
-    title: r.title,
-    description: r.description ?? "",
-    url: `/bookmarks/${r.slug || r.id}`,
-    score: scoreMap.get(r.id) ?? 0,
-    metadata: {
-      tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
-      domain: r.domain ?? undefined,
-      date: r.dateBookmarked ?? undefined,
-      imageUrl: resolveImageUrl(
-        selectBestImage({
-          ogImage: r.ogImage ?? undefined,
-          content: r.content ?? undefined,
-          id: r.id,
-          url: r.url,
-        }) ?? undefined,
-      ),
-    } satisfies RelatedContentMetadata,
-  }));
+  return rows.map((r) => {
+    // Related-content cards should only trust persisted CDN OG URLs.
+    // External OG URLs are intentionally excluded to avoid nondeterministic/hallucinated previews.
+    // Asset IDs in bookmark.content remain the canonical fallback chain.
+    const trustedOgImage = r.ogImage && isOurCdnUrl(r.ogImage, cdnConfig) ? r.ogImage : undefined;
+
+    return {
+      type: "bookmark" as const,
+      id: r.id,
+      title: r.title,
+      description: r.description ?? "",
+      url: `/bookmarks/${r.slug || r.id}`,
+      score: scoreMap.get(r.id) ?? 0,
+      metadata: {
+        tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
+        domain: r.domain ?? undefined,
+        date: r.dateBookmarked ?? undefined,
+        imageUrl: resolveImageUrl(trustedOgImage),
+      } satisfies RelatedContentMetadata,
+    };
+  });
 }
 
 async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedContentItem[]> {
@@ -340,8 +339,14 @@ export async function hydrateRelatedContent(
   const results = await Promise.all(hydrationPromises);
   const allItems = results.flat();
 
-  // Re-sort by score descending (parallel fetch may interleave ordering)
-  allItems.sort((a, b) => b.score - a.score);
+  // Re-sort with deterministic tie-breaking (parallel fetch may interleave ordering).
+  allItems.sort((a, b) => {
+    const scoreDiff = b.score - a.score;
+    if (scoreDiff !== 0) return scoreDiff;
+    const typeDiff = a.type.localeCompare(b.type);
+    if (typeDiff !== 0) return typeDiff;
+    return a.id.localeCompare(b.id);
+  });
 
   return allItems;
 }

@@ -11,7 +11,7 @@ The bookmarks system orchestrates fetching, processing, enriching, and serving b
 ### Data Flow
 
 ```
-Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/index tables)
+Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/index tables + bookmarks_tags + bookmarks_tags_links)
                                                    |
                               PostgreSQL read model (lists/pages/tags/index joins)
                                                    |
@@ -34,8 +34,9 @@ Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/i
    - Manages refresh cycles and cache invalidation
 
 3. **API Endpoints (always `unstable_noStore`)**
-   - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering (responds with `Cache-Control: no-store`)
+   - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering and feed mode (`?feed=discover|latest`); responds with `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`
    - `/api/bookmarks/refresh` - Manual refresh trigger (secret protected)
+   - `/api/engagement` - Client engagement event ingestion (impression, click, dwell, external_click)
    - `/api/og-image` - Unified OpenGraph image serving
 
 4. **UI Components (Next.js cache consumers)**
@@ -43,6 +44,8 @@ Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/i
    - Client components for interactivity and pagination
    - Tag navigation with URL-based routing
    - Share functionality with pre-generated URLs
+   - Feed toggle (Discover/Latest) in BookmarksWindow title bar
+   - Hero row and section breaks for magazine-style discover layout
 
 ### Scraped Content Normalization
 
@@ -81,6 +84,26 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-logo-data.no
 DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-embeddings.node.mjs --force --batch-size 4
 ```
 
+### Tag Alias Canonicalization Ingestion
+
+- `scripts/ingest-bookmark-tag-aliases.node.mjs` runs tag alias canonicalization from bookmark tag context plus embedding-nearest related bookmarks.
+- Each run can process one seed bookmark (plus up to 8 similar bookmarks by default), ask the LLM for alias-to-canonical tag mappings, and write results to `bookmarks_tags` + `bookmarks_tags_links`.
+- Alias tags are stored in `bookmarks_tags` (`tag_status='alias'`) and mapped to canonical primary tags through `bookmarks_tags_links`.
+- Incremental mode: `node scripts/ingest-bookmark-tag-aliases.node.mjs --limit=1`
+- Retrofit mode: `node scripts/ingest-bookmark-tag-aliases.node.mjs --retrofit --limit=1`
+- One-bookmark test run: `node scripts/ingest-bookmark-tag-aliases.node.mjs --bookmark-id=<bookmark-id>`
+- Dry-run preview: append `--dry-run` to print before/after without writes.
+
+### Scheduler / Cron Pipeline
+
+- `scripts/data-updater.ts` now accepts:
+  - `--bookmark-tags`
+  - `--bookmark-tags-retrofit`
+- `src/lib/server/scheduler.ts` schedules:
+  - `S3_BOOKMARK_TAGS_CRON` (default `30 */4 * * *`, every 4 hours)
+  - `S3_BOOKMARK_TAGS_RETROFIT_CRON` (default `45 3 * * *`, daily at 3:45 AM PT)
+- Both tag alias cron jobs trigger bookmark cache revalidation via `/api/revalidate/bookmarks`.
+
 ### Runtime Fetch Strategy
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds read bookmarks from PostgreSQL in runtime paths.
@@ -92,15 +115,54 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 - Bookmark detail routes (`app/bookmarks/[slug]/page.tsx`) keep Cache Components enabled and rely on a `<Suspense>` boundary around `RelatedContent` to stream recommendations. `RelatedContent` does **not** call `connection()`; it avoids build-time execution by returning `null` during the production build phase and performs PostgreSQL-backed precomputed lookups (`content_graph_artifacts`) at request time, with an in-process cache fallback to avoid repeated similarity computation. Slug-resolution helpers (`findBookmarkBySlug`, `resolveBookmarkIdFromSlug`) remain cache-tagged for memoization.
 - Bookmark tag routes (`app/bookmarks/tags/[...slug]/page.tsx`) can display a “Discover More” related-content section sourced from the first bookmark on the page, with the active tag excluded from recommendations.
 
+### Engagement Tracking & Discovery Feed
+
+The discovery feed ranks bookmarks by blended engagement and recency signals rather than pure chronological order.
+
+**Feed Modes** (`?feed=discover|latest`):
+
+- **Discover** (default): Recency-primary ranking (82% recency + 18% engagement). Client-side SWR fetch with `fallbackData: undefined` triggers a loading skeleton while the API returns engagement-ranked results. Falls back to latest order when discovery scores are unavailable.
+- **Latest**: Chronological order using server-provided `initialData` via SWR `fallbackData`.
+
+**Data Flow**:
+
+```
+Client events → POST /api/engagement → content_engagement table
+                                              ↓
+                        getDiscoveryRankedBookmarks() joins bookmarks + engagement aggregation
+                                              ↓
+                        applyCategoryDiversity() prevents 3+ consecutive same-category items
+                                              ↓
+                        Client SWR receives ranked bookmarks
+```
+
+**Engagement Events** (validated by Zod schema in `types/schemas/engagement.ts`):
+
+- `impression`: Bookmark enters viewport (IntersectionObserver)
+- `click`: User clicks bookmark card
+- `dwell`: Time spent on detail page
+- `external_click`: User follows external link
+
+**Key Modules**:
+
+- `src/lib/db/schema/content-engagement.ts`: Drizzle schema for `content_engagement` table
+- `src/lib/db/schema/bookmark-taxonomy.ts`: Includes `bookmarks_tags` + `bookmarks_tags_links` for primary/alias tag canonicalization
+- `src/lib/db/queries/discovery-scores.ts`: `computeDiscoveryScore()`, `getDiscoveryRankedBookmarks()`
+- `src/hooks/use-engagement-tracker.ts`: Client-side hook for batching and flushing events
+- `src/components/features/bookmarks/impression-tracker.client.tsx`: IntersectionObserver wrapper
+- `src/components/features/bookmarks/feed-toggle.client.tsx`: Discover/Latest segmented control
+- `src/components/features/bookmarks/hero-row.client.tsx`: Top-3 hero cards in discover mode
+- `src/components/features/bookmarks/section-break.client.tsx`: Thematic section dividers
+
 ## Key Features
 
 ### Pagination System
 
-- **URL-based**: `/bookmarks/page/2`, `/bookmarks/page/3`
+- **Root Discover Feed**: `/bookmarks` uses auto-scroll loading for topic sections
+- **Tag Pages**: URL-based pagination remains on `/bookmarks/tags/[tagSlug]/page/[n]`
 - **Efficient Loading**: 24 items per page, served from PostgreSQL pagination + RSC cache
-- **Dual Modes**: Manual pagination or infinite scroll
-- **SEO Optimized**: Proper canonical, prev/next tags
-- **Sitemap Integration**: All pages included automatically
+- **Dual Modes**: Tag pagination controls or infinite scroll where explicitly enabled
+- **SEO Optimized**: Canonical tag pagination URLs in sitemap generation
 
 ### Tag System
 
@@ -170,37 +232,9 @@ to avoid URL churn when titles or OpenGraph descriptions change.
 
 ### 1. Title-Based Slug Generation for Content-Sharing Domains
 
-**Problem**: Slug collisions on content-sharing platforms (YouTube, Reddit, etc.) where multiple pieces of content share the same URL structure
+**Problem**: Slug collisions on content-sharing platforms (YouTube, Reddit, etc.) where multiple pieces of content share the same URL structure.
 
-**Previous Behavior**:
-
-```text
-youtube.com/watch?v=abc123 -> "youtube-com-watch"
-youtube.com/watch?v=xyz789 -> "youtube-com-watch-2"  Collision with numeric suffix
-```
-
-**Solution**: Domain whitelist with title-based natural language slugs
-
-**New Behavior**:
-
-```text
-youtube.com/watch?v=abc123 + "How to Use OpenAI" -> "youtube-how-to-use-openai"
-youtube.com/watch?v=xyz789 + "React Best Practices" -> "youtube-react-best-practices"
-```
-
-**Implementation**:
-
-- **Whitelist**: `lib/config/content-sharing-domains.ts` defines platforms requiring title-based slugs
-- **Slug Generation**: `lib/utils/domain-utils.ts` detects content-sharing domains and uses `titleToSlug()` for natural language conversion
-- **Backward Compatibility**: Regular domains continue using domain + path-based slugs
-
-**Affected Domains**:
-
-- Video: YouTube, Vimeo, Twitch
-- Social: Reddit, Twitter/X, LinkedIn
-- Content: Medium, Substack, Dev.to
-- Code: GitHub, GitLab, StackOverflow
-- And others (see full list in `content-sharing-domains.ts`)
+**Solution**: Domain whitelist (`lib/config/content-sharing-domains.ts`) generates title-based slugs via `titleToSlug()` instead of domain+path. E.g. `youtube.com/watch?v=abc123` + "How to Use OpenAI" → `youtube-how-to-use-openai`. Regular domains continue using domain+path slugs. Numeric suffixes (`-2`, `-3`) handle remaining collisions.
 
 ### 2. Callback Pattern for Circular Dependencies
 
@@ -210,12 +244,7 @@ youtube.com/watch?v=xyz789 + "React Best Practices" -> "youtube-react-best-pract
 
 ### 3. In-Process Refresh Locking
 
-**Problem**: Race conditions with concurrent refresh operations
-
-**Solution**: `refresh-logic.server.ts` keeps a process-local lock and in-flight promise gate.
-
-- This matches the current deployment model (one app container per environment).
-- It prevents concurrent refreshes within that instance without external lock artifacts.
+**Problem**: Race conditions with concurrent refresh operations. **Solution**: `refresh-logic.server.ts` keeps a process-local lock and in-flight promise gate (one app container per environment).
 
 ### 4. Refresh Memory Protection
 

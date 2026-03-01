@@ -370,7 +370,6 @@ The `app/sitemap.ts` file aggregates content from multiple sources:
    - Main tag pages: `/bookmarks/tags/[tagSlug]`
    - Paginated tag pages: `/bookmarks/tags/[tagSlug]/page/[n]`
 6. **Paginated Pages**:
-   - Bookmark list pages: `/bookmarks/page/[n]`
    - Tag-filtered pages: `/bookmarks/tags/[tagSlug]/page/[n]`
 
 ### URL Construction
@@ -381,7 +380,6 @@ https://site.com/                    // Home (priority: 1.0)
 https://site.com/blog/post-slug      // Blog posts (priority: 0.7)
 https://site.com/blog/tags/tag-slug  // Blog tags (priority: 0.6)
 https://site.com/bookmarks/[slug]              // Individual bookmarks (priority: 0.65)
-https://site.com/bookmarks/page/2              // Paginated bookmarks (priority: 0.65)
 https://site.com/bookmarks/tags/react-native   // Bookmark tags (priority: 0.6)
 https://site.com/bookmarks/tags/ai-and-ml/page/2 // Paginated tag pages (priority: 0.55)
 ```

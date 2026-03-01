@@ -52,16 +52,6 @@ export interface DomainBookmarkContext {
 }
 
 /**
- * Context for paginated bookmark routes ([pageNumber])
- * @usage - Page components for bookmark pagination
- * @route - /bookmarks/page/[pageNumber]/page.tsx
- * @note - Params are Promise due to Next.js instrumentation
- */
-export interface PaginatedBookmarkContext {
-  params: Promise<{ pageNumber: string }>;
-}
-
-/**
  * Context for the combined tag and paginated bookmarks page ([...slug])
  * @route - /bookmarks/tags/[...slug]/page.tsx
  * @note - The slug can contain the tag and pagination info

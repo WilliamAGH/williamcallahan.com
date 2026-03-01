@@ -1,206 +1,54 @@
 /**
  * Metadata Integration Tests
- * @description Tests that all pages generate correct metadata including SEO tags, pagination links, etc.
+ * @description Verifies bookmarks root metadata and HTML tag rendering.
  * @vitest-environment node
  */
 
-import type { MockedFunction } from "vitest";
-import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page/[pageNumber]/page";
-import { getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import type { Metadata } from "next";
+import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page";
 
-// Mock dependencies - the page imports from service.server, not bookmarks-data-access.server
-vi.mock("@/lib/bookmarks/service.server", () => ({
-  getBookmarksPage: vi.fn(),
-  getBookmarksIndex: vi.fn(),
-}));
-
-vi.mock("@/lib/seo/metadata", () => ({
-  getStaticPageMetadata: vi.fn(() => ({
+const { mockGetStaticPageMetadata } = vi.hoisted(() => ({
+  mockGetStaticPageMetadata: vi.fn(() => ({
     title: "Bookmarks",
     description: "A collection of bookmarks",
     openGraph: {
       title: "Bookmarks",
       description: "A collection of bookmarks",
+      url: "https://williamcallahan.com/bookmarks",
     },
-    alternates: {},
+    alternates: {
+      canonical: "https://williamcallahan.com/bookmarks",
+    },
   })),
 }));
 
-vi.mock("@/lib/seo/dynamic-metadata", () => ({
-  generateDynamicTitle: vi.fn((content, _type, options) => {
-    if (options?.isPaginated && options?.pageNumber) {
-      return `${content} - Page ${options.pageNumber}`;
-    }
-    return content;
-  }),
+vi.mock("@/lib/seo/metadata", () => ({
+  getStaticPageMetadata: mockGetStaticPageMetadata,
 }));
-
-vi.mock("next/navigation", () => ({
-  notFound: vi.fn(),
-  redirect: vi.fn(),
-}));
-
-// Mock constants to ensure proper site URL
-vi.mock("@/lib/constants", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/constants")>();
-  return {
-    ...actual,
-    NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
-  };
-});
 
 describe("Metadata Integration Tests", () => {
-  const mockGetBookmarksPage = getBookmarksPage as MockedFunction<typeof getBookmarksPage>;
-  const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
-
-  // Mock bookmarks data with all required fields
-  const mockBookmarks = Array.from({ length: 50 }, (_, i) => ({
-    id: `bookmark-${i}`,
-    url: `https://example.com/${i}`,
-    title: `Bookmark ${i}`,
-    description: `Description ${i}`,
-    slug: `bookmark-${i}`,
-    dateBookmarked: "2024-01-01",
-    sourceUpdatedAt: "2024-01-01",
-    tags: [],
-    imageUrl: null,
-    domain: "example.com",
-    createdAt: "2024-01-01",
-    updatedAt: "2024-01-01",
-    isFavorite: false,
-  }));
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetBookmarksPage.mockResolvedValue(mockBookmarks);
-
-    // Mock the index with pagination info
-    mockGetBookmarksIndex.mockResolvedValue({
-      count: 50,
-      totalPages: 3, // 50 bookmarks / 24 per page = 3 pages
-      pageSize: 24,
-      lastModified: "2024-01-01T00:00:00.000Z",
-      lastFetchedAt: Date.now(),
-      lastAttemptedAt: Date.now(),
-      checksum: "mock-checksum",
-    });
-
     process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
   });
 
-  describe("Pagination Link Tags", () => {
-    it('should generate proper <link rel="prev/next"> tags using icons.other', async () => {
-      const metadata = await generateBookmarksMetadata({
-        params: Promise.resolve({ pageNumber: "2" }),
-      });
+  it("generates root bookmarks metadata without pagination links", () => {
+    const metadata = generateBookmarksMetadata();
 
-      // Check that we're using icons.other instead of metadata.other
-      expect(metadata.icons).toBeDefined();
-      // Use type assertion since icons.other is a custom workaround
-      expect((metadata.icons as { other?: unknown }).other).toBeDefined();
-      expect(Array.isArray((metadata.icons as { other?: unknown }).other)).toBe(true);
-
-      const links = (metadata.icons as { other: Array<{ rel: string; url: string }> }).other;
-
-      // Should have both prev and next links for middle pages
-      expect(links).toHaveLength(2);
-
-      // Check prev link
-      const prevLink = links.find((link) => link.rel === "prev");
-      expect(prevLink).toBeDefined();
-      expect(prevLink?.url).toBe("https://williamcallahan.com/bookmarks");
-
-      // Check next link
-      const nextLink = links.find((link) => link.rel === "next");
-      expect(nextLink).toBeDefined();
-      expect(nextLink?.url).toBe("https://williamcallahan.com/bookmarks/page/3");
-    });
-
-    it("should include prev link pointing to base bookmarks URL for page 2", async () => {
-      // Page 2 should link back to the base /bookmarks URL for previous pagination.
-      const metadata = await generateBookmarksMetadata({
-        params: Promise.resolve({ pageNumber: "2" }),
-      });
-
-      const links =
-        (metadata.icons as { other?: Array<{ rel: string; url: string }> })?.other ?? [];
-      const prevLink = links.find((link) => link.rel === "prev");
-      expect(prevLink?.url).toBe("https://williamcallahan.com/bookmarks");
-    });
-
-    it("should handle last page correctly (no next link)", async () => {
-      const metadata = await generateBookmarksMetadata({
-        params: Promise.resolve({ pageNumber: "3" }), // Last page with 50 items, 24 per page
-      });
-
-      const links =
-        (metadata.icons as { other?: Array<{ rel: string; url: string }> })?.other ?? [];
-      const prevLink = links.find((link) => link.rel === "prev");
-      const nextLink = links.find((link) => link.rel === "next");
-
-      expect(prevLink).toBeDefined();
-      expect(prevLink?.url).toBe("https://williamcallahan.com/bookmarks/page/2");
-      expect(nextLink).toBeUndefined();
-    });
-
-    it("should not include pagination links for single page", async () => {
-      // Mock fewer bookmarks that fit on one page
-      mockGetBookmarksPage.mockResolvedValue(mockBookmarks.slice(0, 20));
-      // Mock index to have only 1 page
-      mockGetBookmarksIndex.mockResolvedValue({
-        count: 20,
-        totalPages: 1,
-        pageSize: 24,
-        lastModified: "2024-01-01T00:00:00.000Z",
-        lastFetchedAt: Date.now(),
-        lastAttemptedAt: Date.now(),
-        checksum: "mock-checksum",
-      });
-
-      // Test page 2 on a single-page dataset - when totalPages=1,
-      // requesting page 2 means we're beyond the valid range
-      const metadata = await generateBookmarksMetadata({
-        params: Promise.resolve({ pageNumber: "2" }),
-      });
-
-      // When requesting a page beyond available data on a single-page dataset,
-      // the implementation may return undefined icons.other (no pagination links)
-      // since there's no valid navigation to suggest
-      const links = (metadata.icons as { other?: Array<{ rel: string; url: string }> } | undefined)
-        ?.other;
-      if (links) {
-        // If links exist, there should be no next link (we're past the end)
-        const nextLink = links.find((link) => link.rel === "next");
-        expect(nextLink).toBeUndefined();
-      }
-      // Either no links at all, or only prev link - both are valid for this edge case
-    });
+    expect(mockGetStaticPageMetadata).toHaveBeenCalledWith("/bookmarks", "bookmarks");
+    expect(metadata.title).toBeDefined();
+    expect(metadata.description).toBeDefined();
+    expect(metadata.alternates?.canonical).toBe("https://williamcallahan.com/bookmarks");
+    expect(metadata.icons).toBeUndefined();
   });
 
-  describe("SEO Metadata Completeness", () => {
-    it("should include all required SEO fields", async () => {
-      const metadata = await generateBookmarksMetadata({
-        params: Promise.resolve({ pageNumber: "2" }),
-      });
+  it("includes required SEO metadata fields for root bookmarks", () => {
+    const metadata = generateBookmarksMetadata();
 
-      // Basic metadata
-      expect(metadata.title).toBeDefined();
-      expect(metadata.description).toBeDefined();
-
-      // Canonical URL
-      expect(metadata.alternates?.canonical).toBe("https://williamcallahan.com/bookmarks/page/2");
-
-      // OpenGraph
-      expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBeDefined();
-      expect(metadata.openGraph?.url).toBeDefined();
-
-      // Robots
-      expect(metadata.robots).toBeDefined();
-      expect((metadata.robots as { index?: boolean })?.index).toBe(true);
-      expect((metadata.robots as { follow?: boolean })?.follow).toBe(true);
-    });
+    expect(metadata.title).toBeDefined();
+    expect(metadata.description).toBeDefined();
+    expect(metadata.openGraph).toBeDefined();
+    expect(metadata.openGraph?.url).toBe("https://williamcallahan.com/bookmarks");
   });
 
   describe("Robots.txt Environment Detection", () => {
@@ -224,99 +72,44 @@ describe("Metadata Integration Tests", () => {
       expect(result.sitemap).toBe("https://williamcallahan.com/sitemap.xml");
     });
   });
-
-  describe("Sitemap Integration", () => {
-    // Note: We can't directly test the sitemap function due to its dependencies,
-    // but we can test that our constants are used correctly
-
-    it("should use BOOKMARKS_PER_PAGE constant consistently", async () => {
-      const { BOOKMARKS_PER_PAGE } = await import("@/lib/constants");
-
-      // Test that pagination calculation uses the constant
-      const totalPages = Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE);
-      expect(totalPages).toBe(3); // 50 bookmarks / 24 per page
-
-      // Verify the constant value
-      expect(BOOKMARKS_PER_PAGE).toBe(24);
-    });
-  });
 });
 
-/**
- * Utility to verify metadata output would generate correct HTML
- * This simulates what Next.js would render
- */
 function simulateMetadataToHTML(metadata: Metadata): string[] {
   const tags: string[] = [];
 
-  // Title
   if (metadata.title) {
-    let titleStr: string;
-    if (typeof metadata.title === "string") {
-      titleStr = metadata.title;
-    } else if (
-      metadata.title &&
-      typeof metadata.title === "object" &&
-      "absolute" in metadata.title
-    ) {
-      titleStr = metadata.title.absolute || "";
-    } else {
-      titleStr = "";
-    }
+    const titleStr =
+      typeof metadata.title === "string"
+        ? metadata.title
+        : typeof metadata.title === "object" && "absolute" in metadata.title
+          ? metadata.title.absolute || ""
+          : "";
     tags.push(`<title>${titleStr}</title>`);
   }
 
-  // Description
   if (metadata.description) {
     tags.push(`<meta name="description" content="${metadata.description}">`);
   }
 
-  // Icons (including our pagination workaround)
-  const iconsOther = (metadata.icons as { other?: Array<{ rel: string; url: string }> })?.other;
-  if (iconsOther && Array.isArray(iconsOther)) {
-    for (const link of iconsOther) {
-      tags.push(`<link rel="${link.rel}" href="${link.url}">`);
-    }
-  }
-
-  // Canonical
   if (metadata.alternates?.canonical) {
-    let canonicalStr: string;
-    if (typeof metadata.alternates.canonical === "string") {
-      canonicalStr = metadata.alternates.canonical;
-    } else if (
-      metadata.alternates.canonical &&
-      typeof metadata.alternates.canonical === "object" &&
-      "href" in metadata.alternates.canonical
-    ) {
-      canonicalStr = metadata.alternates.canonical.href;
-    } else {
-      canonicalStr = "";
-    }
+    const canonicalStr =
+      typeof metadata.alternates.canonical === "string"
+        ? metadata.alternates.canonical
+        : typeof metadata.alternates.canonical === "object" &&
+            "href" in metadata.alternates.canonical
+          ? metadata.alternates.canonical.href
+          : "";
+
     if (canonicalStr) {
       tags.push(`<link rel="canonical" href="${canonicalStr}">`);
     }
   }
 
-  // OpenGraph
-  if (metadata.openGraph) {
-    if (metadata.openGraph.title) {
-      let ogTitleStr: string;
-      if (typeof metadata.openGraph.title === "string") {
-        ogTitleStr = metadata.openGraph.title;
-      } else {
-        ogTitleStr = "";
-      }
-      if (ogTitleStr) {
-        tags.push(`<meta property="og:title" content="${ogTitleStr}">`);
-      }
-    }
-    if (metadata.openGraph.url) {
-      const ogUrlStr =
-        typeof metadata.openGraph.url === "string"
-          ? metadata.openGraph.url
-          : metadata.openGraph.url.toString();
-      tags.push(`<meta property="og:url" content="${ogUrlStr}">`);
+  const iconsOther = (metadata.icons as { other?: Array<{ rel: string; url: string }> } | undefined)
+    ?.other;
+  if (iconsOther && Array.isArray(iconsOther)) {
+    for (const link of iconsOther) {
+      tags.push(`<link rel="${link.rel}" href="${link.url}">`);
     }
   }
 
@@ -324,21 +117,12 @@ function simulateMetadataToHTML(metadata: Metadata): string[] {
 }
 
 describe("Metadata HTML Output Verification", () => {
-  it("should generate correct HTML tags for pagination", async () => {
-    const metadata = await generateBookmarksMetadata({
-      params: Promise.resolve({ pageNumber: "2" }),
-    });
-
+  it("does not render prev/next link tags for root bookmarks", () => {
+    const metadata = generateBookmarksMetadata();
     const htmlTags = simulateMetadataToHTML(metadata);
 
-    // Verify pagination links are in correct format
-    expect(htmlTags).toContain('<link rel="prev" href="https://williamcallahan.com/bookmarks">');
-    expect(htmlTags).toContain(
-      '<link rel="next" href="https://williamcallahan.com/bookmarks/page/3">',
-    );
-
-    // Verify other important tags - title without suffix due to length constraints
-    expect(htmlTags.some((tag) => tag.includes("<title>Bookmarks - Page 2</title>"))).toBe(true);
+    expect(htmlTags.some((tag) => tag.includes('rel="prev"'))).toBe(false);
+    expect(htmlTags.some((tag) => tag.includes('rel="next"'))).toBe(false);
     expect(htmlTags.some((tag) => tag.includes('rel="canonical"'))).toBe(true);
   });
 });

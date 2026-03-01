@@ -168,3 +168,77 @@ export function normalizeAndDeduplicateTags(tags: string[]): string[] {
   if (!Array.isArray(tags)) return [];
   return Array.from(new Set(tags.map((t) => normalizeString(t))));
 }
+
+const CATEGORY_PHRASE_ALIASES: Readonly<Record<string, string>> = {
+  cli: "command line tools",
+  "command line tool": "command line tools",
+  "command line": "command line tools",
+  terminal: "command line tools",
+  "terminal tools": "command line tools",
+  "dev tools": "developer tools",
+  devtools: "developer tools",
+  "developer tool": "developer tools",
+  "developer tooling": "developer tools",
+  tooling: "developer tools",
+  llm: "ai",
+  "machine learning": "ai",
+  "artificial intelligence": "ai",
+};
+
+function normalizeCategoryInput(value: string): string {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function singularizeToken(token: string): string {
+  if (token.length <= 3 || !token.endsWith("s")) {
+    return token;
+  }
+  return token.slice(0, -1);
+}
+
+export function getCanonicalCategoryKey(value: string): string {
+  const normalized = normalizeCategoryInput(value);
+  if (!normalized) {
+    return "";
+  }
+
+  const aliasedPhrase = CATEGORY_PHRASE_ALIASES[normalized];
+  if (aliasedPhrase) {
+    return aliasedPhrase;
+  }
+
+  const tokens = normalized
+    .split(" ")
+    .map((token) => CATEGORY_PHRASE_ALIASES[token] ?? token)
+    .flatMap((token) => token.split(" "))
+    .map((token) => singularizeToken(token))
+    .filter(Boolean);
+
+  if (tokens.length === 0) {
+    return "";
+  }
+
+  return Array.from(new Set(tokens))
+    .toSorted((a, b) => a.localeCompare(b))
+    .join(" ");
+}
+
+export function canonicalizeCategoryLabel(value: string): string {
+  const canonicalKey = getCanonicalCategoryKey(value);
+  if (!canonicalKey) {
+    return "";
+  }
+  return canonicalKey
+    .split(" ")
+    .map((word) => formatTagDisplay(word))
+    .join(" ");
+}
+
+export function categoriesSemanticallyMatch(a: string, b: string): boolean {
+  return getCanonicalCategoryKey(a) === getCanonicalCategoryKey(b);
+}

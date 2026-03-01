@@ -488,6 +488,8 @@ export interface DataFetchOperationSummary {
  */
 export type DataUpdaterFlag =
   | "--bookmarks"
+  | "--bookmark-tags"
+  | "--bookmark-tags-retrofit"
   | "--books"
   | "--github"
   | "--logos"

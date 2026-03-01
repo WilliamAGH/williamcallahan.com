@@ -2,6 +2,8 @@ import type { MockedFunction } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { useSearchParams } from "next/navigation";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
@@ -103,6 +105,15 @@ describe("PaginationControlUrl", () => {
 
     const page3Link = screen.getByLabelText("Go to page 3");
     expect(page3Link.getAttribute("href")).toBe("/bookmarks/page/3?q=test&tag=javascript");
+  });
+
+  it("includes a legacy redirect from /bookmarks/page/[number] to /bookmarks", () => {
+    const nextConfigPath = resolve(process.cwd(), "next.config.ts");
+    const nextConfigSource = readFileSync(nextConfigPath, "utf8");
+
+    expect(nextConfigSource).toContain('source: "/bookmarks/page/:pageNumber(\\\\d+)"');
+    expect(nextConfigSource).toContain('destination: "/bookmarks"');
+    expect(nextConfigSource).toContain("permanent: true");
   });
 
   it("disables appropriate buttons at boundaries", () => {

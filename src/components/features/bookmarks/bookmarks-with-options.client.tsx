@@ -11,7 +11,7 @@ import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarksWithOptionsClientProps } from "@/types/features/bookmarks";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
@@ -38,6 +38,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   const router = useRouter();
+  const pathname = usePathname();
+  const isRootBookmarksRoute = pathname === "/bookmarks";
 
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
@@ -241,6 +243,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
                 {...bookmark}
                 internalHref={internalHref}
                 preload={index < IMAGE_PRELOAD_THRESHOLD}
+                variant={isRootBookmarksRoute ? undefined : "compact"}
               />
             );
           })}

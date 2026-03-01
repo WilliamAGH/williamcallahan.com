@@ -14,6 +14,8 @@ console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 // This is a long-running process that schedules and triggers data update tasks
 // at specified intervals:
 // - Bookmarks: Every 2 hours (refreshes external bookmarks data)
+// - Bookmark Tags: Every 4 hours (LLM canonical tag + alias ingestion)
+// - Bookmark Tags Retrofit: Daily at 3:45 AM PT (tag-alias catch-up)
 // - Books: Daily at 6 AM PT (regenerates consolidated books dataset from ABS)
 // - GitHub Activity: Daily at midnight PT (refreshes GitHub contribution data)
 // - Logos: Weekly on Sunday at 1 AM PT (refreshes company logos)
@@ -28,6 +30,8 @@ console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 // Configuration:
 // - Override schedules via environment variables:
 //   - S3_BOOKMARKS_CRON (default: every 2 hours at minute 0)
+//   - S3_BOOKMARK_TAGS_CRON (default: every 4 hours at minute 30)
+//   - S3_BOOKMARK_TAGS_RETROFIT_CRON (default: daily at 3:45 AM PT)
 //   - S3_BOOKS_CRON (default: daily at 6 AM PT)
 //   - S3_GITHUB_CRON (default: daily at midnight)
 //   - S3_LOGOS_CRON (default: weekly on Sunday at 1 AM)
@@ -35,6 +39,8 @@ console.log(`[Scheduler] Working directory: ${process.cwd()}`);
 //
 // Production Refresh Frequencies:
 // - Bookmarks: 12 times/day (every 2 hours) - optimal for content freshness
+// - Bookmark Tags: 6 times/day (every 4 hours) - keeps canonical tag aliases fresh
+// - Bookmark Tags Retrofit: 1 time/day - captures bookmarks missing tag alias review
 // - Books: 1 time/day (6 AM PT) - books change infrequently
 // - GitHub Activity: 1 time/day (midnight) - sufficient for contribution data
 // - Logos: 1 time/week (Sunday 1 AM) - logos rarely change, reduces API load
@@ -77,6 +83,8 @@ const cron = rawCron as { schedule: (expression: string, task: () => void) => vo
 // Cron expressions (minute hour day month weekday)
 // Staggered timing to prevent resource contention
 const bookmarksCron = process.env.S3_BOOKMARKS_CRON || "0 */2 * * *"; // every 2h at minute 0 (12x/day)
+const bookmarkTagsCron = process.env.S3_BOOKMARK_TAGS_CRON || "30 */4 * * *"; // every 4h at minute 30 (6x/day)
+const bookmarkTagsRetrofitCron = process.env.S3_BOOKMARK_TAGS_RETROFIT_CRON || "45 3 * * *"; // daily at 3:45 AM PT
 const booksCron = process.env.S3_BOOKS_CRON || "0 6 * * *"; // daily at 6 AM PT (1x/day)
 const githubCron = process.env.S3_GITHUB_CRON || "0 0 * * *"; // daily at midnight (1x/day)
 const logosCron = process.env.S3_LOGOS_CRON || "0 1 * * 0"; // weekly Sunday at 1 AM (1x/week)
@@ -196,6 +204,22 @@ scheduleCronJob(
 );
 
 scheduleCronJob(
+  "BookmarkTags",
+  bookmarkTagsCron,
+  DATA_UPDATER_FLAGS.BOOKMARK_TAGS,
+  "/api/revalidate/bookmarks",
+  "BOOKMARK_CRON_REFRESH_SECRET",
+);
+
+scheduleCronJob(
+  "BookmarkTagsRetrofit",
+  bookmarkTagsRetrofitCron,
+  DATA_UPDATER_FLAGS.BOOKMARK_TAGS_RETROFIT,
+  "/api/revalidate/bookmarks",
+  "BOOKMARK_CRON_REFRESH_SECRET",
+);
+
+scheduleCronJob(
   "Books",
   booksCron,
   DATA_UPDATER_FLAGS.BOOKS,
@@ -220,7 +244,7 @@ console.log(
   "[Scheduler] Setup complete. Scheduler is running and waiting for scheduled trigger times...",
 );
 console.log(
-  "[Scheduler] Production frequencies: Bookmarks (12x/day), Books (1x/day), GitHub (1x/day), Logos (1x/week)",
+  "[Scheduler] Production frequencies: Bookmarks (12x/day), BookmarkTags (6x/day), BookmarkTagsRetrofit (1x/day), Books (1x/day), GitHub (1x/day), Logos (1x/week)",
 );
 
 // Add process-level error handling to prevent silent crashes

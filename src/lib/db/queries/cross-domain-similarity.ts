@@ -17,6 +17,91 @@ export type { SimilarityCandidate } from "@/types/related-content";
 
 const DEFAULT_SIMILARITY_LIMIT = 30;
 
+function computeTagOverlap(
+  sourceTagSet: ReadonlySet<string>,
+  candidateTagSet: ReadonlySet<string> | undefined,
+): number {
+  if (sourceTagSet.size === 0 || !candidateTagSet || candidateTagSet.size === 0) {
+    return 0;
+  }
+
+  let intersection = 0;
+  for (const tagSlug of sourceTagSet) {
+    if (candidateTagSet.has(tagSlug)) {
+      intersection += 1;
+    }
+  }
+
+  if (intersection === 0) {
+    return 0;
+  }
+
+  const unionSize = new Set([...sourceTagSet, ...candidateTagSet]).size;
+  return unionSize === 0 ? 0 : intersection / unionSize;
+}
+
+async function readCanonicalBookmarkTags(
+  bookmarkIds: readonly string[],
+): Promise<Map<string, Set<string>>> {
+  if (bookmarkIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await db.execute<{ bookmark_id: string; canonical_tag_slug: string }>(sql`
+    SELECT
+      tag_link.bookmark_id,
+      coalesce(alias_link.target_tag_slug, tag_link.tag_slug) AS canonical_tag_slug
+    FROM bookmark_tag_links AS tag_link
+    LEFT JOIN bookmarks_tags_links AS alias_link
+      ON alias_link.source_tag_slug = tag_link.tag_slug
+      AND alias_link.link_type = 'alias'
+    WHERE tag_link.bookmark_id = ANY(${bookmarkIds})
+  `);
+
+  const tagsByBookmarkId = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const existing = tagsByBookmarkId.get(row.bookmark_id);
+    if (existing) {
+      existing.add(row.canonical_tag_slug);
+      continue;
+    }
+    tagsByBookmarkId.set(row.bookmark_id, new Set([row.canonical_tag_slug]));
+  }
+  return tagsByBookmarkId;
+}
+
+async function attachBookmarkTagOverlap(options: {
+  sourceId: string;
+  candidates: SimilarityCandidate[];
+}): Promise<SimilarityCandidate[]> {
+  const bookmarkCandidateIds = options.candidates
+    .filter((candidate) => candidate.domain === "bookmark")
+    .map((candidate) => candidate.entityId);
+
+  if (bookmarkCandidateIds.length === 0) {
+    return options.candidates;
+  }
+
+  const tagsByBookmarkId = await readCanonicalBookmarkTags([
+    options.sourceId,
+    ...new Set(bookmarkCandidateIds),
+  ]);
+  const sourceTagSet = tagsByBookmarkId.get(options.sourceId);
+  if (!sourceTagSet || sourceTagSet.size === 0) {
+    return options.candidates;
+  }
+
+  return options.candidates.map((candidate) => {
+    if (candidate.domain !== "bookmark") {
+      return candidate;
+    }
+    return {
+      ...candidate,
+      tagOverlap: computeTagOverlap(sourceTagSet, tagsByBookmarkId.get(candidate.entityId)),
+    };
+  });
+}
+
 /**
  * Find nearest neighbors across all domains using stored embeddings.
  *
@@ -56,13 +141,19 @@ export async function findSimilarByEntity(options: {
     LIMIT ${limit}
   `);
 
-  return rows.map((r) => ({
+  const candidates = rows.map((r) => ({
     domain: r.domain,
     entityId: r.entity_id,
     title: r.title,
     similarity: Number(r.similarity),
     contentDate: r.content_date,
   }));
+
+  if (sourceDomain === "bookmark") {
+    return attachBookmarkTagOverlap({ sourceId, candidates });
+  }
+
+  return candidates;
 }
 
 /**

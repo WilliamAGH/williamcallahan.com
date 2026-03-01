@@ -11,6 +11,7 @@ import {
   getTagBookmarksIndex as getTagBookmarksIndexInternal,
   getTagBookmarksPage as getTagBookmarksPageInternal,
   listTagSlugs as listTagSlugsInternal,
+  resolveBookmarkTagSlug as resolveBookmarkTagSlugInternal,
 } from "./bookmarks-data-access.server";
 import { refreshBookmarksData } from "./bookmarks";
 import {
@@ -105,4 +106,14 @@ export async function getTagBookmarksPage(
 export async function listBookmarkTagSlugs(): Promise<string[]> {
   initializeBookmarksDataAccess();
   return listTagSlugsInternal();
+}
+
+export async function resolveBookmarkTagSlug(tagSlug: string): Promise<{
+  requestedSlug: string;
+  canonicalSlug: string;
+  canonicalTagName: string | null;
+  isAlias: boolean;
+}> {
+  initializeBookmarksDataAccess();
+  return resolveBookmarkTagSlugInternal(tagSlug);
 }

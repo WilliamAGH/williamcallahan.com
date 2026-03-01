@@ -101,8 +101,8 @@ describe("Sitemap Generation", () => {
     }
   });
 
-  describe("Bookmarks Pagination Logic", () => {
-    it("creates paginated entries based on BOOKMARKS_PER_PAGE", async () => {
+  describe("Bookmarks Root Pagination Retirement", () => {
+    it("does not create root /bookmarks/page/[n] entries", async () => {
       const totalBookmarks = 50;
       const totalPages = Math.ceil(totalBookmarks / BOOKMARKS_PER_PAGE);
 
@@ -124,22 +124,10 @@ describe("Sitemap Generation", () => {
       const paginatedEntries = sitemapEntries.filter((entry) =>
         entry.url.includes("/bookmarks/page/"),
       );
-      expect(paginatedEntries).toHaveLength(totalPages - 1);
-      expect(paginatedEntries.map((entry) => entry.url)).toEqual(
-        expect.arrayContaining(
-          Array.from(
-            { length: totalPages - 1 },
-            (_, idx) => `https://williamcallahan.com/bookmarks/page/${idx + 2}`,
-          ),
-        ),
-      );
-      for (const entry of paginatedEntries) {
-        expect(entry.changeFrequency).toBe("weekly");
-        expect(entry.priority).toBe(0.65);
-      }
+      expect(paginatedEntries).toHaveLength(0);
     });
 
-    it("handles undefined lastModified gracefully", async () => {
+    it("keeps the main /bookmarks sitemap entry when multiple bookmark pages exist", async () => {
       mockGetBookmarksIndex.mockResolvedValue(
         buildBookmarksIndex({
           count: BOOKMARKS_PER_PAGE + 6,
@@ -154,38 +142,14 @@ describe("Sitemap Generation", () => {
       });
 
       const sitemapEntries = await sitemap();
-      const paginatedEntry = sitemapEntries.find(
-        (entry) => entry.url === "https://williamcallahan.com/bookmarks/page/2",
+      const mainBookmarksEntry = sitemapEntries.find(
+        (entry) => entry.url === "https://williamcallahan.com/bookmarks",
       );
 
-      expect(paginatedEntry).toBeDefined();
-      expect(paginatedEntry?.lastModified).toBeUndefined();
+      expect(mainBookmarksEntry).toBeDefined();
     });
 
-    it("includes lastModified when bookmarks provide stable timestamps", async () => {
-      const lastModified = new Date("2024-06-15T10:00:00Z").toISOString();
-
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({ count: BOOKMARKS_PER_PAGE + 2, totalPages: 2, lastModified }),
-      );
-
-      mockGetBookmarksPage.mockImplementation((pageNumber) => {
-        const count = pageNumber === 1 ? BOOKMARKS_PER_PAGE : 2;
-        return Promise.resolve(
-          generateBookmarksList(count, `page${pageNumber}`, { modifiedAt: lastModified }),
-        );
-      });
-
-      const sitemapEntries = await sitemap();
-      const paginatedEntry = sitemapEntries.find(
-        (entry) => entry.url === "https://williamcallahan.com/bookmarks/page/2",
-      );
-
-      expect(paginatedEntry).toBeDefined();
-      expect(paginatedEntry?.lastModified).toEqual(new Date(lastModified));
-    });
-
-    it("skips pagination when there is only one page of bookmarks", async () => {
+    it("still has zero root pagination entries when there is only one page", async () => {
       mockGetBookmarksIndex.mockResolvedValue(
         buildBookmarksIndex({
           count: BOOKMARKS_PER_PAGE - 1,

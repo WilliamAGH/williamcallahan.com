@@ -13,6 +13,8 @@ export default defineConfig({
   tablesFilter: [
     "bookmarks",
     "bookmark_tag_links",
+    "bookmarks_tags",
+    "bookmarks_tags_links",
     "bookmark_index_state",
     "bookmark_tag_index_state",
     "search_index_artifacts",
@@ -31,6 +33,7 @@ export default defineConfig({
     "projects",
     "books",
     "blog_posts",
+    "content_engagement",
   ],
   schemaFilter: "public",
   dbCredentials: {

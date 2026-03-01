@@ -127,6 +127,7 @@ export async function GET(request: NextRequest) {
         if (candidates.length === 0) return null;
 
         const scored = applyBlendedScoring(candidates, {
+          sourceDomain,
           maxPerDomain: 5,
           maxTotal: 20,
         });

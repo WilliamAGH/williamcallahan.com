@@ -244,6 +244,16 @@ export async function listTagSlugs(): Promise<string[]> {
   return listTagSlugsFromDatabase();
 }
 
+export async function resolveBookmarkTagSlug(tagSlug: string): Promise<{
+  requestedSlug: string;
+  canonicalSlug: string;
+  canonicalTagName: string | null;
+  isAlias: boolean;
+}> {
+  const { resolveCanonicalTagSlug } = await loadBookmarkQueryModule();
+  return resolveCanonicalTagSlug(tagSlug);
+}
+
 async function listTagSlugsCached(): Promise<string[]> {
   "use cache";
   safeCacheLife({ revalidate: 3600 });

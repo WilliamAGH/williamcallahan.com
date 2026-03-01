@@ -1,7 +1,6 @@
 import React, { act } from "react";
-import { vi, type Mock } from "vitest";
+import { vi } from "vitest";
 import { render } from "@testing-library/react";
-import { usePathname } from "next/navigation";
 
 // Manually mock the entire data access layer for this test suite
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
@@ -16,10 +15,26 @@ vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
 }));
 
 // Mock the service layer (this is what the page component imports from)
-const { mockGetBookmarks, mockGetBookmarksIndex, mockGetBookmarksPage } = vi.hoisted(() => ({
+const {
+  mockGetBookmarks,
+  mockGetBookmarksIndex,
+  mockGetBookmarksPage,
+  mockResolveBookmarkTagSlug,
+  mockGetBookmarksByTag,
+} = vi.hoisted(() => ({
   mockGetBookmarks: vi.fn().mockResolvedValue([]),
   mockGetBookmarksIndex: vi.fn().mockResolvedValue({ count: 1, totalPages: 1 }),
   mockGetBookmarksPage: vi.fn().mockResolvedValue([]),
+  mockResolveBookmarkTagSlug: vi.fn(),
+  mockGetBookmarksByTag: vi.fn(),
+}));
+
+const { mockGetDiscoveryGroupedBookmarks } = vi.hoisted(() => ({
+  mockGetDiscoveryGroupedBookmarks: vi.fn().mockResolvedValue({
+    recentlyAdded: [],
+    topicSections: [],
+    internalHrefs: {},
+  }),
 }));
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
@@ -27,6 +42,22 @@ vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarks: mockGetBookmarks,
   getBookmarksIndex: mockGetBookmarksIndex,
   getBookmarksPage: mockGetBookmarksPage,
+  resolveBookmarkTagSlug: mockResolveBookmarkTagSlug,
+  getBookmarksByTag: mockGetBookmarksByTag,
+}));
+
+const { mockRedirect, mockNotFound } = vi.hoisted(() => ({
+  mockRedirect: vi.fn((url: string) => {
+    throw new Error(`redirect:${url}`);
+  }),
+  mockNotFound: vi.fn(() => {
+    throw new Error("notFound");
+  }),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: mockRedirect,
+  notFound: mockNotFound,
 }));
 
 vi.mock("@/components/features/bookmarks/bookmarks.server", () => ({
@@ -34,51 +65,80 @@ vi.mock("@/components/features/bookmarks/bookmarks.server", () => ({
   BookmarksServer: () => <div data-testid="bookmarks-server" />,
 }));
 
-type PageComponentType = typeof import("@/app/bookmarks/page/[pageNumber]/page").default;
-let Page: PageComponentType;
+vi.mock("@/components/features/bookmarks/discover-feed.client", () => ({
+  __esModule: true,
+  DiscoverFeed: () => <div data-testid="discover-feed" />,
+}));
 
-describe("Bookmarks PageNumber", () => {
+vi.mock("@/lib/db/queries/discovery-grouped", () => ({
+  __esModule: true,
+  getDiscoveryGroupedBookmarks: mockGetDiscoveryGroupedBookmarks,
+}));
+
+type RootPageComponentType = typeof import("@/app/bookmarks/page").default;
+let RootPage: RootPageComponentType;
+type TagPageComponentType = typeof import("@/app/bookmarks/tags/[...slug]/page").default;
+let TagPage: TagPageComponentType;
+
+describe("Bookmarks Root Feed", () => {
   beforeAll(async () => {
-    const pageModule = await import("@/app/bookmarks/page/[pageNumber]/page");
-    Page = pageModule.default;
+    const rootPageModule = await import("@/app/bookmarks/page");
+    RootPage = rootPageModule.default;
+    const tagPageModule = await import("@/app/bookmarks/tags/[...slug]/page");
+    TagPage = tagPageModule.default;
   });
 
   beforeEach(() => {
-    (usePathname as Mock).mockReturnValue("/bookmarks/page/1");
-    // Clear mocks before each test
     vi.clearAllMocks();
   });
 
-  it("should render the bookmarks page without crashing", async () => {
-    // Update the mock implementation for this test
-    mockGetBookmarks.mockResolvedValue([
-      { id: "1", title: "Test Bookmark", url: "https://example.com" },
-    ]);
-
-    // Call the async component as a function (workaround for Vitest with async Server Components)
-    const PageComponent = await Page({ params: Promise.resolve({ pageNumber: "1" }) });
+  it("renders discover layout by default on /bookmarks", async () => {
+    const RootComponent = await RootPage({
+      searchParams: Promise.resolve({}),
+    });
 
     let container: HTMLElement | null = null;
     await act(async () => {
-      const rendered = render(PageComponent as React.ReactElement);
+      const rendered = render(RootComponent as React.ReactElement);
       container = rendered.container;
     });
 
-    // Verify the component rendered
     expect(container).toBeTruthy();
+    expect(container?.querySelector('[data-testid="discover-feed"]')).not.toBeNull();
+    expect(mockGetDiscoveryGroupedBookmarks).toHaveBeenCalledTimes(1);
   });
 
-  it("should handle invalid page numbers gracefully", async () => {
-    // Call the async component as a function (workaround for Vitest with async Server Components)
-    const PageComponent = await Page({ params: Promise.resolve({ pageNumber: "invalid" }) });
+  it("renders latest feed via BookmarksServer when feed=latest", async () => {
+    const RootComponent = await RootPage({
+      searchParams: Promise.resolve({ feed: "latest" }),
+    });
 
     let container: HTMLElement | null = null;
     await act(async () => {
-      const rendered = render(PageComponent as React.ReactElement);
+      const rendered = render(RootComponent as React.ReactElement);
       container = rendered.container;
     });
 
-    // Verify the component rendered without crashing
     expect(container).toBeTruthy();
+    expect(container?.querySelector('[data-testid="bookmarks-server"]')).not.toBeNull();
+    expect(mockGetDiscoveryGroupedBookmarks).not.toHaveBeenCalled();
+  });
+
+  it("redirects unknown tags to /bookmarks", async () => {
+    mockResolveBookmarkTagSlug.mockResolvedValueOnce({
+      requestedSlug: "nonexistent",
+      canonicalSlug: "nonexistent",
+      canonicalTagName: null,
+      isAlias: false,
+    });
+
+    await expect(
+      TagPage({
+        params: Promise.resolve({ slug: ["nonexistent"] }),
+      }),
+    ).rejects.toThrow("redirect:/bookmarks");
+
+    expect(mockRedirect).toHaveBeenCalledWith("/bookmarks");
+    expect(mockGetBookmarksByTag).not.toHaveBeenCalled();
   });
 });

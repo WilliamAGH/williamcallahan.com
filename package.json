@@ -85,6 +85,10 @@
     "bookmarks:refresh:prod": "DEPLOYMENT_ENV=production bun run update-data -- --bookmarks --force",
     "//db-scripts": "NEVER use bun as the runtime for scripts that connect to PostgreSQL. Bun's TLS fails SSL negotiation with PG. All backfill/migration scripts use #!/usr/bin/env node via *.node.mjs files.",
     "bookmarks:embeddings:backfill": "node scripts/backfill-bookmark-embeddings.node.mjs",
+    "bookmarks:tags:ingest": "node scripts/ingest-bookmark-tag-aliases.node.mjs --limit=1",
+    "bookmarks:tags:retrofit": "node scripts/ingest-bookmark-tag-aliases.node.mjs --retrofit --limit=1",
+    "bookmarks:tags:dry-run": "node scripts/ingest-bookmark-tag-aliases.node.mjs --dry-run --limit=1",
+    "bookmarks:tags:retrofit:dry-run": "node scripts/ingest-bookmark-tag-aliases.node.mjs --retrofit --dry-run --limit=1",
     "embeddings:migrate-to-unified": "node scripts/migrate-embeddings-to-unified.node.mjs",
     "seed:investments": "node scripts/seed-investments.node.mjs",
     "seed:projects": "node scripts/seed-projects.node.mjs",
@@ -105,6 +109,8 @@
     "@octokit/graphql": "^8.2.2",
     "@opentelemetry/api": "1.9.0",
     "@opentelemetry/instrumentation": "0.207.0",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
     "@react-pdf/renderer": "^4.3.1",
     "@sentry/browser": "10.27.0",
     "@sentry/nextjs": "10.27.0",
@@ -240,8 +246,10 @@
   },
   "packageManager": "bun@1.3.2",
   "trustedDependencies": [
+    "@clerk/shared",
     "@sentry/cli",
     "@swc/core",
+    "esbuild",
     "sharp",
     "unrs-resolver"
   ]

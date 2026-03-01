@@ -1,19 +1,10 @@
-/**
- * Bookmarks Client Component with Pagination
- *
- * Displays a paginated list of bookmarks with configurable search and filtering.
- * Uses the paginated API endpoint to load bookmarks progressively.
- *
- * @module components/features/bookmarks/bookmarks-with-pagination.client
- */
-
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarksWithPaginationClientProps } from "@/types/features/bookmarks";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
@@ -22,6 +13,10 @@ import { BookmarkPaginationNav } from "./bookmark-pagination-nav.client";
 import { usePagination } from "@/hooks/use-pagination";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
 import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
+import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
+import { ImpressionTracker } from "./impression-tracker.client";
+import { HeroRow } from "./hero-row.client";
+import { SectionBreak } from "./section-break.client";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
@@ -29,6 +24,13 @@ const IMAGE_PRELOAD_THRESHOLD = 4;
 
 const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] =>
   normalizeTagsToStrings(tags);
+
+function getSectionLabel(bookmarks: UnifiedBookmark[]): string {
+  const firstTag = bookmarks
+    .flatMap((bookmark) => getTagsAsStringArray(bookmark.tags))
+    .find((tag) => tag.trim().length > 0);
+  return firstTag ?? "More";
+}
 
 export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProps> = ({
   initialBookmarks = [],
@@ -43,12 +45,25 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   tag,
   description,
   className,
+  feedMode = "discover",
   internalHrefs,
 }) => {
   const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   const router = useRouter();
   const pathname = usePathname();
+  const isRootBookmarksRoute = pathname === "/bookmarks";
+
+  const paginationQueryParams = useMemo<Record<string, string | number>>(() => {
+    const params: Record<string, string | number> = {};
+    if (feedMode === "latest") {
+      params.feed = "latest";
+    }
+    if (tag) {
+      params.tag = tag;
+    }
+    return params;
+  }, [feedMode, tag]);
 
   const {
     items: bookmarks,
@@ -65,11 +80,11 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   } = usePagination<UnifiedBookmark>({
     apiUrl: "/api/bookmarks",
     limit: itemsPerPage,
-    initialData: initialBookmarks,
+    initialData: feedMode === "latest" ? initialBookmarks : [],
     initialPage,
     initialTotalPages,
     initialTotalCount,
-    queryParams: tag ? { tag } : {},
+    queryParams: paginationQueryParams,
   });
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -91,6 +106,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       router.refresh();
     },
   });
+  const { trackImpression } = useEngagementTracker();
 
   useEffect(() => {
     setMounted(true);
@@ -107,12 +123,12 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
   const filteredBookmarks = useMemo(() => {
     if (!Array.isArray(bookmarks)) return [];
-    if (selectedTag && !tag) {
-      return bookmarks.filter((bookmark: UnifiedBookmark) =>
-        getTagsAsStringArray(bookmark.tags).includes(selectedTag),
-      );
-    }
-    return bookmarks;
+    return bookmarks.filter((bookmark: UnifiedBookmark) => {
+      if (selectedTag && !tag) {
+        return getTagsAsStringArray(bookmark.tags).includes(selectedTag);
+      }
+      return true;
+    });
   }, [bookmarks, selectedTag, tag]);
 
   const handleTagClick = (clickedTag: string) => {
@@ -134,7 +150,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     [goToPage],
   );
 
-  // Reset to page 1 when tag changes (ref avoids currentPage in deps)
   const currentPageRef = useRef(currentPage);
   useEffect(() => {
     currentPageRef.current = currentPage;
@@ -145,7 +160,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     if (selectedTag && currentPageRef.current !== 1) goToPage(1);
   }, [selectedTag, initialPage, goToPage]);
 
-  const useUrlPagination = globalThis.window !== undefined;
+  const useUrlPagination = globalThis.window !== undefined && baseUrl !== "/bookmarks";
+  const showPaginationNav = !enableInfiniteScroll;
 
   const paginatedSlice = (items: UnifiedBookmark[]): UnifiedBookmark[] => {
     if (enableInfiniteScroll) return items;
@@ -153,7 +169,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     return items.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   };
 
-  // Sync currentPage with URL navigation from <Link> pagination
+  const displayedBookmarks = paginatedSlice(filteredBookmarks);
+  const heroBookmarks = feedMode === "discover" ? displayedBookmarks.slice(0, 3) : [];
+  const gridBookmarks = feedMode === "discover" ? displayedBookmarks.slice(3) : displayedBookmarks;
+
   useEffect(() => {
     const match = /\/page\/(\d+)/.exec(pathname);
     const pageFromPath = match ? Number(match[1]) : 1;
@@ -175,7 +194,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
   const resultsCountText = (() => {
     if (error) return "Error loading bookmarks";
-    const totalCount = selectedTag ? filteredBookmarks.length : totalItems;
+    const totalCount = selectedTag && !tag ? filteredBookmarks.length : totalItems;
     if (totalCount === 0) return "No bookmarks found";
     const start = (currentPage - 1) * itemsPerPage + 1;
     const end = Math.min(currentPage * itemsPerPage, totalCount);
@@ -221,13 +240,17 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         onProductionRefresh={handleProductionRefresh}
       />
 
-      {showFilterBar && allTags.length > 0 && (
-        <div className="mb-6">
-          <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
+      {showFilterBar && (
+        <div className="mb-6 space-y-3">
+          {allTags.length > 0 && (
+            <TagsList tags={allTags} selectedTag={selectedTag} onTagSelectAction={handleTagClick} />
+          )}
         </div>
       )}
 
-      {mounted && <BookmarkPaginationNav {...paginationProps} className="mb-6" />}
+      {mounted && showPaginationNav && (
+        <BookmarkPaginationNav {...paginationProps} className="mb-6" />
+      )}
 
       <div className="mb-6">
         {mounted ? (
@@ -241,11 +264,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                 </span>
               )}
             </p>
-            {isDevelopment && (
-              <span className="text-xs px-2 py-1 rounded-lg font-mono bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                Page {currentPage}/{totalPages}
-              </span>
-            )}
+            {isDevelopment && <span />}
           </div>
         ) : (
           <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded" suppressHydrationWarning />
@@ -258,7 +277,21 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <p className="text-red-500 dark:text-red-300 text-sm">{error?.message}</p>
         </div>
       )}
-      {!error && filteredBookmarks.length === 0 && (
+      {!error && filteredBookmarks.length === 0 && isLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={`skeleton-${String(i)}`} className="animate-pulse rounded-xl overflow-hidden">
+              <div className="w-full aspect-video bg-gray-200 dark:bg-gray-700" />
+              <div className="p-5 space-y-3">
+                <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="h-3 w-4/5 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!error && filteredBookmarks.length === 0 && !isLoading && (
         <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
           <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">No bookmarks found</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -268,14 +301,39 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       )}
       {!error && filteredBookmarks.length > 0 && (
         <>
+          {feedMode === "discover" && (
+            <HeroRow
+              bookmarks={heroBookmarks}
+              internalHrefs={internalHrefs}
+              onImpression={trackImpression}
+            />
+          )}
+
+          <div className="mb-5">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              {feedMode === "discover" ? "Latest Stories" : "All Stories"}
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-            {paginatedSlice(filteredBookmarks).map((bookmark, index) => (
-              <BookmarkCardClient
-                key={bookmark.id}
-                {...bookmark}
-                internalHref={internalHrefs?.[bookmark.id]}
-                preload={index < IMAGE_PRELOAD_THRESHOLD}
-              />
+            {gridBookmarks.map((bookmark, index) => (
+              <React.Fragment key={bookmark.id}>
+                {feedMode === "discover" && index > 0 && index % 8 === 0 && (
+                  <SectionBreak label={getSectionLabel(gridBookmarks.slice(index, index + 8))} />
+                )}
+                <ImpressionTracker
+                  contentType="bookmark"
+                  contentId={bookmark.id}
+                  onImpression={trackImpression}
+                >
+                  <BookmarkCardClient
+                    {...bookmark}
+                    internalHref={internalHrefs?.[bookmark.id]}
+                    preload={index < IMAGE_PRELOAD_THRESHOLD}
+                    variant={isRootBookmarksRoute ? undefined : "compact"}
+                  />
+                </ImpressionTracker>
+              </React.Fragment>
             ))}
           </div>
 
@@ -289,7 +347,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         </>
       )}
 
-      <BookmarkPaginationNav {...paginationProps} className="mt-6 mb-6" />
+      {showPaginationNav && <BookmarkPaginationNav {...paginationProps} className="mt-6 mb-6" />}
     </div>
   );
 };

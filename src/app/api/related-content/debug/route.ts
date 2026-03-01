@@ -96,8 +96,9 @@ export async function GET(request: NextRequest) {
     });
     const annMs = performance.now();
 
-    // Step 2: blended scoring (cosine + recency + quality)
+    // Step 2: blended scoring (cosine + recency + diversity + quality + tag overlap)
     const scored = applyBlendedScoring(rawCandidates, {
+      sourceDomain,
       maxPerDomain: 10,
       maxTotal: limit,
     });
@@ -134,23 +135,29 @@ export async function GET(request: NextRequest) {
             entityId: c.entityId,
             title: c.title,
             cosineSimilarity: c.similarity,
+            tagOverlap: c.tagOverlap ?? null,
           })),
           scoredCandidates: scored.slice(0, 10).map((s) => ({
             domain: s.domain,
             entityId: s.entityId,
             title: s.title,
             cosineSimilarity: s.similarity,
+            tagOverlap: s.tagOverlap ?? null,
             blendedScore: s.score,
           })),
           hydratedItems: hydrated.slice(0, 10),
         },
         debug: {
-          message: "Scores reflect: 0.80 × cosine + 0.10 × recency + 0.10 × quality",
+          message:
+            "Scores reflect: 0.65 × cosine + 0.10 × recency + 0.05 × diversity + 0.10 × quality + 0.10 × tag alignment",
           interpretation: {
             cosineSimilarity: "0-1 from pgvector HNSW (1 - cosine distance)",
             blendedScore: "0-1 final score after recency and quality adjustments",
             recencyDecay: "Half-life 180 days; no date = 0.5",
-            qualitySignal: "Currently 1.0 for all curated content",
+            qualitySignal:
+              "Bookmark quality proxy from description/favorite/word-count; non-bookmark uses title presence.",
+            tagOverlap:
+              "Bookmark-only canonical tag Jaccard overlap from bookmark_tag_links + alias mapping.",
           },
         },
       },
