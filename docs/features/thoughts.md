@@ -41,6 +41,12 @@ When creating a thought via `thoughtInputSchema`:
 /thoughts/{slug}              # Individual thought
 ```
 
+## Rendering Strategy
+
+- `/thoughts` uses Cache Components (`"use cache"` + `cacheLife("hours")`) for prerendered list rendering with scheduled revalidation.
+- `/thoughts/[slug]` uses `generateStaticParams()` from `getThoughtListItems()` so known thought slugs are prerendered at build time.
+- To satisfy Next.js 16 Cache Components constraints when zero thoughts exist, the route includes a placeholder static param that resolves to `notFound()`.
+
 ## Content Format
 
 Standard Markdown:

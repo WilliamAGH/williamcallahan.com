@@ -7,7 +7,7 @@
 
 import { createHash } from "node:crypto";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
-import { getExtensionFromContentType } from "./content-type";
+import { IMAGE_EXTENSIONS, getExtensionFromContentType } from "./content-type";
 import { extractTld, stripWwwPrefix } from "./url-utils";
 import type { S3KeyOptions } from "@/types/s3-cdn";
 import type { LogoSource } from "@/types/logo";
@@ -238,28 +238,52 @@ export function parseS3Key(key: string): import("@/types/s3-cdn").ParsedS3Key {
 // LOGO MIGRATION HELPERS
 // =============================================================================
 
-/**
- * Type guard to verify a string is a valid LogoSource.
- */
 const isLogoSource = (value: unknown): value is LogoSource => {
   return (
     typeof value === "string" &&
     ["google", "duckduckgo", "clearbit", "direct", "unknown"].includes(value)
   );
 };
-
-/**
- * Safely gets a LogoSource from an unknown value.
- */
 const getLogoSourceSafe = (value: unknown): LogoSource => (isLogoSource(value) ? value : "unknown");
+const LEGACY_LOGO_SOURCES = ["direct", "google", "ddg", "duckduckgo", "clearbit", "unknown"];
 
-/**
- * Finds the first legacy (hashless) logo key for a given domain.
- */
+function getLegacyLogoCandidates(domain: string): string[] {
+  const { name, tld } = extractTld(domain);
+  if (!tld) return [];
+  const domainName = name.replace(/\./g, "_");
+  const tldName = tld.replace(/\./g, "_");
+  const candidates: string[] = [];
+  // Legacy keys without explicit source token: {domain}_{tld}.{ext}
+  for (const extension of IMAGE_EXTENSIONS) {
+    candidates.push(`${IMAGE_S3_PATHS.LOGOS_DIR}/${domainName}_${tldName}.${extension}`);
+  }
+  for (const source of LEGACY_LOGO_SOURCES) {
+    for (const extension of IMAGE_EXTENSIONS) {
+      candidates.push(
+        `${IMAGE_S3_PATHS.LOGOS_DIR}/${domainName}_${tldName}_${source}.${extension}`,
+      );
+    }
+  }
+  return candidates;
+}
+
 export async function findLegacyLogoKey(
   domain: string,
   listS3Objects: (prefix: string) => Promise<string[]>,
+  checkIfS3ObjectExists?: (key: string) => Promise<boolean>,
+  allowListFallback = true,
 ): Promise<string | null> {
+  if (checkIfS3ObjectExists) {
+    const candidates = getLegacyLogoCandidates(domain);
+    for (const candidate of candidates) {
+      if (await checkIfS3ObjectExists(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  if (!allowListFallback) return null;
+
   const prefix = `${IMAGE_S3_PATHS.LOGOS_DIR}/`;
   const keys = await listS3Objects(prefix);
   return (
@@ -280,10 +304,20 @@ export async function hashAndArchiveManualLogo(
     readBinaryS3: (key: string) => Promise<Buffer | null>;
     writeBinaryS3: (key: string, data: Buffer, contentType: string) => Promise<void>;
     deleteFromS3: (key: string) => Promise<void>;
+    checkIfS3ObjectExists?: (key: string) => Promise<boolean>;
+    legacyKey?: string;
+    allowListFallback: boolean;
   },
 ): Promise<string | null> {
   try {
-    const candidateKey = await findLegacyLogoKey(domain, s3Utils.listS3Objects);
+    const candidateKey =
+      s3Utils.legacyKey ??
+      (await findLegacyLogoKey(
+        domain,
+        s3Utils.listS3Objects,
+        s3Utils.checkIfS3ObjectExists,
+        s3Utils.allowListFallback,
+      ));
     if (!candidateKey) return null;
 
     const buffer = await s3Utils.readBinaryS3(candidateKey);

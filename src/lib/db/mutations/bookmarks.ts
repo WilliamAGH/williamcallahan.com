@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import {
@@ -198,8 +198,10 @@ export async function rebuildBookmarkTaxonomyState(
 
   const tagIndexRows: Array<typeof bookmarkTagIndexState.$inferInsert> = [];
   const tagDefinitionRows: Array<typeof bookmarkTags.$inferInsert> = [];
+  const incomingPrimaryTagSlugs: string[] = [];
   for (const [tagSlug, bucket] of tagsBySlug) {
     const count = bucket.bookmarks.length;
+    incomingPrimaryTagSlugs.push(tagSlug);
     tagDefinitionRows.push({
       tagSlug,
       tagName: bucket.tagName,
@@ -244,6 +246,19 @@ export async function rebuildBookmarkTaxonomyState(
             updatedAt: timestamp,
           },
         });
+    }
+
+    if (incomingPrimaryTagSlugs.length === 0) {
+      await tx.delete(bookmarkTags).where(eq(bookmarkTags.tagStatus, "primary"));
+    } else {
+      await tx
+        .delete(bookmarkTags)
+        .where(
+          and(
+            eq(bookmarkTags.tagStatus, "primary"),
+            notInArray(bookmarkTags.tagSlug, incomingPrimaryTagSlugs),
+          ),
+        );
     }
 
     await tx.delete(bookmarkTagLinks);

@@ -1,6 +1,12 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
+import { engagementBatchSchema } from "@/types/schemas/engagement";
+
+function parseBeaconPayload(rawPayload: unknown) {
+  const parsedPayload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
+  return engagementBatchSchema.parse(parsedPayload);
+}
 
 describe("useEngagementTracker", () => {
   const sendBeaconMock = vi.fn();
@@ -66,9 +72,7 @@ describe("useEngagementTracker", () => {
       expect.stringContaining('"eventType":"impression"'),
     );
 
-    const payload = JSON.parse(sendBeaconMock.mock.calls[0]?.[1] as string) as {
-      events: Array<{ contentId: string; eventType: string }>;
-    };
+    const payload = parseBeaconPayload(sendBeaconMock.mock.calls[0]?.[1]);
 
     expect(payload.events).toHaveLength(2);
     expect(payload.events.map((event) => event.contentId)).toEqual(["one", "two"]);
@@ -85,9 +89,7 @@ describe("useEngagementTracker", () => {
     });
 
     expect(sendBeaconMock).toHaveBeenCalledTimes(1);
-    const payload = JSON.parse(sendBeaconMock.mock.calls[0]?.[1] as string) as {
-      events: Array<{ eventType: string; durationMs?: number }>;
-    };
+    const payload = parseBeaconPayload(sendBeaconMock.mock.calls[0]?.[1]);
 
     expect(payload.events[0]?.eventType).toBe("dwell");
     expect(payload.events[0]?.durationMs).toBe(1_750);

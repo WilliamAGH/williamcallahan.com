@@ -1,6 +1,7 @@
 "use cache";
 
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { Education } from "@/components/features/education/education.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -37,6 +38,8 @@ export const metadata: Metadata = getStaticPageMetadata("/education", "education
  * so this component remains async even though it renders synchronously.
  */
 export default async function EducationPage() {
+  cacheLife("days");
+
   // Generate JSON-LD schema for the education page
   const pageMetadata = PAGE_METADATA.education;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);

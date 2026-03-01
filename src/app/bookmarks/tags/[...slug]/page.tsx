@@ -47,7 +47,8 @@ function parsePageParam(page: string | undefined, pageNumberStr: string | undefi
 function decodeTagSlug(rawTagSlug: string): string {
   try {
     return decodeURIComponent(rawTagSlug);
-  } catch {
+  } catch (error) {
+    console.warn(`[TagPage] Failed to decode tag slug "${rawTagSlug}"`, error);
     return rawTagSlug;
   }
 }

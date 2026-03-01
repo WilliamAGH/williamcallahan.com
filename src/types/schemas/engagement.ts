@@ -2,16 +2,22 @@
  * Engagement Event Schemas
  * @module types/schemas/engagement
  * @description
- * Zod v4 schemas for validating engagement events (impression, click, dwell, external_click)
- * sent from client to POST /api/engagement. Types derived from Drizzle schema constants.
+ * Zod v4 schemas and shared enum constants for validating engagement events
+ * (impression, click, dwell, external_click) sent from client to POST /api/engagement.
  */
 
 import { z } from "zod/v4";
 
-import {
-  ENGAGEMENT_CONTENT_TYPES,
-  ENGAGEMENT_EVENT_TYPES,
-} from "@/lib/db/schema/content-engagement";
+export const ENGAGEMENT_EVENT_TYPES = ["impression", "click", "dwell", "external_click"] as const;
+
+export const ENGAGEMENT_CONTENT_TYPES = [
+  "bookmark",
+  "blog",
+  "book",
+  "investment",
+  "project",
+  "thought",
+] as const;
 
 export type EngagementEventType = (typeof ENGAGEMENT_EVENT_TYPES)[number];
 export type EngagementContentType = (typeof ENGAGEMENT_CONTENT_TYPES)[number];

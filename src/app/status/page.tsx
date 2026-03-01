@@ -1,7 +1,7 @@
 import { type NextPage } from "next";
-import { Suspense } from "react";
+import { headers } from "next/headers";
 import { type HealthMetrics, HealthMetricsResponseSchema } from "@/types/health";
-import { getBaseUrl } from "@/lib/utils/get-base-url";
+import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 
 function renderValue(value: unknown) {
   if (typeof value === "object" && value !== null) {
@@ -35,17 +35,14 @@ function renderSection(title: string, sectionData: object) {
 }
 
 async function getStatusData(): Promise<HealthMetrics> {
-  const baseUrl = getBaseUrl();
-  const res = await fetch(`${baseUrl}/api/health/metrics`, {
-    cache: "no-store", // Always fetch the latest data
-  });
-
-  if (!res.ok) {
-    // This will be caught by the error boundary
-    throw new Error("Failed to fetch status data");
-  }
-
-  const data: unknown = await res.json();
+  await headers();
+  const systemMetrics = await getSystemMetrics();
+  const status = "error" in systemMetrics ? "degraded" : "healthy";
+  const data: unknown = {
+    status,
+    timestamp: new Date().toISOString(),
+    system: systemMetrics,
+  };
   return HealthMetricsResponseSchema.parse(data);
 }
 
@@ -62,11 +59,7 @@ const StatusPage: NextPage = async () => {
             <span className="text-cyan-400">{new Date(data.timestamp).toLocaleString()}</span>
           </p>
         </header>
-        <main>
-          <Suspense fallback={<div className="text-center text-xl">Loading status...</div>}>
-            {renderSection("System", data.system)}
-          </Suspense>
-        </main>
+        <main>{renderSection("System", data.system)}</main>
       </div>
     );
   } catch (error: unknown) {

@@ -126,7 +126,7 @@ The discovery feed ranks bookmarks by blended engagement and recency signals rat
 
 **Data Flow**:
 
-```
+```text
 Client events → POST /api/engagement → content_engagement table
                                               ↓
                         getDiscoveryRankedBookmarks() joins bookmarks + engagement aggregation

@@ -154,14 +154,14 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             {formattedBookmarkDate && (
-              <span
+              <time
+                dateTime={dateBookmarked}
                 className="inline-flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-[11px]"
                 title={hoverDateLabel}
-                aria-label={hoverDateLabel}
               >
                 <Calendar className="w-3 h-3" />
                 {compactBookmarkDate}
-              </span>
+              </time>
             )}
           </div>
         </div>

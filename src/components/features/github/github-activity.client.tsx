@@ -156,9 +156,6 @@ const GitHubActivity = () => {
       try {
         if (refresh) {
           setIsRefreshing(true);
-          console.log(
-            "[Client] Requesting GitHub data refresh via POST /api/github-activity/refresh",
-          );
           const refreshResponse = await fetch("/api/github-activity/refresh", {
             method: "POST",
             headers: {
@@ -179,7 +176,6 @@ const GitHubActivity = () => {
             console.error("[Client] GitHub data refresh POST request failed:", errorMessage);
             setError(errorMessage); // Set error, but still proceed to fetch current data
           } else {
-            console.log("[Client] GitHub data refresh POST request successful.");
             // Show cross-environment refresh option for non-production environments
             if (showRefreshButtons && !isRefreshingProduction) {
               setShowCrossEnvRefresh(true);
@@ -188,9 +184,6 @@ const GitHubActivity = () => {
           }
         }
 
-        console.log(
-          `[Client] Fetching GitHub data from GET /api/github-activity (${refresh ? "after potential refresh" : "initial load"})`,
-        );
         const response = await fetch("/api/github-activity");
         let result: UserActivityView;
 
@@ -233,10 +226,7 @@ const GitHubActivity = () => {
         setDataComplete(result?.trailingYearData?.dataComplete ?? false);
         setLastRefreshed(result?.lastRefreshed ?? null);
 
-        if (result?.trailingYearData) {
-          console.log("[Client] Trailing year activity data received:", result.trailingYearData);
-        } else {
-          console.warn("[Client] Trailing year data missing in successful API response.");
+        if (!result?.trailingYearData) {
           setDataComplete(false); // Assume incomplete if no trailing year data
         }
 
@@ -244,17 +234,6 @@ const GitHubActivity = () => {
         setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
         setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
         setCommitsOlderThanYear(result?.commitsOlderThanYear ?? null);
-
-        if (result?.allTimeStats) {
-          console.log("[Client] All-time stats received:", result.allTimeStats);
-        } else {
-          console.warn("[Client] All-time stats (result.allTimeStats) is missing in API response.");
-        }
-
-        if (result?.lastRefreshed) {
-          console.log("[Client] Data last refreshed:", result.lastRefreshed);
-          // lastRefreshed is already set above, this is redundant unless logic changes
-        }
       } catch (err: unknown) {
         console.error("Failed to fetch or parse GitHub activity:", err); // Log the full error object
         setError(
@@ -288,7 +267,6 @@ const GitHubActivity = () => {
     // Keep the banner visible during production refresh so user sees the loading state
 
     try {
-      console.log("[Client] Requesting production GitHub data refresh");
       // Call a special endpoint that will trigger production refresh
       const response = await fetch("/api/github-activity/refresh-production", {
         method: "POST",
@@ -303,8 +281,6 @@ const GitHubActivity = () => {
           "[Client] Production refresh failed:",
           errorData?.message || response.statusText,
         );
-      } else {
-        console.log("[Client] Production refresh initiated successfully");
       }
     } catch (error) {
       console.error("[Client] Failed to trigger production refresh:", error);

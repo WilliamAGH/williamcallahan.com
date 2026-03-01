@@ -5,7 +5,10 @@
  * similar to the bookmark cards
  */
 
+"use cache";
+
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { SocialContactClient } from "@/components/features/social/contact.client";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -21,7 +24,9 @@ export const metadata: Metadata = getStaticPageMetadata("/contact", "contact");
  * This generates static HTML at build time and revalidates periodically
  */
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  cacheLife("days");
+
   // Generate JSON-LD schema for the contact page
   const pageMetadata = PAGE_METADATA.contact;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);

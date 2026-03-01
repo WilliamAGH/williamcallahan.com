@@ -7,6 +7,8 @@ import type { BookmarkSlugMapping, UnifiedBookmark } from "@/types";
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/slug-manager");
 vi.mock("@/lib/db/queries/discovery-scores");
+vi.mock("@/lib/db/queries/discovery-grouped");
+vi.mock("@/lib/db/queries/embedding-similarity");
 
 const mockGetBookmarksPage = vi.mocked(getBookmarksPage);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);

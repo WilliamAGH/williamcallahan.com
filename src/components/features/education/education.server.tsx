@@ -10,40 +10,24 @@ import { certifications, education, recentCourses } from "@/data/education";
 // Import the new server-only processing functions
 import { processCertificationItem, processEducationItem } from "@/lib/education-data-processor";
 import { EducationClient } from "./education.client";
+import { mapWithBoundedConcurrency } from "@/lib/utils/async-lock";
 
 import type { JSX } from "react";
 
 const LOGO_PROCESSING_BATCH_SIZE = 6;
-
-async function processWithConcurrency<T, R>(
-  items: readonly T[],
-  limit: number,
-  mapper: (item: T) => Promise<R>,
-): Promise<R[]> {
-  if (!items.length) return [];
-
-  const results: R[] = [];
-  for (let index = 0; index < items.length; index += limit) {
-    const slice = items.slice(index, index + limit);
-    const mapped = await Promise.all(slice.map(mapper));
-    results.push(...mapped);
-  }
-
-  return results;
-}
 
 // Make the component async again to use await for processing
 export async function Education({
   isDarkTheme,
 }: { isDarkTheme?: boolean } = {}): Promise<JSX.Element> {
   // Process all items concurrently using the server-only functions
-  const processedEducation = await processWithConcurrency(
+  const processedEducation = await mapWithBoundedConcurrency(
     education,
     LOGO_PROCESSING_BATCH_SIZE,
     (item) => processEducationItem(item, { isDarkTheme }),
   );
 
-  const recentCoursesResults = await processWithConcurrency(
+  const recentCoursesResults = await mapWithBoundedConcurrency(
     recentCourses,
     LOGO_PROCESSING_BATCH_SIZE,
     (item) => processCertificationItem(item, { isDarkTheme }),
@@ -53,7 +37,7 @@ export async function Education({
     type: "course" as const,
   }));
 
-  const certificationsResults = await processWithConcurrency(
+  const certificationsResults = await mapWithBoundedConcurrency(
     certifications,
     LOGO_PROCESSING_BATCH_SIZE,
     (item) => processCertificationItem(item, { isDarkTheme }),

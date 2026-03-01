@@ -6,7 +6,10 @@
  * Implements proper SEO with schema.org structured data.
  */
 
+"use cache";
+
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { Blog } from "@/components/features/blog/blog.client";
 import { BlogListServer } from "@/components/features/blog/blog-list/blog-list.server";
 import { getAllPosts } from "@/lib/blog";
@@ -29,6 +32,8 @@ export const metadata: Metadata = getStaticPageMetadata("/blog", "blog");
  * Blog index page component with JSON-LD schema
  */
 export default async function BlogPage() {
+  cacheLife("days");
+
   let posts: BlogPost[] = [];
   try {
     posts = await getAllPosts();

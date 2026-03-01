@@ -91,3 +91,41 @@ export class AsyncLock {
  */
 export const s3WriteLock = new AsyncLock("S3WriteLock");
 export const migrationLock = new AsyncLock("MigrationLock", 60000); // 1 minute timeout
+
+/**
+ * Maps items with bounded concurrency while preserving input order.
+ * Unlike chunked "wave" processing, this keeps workers busy until all work is complete.
+ */
+export async function mapWithBoundedConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (limit < 1) {
+    throw new Error(
+      `[mapWithBoundedConcurrency] Concurrency limit must be >= 1. Received: ${limit}`,
+    );
+  }
+  if (items.length === 0) {
+    return [];
+  }
+
+  const results: R[] = [];
+  results.length = items.length;
+  let nextIndex = 0;
+
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) {
+        return;
+      }
+      results[index] = await mapper(items[index] as T, index);
+    }
+  };
+
+  const workerCount = Math.min(limit, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}

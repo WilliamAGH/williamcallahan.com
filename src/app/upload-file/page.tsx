@@ -6,7 +6,10 @@
  * Supports PDF and ePub formats with S3 storage.
  */
 
+"use cache";
+
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { UploadWindow } from "@/components/features/upload/upload-window.client";
 
 export const metadata: Metadata = {
@@ -18,7 +21,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function UploadFilePage() {
+export default async function UploadFilePage() {
+  cacheLife("days");
+
   return (
     <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto">
       <UploadWindow windowTitle="~/upload" />

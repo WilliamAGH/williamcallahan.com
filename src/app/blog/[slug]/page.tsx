@@ -5,16 +5,12 @@
  * Renders individual blog posts with full content and metadata.
  * Implements proper SEO with schema.org structured data.
  *
- * Note: This dynamic route is rendered on-demand (no generateStaticParams) to avoid
- * expensive build-time generation in low-resource CI environments.
- * The "use cache" directive is intentionally NOT used here because params is request-specific
- * and cannot be accessed inside a cached context in Next.js 16+.
  */
 
 import { Suspense } from "react";
 import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 // Import blog post retrieval utilities from the main blog library
-import { getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
+import { getAllPostsMeta, getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
@@ -26,6 +22,16 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
+
+const BLOG_STATIC_PARAM_PLACEHOLDER = "__placeholder__";
+
+export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
+  const posts = await getAllPostsMeta();
+  if (posts.length === 0) {
+    return [{ slug: BLOG_STATIC_PARAM_PLACEHOLDER }];
+  }
+  return posts.map((post) => ({ slug: post.slug }));
+}
 
 /**
  * Software application details by slug.
@@ -51,6 +57,10 @@ function getSoftwareDetails(slug: string): SoftwarePostDetails | undefined {
   return SOFTWARE_DETAILS[slug];
 }
 
+function resolveAuthorUrl(authorUrl: string | null | undefined): string {
+  return authorUrl ? ensureAbsoluteUrl(authorUrl) : ensureAbsoluteUrl("/");
+}
+
 /**
  * Generate metadata for blog post pages
  * Uses the schema.org NewsArticle structure for regular blog posts
@@ -62,6 +72,12 @@ function getSoftwareDetails(slug: string): SoftwarePostDetails | undefined {
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<ExtendedMetadata> {
   // params is already resolved here by Next.js
   const { slug } = await params;
+  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER) {
+    return {
+      title: "Post Not Found",
+      description: "The blog post you are looking for could not be found.",
+    };
+  }
   // Use getPostMetaBySlug for lightweight metadata (skips MDX compilation + blur generation)
   const post = await getPostMetaBySlug(slug);
 
@@ -80,10 +96,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   // Check if this is a software post (use canonical post.slug, not route param)
   const softwareDetails = getSoftwareDetails(post.slug);
 
-  const authorUrl = post.author.url ? ensureAbsoluteUrl(post.author.url) : undefined;
-  if (!authorUrl) {
-    console.warn(`[generateMetadata] Missing author URL for post: ${post.slug}.`);
-  }
+  const authorUrl = resolveAuthorUrl(post.author.url);
 
   const baseArticleParams = {
     title: post.title,
@@ -97,7 +110,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
     authors: [
       {
         name: post.author.name,
-        url: authorUrl ?? ensureAbsoluteUrl("/about"),
+        url: authorUrl,
       },
     ],
   };
@@ -153,6 +166,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   // params is already resolved here by Next.js
   const { slug } = await params;
+  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER) {
+    notFound();
+  }
 
   try {
     // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
@@ -171,10 +187,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
     const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
 
-    const authorUrl = post.author.url ? ensureAbsoluteUrl(post.author.url) : undefined;
-    if (!authorUrl) {
-      console.warn(`[BlogPostPage] Missing author URL for post: ${post.slug}.`);
-    }
+    const authorUrl = resolveAuthorUrl(post.author.url);
 
     const schemaParams = {
       path: `/blog/${post.slug}`,
@@ -201,7 +214,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       authors: [
         {
           name: post.author.name,
-          url: authorUrl ?? ensureAbsoluteUrl("/about"),
+          url: authorUrl,
         },
       ],
       ...(softwareDetails && {

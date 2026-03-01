@@ -19,8 +19,18 @@ import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
-import { getThoughtBySlug } from "@/lib/thoughts/service.server";
+import { getThoughtBySlug, getThoughtListItems } from "@/lib/thoughts/service.server";
 import type { ThoughtPageContext } from "@/types/features/thoughts";
+
+const THOUGHT_STATIC_PARAM_PLACEHOLDER = "__placeholder__";
+
+export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
+  const thoughts = await getThoughtListItems();
+  if (thoughts.length === 0) {
+    return [{ slug: THOUGHT_STATIC_PARAM_PLACEHOLDER }];
+  }
+  return thoughts.map((thought) => ({ slug: thought.slug }));
+}
 
 /**
  * Generate a clean excerpt from thought content
@@ -43,6 +53,13 @@ function generateExcerpt(content: string, maxLength = 155, addEllipsis = true): 
  */
 export async function generateMetadata({ params }: ThoughtPageContext): Promise<Metadata> {
   const { slug } = await params;
+  if (slug === THOUGHT_STATIC_PARAM_PLACEHOLDER) {
+    return {
+      ...getStaticPageMetadata("/thoughts", "thoughts"),
+      title: "Thought Not Found",
+      description: "The requested thought could not be found.",
+    };
+  }
   const path = `/thoughts/${slug}`;
   const thought = await getThoughtBySlug(slug);
 
@@ -96,6 +113,9 @@ export async function generateMetadata({ params }: ThoughtPageContext): Promise<
  */
 export default async function ThoughtPage({ params }: ThoughtPageContext) {
   const { slug } = await params;
+  if (slug === THOUGHT_STATIC_PARAM_PLACEHOLDER) {
+    notFound();
+  }
   const thought = await getThoughtBySlug(slug);
 
   if (!thought) {

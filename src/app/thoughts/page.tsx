@@ -6,7 +6,10 @@
  * Implements proper SEO with schema.org structured data.
  */
 
+"use cache";
+
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { ThoughtsWindow } from "@/components/features/thoughts/thoughts-window.client";
 import { ThoughtsListServer } from "@/components/features/thoughts/thoughts-list.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
@@ -26,6 +29,8 @@ export const metadata: Metadata = getStaticPageMetadata("/thoughts", "thoughts")
  * Thoughts list page component
  */
 export default async function ThoughtsPage() {
+  cacheLife("hours");
+
   const thoughts = await getThoughtListItems();
 
   // Generate JSON-LD schema for the thoughts page

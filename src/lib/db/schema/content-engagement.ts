@@ -6,17 +6,7 @@
  */
 
 import { bigserial, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-
-export const ENGAGEMENT_EVENT_TYPES = ["impression", "click", "dwell", "external_click"] as const;
-
-export const ENGAGEMENT_CONTENT_TYPES = [
-  "bookmark",
-  "blog",
-  "book",
-  "investment",
-  "project",
-  "thought",
-] as const;
+import { ENGAGEMENT_CONTENT_TYPES, ENGAGEMENT_EVENT_TYPES } from "@/types/schemas/engagement";
 
 export const contentEngagement = pgTable(
   "content_engagement",
