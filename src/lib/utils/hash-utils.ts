@@ -253,6 +253,10 @@ function getLegacyLogoCandidates(domain: string): string[] {
   const domainName = name.replace(/\./g, "_");
   const tldName = tld.replace(/\./g, "_");
   const candidates: string[] = [];
+  // Legacy keys without explicit source token: {domain}_{tld}.{ext}
+  for (const extension of IMAGE_EXTENSIONS) {
+    candidates.push(`${IMAGE_S3_PATHS.LOGOS_DIR}/${domainName}_${tldName}.${extension}`);
+  }
   for (const source of LEGACY_LOGO_SOURCES) {
     for (const extension of IMAGE_EXTENSIONS) {
       candidates.push(
@@ -302,7 +306,7 @@ export async function hashAndArchiveManualLogo(
     deleteFromS3: (key: string) => Promise<void>;
     checkIfS3ObjectExists?: (key: string) => Promise<boolean>;
     legacyKey?: string;
-    allowListFallback?: boolean;
+    allowListFallback: boolean;
   },
 ): Promise<string | null> {
   try {
@@ -312,7 +316,7 @@ export async function hashAndArchiveManualLogo(
         domain,
         s3Utils.listS3Objects,
         s3Utils.checkIfS3ObjectExists,
-        s3Utils.allowListFallback ?? true,
+        s3Utils.allowListFallback,
       ));
     if (!candidateKey) return null;
 
