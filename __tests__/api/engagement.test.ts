@@ -2,25 +2,32 @@
  * @vitest-environment node
  */
 
-const { mockWhere, mockSelect, mockValues, mockInsert } = vi.hoisted(() => {
-  const where = vi.fn();
-  const from = vi.fn(() => ({ where }));
-  const select = vi.fn(() => ({ from }));
-  const values = vi.fn();
-  const insert = vi.fn(() => ({ values }));
+const { mockWhere, mockSelect, mockValues, mockInsert, mockExecute, mockTransaction } = vi.hoisted(
+  () => {
+    const where = vi.fn();
+    const from = vi.fn(() => ({ where }));
+    const select = vi.fn(() => ({ from }));
+    const values = vi.fn();
+    const insert = vi.fn(() => ({ values }));
+    const execute = vi.fn();
+    const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({ select, insert, execute }),
+    );
 
-  return {
-    mockWhere: where,
-    mockSelect: select,
-    mockValues: values,
-    mockInsert: insert,
-  };
-});
+    return {
+      mockWhere: where,
+      mockSelect: select,
+      mockValues: values,
+      mockInsert: insert,
+      mockExecute: execute,
+      mockTransaction: transaction,
+    };
+  },
+);
 
 vi.mock("@/lib/db/connection", () => ({
   db: {
-    select: mockSelect,
-    insert: mockInsert,
+    transaction: mockTransaction,
   },
 }));
 
@@ -31,6 +38,7 @@ describe("POST /api/engagement", () => {
     vi.clearAllMocks();
     mockWhere.mockResolvedValue([{ count: 0 }]);
     mockValues.mockResolvedValue(undefined);
+    mockExecute.mockResolvedValue(undefined);
   });
 
   it("rejects invalid event payloads", async () => {

@@ -89,7 +89,21 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
     // Related-content cards should only trust persisted CDN OG URLs.
     // External OG URLs are intentionally excluded to avoid nondeterministic/hallucinated previews.
     // Asset IDs in bookmark.content remain the canonical fallback chain.
-    const trustedOgImage = r.ogImage && isOurCdnUrl(r.ogImage, cdnConfig) ? r.ogImage : undefined;
+    const trustedOgImage =
+      r.ogImage && isOurCdnUrl(r.ogImage, cdnConfig)
+        ? r.ogImage
+        : (() => {
+            if (r.ogImage) {
+              console.warn(
+                `[content-hydration] Ignoring non-CDN ogImage for bookmark ${r.id}: ${r.ogImage}`,
+              );
+            }
+            return undefined;
+          })();
+    const score = scoreMap.get(r.id);
+    if (score === undefined) {
+      console.warn(`[content-hydration] Missing score for bookmark ${r.id}; defaulting to 0.`);
+    }
 
     return {
       type: "bookmark" as const,
@@ -97,7 +111,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       title: r.title,
       description: r.description ?? "",
       url: `/bookmarks/${r.slug || r.id}`,
-      score: scoreMap.get(r.id) ?? 0,
+      score: score ?? 0,
       metadata: {
         tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
         domain: r.domain ?? undefined,

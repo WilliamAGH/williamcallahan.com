@@ -280,15 +280,7 @@ const discoverSerializableBookmarkSchema = z
     ogImageExternal: z.string().optional(),
     dateCreated: z.string().optional(),
     content: bookmarkContentSchema.optional(),
-    logoData: z
-      .object({
-        url: z.url(),
-        alt: z.string(),
-        width: z.number().int().positive().optional(),
-        height: z.number().int().positive().optional(),
-      })
-      .nullable()
-      .optional(),
+    logoData: logoDataSchema.nullable().optional(),
     readingTime: z.number().int().min(0).optional(),
     wordCount: z.number().int().min(0).optional(),
     ogTitle: z.string().nullable().optional(),

@@ -7,6 +7,7 @@ import {
   pgTable,
   primaryKey,
   text,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import type { SearchIndexArtifactDomain } from "@/types/schemas/search";
@@ -76,6 +77,7 @@ export const bookmarkTagAliasLinks = pgTable(
       columns: [table.sourceTagSlug, table.targetTagSlug],
       name: "bookmarks_tags_links_pk",
     }),
+    uniqueIndex("idx_bookmarks_tags_links_source_alias").on(table.sourceTagSlug),
     index("idx_bookmarks_tags_links_source").on(table.sourceTagSlug),
     index("idx_bookmarks_tags_links_target").on(table.targetTagSlug),
   ],

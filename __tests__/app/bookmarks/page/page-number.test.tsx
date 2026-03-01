@@ -80,6 +80,13 @@ let RootPage: RootPageComponentType;
 type TagPageComponentType = typeof import("@/app/bookmarks/tags/[...slug]/page").default;
 let TagPage: TagPageComponentType;
 
+function assertReactElement(node: React.ReactNode): React.ReactElement {
+  if (!React.isValidElement(node)) {
+    throw new Error("Expected a React element");
+  }
+  return node;
+}
+
 describe("Bookmarks Root Feed", () => {
   beforeAll(async () => {
     const rootPageModule = await import("@/app/bookmarks/page");
@@ -99,7 +106,7 @@ describe("Bookmarks Root Feed", () => {
 
     let container: HTMLElement | null = null;
     await act(async () => {
-      const rendered = render(RootComponent as React.ReactElement);
+      const rendered = render(assertReactElement(RootComponent));
       container = rendered.container;
     });
 
@@ -115,7 +122,7 @@ describe("Bookmarks Root Feed", () => {
 
     let container: HTMLElement | null = null;
     await act(async () => {
-      const rendered = render(RootComponent as React.ReactElement);
+      const rendered = render(assertReactElement(RootComponent));
       container = rendered.container;
     });
 

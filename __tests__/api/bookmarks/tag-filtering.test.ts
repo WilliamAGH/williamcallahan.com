@@ -12,6 +12,7 @@ import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { findRelatedBookmarkIdsForSeeds } from "@/lib/db/queries/embedding-similarity";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
+import { NextRequest } from "next/server";
 
 // Mock dependencies
 vi.mock("@/lib/bookmarks/service.server");
@@ -69,10 +70,7 @@ function createIndexData(count: number, pageSize: number = 24) {
 
 function createRequest(searchParams: Record<string, string>) {
   const query = new URLSearchParams(searchParams);
-  return {
-    url: `http://localhost:3000/api/bookmarks?${query.toString()}`,
-    nextUrl: { searchParams: query },
-  } as any;
+  return new NextRequest(`http://localhost:3000/api/bookmarks?${query.toString()}`);
 }
 
 describe("Bookmark API Tag Filtering", () => {
