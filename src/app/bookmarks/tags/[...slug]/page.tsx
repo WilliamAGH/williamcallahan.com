@@ -90,6 +90,9 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
 
   const pageNumber = parsePageParam(page, pageNumberStr);
   const tagState = await resolveTagSlugState(tagSlug);
+  if (!tagState.canonicalTagName) {
+    return getStaticPageMetadata("/bookmarks", "bookmarks");
+  }
   const activeTagSlug = tagState.canonicalSlug;
 
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
@@ -174,6 +177,9 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   }
 
   const tagState = await resolveTagSlugState(rawTagSlug);
+  if (!tagState.canonicalTagName) {
+    redirect("/bookmarks");
+  }
   const activeTagSlug = tagState.canonicalSlug;
 
   // Canonicalize legacy numeric-only page segment to /page/[n]

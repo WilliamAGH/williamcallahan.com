@@ -15,10 +15,18 @@ vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
 }));
 
 // Mock the service layer (this is what the page component imports from)
-const { mockGetBookmarks, mockGetBookmarksIndex, mockGetBookmarksPage } = vi.hoisted(() => ({
+const {
+  mockGetBookmarks,
+  mockGetBookmarksIndex,
+  mockGetBookmarksPage,
+  mockResolveBookmarkTagSlug,
+  mockGetBookmarksByTag,
+} = vi.hoisted(() => ({
   mockGetBookmarks: vi.fn().mockResolvedValue([]),
   mockGetBookmarksIndex: vi.fn().mockResolvedValue({ count: 1, totalPages: 1 }),
   mockGetBookmarksPage: vi.fn().mockResolvedValue([]),
+  mockResolveBookmarkTagSlug: vi.fn(),
+  mockGetBookmarksByTag: vi.fn(),
 }));
 
 const { mockGetDiscoveryGroupedBookmarks } = vi.hoisted(() => ({
@@ -34,6 +42,22 @@ vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarks: mockGetBookmarks,
   getBookmarksIndex: mockGetBookmarksIndex,
   getBookmarksPage: mockGetBookmarksPage,
+  resolveBookmarkTagSlug: mockResolveBookmarkTagSlug,
+  getBookmarksByTag: mockGetBookmarksByTag,
+}));
+
+const { mockRedirect, mockNotFound } = vi.hoisted(() => ({
+  mockRedirect: vi.fn((url: string) => {
+    throw new Error(`redirect:${url}`);
+  }),
+  mockNotFound: vi.fn(() => {
+    throw new Error("notFound");
+  }),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: mockRedirect,
+  notFound: mockNotFound,
 }));
 
 vi.mock("@/components/features/bookmarks/bookmarks.server", () => ({
@@ -53,11 +77,15 @@ vi.mock("@/lib/db/queries/discovery-grouped", () => ({
 
 type RootPageComponentType = typeof import("@/app/bookmarks/page").default;
 let RootPage: RootPageComponentType;
+type TagPageComponentType = typeof import("@/app/bookmarks/tags/[...slug]/page").default;
+let TagPage: TagPageComponentType;
 
 describe("Bookmarks Root Feed", () => {
   beforeAll(async () => {
     const rootPageModule = await import("@/app/bookmarks/page");
     RootPage = rootPageModule.default;
+    const tagPageModule = await import("@/app/bookmarks/tags/[...slug]/page");
+    TagPage = tagPageModule.default;
   });
 
   beforeEach(() => {
@@ -94,5 +122,23 @@ describe("Bookmarks Root Feed", () => {
     expect(container).toBeTruthy();
     expect(container?.querySelector('[data-testid="bookmarks-server"]')).not.toBeNull();
     expect(mockGetDiscoveryGroupedBookmarks).not.toHaveBeenCalled();
+  });
+
+  it("redirects unknown tags to /bookmarks", async () => {
+    mockResolveBookmarkTagSlug.mockResolvedValueOnce({
+      requestedSlug: "nonexistent",
+      canonicalSlug: "nonexistent",
+      canonicalTagName: null,
+      isAlias: false,
+    });
+
+    await expect(
+      TagPage({
+        params: Promise.resolve({ slug: ["nonexistent"] }),
+      }),
+    ).rejects.toThrow("redirect:/bookmarks");
+
+    expect(mockRedirect).toHaveBeenCalledWith("/bookmarks");
+    expect(mockGetBookmarksByTag).not.toHaveBeenCalled();
   });
 });
