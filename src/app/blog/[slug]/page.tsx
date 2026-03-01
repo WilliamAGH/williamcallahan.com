@@ -57,6 +57,10 @@ function getSoftwareDetails(slug: string): SoftwarePostDetails | undefined {
   return SOFTWARE_DETAILS[slug];
 }
 
+function resolveAuthorUrl(authorUrl: string | null | undefined): string {
+  return authorUrl ? ensureAbsoluteUrl(authorUrl) : ensureAbsoluteUrl("/");
+}
+
 /**
  * Generate metadata for blog post pages
  * Uses the schema.org NewsArticle structure for regular blog posts
@@ -92,10 +96,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   // Check if this is a software post (use canonical post.slug, not route param)
   const softwareDetails = getSoftwareDetails(post.slug);
 
-  const authorUrl = post.author.url ? ensureAbsoluteUrl(post.author.url) : undefined;
-  if (!authorUrl) {
-    console.warn(`[generateMetadata] Missing author URL for post: ${post.slug}.`);
-  }
+  const authorUrl = resolveAuthorUrl(post.author.url);
 
   const baseArticleParams = {
     title: post.title,
@@ -109,7 +110,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
     authors: [
       {
         name: post.author.name,
-        url: authorUrl ?? ensureAbsoluteUrl("/about"),
+        url: authorUrl,
       },
     ],
   };
@@ -186,10 +187,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
     const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
 
-    const authorUrl = post.author.url ? ensureAbsoluteUrl(post.author.url) : undefined;
-    if (!authorUrl) {
-      console.warn(`[BlogPostPage] Missing author URL for post: ${post.slug}.`);
-    }
+    const authorUrl = resolveAuthorUrl(post.author.url);
 
     const schemaParams = {
       path: `/blog/${post.slug}`,
@@ -216,7 +214,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       authors: [
         {
           name: post.author.name,
-          url: authorUrl ?? ensureAbsoluteUrl("/about"),
+          url: authorUrl,
         },
       ],
       ...(softwareDetails && {
