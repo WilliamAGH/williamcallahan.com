@@ -252,6 +252,20 @@ const nextConfig = {
     ];
   },
 
+  /**
+   * Redirect legacy paginated bookmarks URLs removed in Feb 2026.
+   * Matches historical numeric route shape: /bookmarks/page/[pageNumber]
+   */
+  async redirects() {
+    return [
+      {
+        source: "/bookmarks/page/:pageNumber(\\d+)",
+        destination: "/bookmarks",
+        permanent: true,
+      },
+    ];
+  },
+
   // Webpack configuration removed in favor of Turbopack (Next.js 16 default)
   // All webpack functionality has been migrated to the turbopack config above
   // If you need webpack, add --webpack flag and restore the webpack config from git history
