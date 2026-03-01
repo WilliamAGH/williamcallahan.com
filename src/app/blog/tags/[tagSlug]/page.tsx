@@ -44,6 +44,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   // Await params in Next.js 16
   const { tagSlug } = await params;
+  if (tagSlug === BLOG_TAG_STATIC_PARAM_PLACEHOLDER) {
+    return {
+      title: "Tag Not Found",
+      description: "The requested blog tag could not be found.",
+    };
+  }
   const tagName = formatTagDisplay(deslugify(tagSlug));
   const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
   const description = generateTagDescription(tagName, "blog");
