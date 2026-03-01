@@ -37,8 +37,9 @@ function renderSection(title: string, sectionData: object) {
 async function getStatusData(): Promise<HealthMetrics> {
   await headers();
   const systemMetrics = await getSystemMetrics();
+  const status = "error" in systemMetrics ? "degraded" : "healthy";
   const data: unknown = {
-    status: "healthy",
+    status,
     timestamp: new Date().toISOString(),
     system: systemMetrics,
   };
