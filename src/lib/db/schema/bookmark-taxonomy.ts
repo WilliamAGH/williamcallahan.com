@@ -78,7 +78,6 @@ export const bookmarkTagAliasLinks = pgTable(
       name: "bookmarks_tags_links_pk",
     }),
     uniqueIndex("idx_bookmarks_tags_links_source_alias").on(table.sourceTagSlug),
-    index("idx_bookmarks_tags_links_source").on(table.sourceTagSlug),
     index("idx_bookmarks_tags_links_target").on(table.targetTagSlug),
   ],
 );
