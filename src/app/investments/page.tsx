@@ -12,6 +12,7 @@
 "use cache";
 
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { Investments } from "@/components/features/investments/investments.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -49,6 +50,8 @@ export const metadata: Metadata = getStaticPageMetadata("/investments", "investm
  * so this component stays async even though it does not await.
  */
 export default async function InvestmentsPage() {
+  cacheLife("days");
+
   // Generate JSON-LD schema for the investments page
   const pageMetadata = PAGE_METADATA.investments;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);

@@ -12,10 +12,24 @@ import {
   formatTagDisplay,
 } from "@/lib/seo/dynamic-metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
-import { getAllPosts } from "@/lib/blog";
+import { getAllPosts, getAllTags } from "@/lib/blog";
 import type { Metadata } from "next";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
+import { notFound } from "next/navigation";
+
+const BLOG_TAG_STATIC_PARAM_PLACEHOLDER = "__placeholder__";
+
+export async function generateStaticParams(): Promise<Array<{ tagSlug: string }>> {
+  const tags = await getAllTags();
+  const uniqueTagSlugs = Array.from(
+    new Set(tags.map((tag) => kebabCase(tag)).filter((tagSlug) => tagSlug.length > 0)),
+  );
+  if (uniqueTagSlugs.length === 0) {
+    return [{ tagSlug: BLOG_TAG_STATIC_PARAM_PLACEHOLDER }];
+  }
+  return uniqueTagSlugs.map((tagSlug) => ({ tagSlug }));
+}
 
 /**
  * Generates metadata for the tag page.
@@ -80,6 +94,9 @@ export default async function TagPage({
   params: Promise<{ tagSlug: string }>;
 }): Promise<JSX.Element> {
   const { tagSlug } = await params;
+  if (tagSlug === BLOG_TAG_STATIC_PARAM_PLACEHOLDER) {
+    notFound();
+  }
   const allPosts = await getAllPosts();
 
   const filteredPosts = allPosts.filter((post) =>

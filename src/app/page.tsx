@@ -9,7 +9,10 @@
  * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
  */
 
+"use cache";
+
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { Home } from "@/components/features/home/home";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -33,7 +36,9 @@ export const metadata: Metadata = getStaticPageMetadata("/", "home");
  * Home page component
  * Renders the main landing page with JSON-LD schema
  */
-export default function HomePage() {
+export default async function HomePage() {
+  cacheLife("days");
+
   // Generate JSON-LD schema for the homepage
   const pageMetadata = PAGE_METADATA.home;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);

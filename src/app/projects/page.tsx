@@ -6,7 +6,10 @@
  *
  */
 
+"use cache";
+
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { ProjectsClient } from "@/components/features/projects/projects.client";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -24,7 +27,7 @@ import type { CdnConfig } from "@/types/s3-cdn";
  * This generates static HTML at build time and revalidates periodically
  */
 
-export function generateMetadata(): Metadata {
+export async function generateMetadata(): Promise<Metadata> {
   return getStaticPageMetadata("/projects", "projects");
 }
 
@@ -53,7 +56,9 @@ function getProjectScreenshotUrl(
   }
 }
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  cacheLife("days");
+
   // Generate JSON-LD schema for the projects page
   const pageMetadata = PAGE_METADATA.projects;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
