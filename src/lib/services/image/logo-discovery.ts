@@ -72,7 +72,7 @@ export async function findAndMigrateLegacyLogo(
   isReadOnly: boolean,
   buildResult: LogoResultBuilder,
 ): Promise<LogoFetchResult | null> {
-  const legacyKey = await findLegacyLogoKey(domain, listS3Objects);
+  const legacyKey = await findLegacyLogoKey(domain, listS3Objects, checkIfS3ObjectExists, false);
 
   if (!legacyKey) {
     return null;
@@ -95,6 +95,9 @@ export async function findAndMigrateLegacyLogo(
       readBinaryS3,
       writeBinaryS3,
       deleteFromS3,
+      checkIfS3ObjectExists,
+      legacyKey,
+      allowListFallback: false,
     });
     if (migrated) {
       finalKey = migrated;

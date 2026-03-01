@@ -22,7 +22,7 @@ import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 let logoManifest: LogoManifestFromSchema | null = null;
 let opengraphManifest: ImageManifestFromSchema | null = null;
 let blogManifest: ImageManifestFromSchema | null = null;
-let hasLoggedProductionRuntimeManifestSkip = false;
+let hasLoggedProductionRuntimeManifestFallback = false;
 
 // Loading state to prevent concurrent loads
 let isLoading = false;
@@ -55,6 +55,13 @@ async function getManifestsDirect(): Promise<{
   };
 }
 
+async function hydrateManifestCacheFromDatabase(): Promise<void> {
+  const manifests = await getManifestsDirect();
+  logoManifest = manifests.logos;
+  opengraphManifest = manifests.opengraph;
+  blogManifest = manifests.blog;
+}
+
 /**
  * Load all image manifests from PostgreSQL
  * Called once during instrumentation/startup
@@ -67,16 +74,10 @@ export async function loadImageManifests(): Promise<void> {
 
   console.log("[ImageManifestLoader] Loading image manifests from PostgreSQL...");
 
-  // During instrumentation/startup, we can't use "use cache" functions
-  // Always use direct loading here - the cache functions are for runtime use
-  const manifests = await getManifestsDirect();
+  // During instrumentation/startup, we can't use "use cache" functions.
+  await hydrateManifestCacheFromDatabase();
 
-  // Cache manifests
-  logoManifest = manifests.logos;
-  opengraphManifest = manifests.opengraph;
-  blogManifest = manifests.blog;
-
-  const logoCount = Object.keys(logoManifest).length;
+  const logoCount = Object.keys(logoManifest ?? {}).length;
   const totalImages = logoCount + (opengraphManifest?.length || 0) + (blogManifest?.length || 0);
 
   console.log(
@@ -100,7 +101,7 @@ async function ensureManifestsLoaded(): Promise<void> {
 
   // Start loading
   isLoading = true;
-  loadingPromise = loadImageManifests().finally(() => {
+  loadingPromise = hydrateManifestCacheFromDatabase().finally(() => {
     isLoading = false;
     loadingPromise = null;
   });
@@ -146,30 +147,26 @@ export async function getLogoFromManifestAsync(
     return logoManifest[domain] || null;
   }
 
-  // In production Next.js runtime, avoid request-path manifest fetches.
-  // These can trigger cache-component prerender clock IO guards via SDK internals.
-  if (isProductionNodeRuntime()) {
-    if (!hasLoggedProductionRuntimeManifestSkip) {
-      hasLoggedProductionRuntimeManifestSkip = true;
-      console.warn(
-        "[ImageManifestLoader] Logo manifest is unavailable in production runtime; skipping request-time manifest fetch and using fallback logo behavior.",
-      );
-    }
-    return null;
-  }
-
   if (USE_NEXTJS_CACHE) {
     try {
       // Use the cached manifest loader
       const manifest = await loadLogoManifestWithCache();
       return manifest[domain] || null;
     } catch (error) {
-      console.warn(
-        "[ImageManifestLoader] Cache function failed for logo lookup, using direct load:",
-        error,
-      );
-      await ensureManifestsLoaded();
-      return getLogoFromManifest(domain);
+      if (isProductionNodeRuntime()) {
+        if (!hasLoggedProductionRuntimeManifestFallback) {
+          hasLoggedProductionRuntimeManifestFallback = true;
+          console.warn(
+            "[ImageManifestLoader] Cache-backed logo manifest lookup failed in production; falling back to direct manifest cache only for this runtime.",
+            error,
+          );
+        }
+      } else {
+        console.warn(
+          "[ImageManifestLoader] Cache function failed for logo lookup, using direct load:",
+          error,
+        );
+      }
     }
   }
 

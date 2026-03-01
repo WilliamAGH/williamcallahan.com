@@ -120,13 +120,6 @@ export function ProjectsWindow({
   const handleMinimize = onMinimize || minimizeWindow;
   const handleMaximize = onMaximize || maximizeWindow;
 
-  // Log state changes (optional)
-  useEffect(() => {
-    if (isRegistered) {
-      console.debug(`ProjectsWindow Render (${PROJECTS_WINDOW_ID}) - Window State:`, windowState);
-    }
-  }, [windowState, isRegistered]);
-
   // Render nothing until ready
   if (!isRegistered) {
     return null;
@@ -178,10 +171,6 @@ function TagVisibilityController() {
     projectNodes.forEach((node) => {
       const rawTags = node.getAttribute("data-project-tags");
       if (rawTags == null) {
-        console.debug(
-          "[TagVisibilityController] Missing data-project-tags on node, skipping:",
-          node,
-        );
         return; // Skip — don't silently treat as tag-less
       }
       const tags = rawTags.split("|||");

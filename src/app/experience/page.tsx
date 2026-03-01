@@ -9,6 +9,7 @@
 "use cache";
 
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { Experience } from "@/components/features/experience/experience.client";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -26,24 +27,9 @@ import type {
 } from "@/types/schemas/experience";
 import type { LogoData } from "@/types/logo";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { mapWithBoundedConcurrency } from "@/lib/utils/async-lock";
 
 const EXPERIENCE_LOGO_BATCH_SIZE = 6;
-
-async function mapWithConcurrency<T, R>(
-  items: readonly T[],
-  limit: number,
-  mapper: (item: T) => Promise<R>,
-): Promise<R[]> {
-  if (!items.length) return [];
-
-  const results: R[] = [];
-  for (let index = 0; index < items.length; index += limit) {
-    const slice = items.slice(index, index + limit);
-    const mapped = await Promise.all(slice.map(mapper));
-    results.push(...mapped);
-  }
-  return results;
-}
 
 /**
  * Generate metadata for the experience page
@@ -60,6 +46,8 @@ export const metadata: Metadata = getStaticPageMetadata("/experience", "experien
  * Experience page component with JSON-LD schema
  */
 export default async function ExperiencePage() {
+  cacheLife("days");
+
   // Generate JSON-LD schema for the experience page
   const pageMetadata = PAGE_METADATA.experience;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
@@ -87,7 +75,7 @@ export default async function ExperiencePage() {
 
   const jsonLdData = generateSchemaGraph(schemaParams);
 
-  const experienceData = await mapWithConcurrency(
+  const experienceData = await mapWithBoundedConcurrency(
     experiences,
     EXPERIENCE_LOGO_BATCH_SIZE,
     async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {

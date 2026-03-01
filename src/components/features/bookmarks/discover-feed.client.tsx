@@ -59,7 +59,6 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   );
   const [pagination, setPagination] = useState(() => data.pagination);
   const [degradation, setDegradation] = useState(() => data.degradation);
-  const [isHydratingPagination, setIsHydratingPagination] = useState(true);
   const [isAutoExpandAvailable, setIsAutoExpandAvailable] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
@@ -74,11 +73,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   );
 
   const hasMoreTopicSections = pagination.hasNextSectionPage;
-  const canAutoLoadMore =
-    hasMoreTopicSections &&
-    loadMoreError === null &&
-    !isHydratingPagination &&
-    isAutoExpandAvailable;
+  const canAutoLoadMore = hasMoreTopicSections && loadMoreError === null && isAutoExpandAvailable;
 
   const fetchGroupedDiscoverPage = useCallback(
     async (nextSectionPage: number, nextSectionsPerPage: number) => {
@@ -201,41 +196,6 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
     }
   }, [canAutoLoadMore, loadMoreTopicSections, topicSections.length]);
 
-  useEffect(() => {
-    let isActive = true;
-    const hydrateDiscoverPagination = async () => {
-      try {
-        const firstPageData = await fetchGroupedDiscoverPage(1, data.pagination.sectionsPerPage);
-        if (!isActive) {
-          return;
-        }
-
-        setTopicSections(firstPageData.topicSections);
-        setInternalHrefs(firstPageData.internalHrefs);
-        setPagination(firstPageData.pagination);
-        setDegradation((current) => ({
-          isDegraded: current.isDegraded || firstPageData.degradation.isDegraded,
-          reasons: [...current.reasons, ...firstPageData.degradation.reasons],
-        }));
-        setLoadMoreError(null);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to hydrate discover pagination";
-        setDegradation((current) => ({
-          isDegraded: true,
-          reasons: [...current.reasons, `Initial pagination hydration failed: ${errorMessage}`],
-        }));
-      } finally {
-        if (isActive) setIsHydratingPagination(false);
-      }
-    };
-
-    void hydrateDiscoverPagination();
-    return () => {
-      isActive = false;
-    };
-  }, [data.pagination.sectionsPerPage, fetchGroupedDiscoverPage]);
-
   const degradationReasons = useMemo(
     () => Array.from(new Set(degradation.reasons)),
     [degradation.reasons],
@@ -329,11 +289,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
       )}
 
       {hasMoreTopicSections && isAutoExpandAvailable && (
-        <div
-          ref={sentinelRef}
-          className="h-8 w-full"
-          aria-label="Load more bookmark sections on scroll"
-        />
+        <div ref={sentinelRef} className="h-8 w-full" aria-hidden="true" />
       )}
       {isLoadingMore && (
         <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
