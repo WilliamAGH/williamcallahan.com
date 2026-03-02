@@ -2,12 +2,13 @@
 ##
 ## Multi-stage build for Next.js application with Bun
 ## Note: Requires BuildKit (DOCKER_BUILDKIT=1) for secret mount support
-## Base registry defaults to AWS ECR Public mirror but can be overridden
+## Base registry defaults to iocloudhost private mirror but can be overridden
 ## Some alternatives:
+##   - public.ecr.aws/debian
 ##   - docker.io/library
 ##   - ghcr.io/debian
 ##
-ARG BASE_REGISTRY=public.ecr.aws/debian
+ARG BASE_REGISTRY=registry.iocloudhost.net
 ##
 
 # Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
