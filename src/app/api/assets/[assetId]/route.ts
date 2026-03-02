@@ -30,6 +30,7 @@ import { assetIdSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { createMonitoredStream, streamToBufferWithLimits } from "@/lib/utils/stream-utils";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 const CDN_FETCH_TIMEOUT_MS = 15_000; // 15s — shorter than Karakeep's 30s
@@ -101,8 +102,12 @@ async function findAssetInS3(
         key,
         contentType: response.ContentType || `image/${ext.substring(1)}`,
       };
-    } catch {
-      // S3 object not found at UUID path - expected during key resolution
+    } catch (error) {
+      if (!isS3NotFound(error)) {
+        // Auth, network, rate-limit — propagate so caller sees the real failure
+        throw error;
+      }
+      // S3 object not found at UUID path — expected during key resolution
       console.debug(`[Assets API] S3 object not found: ${key}`);
     }
   }
