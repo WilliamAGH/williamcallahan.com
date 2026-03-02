@@ -95,10 +95,26 @@ async function cfFetch(path, { method = "GET", body } = {}) {
   let res;
   try {
     res = await fetch(url, opts);
-  } finally {
+  } catch (fetchErr) {
     clearTimeout(timeoutId);
+    if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+      throw new Error(`CF API timeout after ${CF_API_TIMEOUT_MS}ms: ${method} ${path}`, {
+        cause: fetchErr,
+      });
+    }
+    throw new Error(`CF API network error (${method} ${path})`, { cause: fetchErr });
   }
-  const json = await res.json();
+  clearTimeout(timeoutId);
+
+  let json;
+  try {
+    json = await res.json();
+  } catch (parseErr) {
+    throw new Error(
+      `CF API returned non-JSON response (HTTP ${res.status}) for ${method} ${path}`,
+      { cause: parseErr },
+    );
+  }
 
   if (!json.success) {
     const msg = json.errors?.map((e) => e.message).join("; ") ?? "Unknown CF API error";
@@ -223,5 +239,6 @@ async function main() {
 
 main().catch((err) => {
   console.error("Fatal error:", err.message);
+  if (err.stack) console.error(err.stack);
   process.exit(1);
 });
