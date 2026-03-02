@@ -123,7 +123,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const timeoutId = setTimeout(() => controller.abort(), CDN_FETCH_TIMEOUT_MS);
       try {
         const upstream = await fetch(result.cdnUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
         if (!upstream.ok || !upstream.body) {
           return NextResponse.json(
             { error: "Failed to fetch cached image", status: upstream.status },
@@ -148,13 +147,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           headers: passthroughHeaders,
         });
       } catch (cdnError) {
-        clearTimeout(timeoutId);
         const isTimeout = cdnError instanceof Error && cdnError.name === "AbortError";
         console.error(
           `[ImageCache] CDN ${isTimeout ? "timeout" : "error"} for ${result.cdnUrl}:`,
           cdnError,
         );
         return new NextResponse(null, { status: isTimeout ? 504 : 502 });
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
