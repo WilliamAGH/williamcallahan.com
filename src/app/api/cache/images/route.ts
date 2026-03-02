@@ -19,6 +19,7 @@ import type { CdnConfig } from "@/types/s3-cdn";
 
 // Configure cache duration (1 year in seconds)
 const CACHE_DURATION = 60 * 60 * 24 * 365;
+const CDN_FETCH_TIMEOUT_MS = 15_000; // 15s — matches asset proxy timeout
 
 // Valid image formats for conversion (SVG is passthrough-only, not a conversion target)
 const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"]);
@@ -71,7 +72,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     if (cdnConfig && isOurCdnUrl(url, cdnConfig)) {
-      const upstream = await fetch(url);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CDN_FETCH_TIMEOUT_MS);
+      let upstream: Response;
+      try {
+        upstream = await fetch(url, { signal: controller.signal });
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError instanceof Error && fetchError.name === "AbortError";
+        console.error(
+          `[ImageCache] CDN ${isTimeout ? "timeout" : "error"} for ${url}:`,
+          fetchError,
+        );
+        return new NextResponse(null, { status: isTimeout ? 504 : 502 });
+      }
+      clearTimeout(timeoutId);
       if (!upstream.ok || !upstream.body) {
         return new NextResponse(null, {
           status: upstream.status === 200 ? 502 : upstream.status,
@@ -104,8 +119,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // If we got a CDN URL, stream bytes directly so Next.js optimizer receives a 200 response
     if (result.cdnUrl && bufferLength === 0) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CDN_FETCH_TIMEOUT_MS);
       try {
-        const upstream = await fetch(result.cdnUrl);
+        const upstream = await fetch(result.cdnUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!upstream.ok || !upstream.body) {
           return NextResponse.json(
             { error: "Failed to fetch cached image", status: upstream.status },
@@ -130,8 +148,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           headers: passthroughHeaders,
         });
       } catch (cdnError) {
-        console.error("Image cache CDN fetch error:", cdnError);
-        return NextResponse.json({ error: "Failed to fetch cached image" }, { status: 502 });
+        clearTimeout(timeoutId);
+        const isTimeout = cdnError instanceof Error && cdnError.name === "AbortError";
+        console.error(
+          `[ImageCache] CDN ${isTimeout ? "timeout" : "error"} for ${result.cdnUrl}:`,
+          cdnError,
+        );
+        return new NextResponse(null, { status: isTimeout ? 504 : 502 });
       }
     }
 
