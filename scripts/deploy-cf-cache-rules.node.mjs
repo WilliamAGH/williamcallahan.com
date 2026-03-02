@@ -56,7 +56,9 @@ function getEnv() {
     process.exit(1);
   }
   if (globalKey && !apiToken && !email) {
-    console.error("ERROR: CLOUDFLARE_EMAIL is required when using CLOUDFLARE_API_KEY (Global API Key).");
+    console.error(
+      "ERROR: CLOUDFLARE_EMAIL is required when using CLOUDFLARE_API_KEY (Global API Key).",
+    );
     console.error("  Set CLOUDFLARE_EMAIL to your Cloudflare account email.");
     console.error("  Or use CF_API_TOKEN instead (scoped API Token, no email needed).");
     process.exit(1);
