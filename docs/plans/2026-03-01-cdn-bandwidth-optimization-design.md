@@ -18,7 +18,7 @@
 
 ## Architecture
 
-```
+```text
 Current:
   Browser → CF (pass-through) → Next.js /_next/image → DO Spaces CDN → S3
   Browser → CF (pass-through) → /api/assets → AWS SDK → S3 origin (NO CDN)
@@ -40,7 +40,7 @@ After:
 
 **Config**: `infra/cloudflare/cache-rules.json`
 **Deploy**: `bun run deploy:cf-cache-rules` (or `deploy:cf-cache-rules:dry-run` to preview)
-**Env**: Requires `CF_ZONE_ID` and `CLOUDFLARE_API_KEY` (Bearer token with Cache Rules edit)
+**Env**: Requires `CF_ZONE_ID` and `CF_API_TOKEN` (scoped API Token with Cache Rules edit permission)
 
 ### 2. Convert `/api/assets` from S3-SDK to CDN-stream
 
