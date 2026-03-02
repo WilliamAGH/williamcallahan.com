@@ -13,6 +13,7 @@ import {
   type UnifiedImageService,
 } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
+import { IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import logger from "@/lib/utils/logger";
 
 /**
@@ -69,7 +70,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Always redirect to CDN if available
     if (logoMeta.cdnUrl) {
-      return NextResponse.redirect(logoMeta.cdnUrl, 301);
+      return NextResponse.redirect(logoMeta.cdnUrl, {
+        status: 301,
+        headers: {
+          "Cache-Control": "public, max-age=31536000, immutable",
+          ...IMAGE_CDN_CACHE_HEADERS,
+        },
+      });
     }
 
     return new NextResponse(null, {
