@@ -90,11 +90,12 @@ Existing (unchanged):
 - `NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud` (CDN URL, used everywhere)
 - `S3_SERVER_URL=https://sfo3.digitaloceanspaces.com` (S3 origin, AWS SDK only)
 - `S3_CDN_URL` in `.env` is unused in code (confusing; can be removed)
-- `CLOUDFLARE_API_KEY` (Bearer token for CF API)
+- `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL` (Global API Key auth for CF API)
 
 New (for cache rules deployment only):
 
 - `CF_ZONE_ID` — Cloudflare Zone ID (from CF dashboard > Overview > right sidebar)
+- `CF_API_TOKEN` — Scoped API Token (recommended alternative to Global API Key; no email needed)
 
 ## Expected Impact
 
