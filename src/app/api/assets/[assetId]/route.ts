@@ -184,8 +184,12 @@ async function saveAssetToS3(
     await s3Client.send(headCommand);
     console.log(`[Assets API] Asset already exists in S3, skipping write: ${key}`);
     return key;
-  } catch {
-    // S3 object not found - this is expected, proceed with upload
+  } catch (error) {
+    if (!isS3NotFound(error)) {
+      // Auth, network, rate-limit on HEAD check — propagate
+      throw error;
+    }
+    // S3 object not found — expected, proceed with upload
     console.debug(`[Assets API] S3 object not found (will upload): ${key}`);
   }
 
