@@ -10,8 +10,10 @@
  *   node scripts/deploy-cf-cache-rules.node.mjs --dry-run  # preview only
  *
  * Required env vars:
- *   CF_ZONE_ID          — Cloudflare Zone ID (from CF dashboard > Overview)
- *   CLOUDFLARE_API_KEY  — Cloudflare API Token with Cache Rules edit permission
+ *   CF_ZONE_ID     — Cloudflare Zone ID (from CF dashboard > Overview)
+ *   CF_API_TOKEN   — Scoped API Token with Cache Rules edit permission (recommended)
+ *   — OR —
+ *   CLOUDFLARE_API_KEY   — Global API Key (requires CLOUDFLARE_EMAIL too)
  *
  * @see https://developers.cloudflare.com/cache/how-to/cache-rules/create-api/
  * @see https://developers.cloudflare.com/ruleset-engine/rulesets-api/update/
@@ -23,6 +25,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CF_API_BASE = "https://api.cloudflare.com/client/v4";
+const CF_API_TIMEOUT_MS = 30_000; // 30s timeout for CF API calls
 const PHASE = "http_request_cache_settings";
 
 // ---------------------------------------------------------------------------
@@ -83,10 +86,18 @@ async function cfFetch(path, { method = "GET", body } = {}) {
     headers["X-Auth-Email"] = email;
   }
 
-  const opts = { method, headers };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CF_API_TIMEOUT_MS);
+
+  const opts = { method, headers, signal: controller.signal };
   if (body) opts.body = JSON.stringify(body);
 
-  const res = await fetch(url, opts);
+  let res;
+  try {
+    res = await fetch(url, opts);
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const json = await res.json();
 
   if (!json.success) {
@@ -100,9 +111,12 @@ async function cfFetch(path, { method = "GET", body } = {}) {
 async function getCurrentRules() {
   try {
     return await cfFetch(`/rulesets/phases/${PHASE}/entrypoint`);
-  } catch {
-    // Phase entrypoint doesn't exist yet — no rules deployed
-    return null;
+  } catch (error) {
+    // Only treat "not found" as empty — re-throw auth/rate-limit/network errors
+    if (error instanceof Error && /not.found|could not find/i.test(error.message)) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -165,13 +179,20 @@ async function main() {
 
   printRuleset("Desired rules", desiredRules);
 
-  // Compare
-  const currentDescriptions = new Set(currentRules.map((r) => r.description));
+  // Compare desired vs current by description (identity) and content (equality)
+  const currentByDesc = new Map(currentRules.map((r) => [r.description, r]));
   const desiredDescriptions = new Set(desiredRules.map((r) => r.description));
 
-  const toAdd = desiredRules.filter((r) => !currentDescriptions.has(r.description));
+  const toAdd = desiredRules.filter((r) => !currentByDesc.has(r.description));
   const toRemove = currentRules.filter((r) => !desiredDescriptions.has(r.description));
-  const toUpdate = desiredRules.filter((r) => currentDescriptions.has(r.description));
+  const toUpdate = desiredRules.filter((desired) => {
+    const current = currentByDesc.get(desired.description);
+    if (!current) return false;
+    // Compare only the fields present in the desired config
+    return Object.entries(desired).some(
+      ([key, value]) => JSON.stringify(value) !== JSON.stringify(current[key]),
+    );
+  });
 
   console.log(`\nChanges:`);
   if (toAdd.length) console.log(`  + Add: ${toAdd.map((r) => r.description).join(", ")}`);
