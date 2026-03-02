@@ -198,12 +198,18 @@ async function main() {
   if (toAdd.length) console.log(`  + Add: ${toAdd.map((r) => r.description).join(", ")}`);
   if (toRemove.length) console.log(`  - Remove: ${toRemove.map((r) => r.description).join(", ")}`);
   if (toUpdate.length) console.log(`  ~ Update: ${toUpdate.map((r) => r.description).join(", ")}`);
-  if (!toAdd.length && !toRemove.length && !toUpdate.length) {
+  const hasChanges = toAdd.length > 0 || toRemove.length > 0 || toUpdate.length > 0;
+  if (!hasChanges) {
     console.log("  (no changes detected)");
   }
 
   if (isDryRun) {
     console.log("\nDry run complete. Use without --dry-run to deploy.");
+    return;
+  }
+
+  if (!hasChanges) {
+    console.log("\nNo changes to deploy. Skipping CF API call.");
     return;
   }
 
