@@ -3,13 +3,14 @@
 ## Multi-stage build for Next.js application with Bun
 ## Note: Requires BuildKit (DOCKER_BUILDKIT=1) for secret mount support
 ## Base registry can be overridden via --build-arg BASE_REGISTRY=<your-registry>
-## Some alternatives:
-##   - public.ecr.aws/debian
-##   - docker.io/library
-##   - ghcr.io/debian
+## The value must include any publisher/namespace prefix so that
+## ${BASE_REGISTRY}/debian:bookworm-slim resolves to a valid image.
+## Examples:
+##   - public.ecr.aws/debian  (ECR Public — publisher namespace required)
+##   - docker.io/library       (Docker Hub official)
+##   - your.mirror.example     (private mirror — flat namespace)
 ##
-ARG BASE_REGISTRY=public.ecr.aws
-##
+ARG BASE_REGISTRY=public.ecr.aws/debian
 
 # Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
 # which requires glibc (Alpine uses musl libc which is incompatible).
