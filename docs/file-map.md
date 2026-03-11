@@ -538,7 +538,6 @@ File/Path Functionality Description
 - [x] **rules/**
   - [x] **ast-grep/**
     - [x] `ban-i-prefix-interface.yml` `linting-formatting` - Enforces interface naming (no I-prefix)
-    - [x] `no-cdn-image-proxy.yml` `image-handling` - Blocks CDN image proxy usage for first-party URLs
     - [x] `no-test-mock-files-outside-mocks.yml` `testing-config` - Enforces mock files living under **tests**/**mocks**
     - [x] `no-unsafe-casts.yml` `linting-formatting` - Disallows unsafe type assertions
 

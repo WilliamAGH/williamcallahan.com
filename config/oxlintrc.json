@@ -130,6 +130,7 @@
       }
     ],
     "no-with": "error",
+    "oxc/no-barrel-file": "error",
     "oxc/no-map-spread": "off",
     "prefer-const": "error",
     "prefer-rest-params": "error",

@@ -48,7 +48,6 @@
     "lint:ox": "oxlint -c config/oxlintrc.json .",
     "lint:ox:typeaware": "oxlint -c config/oxlintrc.json --type-aware .",
     "lint:ast-grep": "ast-grep scan -c config/sgconfig.yml && echo 'No ast-grep violations found'",
-    "lint:image-proxy": "ast-grep scan -c config/sgconfig.yml --rule rules/ast-grep/no-cdn-image-proxy.yml || true",
     "lint:fix": "oxlint -c config/oxlintrc.json --fix . && eslint . --config config/eslint.config.ts --fix",
     "type-check": "bunx tsc --noEmit",
     "type-check:tests": "bunx tsc --noEmit --project __tests__/tsconfig.json",

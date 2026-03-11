@@ -15,7 +15,7 @@ graph TB
         TAILWIND["tailwind.config.js"]
         BIOME["biome.json"]
         ESLINT["eslint.config.ts (config/eslint/rules/*)"]
-        OXLINT[".oxlintrc.json (config/oxlint/js-plugins/*)"]
+        OXLINT["config/oxlintrc.json (config/oxlint/js-plugins/*)"]
         
         PACKAGE -->|"Scripts"| BUILD_PROCESS["Build Process"]
         TSCONFIG -->|"TypeScript"| BUILD_PROCESS

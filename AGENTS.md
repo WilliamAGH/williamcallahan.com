@@ -167,7 +167,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [IMG1a] CDN URLs (s3-storage.callahan.cloud, \*.digitaloceanspaces.com) flow directly to `<Image>` for Next.js optimization; never wrap in `buildCachedImageUrl()` or proxy through `/api/cache/images`
 - [IMG1b] Only external URLs (third-party origins) use the image proxy for SSRF protection; these require `unoptimized` prop
 - [IMG1c] All `<Image>` components with remote sources must have a `sizes` prop for correct srcset generation
-- [IMG1d] Contract: `docs/architecture/image-handling.md` (Image Optimization Decision Matrix); lint enforced via `rules/ast-grep/no-cdn-image-proxy.yml`
+- [IMG1d] Contract: `docs/architecture/image-handling.md` (Image Optimization Decision Matrix)
 
 ---
 
