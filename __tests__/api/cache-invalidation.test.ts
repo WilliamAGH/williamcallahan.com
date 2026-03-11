@@ -2,13 +2,15 @@
  * Integration test for cache invalidation via API routes
  */
 
-import { vi } from "vitest";
+import { vi, type MockedFunction } from "vitest";
 import { createMocks } from "node-mocks-http";
 import { POST as clearCacheHandler } from "@/app/api/cache/clear/route";
 import {
   POST as invalidateBookmarksHandler,
   DELETE as clearBookmarksHandler,
 } from "@/app/api/cache/bookmarks/route";
+import { GET as healthMetricsHandler } from "@/app/api/health/metrics/route";
+import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { NextRequest } from "next/server";
 
 // Mock the cache library
@@ -71,6 +73,12 @@ vi.mock("@/lib/server/data-fetch-manager", () => {
   }
   return { DataFetchManager: MockDataFetchManager };
 });
+
+vi.mock("@/lib/health/status-monitor.server", () => ({
+  getSystemMetrics: vi.fn(),
+}));
+
+const mockedGetSystemMetrics = getSystemMetrics as MockedFunction<typeof getSystemMetrics>;
 
 describe("Cache Invalidation via API Routes", () => {
   beforeAll(() => {
@@ -228,6 +236,66 @@ describe("Cache Invalidation via API Routes", () => {
 
       // Restore environment
       process.env.CACHE_API_KEY = originalApiKey;
+    });
+  });
+
+  describe("Health Metrics API", () => {
+    const originalBookmarkSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
+    const originalGithubSecret = process.env.GITHUB_REFRESH_SECRET;
+
+    beforeEach(() => {
+      process.env.BOOKMARK_CRON_REFRESH_SECRET = "health-secret";
+      delete process.env.GITHUB_REFRESH_SECRET;
+    });
+
+    afterEach(() => {
+      process.env.BOOKMARK_CRON_REFRESH_SECRET = originalBookmarkSecret;
+      process.env.GITHUB_REFRESH_SECRET = originalGithubSecret;
+    });
+
+    it("returns healthy metrics when the system probe succeeds", async () => {
+      mockedGetSystemMetrics.mockResolvedValue({
+        mem: { total: 1 },
+        cpu: { currentLoad: 2 },
+        net: [{ rx_bytes: 3 }],
+        ts: 123,
+      });
+
+      const request = new NextRequest("http://localhost:3000/api/health/metrics", {
+        headers: {
+          authorization: "Bearer health-secret",
+        },
+      });
+
+      const response = await healthMetricsHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(data).toMatchObject({
+        status: "healthy",
+        system: { ts: 123 },
+      });
+    });
+
+    it("returns degraded status when the system probe fails", async () => {
+      mockedGetSystemMetrics.mockRejectedValue(new Error("probe failed"));
+
+      const request = new NextRequest("http://localhost:3000/api/health/metrics", {
+        headers: {
+          authorization: "Bearer health-secret",
+        },
+      });
+
+      const response = await healthMetricsHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(data).toMatchObject({
+        status: "degraded",
+        error: "probe failed",
+      });
     });
   });
 });
