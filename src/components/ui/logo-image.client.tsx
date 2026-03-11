@@ -258,7 +258,7 @@ export function OptimizedCardImage({
         fill
         placeholder="empty"
         className={objectFitClass}
-        {...(preload ? { preload, fetchPriority: "high" as const } : {})}
+        {...(preload ? { fetchPriority: "high" as const, loading: "eager" as const } : {})}
       />
     );
   }
@@ -280,7 +280,7 @@ export function OptimizedCardImage({
       placeholder="blur"
       blurDataURL={resolvedBlurDataURL}
       className={`${objectFitClass} ${className}`}
-      {...(preload ? { preload, fetchPriority: "high" as const } : {})}
+      {...(preload ? { fetchPriority: "high" as const, loading: "eager" as const } : {})}
       {...(shouldBypassOptimizer(proxiedSrc) ? { unoptimized: true } : {})}
       onLoad={() => {
         setErrored(false);
