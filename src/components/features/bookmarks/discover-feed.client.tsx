@@ -28,14 +28,14 @@ function parseGroupedDiscoverPayload(payload: unknown): DiscoverFeedData {
   if (typeof root.data !== "object" || root.data === null) {
     throw new Error("Invalid discover feed payload: missing data object.");
   }
-  const data = root.data as Partial<DiscoverFeedData>;
-  const pagination = data.pagination;
-  const degradation = data.degradation;
+  const feedPayload = root.data as Partial<DiscoverFeedData>;
+  const pagination = feedPayload.pagination;
+  const degradation = feedPayload.degradation;
   if (
-    !Array.isArray(data.recentlyAdded) ||
-    !Array.isArray(data.topicSections) ||
-    typeof data.internalHrefs !== "object" ||
-    data.internalHrefs === null ||
+    !Array.isArray(feedPayload.recentlyAdded) ||
+    !Array.isArray(feedPayload.topicSections) ||
+    typeof feedPayload.internalHrefs !== "object" ||
+    feedPayload.internalHrefs === null ||
     !pagination ||
     typeof pagination.hasNextSectionPage !== "boolean" ||
     !degradation ||
@@ -44,7 +44,7 @@ function parseGroupedDiscoverPayload(payload: unknown): DiscoverFeedData {
   ) {
     throw new Error("Invalid discover feed payload: missing required grouped discover fields.");
   }
-  return data as DiscoverFeedData;
+  return feedPayload as DiscoverFeedData;
 }
 
 export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {

@@ -9,7 +9,7 @@
 
 import MiniSearch from "minisearch";
 import type { Investment } from "@/types/investment";
-import type { Experience } from "@/types/experience";
+import type { Experience } from "@/types/schemas/experience";
 import type { EducationItem, StaticSearchIndexArtifactDomain } from "@/types/schemas/search";
 import type { IndexFieldConfig } from "@/types/search";
 import type { Project } from "@/types/project";

@@ -77,13 +77,13 @@ export interface GitHubActivityCacheEntry {
 
 // Custom structure for bookmarks cache (doesn't follow standard CacheEntry pattern)
 export interface BookmarksCacheEntry {
-  bookmarks: import("./bookmark").UnifiedBookmark[];
+  bookmarks: import("./schemas/bookmark").UnifiedBookmark[];
   lastFetchedAt: number;
   lastAttemptedAt: number;
 }
 
 // Custom structure for search cache
-export interface SearchCacheEntry<T = unknown> {
+export interface SearchCacheEntry<T> {
   results: T[];
   query: string;
   dataType: string;
@@ -92,7 +92,7 @@ export interface SearchCacheEntry<T = unknown> {
 
 // Cached bookmark slug mapping with TTL
 export interface CachedSlugMapping {
-  data: import("./bookmark").BookmarkSlugMapping;
+  data: import("./schemas/bookmark").BookmarkSlugMapping;
   timestamp: number;
 }
 

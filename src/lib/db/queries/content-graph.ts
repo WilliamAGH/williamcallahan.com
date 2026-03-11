@@ -14,10 +14,10 @@ import {
   tagGraphSchema,
   contentGraphBuildMetadataSchema,
   type ContentGraphBuildMetadata,
-  type TagGraphFromSchema,
+  type TagGraph,
 } from "@/types/schemas/related-content";
 import type { BooksRelatedContentData } from "@/types/related-content";
-import type { RelatedContentGraphFromSchema } from "@/types/schemas/book";
+import type { RelatedContentGraph } from "@/types/schemas/book";
 
 /**
  * Read a single content graph artifact by type.
@@ -44,7 +44,7 @@ export async function readContentGraphArtifact(
  * Read the pre-computed related content mapping.
  * Returns a validated mapping of contentKey -> related items, or null.
  */
-export async function readRelatedContent(): Promise<RelatedContentGraphFromSchema | null> {
+export async function readRelatedContent(): Promise<RelatedContentGraph | null> {
   const payload = await readContentGraphArtifact("related-content");
   if (!payload) {
     return null;
@@ -70,7 +70,7 @@ export async function readBooksRelatedContent(): Promise<BooksRelatedContentData
  * Read the tag co-occurrence graph.
  * Returns the Zod-validated TagGraph structure, or null.
  */
-export async function readTagGraph(): Promise<TagGraphFromSchema | null> {
+export async function readTagGraph(): Promise<TagGraph | null> {
   const payload = await readContentGraphArtifact("tag-graph");
   if (!payload) {
     return null;

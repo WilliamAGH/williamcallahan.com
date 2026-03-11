@@ -7,7 +7,7 @@
 "use client";
 
 import type { CommandResult, TerminalSearchResult } from "@/types/terminal";
-import { searchResultsSchema, type SearchResult } from "@/types/search";
+import { searchResultsSchema, type SearchResult } from "@/types/schemas/search";
 import { transformSearchResultToTerminalResult } from "@/lib/utils/search-helpers";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 
@@ -27,19 +27,23 @@ function createSearchByScopeImpl() {
         // Return empty array instead of throwing to prevent terminal from breaking
         return [];
       }
-      const data: unknown = await response.json();
+      const searchApiResponse: unknown = await response.json();
 
       // Handle the different response format from scoped search API
       // The API returns { results: SearchResult[], meta: {...} }
       let searchResults: SearchResult[];
-      if (data && typeof data === "object" && "results" in data) {
+      if (
+        searchApiResponse &&
+        typeof searchApiResponse === "object" &&
+        "results" in searchApiResponse
+      ) {
         // Type guard for scoped search response
-        const typedData = data as { results: unknown; meta?: unknown };
+        const typedData = searchApiResponse as { results: unknown; meta?: unknown };
         // Parse the results array from the response object
         searchResults = searchResultsSchema.parse(typedData.results);
       } else {
         // Fallback: try parsing the data directly as an array
-        searchResults = searchResultsSchema.parse(data);
+        searchResults = searchResultsSchema.parse(searchApiResponse);
       }
 
       return searchResults.map(transformSearchResultToTerminalResult);
@@ -83,13 +87,13 @@ function createPerformSiteWideSearchImpl() {
         // Return empty array instead of throwing to prevent terminal from breaking
         return [];
       }
-      const data: unknown = await response.json();
+      const searchApiResponse: unknown = await response.json();
 
       // The site-wide search API may return either an array or
       // an object of shape { results: SearchResult[] }. Handle both.
-      const rawArray = Array.isArray(data)
-        ? data
-        : ((data as { results?: unknown[] })?.results ?? []);
+      const rawArray = Array.isArray(searchApiResponse)
+        ? searchApiResponse
+        : ((searchApiResponse as { results?: unknown[] })?.results ?? []);
 
       const searchResults: SearchResult[] = searchResultsSchema.parse(rawArray);
       return searchResults.map(transformSearchResultToTerminalResult);

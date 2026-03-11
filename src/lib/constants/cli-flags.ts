@@ -14,9 +14,6 @@
 
 import type { DataUpdaterFlag } from "@/types/lib";
 
-// Re-export type for consumers
-export type { DataUpdaterFlag } from "@/types/lib";
-
 /**
  * CLI flags for data updater operations
  * These flags control which data operations are executed

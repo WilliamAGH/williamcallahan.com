@@ -36,9 +36,9 @@ function parseSseMessage(raw: string): { event: string; data: string } | null {
     }
   }
 
-  const data = dataLines.join("\n").trim();
-  if (!data) return null;
-  return { event, data };
+  const sseData = dataLines.join("\n").trim();
+  if (!sseData) return null;
+  return { event, data: sseData };
 }
 
 function normalizeSseLineEndings(value: string): string {
@@ -256,8 +256,8 @@ async function getAiToken(options: AiChatClientOptions = {}): Promise<string> {
     throw new Error("Unable to start chat session. Please refresh and try again.");
   }
 
-  const data: unknown = await response.json();
-  const parsed = aiTokenResponseSchema.parse(data);
+  const tokenResponse: unknown = await response.json();
+  const parsed = aiTokenResponseSchema.parse(tokenResponse);
   const expiresAtMs = new Date(parsed.expiresAt).getTime();
 
   cachedToken = { token: parsed.token, expiresAtMs };

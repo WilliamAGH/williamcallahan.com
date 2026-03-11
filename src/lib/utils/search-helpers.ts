@@ -7,7 +7,7 @@
  * @module utils/search-helpers
  */
 
-import type { SearchResult } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
 import type { TerminalSearchResult } from "@/types/terminal";
 
 /**

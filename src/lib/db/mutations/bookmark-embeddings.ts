@@ -47,7 +47,22 @@ function buildBookmarkEmbeddingInput(row: BookmarkEmbeddingRow): string {
   const parsedContent = bookmarkContentSchema.safeParse(row.content);
   const content = parsedContent.success ? parsedContent.data : null;
 
-  const source: Record<string, unknown> = {
+  const source: {
+    title: string;
+    description: string;
+    summary: string | null;
+    note: string | null;
+    domain: string | null;
+    tags: unknown;
+    url: string;
+    scrapedContentText: string | null;
+    content?: {
+      title: string | null;
+      description: string | null;
+      author: string | null;
+      publisher: string | null;
+    };
+  } = {
     title: row.title,
     description: row.description,
     summary: row.summary,

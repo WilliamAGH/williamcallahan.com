@@ -12,16 +12,16 @@ import { readImageManifest } from "@/lib/db/queries/image-manifests";
 import {
   imageManifestSchema,
   logoManifestSchema,
-  type ImageManifestFromSchema,
-  type LogoManifestEntryFromSchema,
-  type LogoManifestFromSchema,
+  type ImageManifest,
+  type LogoManifestEntry,
+  type LogoManifest,
 } from "@/types/schemas/image-manifest";
 import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 
 // Module-local cache for manifests
-let logoManifest: LogoManifestFromSchema | null = null;
-let opengraphManifest: ImageManifestFromSchema | null = null;
-let blogManifest: ImageManifestFromSchema | null = null;
+let logoManifest: LogoManifest | null = null;
+let opengraphManifest: ImageManifest | null = null;
+let blogManifest: ImageManifest | null = null;
 let hasLoggedProductionRuntimeManifestFallback = false;
 
 // Loading state to prevent concurrent loads
@@ -38,9 +38,9 @@ const isProductionNodeRuntime = (): boolean =>
  * Direct manifest loading from PostgreSQL (no Next.js cache)
  */
 async function getManifestsDirect(): Promise<{
-  logos: LogoManifestFromSchema;
-  opengraph: ImageManifestFromSchema;
-  blog: ImageManifestFromSchema;
+  logos: LogoManifest;
+  opengraph: ImageManifest;
+  blog: ImageManifest;
 }> {
   const [rawLogos, rawOpengraph, rawBlog] = await Promise.all([
     readImageManifest("logos"),
@@ -114,7 +114,7 @@ async function ensureManifestsLoaded(): Promise<void> {
  * @param domain - Domain to lookup
  * @returns Logo manifest entry if found, null otherwise
  */
-export function getLogoFromManifest(domain: string): LogoManifestEntryFromSchema | null {
+export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
   if (!logoManifest) {
     console.warn(
       `[ImageManifestLoader] Logo manifest not loaded when looking up domain: ${domain}`,
@@ -139,9 +139,7 @@ export function getLogoFromManifest(domain: string): LogoManifestEntryFromSchema
  * @param domain - Domain to lookup
  * @returns Promise that resolves to logo manifest entry if found, null otherwise
  */
-export async function getLogoFromManifestAsync(
-  domain: string,
-): Promise<LogoManifestEntryFromSchema | null> {
+export async function getLogoFromManifestAsync(domain: string): Promise<LogoManifestEntry | null> {
   // Fast path for warmed manifest cache.
   if (logoManifest) {
     return logoManifest[domain] || null;
@@ -178,7 +176,7 @@ export async function getLogoFromManifestAsync(
  * Get all logos from manifest
  * @returns Logo manifest object
  */
-export function getAllLogosFromManifest(): LogoManifestFromSchema {
+export function getAllLogosFromManifest(): LogoManifest {
   return logoManifest || {};
 }
 

@@ -158,8 +158,8 @@ async function repairFromApi(repoOwner: string, repoName: string): Promise<boole
     return false;
   }
 
-  const data: unknown = await statsResponse.json();
-  const parsed = ContributorStatsResponseSchema.safeParse(data);
+  const contributorStatsResponse: unknown = await statsResponse.json();
+  const parsed = ContributorStatsResponseSchema.safeParse(contributorStatsResponse);
   if (!parsed.success) {
     console.warn(`[GitHub-CSV] Invalid stats for ${repoOwner}/${repoName}`);
     return false;

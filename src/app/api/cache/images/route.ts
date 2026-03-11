@@ -25,15 +25,16 @@ const CDN_FETCH_TIMEOUT_MS = 15_000; // 15s — matches asset proxy timeout
 const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"]);
 
 function getOptionalCdnConfig(): CdnConfig | null {
+  let config: CdnConfig | null = null;
   try {
-    return getCdnConfigFromEnv();
+    config = getCdnConfigFromEnv();
   } catch (error) {
     console.warn(
       "[ImageCache] CDN config unavailable. Falling back to external image flow.",
       error,
     );
-    return null;
   }
+  return config;
 }
 
 /**

@@ -35,7 +35,7 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
       /** Send an SSE event. Returns false if the event could not be delivered. */
       const safeSend = (event: string, data: unknown): boolean => {
         if (controllerClosed) return false;
-        let encoded: Uint8Array;
+        let encoded: Uint8Array | undefined;
         try {
           encoded = encoder.encode(formatSseEvent({ event, data }));
         } catch (serializationError) {
@@ -46,8 +46,8 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
             serializationError,
           );
           controllerClosed = true;
-          return false;
         }
+        if (!encoded) return false;
         try {
           controller.enqueue(encoded);
           return true;
@@ -62,8 +62,8 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           } else {
             console.error("[SSE] Unexpected stream enqueue failure:", enqueueError);
           }
-          return false;
         }
+        return false;
       };
 
       const safeClose = () => {

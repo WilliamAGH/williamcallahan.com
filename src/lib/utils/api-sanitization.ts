@@ -31,10 +31,16 @@ export function sanitizeBlogPosts(posts: BlogPost[]): Omit<BlogPost, "filePath" 
  * Removes sensitive information from error objects
  * Prevents stack traces and system info from leaking in production
  */
-export function sanitizeError(error: unknown, includeStack = false): Record<string, unknown> {
+type SanitizedError = {
+  message: string;
+  timestamp: string;
+  stack?: string;
+};
+
+export function sanitizeError(error: unknown, includeStack = false): SanitizedError {
   const isDev = process.env.NODE_ENV === "development";
 
-  const sanitized: Record<string, unknown> = {
+  const sanitized: SanitizedError = {
     message: error instanceof Error ? error.message : "An unknown error occurred",
     timestamp: new Date().toISOString(),
   };
@@ -101,7 +107,7 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
         // Handle arrays by recursively sanitizing each element
         const sanitizedArray: unknown[] = value.map((item: unknown) => {
           if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-            return sanitizeRecursive(item as Record<string, unknown>);
+            return sanitizeRecursive(item as { [k: string]: unknown });
           }
           // Check if string looks like a URL and sanitize it
           if (
@@ -115,7 +121,7 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
         sanitized[key] = sanitizedArray;
       } else if (typeof value === "object" && !Array.isArray(value)) {
         // Handle nested objects
-        sanitized[key] = sanitizeRecursive(value as Record<string, unknown>);
+        sanitized[key] = sanitizeRecursive(value as { [k: string]: unknown });
       } else if (
         typeof value === "string" &&
         (value.startsWith("http://") || value.startsWith("https://"))

@@ -156,7 +156,7 @@ export interface S3Error {
  */
 export type RefreshBookmarksCallback = (
   force?: boolean,
-) => Promise<import("./bookmark").UnifiedBookmark[] | null>;
+) => Promise<import("./schemas/bookmark").UnifiedBookmark[] | null>;
 
 export type AsyncJobType = "opengraph" | "image" | "data-fetch" | "cache-cleanup";
 
@@ -200,7 +200,7 @@ export interface MonitoredAsyncOperation {
 // =============================================================================
 
 /** Cache entry wrapper with metadata */
-export interface CacheEntry<T = unknown> {
+export interface CacheEntry<T> {
   data: T;
   expiresAt: number;
   createdAt: number;
@@ -268,9 +268,6 @@ export interface CircuitBreakerConfig {
 // SEARCH SYSTEM - Re-export from schemas + infrastructure types
 // =============================================================================
 
-// Core search types from Zod schemas (source of truth)
-export type { SearchScope, SearchResultType, SearchResult, ScoredResult } from "./schemas/search";
-
 // Import for use in local interfaces
 import type { SearchScope, SearchResult } from "./schemas/search";
 
@@ -296,7 +293,7 @@ export interface SearchResponse {
 // =============================================================================
 
 /** Single validation rule definition */
-export interface ValidationRule<T = unknown> {
+export interface ValidationRule<T> {
   name: string;
   validate: (value: T) => boolean | Promise<boolean>;
   message: string;
@@ -307,9 +304,9 @@ export interface ValidationRule<T = unknown> {
 export const PageNumberSchema = z.coerce.number().int().min(1);
 
 /** Complete validation schema */
-export interface ValidationSchema<T = Record<string, unknown>> {
+export interface ValidationRuleset<T = Record<string, unknown>> {
   name: string;
-  rules: Record<keyof T, ValidationRule[]>;
+  rules: Record<keyof T, ValidationRule<unknown>[]>;
   customValidation?: (data: T) => ValidationResult;
 }
 
@@ -424,7 +421,7 @@ export interface DataFetchResult<T> extends OperationResult<T> {
 /**
  * Result of attempting to read and parse a JSON object by key.
  */
-export interface ReadJsonResult<T = unknown> {
+export interface ReadJsonResult<T> {
   key: string;
   /** Whether the key exists in the backing store */
   exists: boolean;

@@ -259,6 +259,12 @@ export const responsesOutputRefusalItemSchema = z.object({
   ),
 });
 
+/** Combined schema: parse a Responses API output item once and discriminate by content type */
+export const responsesOutputMessageItemSchema = z.union([
+  responsesOutputTextItemSchema,
+  responsesOutputRefusalItemSchema,
+]);
+
 export const endpointCompatibleEmbeddingsRequestSchema = z.object({
   model: z.string().min(1),
   input: z.array(z.string().min(1)).min(1),

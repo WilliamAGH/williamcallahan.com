@@ -6,15 +6,16 @@ import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
 import { loadCanonicalTagMaps } from "@/lib/db/queries/discovery-tag-taxonomy";
 import { findSimilarBookmarkIds } from "@/lib/db/queries/discovery-similarity";
-import { resolvePrimaryTag, type BookmarkForDiscovery } from "@/lib/bookmarks/tag-resolver";
-import { createSerializeWithHref } from "@/lib/bookmarks/discovery-serialization";
+import { resolvePrimaryTag } from "@/lib/bookmarks/tag-resolver";
 import type {
+  BookmarkForDiscovery,
   DiscoverFeedData,
   GroupOptions,
   RecentOptions,
   ScoredBookmarkRow,
   TopicSection,
 } from "@/types/features/discovery";
+import { createSerializeWithHref } from "@/lib/bookmarks/discovery-serialization";
 import {
   computeBaseRecencyScore,
   computeDiscoveryScore,

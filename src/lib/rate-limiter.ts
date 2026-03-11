@@ -9,7 +9,7 @@
 import type { RateLimiterConfig, CircuitBreakerState, CircuitBreakerConfig } from "@/types/lib";
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getMonotonicTime } from "@/lib/utils";
-import type { RateLimitRecordFromSchema } from "@/types/schemas/rate-limit";
+import type { RateLimitRecord } from "@/types/schemas/rate-limit";
 
 /**
  * In-memory store for rate limit records.
@@ -17,7 +17,7 @@ import type { RateLimitRecordFromSchema } from "@/types/schemas/rate-limit";
  * or a fixed string like 'opengraph_fetches' for global outgoing request limiting).
  * The outer key is a 'namespace' or 'storeName' to keep different limiters separate.
  */
-const rateLimitStores: Record<string, Record<string, RateLimitRecordFromSchema>> = {};
+const rateLimitStores: Record<string, Record<string, RateLimitRecord>> = {};
 
 /**
  * Circuit breaker state for each store/context combination

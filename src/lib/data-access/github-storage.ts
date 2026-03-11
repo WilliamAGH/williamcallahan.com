@@ -23,46 +23,42 @@ import {
 } from "@/lib/db/mutations/github-activity";
 import type { StoredGithubActivityRecord } from "@/types/github";
 import type {
-  AggregatedWeeklyActivityFromSchema,
-  GitHubActivityApiResponseFromSchema,
-  GitHubActivitySummaryFromSchema,
-  RepoWeeklyStatCacheFromSchema,
+  AggregatedWeeklyActivity,
+  GitHubActivityApiResponse,
+  GitHubActivitySummary,
+  RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 
 /**
  * Read GitHub activity data from the database.
  * All activity data lives in a single DB row keyed by ("activity", "global").
  */
-export async function readGitHubActivityRecord(): Promise<GitHubActivityApiResponseFromSchema | null> {
-  const data = await readGitHubActivityFromDb();
-  if (!data) {
+export async function readGitHubActivityRecord(): Promise<GitHubActivityApiResponse | null> {
+  const activityRecord = await readGitHubActivityFromDb();
+  if (!activityRecord) {
     debugLog("No GitHub activity data found in database", "warn");
   }
-  return data;
+  return activityRecord;
 }
 
 /**
  * Write GitHub activity data with non-degrading write protection.
  */
-export async function writeGitHubActivityRecord(
-  data: GitHubActivityApiResponseFromSchema,
-): Promise<boolean> {
+export async function writeGitHubActivityRecord(data: GitHubActivityApiResponse): Promise<boolean> {
   return writeGitHubActivityToDb(data);
 }
 
 /**
  * Read GitHub activity summary from the database.
  */
-export async function readGitHubSummaryRecord(): Promise<GitHubActivitySummaryFromSchema | null> {
+export async function readGitHubSummaryRecord(): Promise<GitHubActivitySummary | null> {
   return readGitHubSummaryFromDb();
 }
 
 /**
  * Write GitHub activity summary to the database.
  */
-export async function writeGitHubSummaryRecord(
-  summary: GitHubActivitySummaryFromSchema,
-): Promise<boolean> {
+export async function writeGitHubSummaryRecord(summary: GitHubActivitySummary): Promise<boolean> {
   return writeGitHubSummaryToDb(summary);
 }
 
@@ -72,7 +68,7 @@ export async function writeGitHubSummaryRecord(
 export async function readRepoWeeklyStatsRecord(
   repoOwner: string,
   repoName: string,
-): Promise<RepoWeeklyStatCacheFromSchema | null> {
+): Promise<RepoWeeklyStatCache | null> {
   return readRepoWeeklyStatsFromDb(repoOwner, repoName);
 }
 
@@ -82,7 +78,7 @@ export async function readRepoWeeklyStatsRecord(
 export async function writeRepoWeeklyStatsRecord(
   repoOwner: string,
   repoName: string,
-  cache: RepoWeeklyStatCacheFromSchema,
+  cache: RepoWeeklyStatCache,
 ): Promise<boolean> {
   return writeRepoWeeklyStatsToDb(repoOwner, repoName, cache);
 }
@@ -91,7 +87,7 @@ export async function writeRepoWeeklyStatsRecord(
  * Read aggregated weekly activity from the database.
  */
 export async function readAggregatedWeeklyActivityRecord(): Promise<
-  AggregatedWeeklyActivityFromSchema[] | null
+  AggregatedWeeklyActivity[] | null
 > {
   return readAggregatedWeeklyActivityFromDb();
 }
@@ -100,7 +96,7 @@ export async function readAggregatedWeeklyActivityRecord(): Promise<
  * Write aggregated weekly activity to the database.
  */
 export async function writeAggregatedWeeklyActivityRecord(
-  data: AggregatedWeeklyActivityFromSchema[],
+  data: AggregatedWeeklyActivity[],
 ): Promise<boolean> {
   return writeAggregatedWeeklyActivityToDb(data);
 }
@@ -131,15 +127,15 @@ export async function getGitHubActivityMetadata(): Promise<{ lastModified?: Date
  * Check if an object uses the old flat stored GitHub activity format.
  * Retained for backward compatibility in consumers that handle legacy data shapes.
  */
-export function isOldFlatStoredGithubActivityFormat(
-  obj: unknown,
-): obj is StoredGithubActivityRecord {
+export function isFlatStoredGithubActivityFormat(obj: unknown): obj is StoredGithubActivityRecord {
   if (!obj || typeof obj !== "object") return false;
-  const activity = obj as Record<string, unknown>;
 
   return (
-    typeof activity.source === "string" &&
-    Array.isArray(activity.data) &&
-    typeof activity.totalContributions === "number"
+    "source" in obj &&
+    typeof (obj as StoredGithubActivityRecord).source === "string" &&
+    "data" in obj &&
+    Array.isArray((obj as StoredGithubActivityRecord).data) &&
+    "totalContributions" in obj &&
+    typeof (obj as StoredGithubActivityRecord).totalContributions === "number"
   );
 }

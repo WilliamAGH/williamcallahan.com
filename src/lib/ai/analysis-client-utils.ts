@@ -8,7 +8,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { jsonrepair } from "jsonrepair";
-import type { AnalysisDomain } from "@/lib/ai-analysis/types";
+import type { AnalysisDomain } from "@/types/ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JSON Parsing Utilities

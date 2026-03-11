@@ -5,7 +5,7 @@
  * Covers scoring, grouping, and component props for the discover layout.
  */
 
-import type { UnifiedBookmark } from "../bookmark";
+import type { UnifiedBookmark } from "../schemas/bookmark";
 import type { SerializableBookmark } from "./bookmarks";
 import type { EngagementContentType } from "../schemas/engagement";
 

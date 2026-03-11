@@ -7,7 +7,7 @@
  * @module lib/search/searchers/tag-search
  */
 
-import type { SearchResult, AggregatedTag } from "@/types/search";
+import type { SearchResult, AggregatedTag } from "@/types/schemas/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
@@ -32,20 +32,21 @@ async function getBlogTagsWithCounts(): Promise<AggregatedTag[]> {
     });
   } catch (error) {
     envLogger.log("Failed to get blog tags", { error: String(error) }, { category: "Search" });
-    return [];
+    // RC1a: error logged; empty array is per-source graceful degradation
   }
+  return [];
 }
 
 /**
  * Get project tags with counts.
  */
-function getProjectTagsWithCounts(): AggregatedTag[] {
+async function getProjectTagsWithCounts(): Promise<AggregatedTag[]> {
   return aggregateTags({
     items: projectsData,
     getTags: (p) => p.tags,
     contentType: "projects",
     urlPattern: (slug) => `/projects?tag=${slug}`,
-  }) as unknown as AggregatedTag[]; // Sync version returns directly
+  });
 }
 
 /**
@@ -63,8 +64,9 @@ async function getBookmarkTagsWithCounts(): Promise<AggregatedTag[]> {
     });
   } catch (error) {
     envLogger.log("Failed to get bookmark tags", { error: String(error) }, { category: "Search" });
-    return [];
+    // RC1a: error logged; empty array is per-source graceful degradation
   }
+  return [];
 }
 
 /**
@@ -82,8 +84,9 @@ async function getBookGenresWithCounts(): Promise<AggregatedTag[]> {
     });
   } catch (error) {
     envLogger.log("Failed to get book genres", { error: String(error) }, { category: "Search" });
-    return [];
+    // RC1a: error logged; empty array is per-source graceful degradation
   }
+  return [];
 }
 
 /**
@@ -93,7 +96,7 @@ async function aggregateAllTags(): Promise<AggregatedTag[]> {
   // Gather tags from all sources in parallel
   const [blogTags, projectTags, bookmarkTags, bookGenres] = await Promise.all([
     getBlogTagsWithCounts(),
-    Promise.resolve(getProjectTagsWithCounts()),
+    getProjectTagsWithCounts(),
     getBookmarkTagsWithCounts(),
     getBookGenresWithCounts(),
   ]);

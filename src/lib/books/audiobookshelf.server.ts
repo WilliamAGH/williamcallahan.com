@@ -101,8 +101,8 @@ async function absApi<T>(path: string, validate: (data: unknown) => T): Promise<
     throw new Error(`AudioBookShelf API error: ${response.status} ${response.statusText}`);
   }
 
-  const data: unknown = await response.json();
-  return validate(data);
+  const absApiResponse: unknown = await response.json();
+  return validate(absApiResponse);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -313,9 +313,9 @@ export async function fetchBookById(
       throw new Error(`AudioBookShelf API error: ${response.status}`);
     }
 
-    const data: unknown = await response.json();
+    const absItemResponse: unknown = await response.json();
     // Validate single item response against schema
-    const item = validateAbsLibraryItem(data);
+    const item = validateAbsLibraryItem(absItemResponse);
     const book = absItemToBook(item, { baseUrl, apiKey });
 
     // Optionally generate blur placeholder using direct URL
@@ -363,5 +363,3 @@ export async function fetchBookByIdWithFallback(
 
   return { book: null, isFallback: false };
 }
-
-export { type AbsSortField, type FetchAbsLibraryItemsOptions } from "@/types/schemas/book";

@@ -43,7 +43,7 @@ export interface BookmarkAnalysisContext {
 
 /** Props for the BookmarkAiAnalysis component */
 export interface BookmarkAiAnalysisProps {
-  bookmark: import("./bookmark").UnifiedBookmark;
+  bookmark: import("./schemas/bookmark").UnifiedBookmark;
   className?: string;
   /** Auto-trigger analysis on mount (default: true) */
   autoTrigger?: boolean;
@@ -55,6 +55,6 @@ export interface BookmarkAiAnalysisProps {
 
 /** Props for BookmarkDetail component */
 export interface BookmarkDetailProps {
-  bookmark: import("./bookmark").UnifiedBookmark;
+  bookmark: import("./schemas/bookmark").UnifiedBookmark;
   cachedAnalysis?: CachedAnalysis<BookmarkAiAnalysisResponse> | null;
 }

@@ -18,7 +18,7 @@ export const relatedContentTypeSchema = z.enum([
   "book",
 ]);
 
-export type RelatedContentTypeFromSchema = z.infer<typeof relatedContentTypeSchema>;
+export type RelatedContentType = z.infer<typeof relatedContentTypeSchema>;
 
 /**
  * Configuration for similarity scoring weights.
@@ -35,7 +35,7 @@ export const similarityWeightsSchema = z.object({
   recency: z.number().min(0).max(1).optional(),
 });
 
-export type SimilarityWeightsFromSchema = z.infer<typeof similarityWeightsSchema>;
+export type SimilarityWeights = z.infer<typeof similarityWeightsSchema>;
 
 export const contentGraphMetadataSchema = z.object({
   version: z.string(),
@@ -51,7 +51,7 @@ export const contentGraphMetadataSchema = z.object({
   environment: z.string(),
 });
 
-export type ContentGraphMetadataFromSchema = z.infer<typeof contentGraphMetadataSchema>;
+export type ContentGraphMetadata = z.infer<typeof contentGraphMetadataSchema>;
 
 /**
  * Build metadata written by content-graph/build.ts.
@@ -96,7 +96,7 @@ export const tagGraphSchema = z.object({
     .optional(),
 });
 
-export type TagGraphFromSchema = z.infer<typeof tagGraphSchema>;
+export type TagGraph = z.infer<typeof tagGraphSchema>;
 
 export const createRelatedContentDebugParamsSchema = ({
   maxLimit,

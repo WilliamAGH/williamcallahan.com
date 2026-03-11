@@ -261,11 +261,11 @@ export const relatedContentEntrySchema = z.object({
   metadata: relatedContentMetadataSchema,
 });
 
-export type RelatedContentEntryFromSchema = z.infer<typeof relatedContentEntrySchema>;
+export type RelatedContentEntry = z.infer<typeof relatedContentEntrySchema>;
 
 export const relatedContentGraphSchema = z.record(z.string(), z.array(relatedContentEntrySchema));
 
-export type RelatedContentGraphFromSchema = z.infer<typeof relatedContentGraphSchema>;
+export type RelatedContentGraph = z.infer<typeof relatedContentGraphSchema>;
 
 /**
  * Books related content data schema.
@@ -278,7 +278,7 @@ export const booksRelatedContentDataSchema = z.object({
   entries: z.record(z.string(), z.array(relatedContentEntrySchema)),
 });
 
-export type BooksRelatedContentDataFromSchema = z.infer<typeof booksRelatedContentDataSchema>;
+export type BooksRelatedContentData = z.infer<typeof booksRelatedContentDataSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Book Enrichment & Consolidated Dataset Schemas

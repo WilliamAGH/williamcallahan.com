@@ -215,9 +215,10 @@ export class LogoFetcher {
         return null;
       }
 
-      const mockResponse = {
-        headers: new Map([["content-type", responseContentType]]),
-      } as unknown as Response;
+      // Build a minimal Response-shaped object for globe-icon detection.
+      // Only the `headers` property is accessed downstream, so a real Response is unnecessary.
+      const mockHeaders = new Headers({ "content-type": responseContentType });
+      const mockResponse = new Response(null, { headers: mockHeaders });
 
       // In streaming mode for dev, skip globe detection and validation; return raw buffer
       if (this.devStreamImagesToS3) {
@@ -330,7 +331,8 @@ export class LogoFetcher {
       return { buffer: invertedBuffer, analysis, cdnUrl };
     } catch (error) {
       logger.error(`[LogoFetcher] Failed to invert logo`, error, { domain });
-      return {};
+      // RC1a: error logged; empty result is the documented contract for callers
     }
+    return {};
   }
 }

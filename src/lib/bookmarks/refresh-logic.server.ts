@@ -1,7 +1,6 @@
 import { envLogger } from "@/lib/utils/env-logger";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
 import type { RefreshBookmarksCallback } from "@/types/lib";
-import type { BookmarkSlugMapping } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";

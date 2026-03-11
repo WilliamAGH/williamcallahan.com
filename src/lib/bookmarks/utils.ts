@@ -1,9 +1,5 @@
-import type {
-  BookmarkTag,
-  UnifiedBookmark,
-  RawBookmark,
-  LightweightBookmark,
-} from "@/types/bookmark";
+import type { BookmarkTag, UnifiedBookmark, RawBookmark } from "@/types/schemas/bookmark";
+import type { LightweightBookmark } from "@/types/bookmark";
 import type { SerializableBookmark } from "@/types/features/bookmarks";
 import { getMonotonicTime } from "@/lib/utils";
 

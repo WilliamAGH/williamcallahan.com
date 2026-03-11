@@ -4,11 +4,8 @@ import crypto from "node:crypto";
 import type { NextRequest } from "next/server";
 import { normalizeString } from "@/lib/utils";
 import logger from "@/lib/utils/logger";
-import { aiGateTokenPayloadV1Schema } from "@/types/schemas/ai-chat";
-import type {
-  AiGateTokenPayloadV1,
-  AiGateTokenVerificationResult,
-} from "@/types/ai-openai-compatible";
+import { aiGateTokenPayloadV1Schema, type AiGateTokenPayloadV1 } from "@/types/schemas/ai-chat";
+import type { AiGateTokenVerificationResult } from "@/types/ai-openai-compatible";
 
 export const AI_GATE_HTTPS_COOKIE_NAME = "__Host-ai_gate_nonce";
 export const AI_GATE_HTTP_COOKIE_NAME = "ai_gate_nonce";
@@ -69,7 +66,8 @@ function base64UrlDecodeToBuffer(input: string): Buffer | null {
 
   try {
     return Buffer.from(padded, "base64");
-  } catch {
+  } catch (error: unknown) {
+    console.error("[gate-token] Failed to base64url-decode input:", input, error);
     return null;
   }
 }

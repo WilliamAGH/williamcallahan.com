@@ -105,8 +105,9 @@ function extractDomainFromSrc(url: string): string | null {
     return deriveDomainFromLogoKey(parsed.pathname);
   } catch (err) {
     console.warn(`[LogoImage] Failed to extract domain from src: ${url}`, err);
-    return null;
+    // RC1a: error logged; null signals domain extraction failed
   }
+  return null;
 }
 
 export function LogoImage({

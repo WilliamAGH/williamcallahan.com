@@ -19,7 +19,8 @@ function sanitizeExternalHref(raw?: string): string | null {
     const urlObj = new URL(hasScheme ? input : `https://${input}`);
     if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") return null;
     return urlObj.toString();
-  } catch {
+  } catch (error: unknown) {
+    console.error("[RelatedContentCard] Failed to parse external href:", raw, error);
     return null;
   }
 }

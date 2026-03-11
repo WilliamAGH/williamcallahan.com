@@ -71,8 +71,9 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
     // Extract just the error message to avoid trace dumps
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[Logos] Error getting logo for domain ${domain}: ${errorMessage}`);
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }
 
 /**

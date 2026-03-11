@@ -7,9 +7,10 @@
  * @module lib/search/config
  */
 
-import type { IndexFieldConfig, EducationItem, BookmarkIndexItem } from "@/types/search";
+import type { IndexFieldConfig } from "@/types/search";
+import type { EducationItem, BookmarkIndexItem } from "@/types/schemas/search";
 import type { Investment } from "@/types/investment";
-import type { Experience } from "@/types/experience";
+import type { Experience } from "@/types/schemas/experience";
 import type { Project } from "@/types/project";
 import type { BookListItem } from "@/types/schemas/book";
 import type { BlogPost } from "@/types/blog";

@@ -53,8 +53,8 @@ async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
  * @returns Array of related content entries, or empty array if not found
  */
 export async function getRelatedContentForBook(bookId: string): Promise<RelatedContentEntry[]> {
-  const data = await ensureCacheLoaded();
-  return data?.entries[`book:${bookId}`] ?? [];
+  const relatedContentCache = await ensureCacheLoaded();
+  return relatedContentCache?.entries[`book:${bookId}`] ?? [];
 }
 
 /**
@@ -62,9 +62,9 @@ export async function getRelatedContentForBook(bookId: string): Promise<RelatedC
  * @returns Array of book IDs
  */
 export async function getBookIdsWithRelatedContent(): Promise<string[]> {
-  const data = await ensureCacheLoaded();
-  if (!data) return [];
-  return Object.keys(data.entries).map((key) => key.replace("book:", ""));
+  const relatedContentCache = await ensureCacheLoaded();
+  if (!relatedContentCache) return [];
+  return Object.keys(relatedContentCache.entries).map((key) => key.replace("book:", ""));
 }
 
 /**
@@ -76,12 +76,12 @@ export async function getBooksRelatedContentMetadata(): Promise<{
   generated: string;
   booksCount: number;
 } | null> {
-  const data = await ensureCacheLoaded();
-  if (!data) return null;
+  const relatedContentCache = await ensureCacheLoaded();
+  if (!relatedContentCache) return null;
   return {
-    version: data.version,
-    generated: data.generated,
-    booksCount: data.booksCount,
+    version: relatedContentCache.version,
+    generated: relatedContentCache.generated,
+    booksCount: relatedContentCache.booksCount,
   };
 }
 

@@ -12,53 +12,6 @@ import type {
   SearchResult as SearchResultShape,
 } from "./schemas/search";
 
-// Re-export all types and schemas from the Zod schemas file (source of truth)
-export {
-  // Constants
-  VALID_SCOPES,
-  // Schemas
-  validScopesSchema,
-  searchScopeSchema,
-  searchResultTypeSchema,
-  bookmarkSearchParamsSchema,
-  bookmarkIndexInputSchema,
-  educationItemSchema,
-  bookmarkIndexItemSchema,
-  serializedIndexSchema,
-  allSerializedIndexesSchema,
-  searchIndexBuildMetadataSchema,
-  searchIndexArtifactDomainSchema,
-  searchIndexArtifactPayloadSchema,
-  tagContentTypeSchema,
-  aggregatedTagSchema,
-  searchResultSchema,
-  searchResultsSchema,
-  miniSearchStoredFieldsSchema,
-} from "./schemas/search";
-
-export type {
-  // Types (z.infer exports)
-  SearchScope,
-  SearchResultType,
-  BookmarkSearchParams,
-  BookmarkIndexInput,
-  EducationItem,
-  BookmarkIndexItem,
-  SerializedIndex,
-  AllSerializedIndexes,
-  SearchIndexBuildMetadata,
-  SearchIndexArtifactDomain,
-  SerializedSearchIndexArtifactDomain,
-  StaticSearchIndexArtifactDomain,
-  SearchIndexArtifactPayload,
-  TagContentType,
-  AggregatedTag,
-  SearchResult,
-  SearchResults,
-  MiniSearchStoredFields,
-  ScoredResult,
-} from "./schemas/search";
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Generic Interfaces (can't be Zod schemas due to TypeScript generics)
 // ─────────────────────────────────────────────────────────────────────────────

@@ -3,46 +3,6 @@
 import type { ExtendedError } from "./error";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Re-export all schemas and schema-inferred types from the canonical source
-// ─────────────────────────────────────────────────────────────────────────────
-export {
-  bookmarkTagSchema,
-  type BookmarkTag,
-  bookmarkAssetSchema,
-  type BookmarkAsset,
-  rawApiBookmarkTagSchema,
-  type RawApiBookmarkTag,
-  bookmarkContentSchema,
-  type BookmarkContent,
-  rawApiBookmarkSchema,
-  type RawApiBookmark,
-  bookmarksApiResponseSchema,
-  type BookmarksApiResponse,
-  logoDataSchema,
-  unifiedBookmarkSchema,
-  type UnifiedBookmark,
-  unifiedBookmarksArraySchema,
-  rawBookmarkSchema,
-  type RawBookmark,
-  clientBookmarkSchema,
-  type ClientBookmark,
-  bookmarkPaginationSchema,
-  type BookmarkPagination,
-  bookmarkListResponseSchema,
-  type BookmarkListResponse,
-  bookmarksIndexSchema,
-  type BookmarksIndex,
-  bookmarksSearchResponseSchema,
-  type BookmarksSearchResponse,
-  bookmarkSlugEntrySchema,
-  type BookmarkSlugEntry,
-  bookmarkSlugMappingSchema,
-  type BookmarkSlugMapping,
-} from "./schemas/bookmark";
-
-export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Pure Interfaces (no Zod dependency)
 // ─────────────────────────────────────────────────────────────────────────────
 

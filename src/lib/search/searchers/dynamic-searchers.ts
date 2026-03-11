@@ -6,7 +6,7 @@
  * @module lib/search/searchers/dynamic-searchers
  */
 
-import type { SearchResult } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { hybridSearchBookmarks } from "@/lib/db/queries/hybrid-search";

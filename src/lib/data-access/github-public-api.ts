@@ -18,7 +18,7 @@ import type {
 } from "@/types/github";
 import {
   readGitHubActivityRecord,
-  isOldFlatStoredGithubActivityFormat,
+  isFlatStoredGithubActivityFormat,
   getGitHubActivityMetadata,
 } from "./github-storage";
 
@@ -75,7 +75,7 @@ function formatActivityView(
   };
 
   const allTimeData = activityRecord.cumulativeAllTimeData || trailingYearData;
-  const commitsOlderThanYear = allTimeData.allCommitsOlderThanYear;
+  const priorYearCommits = allTimeData.allPriorYearCommits;
 
   return {
     source,
@@ -92,7 +92,7 @@ function formatActivityView(
       linesAdded: allTimeData.linesAdded || 0,
       linesRemoved: allTimeData.linesRemoved || 0,
     },
-    commitsOlderThanYear,
+    priorYearCommits,
     lastRefreshed,
   };
 }
@@ -118,7 +118,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
     : undefined;
 
   // Handle old flat format (backward compatibility)
-  if (isOldFlatStoredGithubActivityFormat(activityData)) {
+  if (isFlatStoredGithubActivityFormat(activityData)) {
     debug("[DataAccess/GitHub:getGithubActivity] Converting old flat format to new nested format");
     const oldFormatData = activityData as StoredGithubActivityRecord;
     activityData = {
@@ -162,6 +162,3 @@ export async function getGithubActivityCached(): Promise<UserActivityView> {
 
   return withCacheFallback(getCachedGithubActivity, getGithubActivityDirect);
 }
-
-// Re-export centralized invalidator for consumers
-export { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";

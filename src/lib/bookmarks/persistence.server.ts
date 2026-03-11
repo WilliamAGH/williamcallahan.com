@@ -5,7 +5,7 @@
  * Primary store: PostgreSQL.
  */
 
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 /**
  * Write bookmark master data to PostgreSQL.

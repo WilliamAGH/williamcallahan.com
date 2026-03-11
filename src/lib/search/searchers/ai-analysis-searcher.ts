@@ -10,7 +10,8 @@
  * @module lib/search/searchers/ai-analysis-searcher
  */
 
-import type { SearchResult, AnyAnalysisResponse, AnalysisDomainConfig } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
+import type { AnyAnalysisResponse, AnalysisDomainConfig } from "@/types/search";
 import type { AnalysisDomain } from "@/types/ai-analysis";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";

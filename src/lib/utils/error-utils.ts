@@ -197,13 +197,15 @@ export function isErrorWithStatusCode(error: unknown): error is ErrorWithStatusC
  * Safely gets a property from an error object if it exists.
  */
 export function getProperty(error: ExtendedError, property: string): number | undefined {
+  // ExtendedError extends Error which is an object; use indexed access via unknown intermediate
+  const record: unknown = error;
   if (
-    typeof error === "object" &&
-    error !== null &&
-    property in error &&
-    typeof (error as unknown as Record<string, unknown>)[property] === "number"
+    typeof record === "object" &&
+    record !== null &&
+    property in record &&
+    typeof (record as { [k: string]: unknown })[property] === "number"
   ) {
-    return (error as unknown as Record<string, number>)[property];
+    return (record as { [k: string]: unknown })[property] as number;
   }
   return undefined;
 }

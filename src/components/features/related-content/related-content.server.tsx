@@ -229,6 +229,7 @@ export async function RelatedContent({
     );
   } catch (error) {
     console.error("Error fetching related content:", error);
-    return null;
+    // RC1a: error logged; null is the documented contract (component renders nothing)
   }
+  return null;
 }

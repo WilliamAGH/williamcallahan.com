@@ -92,9 +92,10 @@ export async function streamToS3(
       nodeStream = responseStream;
     } else {
       // Web ReadableStream to Node.js Readable
-      nodeStream = Readable.fromWeb(
-        responseStream as unknown as import("stream/web").ReadableStream,
-      );
+      // The Web API ReadableStream<Uint8Array> is structurally compatible with stream/web.ReadableStream
+      // but TypeScript doesn't unify them; use an unknown intermediate to bridge the type systems.
+      const webStream: unknown = responseStream;
+      nodeStream = Readable.fromWeb(webStream as import("stream/web").ReadableStream);
     }
 
     // Use AWS SDK v3 Upload for streaming
@@ -203,6 +204,7 @@ export async function maybeStreamImageToS3(
   } catch (err) {
     // Treat any error as non-fatal → caller will buffer instead
     console.warn("[ImageStreaming] maybeStreamImageToS3: falling back to buffer path –", err);
-    return false;
+    // RC1a: error logged; false signals caller should use buffer path
   }
+  return false;
 }

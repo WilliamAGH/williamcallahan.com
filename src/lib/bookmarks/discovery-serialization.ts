@@ -1,5 +1,5 @@
 import type { SerializableBookmark } from "@/types/features/bookmarks";
-import type { BookmarkForDiscovery } from "./tag-resolver";
+import type { BookmarkForDiscovery } from "@/types/features/discovery";
 
 export function serializeBookmark(bookmark: BookmarkForDiscovery): SerializableBookmark {
   return {

@@ -17,7 +17,6 @@
  */
 
 import type { ContentEmbeddingDomain, EmbeddingFieldSpec } from "@/types/db/embeddings";
-export type { EmbeddingFieldSpec } from "@/types/db/embeddings";
 import {
   BLOG_POST_EMBEDDING_FIELDS,
   BOOK_EMBEDDING_FIELDS,
@@ -91,7 +90,7 @@ function resolveFieldValue(source: Record<string, unknown>, keyPath: string): un
     if (current === null || current === undefined || typeof current !== "object") {
       return null;
     }
-    current = (current as Record<string, unknown>)[part];
+    current = (current as { readonly [k: string]: unknown })[part];
   }
   return current;
 }

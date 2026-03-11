@@ -38,8 +38,8 @@ async function fetchCommitsPage(
     return { status: "error", message: `HTTP ${res?.status || "unknown"}` };
   }
 
-  const data: unknown = await res.json();
-  const parsed = CommitResponseSchema.safeParse(data);
+  const commitApiResponse: unknown = await res.json();
+  const parsed = CommitResponseSchema.safeParse(commitApiResponse);
   if (!parsed.success) {
     return { status: "invalid_data" };
   }

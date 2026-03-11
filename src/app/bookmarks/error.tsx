@@ -36,9 +36,12 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             "attempts" in parsed &&
             "lastReset" in parsed
           ) {
-            const data = parsed as { attempts: unknown; lastReset: unknown };
-            if (Array.isArray(data.attempts) && typeof data.lastReset === "number") {
-              reloadData = data as { attempts: number[]; lastReset: number };
+            const parsedSessionData = parsed as { attempts: unknown; lastReset: unknown };
+            if (
+              Array.isArray(parsedSessionData.attempts) &&
+              typeof parsedSessionData.lastReset === "number"
+            ) {
+              reloadData = parsedSessionData as { attempts: number[]; lastReset: number };
             } else {
               // Invalid structure, reset
               reloadData = { attempts: [], lastReset: Date.now() };

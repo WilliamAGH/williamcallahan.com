@@ -197,7 +197,7 @@ export type ForwardedComponent<T, P = Record<string, never>> = React.ForwardRefE
 /**
  * Props for components that support custom rendering
  */
-export interface RenderPropComponentProps<T = unknown> {
+export interface RenderPropComponentProps<T> {
   /** Custom render function */
   render?: (props: T) => ReactNode;
   /** Alternative children render function */

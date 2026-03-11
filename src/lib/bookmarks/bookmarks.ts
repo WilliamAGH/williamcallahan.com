@@ -13,7 +13,7 @@
  * @module lib/bookmarks
  */
 
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 import {
   validateApiConfig,

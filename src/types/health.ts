@@ -20,9 +20,9 @@ export interface DeploymentReadinessCheckResult {
 // Health endpoint types and schema
 // =============================================================================
 
-// Schema matching the /api/health/metrics endpoint response
+// Schema matching healthy /api/health/metrics responses and the internal status page payload.
 export const HealthMetricsResponseSchema = z.object({
-  status: z.string(),
+  status: z.literal("healthy"),
   timestamp: z.string(),
   // System details may vary by environment; keep them flexible
   system: z.record(z.string(), z.unknown()),

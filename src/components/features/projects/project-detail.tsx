@@ -96,13 +96,14 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
   // Transform imageKey (S3 path) to CDN URL for Next.js Image
   const imageUrl = useMemo(() => {
     if (!project.imageKey) return null;
+    let resolvedUrl: string | undefined;
     try {
       const cdnUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
-      return getOptimizedImageSrc(cdnUrl);
+      resolvedUrl = getOptimizedImageSrc(cdnUrl);
     } catch (error) {
       console.warn(`[ProjectDetail] Failed to resolve image URL for "${project.name}".`, error);
-      return null;
     }
+    return resolvedUrl ?? null;
   }, [project.imageKey, project.name]);
 
   return (

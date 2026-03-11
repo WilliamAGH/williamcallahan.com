@@ -224,8 +224,8 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  const data: unknown = await response.json();
-  return data as T;
+  const jsonPayload: unknown = await response.json();
+  return jsonPayload as T;
 }
 
 /**

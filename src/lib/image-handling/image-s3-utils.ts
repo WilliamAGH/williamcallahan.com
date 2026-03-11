@@ -165,9 +165,9 @@ export async function persistImageToS3(
     } else if (errorMessage.includes("S3")) {
       console.error(`[${logContext}] ❌ S3 error: Failed to upload to S3`);
     }
-
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }
 
 /**
@@ -348,6 +348,7 @@ export async function serveImageFromS3(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[${logContext}] Failed to serve image from S3: ${s3Key}`, errorMessage);
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }

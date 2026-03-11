@@ -1,8 +1,6 @@
 import { formatTagDisplay, tagToSlug } from "@/lib/utils/tag-utils";
 import type { TagTaxonomyMaps, BookmarkForDiscovery } from "@/types/features/discovery";
 
-export type { BookmarkForDiscovery } from "@/types/features/discovery";
-
 export function extractTagNames(rawTags: unknown): string[] {
   if (!Array.isArray(rawTags)) return [];
   const names: string[] = [];

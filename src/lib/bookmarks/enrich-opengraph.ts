@@ -10,7 +10,7 @@ import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { getOpenGraphDataBatch } from "@/lib/data-access/opengraph-batch";
 import { selectBestImage } from "./bookmark-helpers";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { getMonotonicTime } from "@/lib/utils";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 
@@ -528,6 +528,7 @@ export async function fetchKarakeepImage(assetId: string): Promise<Buffer | null
     return buffer;
   } catch (error) {
     console.error(`[fetchKarakeepImage] Error fetching asset ${assetId}:`, error);
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }

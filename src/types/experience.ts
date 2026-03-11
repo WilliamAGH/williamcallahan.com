@@ -8,12 +8,5 @@
  * @see @link {types/schema/experience.ts}
  */
 
-// Re-export all types from the schema file for single source of truth
-export type { Experience, ProcessedExperienceItem } from "./schemas/experience";
-
-// Re-export validation functions for convenience
-export {
-  validateExperience,
-  validateExperienceArray,
-  validateProcessedExperienceItem,
-} from "./schemas/experience";
+// Types and validation functions are in @/types/schemas/experience.
+// Import directly from there.

@@ -75,14 +75,13 @@ async function tryPersistImageToS3(
       return s3Url;
     }
     // null means read-only mode - not an error, just skipped
-    return undefined;
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error(
       `[OpenGraph] S3 ${context} persistence failed for ${imageUrl}, keeping original: ${errorMsg}`,
     );
-    return undefined;
   }
+  return undefined;
 }
 
 /**

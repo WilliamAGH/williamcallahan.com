@@ -21,8 +21,7 @@ import {
   openAiCompatibleChatCompletionsResponseSchema,
   openAiCompatibleResponsesRequestSchema,
   openAiCompatibleResponsesResponseSchema,
-  responsesOutputRefusalItemSchema,
-  responsesOutputTextItemSchema,
+  responsesOutputMessageItemSchema,
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
 import {
@@ -111,17 +110,12 @@ function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
   const textChunks: string[] = [];
   const refusalChunks: string[] = [];
   for (const item of output) {
-    const parsedOutputText = responsesOutputTextItemSchema.safeParse(item);
-    if (parsedOutputText.success) {
-      for (const content of parsedOutputText.data.content) {
+    const parsed = responsesOutputMessageItemSchema.safeParse(item);
+    if (!parsed.success) continue;
+    for (const content of parsed.data.content) {
+      if (content.type === "output_text") {
         textChunks.push(content.text);
-      }
-      continue;
-    }
-
-    const parsedRefusal = responsesOutputRefusalItemSchema.safeParse(item);
-    if (parsedRefusal.success) {
-      for (const content of parsedRefusal.data.content) {
+      } else {
         refusalChunks.push(content.refusal);
       }
     }

@@ -24,7 +24,7 @@ import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
 import { upsertAllSearchIndexArtifacts } from "@/lib/db/mutations/search-index-artifacts";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import { writeAllImageManifests } from "@/lib/db/mutations/image-manifests";
 import { listS3Objects } from "@/lib/s3/objects";

@@ -13,7 +13,7 @@
 import { kebabCase } from "@/lib/utils/formatters";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { JsonLdScript } from "../../../seo/json-ld";
-import type { SoftwareScriptSchema, SoftwareSchemaProps } from "@/types/features/software";
+import type { SoftwareScript, SoftwareSchemaProps } from "@/types/features/software";
 
 /**
  * Component that renders Schema.org SoftwareApplication JSON-LD script
@@ -82,7 +82,7 @@ export function SoftwareSchema({
     : undefined;
 
   // Create base schema using the extended script type
-  const schema: SoftwareScriptSchema = {
+  const schema: SoftwareScript = {
     "@context": "https://schema.org",
     "@id": `#${idFragment}`,
     "@type": "SoftwareApplication",

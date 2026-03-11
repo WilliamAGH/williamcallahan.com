@@ -14,7 +14,7 @@
  * @see types/ui.ts for generic UI component props
  */
 
-import type { Experience } from "../experience";
+import type { Experience } from "../schemas/experience";
 
 /**
  * Experience collection component props

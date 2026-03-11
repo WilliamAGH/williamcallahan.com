@@ -45,7 +45,9 @@ export function parseCSV<T = CSVRow>(csvString: string, options: CSVParseOptions
       results.push(row as T);
     } else {
       // Return as array
-      results.push(values as unknown as T);
+      // Generic CSV parser: callers are responsible for providing a compatible T
+      const untypedValues: unknown = values;
+      results.push(untypedValues as T);
     }
   }
 
@@ -84,7 +86,7 @@ export function generateCSV<T>(
       // If headers are provided, use them to determine order
       if (headers) {
         const values = headers.map((header) => {
-          const value = (row as Record<string, unknown>)[header];
+          const value = (row as { [k: string]: unknown })[header];
           // Handle null/undefined
           if (value == null) return "";
           // Handle objects and arrays by JSON stringification

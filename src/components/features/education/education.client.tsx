@@ -46,7 +46,7 @@ function safeExternalHref(url?: string): string | null {
   }
 }
 
-import type { EducationClientProps, EducationTableItem } from "@/types/education";
+import type { EducationClientProps, EducationTableItem } from "@/types/schemas/education";
 
 // Sort indicator component
 const SortIndicator = ({

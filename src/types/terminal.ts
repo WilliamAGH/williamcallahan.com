@@ -181,12 +181,6 @@ export function isTerminalCommandArray(data: unknown): data is TerminalCommand[]
   return Array.isArray(data) && data.every(isTerminalCommand);
 }
 
-// Re-export schemas from canonical location for consumers that import from terminal.ts
-export {
-  terminalSearchResultSchema,
-  terminalSearchApiResponseSchema,
-} from "@/types/schemas/terminal";
-
 export function parseTerminalSearchResponse(data: unknown): TerminalSearchResult[] {
   const parsed = terminalSearchApiResponseSchema.parse(data);
   const rawResults = Array.isArray(parsed) ? parsed : parsed.results;

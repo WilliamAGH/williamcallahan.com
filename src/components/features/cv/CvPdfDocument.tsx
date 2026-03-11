@@ -26,7 +26,10 @@ const ensureWindows1252TextDecoder = (() => {
       })();
 
     if (!supportsWindows1252) {
-      globalThis.TextDecoder = PolyfillTextDecoder as unknown as typeof globalThis.TextDecoder;
+      // The polyfill is structurally compatible but TypeScript cannot verify it;
+      // bridge through unknown to avoid the double-cast pattern.
+      const polyfillConstructor: unknown = PolyfillTextDecoder;
+      globalThis.TextDecoder = polyfillConstructor as typeof globalThis.TextDecoder;
     }
 
     patched = true;

@@ -7,7 +7,8 @@
  * @module lib/search/search-factory
  */
 
-import type { SearchResult, SearchFunctionConfig } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
+import type { SearchFunctionConfig } from "@/types/search";
 import { rerankScoredResultsWithEmbeddings, searchContent } from "./search-content";
 
 /**

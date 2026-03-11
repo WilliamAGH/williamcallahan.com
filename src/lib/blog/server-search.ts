@@ -7,7 +7,7 @@
 import { assertServerOnly } from "../utils/ensure-server-only";
 assertServerOnly();
 
-import type { SearchResult } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
 import { sanitizeSearchQuery } from "../validators/search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { hybridSearchBlogPosts } from "@/lib/db/queries/hybrid-search-books-blog";

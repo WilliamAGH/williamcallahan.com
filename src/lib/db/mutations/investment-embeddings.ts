@@ -43,7 +43,18 @@ function buildHalfvecLiteral(embedding: number[]): string {
 }
 
 function buildInvestmentEmbeddingInput(row: InvestmentEmbeddingRow): string {
-  const source: Record<string, unknown> = {
+  const source: {
+    name: string;
+    description: string;
+    category: string | null;
+    stage: string;
+    status: string;
+    operating_status: string;
+    location: string | null;
+    type: string;
+    invested_year: string;
+    accelerator: unknown;
+  } = {
     name: row.name,
     description: row.description,
     category: row.category,

@@ -3,7 +3,7 @@
  * @module lib/search/searchers/thoughts-search
  */
 
-import type { SearchResult } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
 import { PAGE_METADATA } from "@/data/metadata";
 import { hybridSearchThoughts } from "@/lib/db/queries/hybrid-search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";

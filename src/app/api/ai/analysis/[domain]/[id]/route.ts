@@ -24,7 +24,7 @@ import {
   preventCaching,
 } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
-import type { AnalysisDomain } from "@/lib/ai-analysis/types";
+import type { AnalysisDomain } from "@/types/ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants

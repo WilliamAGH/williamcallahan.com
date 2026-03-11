@@ -6,8 +6,7 @@
  */
 
 import { readSlugShard } from "./slug-shards";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
-import type { BookmarkSlugMapping } from "@/types/bookmark";
+import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
 import { getSlugCacheTTL } from "@/config/related-content.config";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import logger from "@/lib/utils/logger";
@@ -106,8 +105,8 @@ async function loadOrGenerateSlugMapping(
  * Uses runtime checks to satisfy strict type safety without unsafe assumptions.
  */
 export function tryGetEmbeddedSlug(input: unknown): string | null {
-  if (input && typeof input === "object" && "slug" in (input as Record<string, unknown>)) {
-    const val = (input as Record<string, unknown>).slug;
+  if (input && typeof input === "object" && "slug" in input) {
+    const val = (input as { slug: unknown }).slug;
     if (typeof val === "string" && val.length > 0) return val;
   }
   return null;

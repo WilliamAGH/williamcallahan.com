@@ -17,13 +17,14 @@ function resolveProjectCardImageUrl(
 ): string | null {
   if (!imageKey) return null;
 
+  let url: string | null = null;
   try {
-    return buildCdnUrl(imageKey, getCdnConfigFromEnv());
+    url = buildCdnUrl(imageKey, getCdnConfigFromEnv());
   } catch (error) {
     const safeError = error instanceof Error ? error : new Error(String(error));
     console.warn(`[ProjectCard] Failed to resolve image URL for "${projectName}".`, safeError);
-    return null;
   }
+  return url;
 }
 
 export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX.Element {

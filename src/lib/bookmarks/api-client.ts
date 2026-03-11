@@ -28,19 +28,19 @@ export async function handleBookmarkApiResponse(
     throw new Error(`API request ${context} failed with status ${response.status}: ${errorText}`);
   }
 
-  const data = (await response.json()) as
+  const bookmarkApiPayload = (await response.json()) as
     | UnifiedBookmark[]
     | { bookmarks?: UnifiedBookmark[]; data?: UnifiedBookmark[] };
 
   // Handle both array and object response formats
-  if (Array.isArray(data)) {
-    return data;
+  if (Array.isArray(bookmarkApiPayload)) {
+    return bookmarkApiPayload;
   }
-  if (data && Array.isArray(data.data)) {
-    return data.data;
+  if (bookmarkApiPayload && Array.isArray(bookmarkApiPayload.data)) {
+    return bookmarkApiPayload.data;
   }
-  if (data && Array.isArray(data.bookmarks)) {
-    return data.bookmarks;
+  if (bookmarkApiPayload && Array.isArray(bookmarkApiPayload.bookmarks)) {
+    return bookmarkApiPayload.bookmarks;
   }
 
   console.warn(

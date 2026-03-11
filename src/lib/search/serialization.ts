@@ -8,7 +8,11 @@
  */
 
 import type MiniSearch from "minisearch";
-import type { SerializedIndex, BookmarkIndexItem, MiniSearchStoredFields } from "@/types/search";
+import type {
+  SerializedIndex,
+  BookmarkIndexItem,
+  MiniSearchStoredFields,
+} from "@/types/schemas/search";
 
 /**
  * Type guard to check if value is a non-null object (record).
@@ -63,7 +67,8 @@ export function parseSerializedIndexObject(
         return parsed;
       }
       return null;
-    } catch {
+    } catch (error: unknown) {
+      console.error("[serialization] Failed to JSON.parse serialized index string:", error);
       return null;
     }
   }

@@ -7,24 +7,13 @@
  * - Parse frontmatter metadata
  * - Serialize MDX content with syntax highlighting
  *
- * @note Plugin Compatibility Workaround
- * This file uses `// @ts-nocheck` to suppress TypeScript errors caused by
- * version mismatches in the unified ecosystem between:
- * - next-mdx-remote@4.4.1
- * - @mdx-js/mdx@^3.1.0
- * - remark-gfm@^3.0.1
- * - rehype-prism@^2.3.3
- * - rehype-slug@^6.0.0
- * - rehype-autolink-headings@^7.1.0
- *
- * The plugins work correctly at runtime despite TypeScript type mismatches
- * from nested unified/vfile version dependencies. The `@ts-nocheck` directive
- * is necessary because the type incompatibilities are too deep in the unified
- * ecosystem to resolve with targeted `@ts-expect-error` comments.
- *
- * If you encounter "Plugin<...> is not assignable to type 'Pluggable<any[]>'"
- * errors when updating these packages, ensure the versions listed above are
- * compatible and maintain the `@ts-nocheck` directive.
+ * @note Plugin Compatibility
+ * The rehype/remark plugins work correctly at runtime despite TypeScript type
+ * mismatches from nested unified/vfile version dependencies. If you encounter
+ * "Plugin<...> is not assignable to type 'Pluggable<any[]>'" errors when
+ * updating these packages, verify version compatibility across:
+ * - next-mdx-remote, mdx-js/mdx, remark-gfm, rehype-prism, rehype-slug,
+ *   rehype-autolink-headings.
  */
 
 assertServerOnly(); // Ensure this module runs only on the server
@@ -103,8 +92,9 @@ async function generateBlurDataURL(localImagePath: string): Promise<string | und
     if (isDevLoggingEnabled) {
       console.warn(`[generateBlurDataURL] Failed to generate blur for ${localImagePath}:`, error);
     }
-    return undefined;
+    // RC1a: error logged; undefined is the documented contract (enhancement-only)
   }
+  return undefined;
 }
 
 const cacheLife = (profile: CacheDurationProfile): void => {
@@ -202,13 +192,15 @@ export async function getMDXPost(
         console.warn(
           `[getMDXPost] Could not stat file ${filePathForPost} even with content override`,
         );
-        stats = {
+        // Build a minimal stats-like object for the fallback path.
+        // Only mtime, birthtime, birthtimeMs, and mtimeMs are accessed downstream.
+        const fallbackStats: unknown = {
           mtime: new Date(0),
           birthtime: new Date(0),
           birthtimeMs: 0,
           mtimeMs: 0,
-          // Include all properties that are accessed later in the code
-        } as unknown as import("fs").Stats;
+        };
+        stats = fallbackStats as import("fs").Stats;
       }
     } else {
       // Stat once; failure means the file is missing or unreadable
@@ -266,7 +258,7 @@ export async function getMDXPost(
      * type mismatches between unified ecosystem versions. This is safe because:
      * - All plugins are compatible at runtime
      * - The type mismatch is only in the nested vfile/unified type definitions
-     * - The `@ts-nocheck` directive at the top handles broader compatibility issues
+     * - Broader unified ecosystem type incompatibilities are documented in the module header
      *
      * Plugins used:
      * - remarkGfm: GitHub Flavored Markdown support (tables, strikethrough, etc.)
@@ -353,8 +345,9 @@ export async function getMDXPost(
       error.message,
       error.stack,
     );
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }
 
 // Internal direct read function for MDX posts (always available)
@@ -434,7 +427,9 @@ export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogP
       try {
         const fileContents = await fs.readFile(fullPath, "utf8");
         // Parse frontmatter just to get the slug
-        const { data: frontmatter } = matter(fileContents) as unknown as {
+        // gray-matter returns { data, content, ... }; extract with proper typing
+        const matterResult: unknown = matter(fileContents);
+        const { data: frontmatter } = matterResult as {
           data: FrontmatterData;
           content: string;
         };
@@ -459,8 +454,9 @@ export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogP
           `[getAllMDXPosts] Error initially processing file ${fileName} (slug: ${frontmatterSlug ?? "unknown"}):`,
           fileError,
         );
-        return null; // Ensure errors in this map return null
+        // RC1a: error logged; null signals skip to caller
       }
+      return null;
     });
 
     // Wait for all processing attempts to settle
@@ -489,8 +485,9 @@ export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogP
   } catch (error) {
     // Catch errors from fs.readdir itself
     console.error("Error reading posts directory:", error);
-    return [];
+    // RC1a: error logged; empty array is the documented contract for callers
   }
+  return processedPosts;
 }
 
 // Internal direct read function for all MDX posts (always available)

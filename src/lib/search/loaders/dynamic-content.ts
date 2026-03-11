@@ -150,7 +150,7 @@ export async function getBookmarksIndex(): Promise<{
       if (Array.isArray(raw)) {
         bookmarks = raw as BookmarkIndexInput[];
       } else if (typeof raw === "object" && raw !== null) {
-        const obj = raw as Record<string, unknown>;
+        const obj = raw as { data?: unknown; bookmarks?: unknown };
         bookmarks = (obj.data ?? obj.bookmarks ?? []) as BookmarkIndexInput[];
       }
       devLog("[getBookmarksIndex] fetched bookmarks via API", { count: bookmarks.length });
@@ -269,7 +269,7 @@ export async function getCachedBooksData(): Promise<Book[]> {
     const message = error instanceof Error ? error.message : String(error);
     envLogger.log("[Search] Failed to fetch books", { error: message }, { category: "Search" });
     console.error("[Search] Books fetch failed:", message);
-    return [];
+    // RC1a: error logged; empty array is the documented contract for callers
   }
 
   if (books.length === 0) {

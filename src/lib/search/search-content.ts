@@ -8,7 +8,7 @@
  */
 
 import type MiniSearch from "minisearch";
-import type { ScoredResult } from "@/types/search";
+import type { ScoredResult } from "@/types/schemas/search";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { sanitizeSearchQuery } from "@/lib/validators/search";

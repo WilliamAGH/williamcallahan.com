@@ -12,10 +12,6 @@ import { z } from "zod";
 
 // Import ExtendedMetadata from base to avoid circular dependencies
 import type { ExtendedMetadata } from "./base";
-export type { ExtendedMetadata };
-
-// Import and re-export schema types from main SEO types to avoid duplication
-export type { ArticleSchema, ProfilePageSchema, CollectionPageSchema } from "./schema";
 
 // Extend if needed for backward compatibility
 export interface ArticleMetadata extends Omit<ExtendedMetadata, "openGraph"> {

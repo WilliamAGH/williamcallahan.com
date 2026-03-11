@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Sparkles, PenTool, Hash, Quote, Brain, Lightbulb } from "lucide-react";
 import { useState, type JSX } from "react";
-import type { BookmarkTag } from "@/types/bookmark";
+import type { BookmarkTag } from "@/types/schemas/bookmark";
 
 export function BookmarkInsights({
   note,

@@ -17,8 +17,7 @@ import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { listAnalysisItemIds } from "@/lib/ai-analysis/reader.server";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { Book } from "@/types/schemas/book";
-import type { BookmarkIndexItem } from "@/types/schemas/search";
-import type { AggregatedTag } from "@/types/search";
+import type { BookmarkIndexItem, AggregatedTag } from "@/types/schemas/search";
 import type { BlogPost } from "@/types/blog";
 import type {
   InventorySectionBuildResult,

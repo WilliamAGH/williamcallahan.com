@@ -55,7 +55,8 @@ const getBookmarkHostname = (rawUrl: string | null | undefined): string | null =
     const url = new URL(ensureProtocol(trimmed));
     const hostname = stripWwwPrefix(url.hostname).trim();
     return hostname || null;
-  } catch {
+  } catch (error: unknown) {
+    console.error("[BookmarkPage] Failed to parse bookmark URL:", rawUrl, error);
     return null;
   }
 };
@@ -115,8 +116,9 @@ async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | nu
     return null;
   } catch (error) {
     console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, error);
-    return null;
+    // RC1a: error logged; null signals "not found" to caller
   }
+  return null;
 }
 
 async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {

@@ -13,8 +13,6 @@ import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 import type { SimilarityCandidate } from "@/types/related-content";
 
-export type { SimilarityCandidate } from "@/types/related-content";
-
 const DEFAULT_SIMILARITY_LIMIT = 30;
 
 function computeTagOverlap(

@@ -5,7 +5,7 @@
  * ReDoS attacks and ensure safe processing.
  */
 
-import { VALID_SCOPES } from "@/types/search";
+import { VALID_SCOPES } from "@/types/schemas/search";
 
 /**
  * Validates and sanitizes a search query to prevent ReDoS attacks

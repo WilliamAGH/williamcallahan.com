@@ -20,8 +20,6 @@ import {
 } from "./hybrid-search-config";
 import type { BookSearchResult, BlogPostSearchResult } from "@/types/db/hybrid-search";
 
-export type { BookSearchResult, BlogPostSearchResult } from "@/types/db/hybrid-search";
-
 // ─── Books ──────────────────────────────────────
 
 export async function hybridSearchBooks(options: {

@@ -17,10 +17,10 @@ import type {
   BookmarkIndexItem,
   SerializedIndex,
   AllSerializedIndexes,
-  IndexFieldConfig,
-} from "@/types/search";
+} from "@/types/schemas/search";
+import type { IndexFieldConfig } from "@/types/search";
 import type { Project } from "@/types/project";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";

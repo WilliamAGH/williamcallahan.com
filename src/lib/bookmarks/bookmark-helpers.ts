@@ -7,7 +7,7 @@
  * @module lib/bookmarks/bookmark-helpers
  */
 
-import type { UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
+import type { UnifiedBookmark, BookmarkContent } from "@/types/schemas/bookmark";
 import type { KarakeepImageFallback } from "@/types/opengraph";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";

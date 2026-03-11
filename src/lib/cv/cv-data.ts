@@ -28,12 +28,12 @@ import type {
   CvExperienceEntry,
   CvProjectEntry,
 } from "@/types/cv";
-import { validateExperienceArray } from "@/types/experience";
+import { validateExperienceArray } from "@/types/schemas/experience";
 import {
   validateCertificationArray,
   validateClassArray,
   validateEducationArray,
-} from "@/types/education";
+} from "@/types/schemas/education";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 const validatedExperiences = validateExperienceArray(experiences);
@@ -201,5 +201,3 @@ export const getCvData = (): CvData => {
     lastUpdatedDisplay,
   } satisfies CvData;
 };
-
-export type { CvContent, CvData } from "@/types/cv";
