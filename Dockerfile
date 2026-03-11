@@ -58,7 +58,6 @@ ENV HUSKY=0
 #    Copying lock file separately ensures Docker caches the layer correctly
 COPY package.json ./
 COPY bun.lock* ./
-COPY .husky ./.husky
 
 # 2. Copy the init-csp-hashes script and config directory needed by postinstall
 #    This is required because postinstall runs during bun install
