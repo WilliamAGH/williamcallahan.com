@@ -3,7 +3,7 @@ import {
   EMBEDDING_FIELD_CONTRACTS,
   type EmbeddingFieldSpec,
 } from "@/lib/db/embedding-input-contracts";
-import { CONTENT_EMBEDDING_DOMAINS } from "@/lib/db/schema/content-embeddings";
+import { CONTENT_EMBEDDING_DOMAINS } from "@/types/db/embeddings";
 
 /**
  * Words that are banned as standalone labels because they have multiple

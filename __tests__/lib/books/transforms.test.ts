@@ -11,12 +11,12 @@ import {
   buildDirectCoverUrl,
 } from "@/lib/books/transforms";
 import { fetchBookById } from "@/lib/books/audiobookshelf.server";
-import { validateBook, validateBookListItem, type AbsLibraryItem } from "@/types/schemas/book";
+import { validateBook, validateBookBrief, type AbsLibraryEntry } from "@/types/schemas/book";
 
 const BASE_OPTIONS = { baseUrl: "https://abs.example.com", apiKey: "test-key" };
 
 // Minimal valid ABS item
-function makeAbsItem(overrides: Partial<AbsLibraryItem> = {}): AbsLibraryItem {
+function makeAbsItem(overrides: Partial<AbsLibraryEntry> = {}): AbsLibraryEntry {
   return {
     id: "test-id",
     mediaType: "book",
@@ -149,7 +149,7 @@ describe("Book Transforms", () => {
     });
 
     it("accepts root-relative proxy cover URLs in list-item schema", () => {
-      const item = validateBookListItem({
+      const item = validateBookBrief({
         id: "schema-list-1",
         title: "Schema List Book",
         coverUrl: "/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg",
