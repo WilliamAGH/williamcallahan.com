@@ -7,11 +7,12 @@ import { debug } from "@/lib/utils/debug";
 import { waitForPermit } from "@/lib/rate-limiter";
 import { delay, retryWithDomainConfig } from "@/lib/utils/retry";
 import { createCategorizedError } from "@/lib/utils/error-utils";
-import { CommitResponseSchema, type GithubRepoNode } from "@/types/github";
+import { CommitResponseSchema, type GraphQLRepoNode } from "@/types/github";
 import { GITHUB_API_RATE_LIMIT_CONFIG } from "@/lib/constants";
 import type { CommitCountInput, PageFetchResult } from "@/types/features/github-processing";
 import { fetchRepositoryCommitCount, getGitHubApiToken, githubHttpClient } from "./github-api";
 
+const MAX_DEEP_PAGINATION_PAGES = 20;
 const MAX_PAGES = 100;
 const COMMITS_PER_PAGE = 100;
 
@@ -79,7 +80,7 @@ async function countCommitsViaRestApi(
         break;
       }
 
-      if (page > 20) {
+      if (page > MAX_DEEP_PAGINATION_PAGES) {
         debug(`[GitHub-Commits] Deep pagination for ${owner}/${name}: ${page} pages`);
       }
 
@@ -98,7 +99,7 @@ async function countCommitsViaRestApi(
 }
 
 async function countRepositoryCommits(
-  repo: GithubRepoNode,
+  repo: GraphQLRepoNode,
   githubRepoOwner: string,
   githubUserId?: string,
 ): Promise<number> {

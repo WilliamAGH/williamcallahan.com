@@ -1,7 +1,7 @@
 import type { bookmarks } from "@/lib/db/schema/bookmarks";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
-export type BookmarkRow = typeof bookmarks.$inferSelect;
+export type BookmarkSelect = typeof bookmarks.$inferSelect;
 export type BookmarkInsert = typeof bookmarks.$inferInsert;
 
 export type BookmarkFtsSearchHit = {
@@ -22,7 +22,7 @@ export type BookmarkTagResolution = {
 };
 
 /** Row shape for embedding backfill queries (subset of bookmark columns). */
-export type BookmarkEmbeddingRow = {
+export type BookmarkEmbeddingSelect = {
   id: string;
   url: string;
   title: string;

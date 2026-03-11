@@ -17,7 +17,7 @@ import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 import { getMonotonicTime } from "@/lib/utils";
 import { isOgResult } from "@/types/opengraph";
 import type { OgResult } from "@/types/opengraph";
-import type { KarakeepImageFallback } from "@/types/seo/opengraph";
+import type { ValidatedKarakeepImageFallback } from "@/types/seo/opengraph";
 
 /**
  * Batch-optimized OpenGraph data fetching
@@ -26,7 +26,7 @@ import type { KarakeepImageFallback } from "@/types/seo/opengraph";
  */
 export async function getOpenGraphDataBatch(
   url: string,
-  fallbackImageData?: KarakeepImageFallback | null,
+  fallbackImageData?: ValidatedKarakeepImageFallback | null,
   forceRefresh = false,
 ): Promise<OgResult> {
   const normalizedUrl = normalizeUrl(url);
@@ -86,7 +86,7 @@ export async function getOpenGraphDataBatch(
  * Process multiple URLs in batch with progress logging
  */
 export async function processOpenGraphBatch(
-  urls: Array<{ url: string; fallback?: KarakeepImageFallback | null }>,
+  urls: Array<{ url: string; fallback?: ValidatedKarakeepImageFallback | null }>,
   options: {
     forceRefresh?: boolean;
     onProgress?: (current: number, total: number) => void;
@@ -98,7 +98,7 @@ export async function processOpenGraphBatch(
 
   // Create batch processor with lower concurrency for OpenGraph (to be polite to external sites)
   const processor = new BatchProcessor<
-    { url: string; fallback?: KarakeepImageFallback | null },
+    { url: string; fallback?: ValidatedKarakeepImageFallback | null },
     OgResult
   >(
     "opengraph-batch",

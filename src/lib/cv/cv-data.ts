@@ -23,7 +23,7 @@ import type {
   CvCertificationEntry,
   CvCourseGroup,
   CvCourseSummary,
-  CvData,
+  CurriculumVitae,
   CvDegreeEntry,
   CvExperienceEntry,
   CvProjectEntry,
@@ -166,7 +166,7 @@ const buildCourseGroups = (): readonly CvCourseGroup[] => {
   );
 };
 
-export const getCvData = (): CvData => {
+export const getCurriculumVitae = (): CurriculumVitae => {
   const siteUrl = siteMetadata.site?.url ?? "https://williamcallahan.com";
   const personalSiteHost = toDisplayHost(siteUrl) ?? "williamcallahan.com";
   const aventureHost = toDisplayHost(CV_CONTACT_LINKS.aventureUrl) ?? "aventure.vc";
@@ -199,5 +199,5 @@ export const getCvData = (): CvData => {
     linkedInUrl: CV_CONTACT_LINKS.linkedInUrl,
     linkedInLabel,
     lastUpdatedDisplay,
-  } satisfies CvData;
+  } satisfies CurriculumVitae;
 };

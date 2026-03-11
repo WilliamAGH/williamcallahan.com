@@ -28,7 +28,7 @@ export type BookmarkForDiscovery = Pick<
 // Scoring & Grouping
 // ---------------------------------------------------------------------------
 
-export type ScoredBookmarkRow = {
+export type ScoredBookmark = {
   bookmark: Pick<
     UnifiedBookmark,
     "id" | "url" | "title" | "description" | "slug" | "tags" | "dateBookmarked"
@@ -46,7 +46,7 @@ export type TopicSection = {
   tagName: string;
   topScore: number;
   totalCount: number;
-  bookmarks: ScoredBookmarkRow["bookmark"][];
+  bookmarks: ScoredBookmark["bookmark"][];
 };
 
 type GroupOptions = {
@@ -65,7 +65,7 @@ export type { GroupOptions, RecentOptions };
 // Server → Client Data Transfer
 // ---------------------------------------------------------------------------
 
-export type DiscoverFeedData = {
+export type DiscoverFeed = {
   recentlyAdded: SerializableBookmark[];
   topicSections: Array<{
     tagSlug: string;
@@ -93,7 +93,7 @@ export type DiscoverFeedData = {
 // ---------------------------------------------------------------------------
 
 export type DiscoverFeedProps = {
-  data: DiscoverFeedData;
+  data: DiscoverFeed;
 };
 
 export type TopicSectionProps = {

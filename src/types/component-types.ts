@@ -183,7 +183,7 @@ export interface InteractiveComponentProps {
 /**
  * Generic component wrapper type for HOCs
  */
-export type ComponentWrapper<P = Record<string, never>> = <T extends Record<string, unknown>>(
+export type ComponentEnhancer<P = Record<string, never>> = <T extends Record<string, unknown>>(
   Component: React.ComponentType<T>,
 ) => React.ComponentType<T & P>;
 

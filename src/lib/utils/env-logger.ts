@@ -34,7 +34,7 @@ function safeStringify(data: unknown, indent?: number): string {
   } catch {
     // Handle circular references or Proxy objects that can't be serialized
     if (typeof data === "object" && data !== null) {
-      const keys = Object.keys(data as Record<string, unknown>);
+      const keys = Object.keys(data as { readonly [k: string]: unknown });
       return `{${keys.length} props: ${keys.slice(0, 3).join(", ")}${keys.length > 3 ? "..." : ""}}`;
     }
     return String(data);
@@ -219,7 +219,7 @@ class EnvLogger {
     }
 
     if (typeof data === "object") {
-      const obj = data as Record<string, unknown>;
+      const obj = data as { readonly [k: string]: unknown };
       const keys = Object.keys(obj);
 
       // Special handling for common patterns
@@ -266,7 +266,7 @@ class EnvLogger {
     }
 
     if (typeof result === "object") {
-      const obj = result as Record<string, unknown>;
+      const obj = result as { readonly [k: string]: unknown };
       if ("length" in obj) {
         return `${String(obj.length)} items`;
       }

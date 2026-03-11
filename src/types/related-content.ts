@@ -56,7 +56,7 @@ export type RelatedContentType =
 /**
  * UI-ready related content item with rich metadata.
  */
-export interface RelatedContentItem {
+export interface RelatedContentCard {
   /** Type of content */
   readonly type: RelatedContentType;
   /** Unique identifier */
@@ -125,7 +125,7 @@ export interface RelatedContentEntry {
 /**
  * Structure of the books related content JSON stored in content_graph_artifacts.
  */
-export interface BooksRelatedContentData {
+export interface BooksRelatedContent {
   /** Data format version */
   version: string;
   /** ISO timestamp when generated */
@@ -179,7 +179,7 @@ export interface RelatedContentProps {
  */
 export interface RelatedContentCardProps {
   /** The related content item */
-  item: RelatedContentItem;
+  item: RelatedContentCard;
   /** Optional click handler */
   onClick?: () => void;
   /** Optional CSS classes */
@@ -195,7 +195,7 @@ export interface RelatedContentSectionProps {
   /** Section title */
   title: string;
   /** Related content items to display */
-  items: RelatedContentItem[];
+  items: RelatedContentCard[];
   /** Optional CSS classes */
   className?: string;
   /** Show similarity scores on cards */

@@ -15,6 +15,11 @@ import { cn } from "../../../lib/utils";
 import { WindowControls } from "../navigation/window-controls";
 import type { ImageWindowProps } from "@/types/ui/window";
 
+/** Tailwind sm breakpoint for responsive control sizing */
+const SM_BREAKPOINT = 640;
+/** Tailwind xl breakpoint for responsive control sizing */
+const XL_BREAKPOINT = 1280;
+
 /**
  * A component that renders an image within a macOS-style window frame
  * with interactive controls (close, minimize, maximize).
@@ -44,9 +49,9 @@ export const ImageWindow = ({
 
   // Determine the appropriate control size based on screen width
   const controlSize =
-    windowSize.width && windowSize.width < 640
+    windowSize.width && windowSize.width < SM_BREAKPOINT
       ? "sm"
-      : windowSize.width && windowSize.width > 1280
+      : windowSize.width && windowSize.width > XL_BREAKPOINT
         ? "lg"
         : "md";
 

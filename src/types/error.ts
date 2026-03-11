@@ -113,7 +113,7 @@ export function getErrorTimestamp(
  * Payload for client-side errors logged to the server.
  * @usage - API endpoint for /api/log-client-error
  */
-export interface ClientErrorPayload {
+export interface ClientErrorReport {
   message?: string;
   resource?: string; // e.g., script URL if it's a script error
   type?: string; // e.g., 'ChunkLoadError', 'TypeError'

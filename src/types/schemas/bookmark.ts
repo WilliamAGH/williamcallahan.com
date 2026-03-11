@@ -118,7 +118,7 @@ export const logoDataSchema = z.object({
 });
 
 /** Bookmark logo display data (url, alt text, dimensions) — inferred from Zod schema. */
-export type BookmarkLogoData = z.infer<typeof logoDataSchema>;
+export type BookmarkLogo = z.infer<typeof logoDataSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UnifiedBookmark Schema (most comprehensive bookmark type)

@@ -1,13 +1,13 @@
 import type {
-  GithubRepoNode,
+  GraphQLRepoNode,
   GitHubActivitySummary,
-  CommitsOlderThanYearSummary,
+  PriorYearCommitSummary,
   RepoWeeklyStatCache,
 } from "@/types/github";
 
 /** Input for calculating all-time commit counts */
 export type CommitCountInput = {
-  repos: GithubRepoNode[];
+  repos: GraphQLRepoNode[];
   githubRepoOwner: string;
   githubUserId?: string;
 };
@@ -36,7 +36,7 @@ export type CsvRepairResult = {
 
 /** Input for processing a single repository */
 export type SingleRepoProcessingInput = {
-  repo: GithubRepoNode;
+  repo: GraphQLRepoNode;
   githubRepoOwner: string;
   trailingYearFromDate: Date;
   now: Date;
@@ -60,7 +60,7 @@ export type RepoProcessingResult = {
   yearLinesAdded: number;
   yearLinesRemoved: number;
   yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
-  olderThanYearCommitStats: CommitsOlderThanYearSummary;
+  priorYearCommitStats: PriorYearCommitSummary;
   allTimeLinesAdded: number;
   allTimeLinesRemoved: number;
   allTimeOverallDataComplete: boolean;
@@ -70,7 +70,7 @@ export type RepoProcessingResult = {
 
 /** Input for processing a batch of repositories */
 export type RepoProcessingInput = {
-  repos: GithubRepoNode[];
+  repos: GraphQLRepoNode[];
   githubRepoOwner: string;
   trailingYearFromDate: Date;
   now: Date;
@@ -78,7 +78,7 @@ export type RepoProcessingInput = {
 
 /** Helper type for intermediate processing results */
 export type RepoWithResult = {
-  repo: GithubRepoNode;
+  repo: GraphQLRepoNode;
   result: SingleRepoProcessingResult;
 };
 

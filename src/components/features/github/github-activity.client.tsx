@@ -5,11 +5,7 @@
 
 "use client";
 
-import type {
-  CommitsOlderThanYearSummary,
-  ContributionDay,
-  UserActivityView,
-} from "@/types/github";
+import type { PriorYearCommitSummary, ContributionDay, UserActivityView } from "@/types/github";
 import { formatDistanceToNow } from "date-fns";
 import { Code, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -21,6 +17,7 @@ import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
 import type { ApiError } from "@/types/features/github";
 
 // Responsive calculation helpers
+const SM_BREAKPOINT = 640; // Tailwind sm breakpoint
 const DEFAULT_COLUMNS = 53; // GitHub contribution calendar weeks (~53)
 const MOBILE_COLUMNS = 20; // Fewer columns for mobile to make blocks more visible
 const BLOCK_MARGIN_PX = 2; // Keep constant; margin between squares
@@ -64,16 +61,14 @@ const GitHubActivity = () => {
   const [allTimeLinesAdded, setAllTimeLinesAdded] = useState<number | null>(null); // All-time lines added
   const [allTimeLinesRemoved, setAllTimeLinesRemoved] = useState<number | null>(null); // All-time lines removed
   const [allTimeTotalContributions, setAllTimeTotalContributions] = useState<number | null>(null); // All-time total contributions
-  const [commitsOlderThanYear, setCommitsOlderThanYear] =
-    useState<CommitsOlderThanYearSummary | null>(null); // Older-than-year commit stats
+  const [priorYearCommits, setPriorYearCommits] = useState<PriorYearCommitSummary | null>(null); // Prior-year commit stats
 
   const [dataComplete, setDataComplete] = useState<boolean>(true); // Flag indicating if the fetched data is complete
   const [lastRefreshed, setLastRefreshed] = useState<string | null>(null); // Timestamp of the last data refresh
   const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false); // Show option to refresh other environments
   const [isRefreshingProduction, setIsRefreshingProduction] = useState(false); // Loading state for production refresh
   const lifetimeContributionTotal =
-    allTimeTotalContributions ??
-    (totalContributions ?? 0) + (commitsOlderThanYear?.totalCommits ?? 0);
+    allTimeTotalContributions ?? (totalContributions ?? 0) + (priorYearCommits?.totalCommits ?? 0);
 
   // Determine if refresh buttons should be shown based on environment
   // Show refresh button for non-production environments (development, test, staging)
@@ -95,7 +90,7 @@ const GitHubActivity = () => {
 
     const updateSize = (width: number) => {
       // Detect mobile viewport
-      const mobile = width < 640; // sm breakpoint
+      const mobile = width < SM_BREAKPOINT;
       setIsMobile(mobile);
 
       // Use fewer columns on mobile for better visibility
@@ -136,7 +131,7 @@ const GitHubActivity = () => {
     setAllTimeLinesAdded(null); // Reset for cards
     setAllTimeLinesRemoved(null); // Reset for cards
     setAllTimeTotalContributions(null); // Reset for cards
-    setCommitsOlderThanYear(null);
+    setPriorYearCommits(null);
     setDataComplete(false); // Assume data is incomplete after reset
     setLastRefreshed(null);
     setError(null); // Also reset error state
@@ -212,7 +207,7 @@ const GitHubActivity = () => {
           setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
           setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
           setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
-          setCommitsOlderThanYear(result?.commitsOlderThanYear ?? null);
+          setPriorYearCommits(result?.priorYearCommits ?? null);
 
           setLastRefreshed(result?.lastRefreshed ?? null);
           return; // Return after setting partial data/error
@@ -233,7 +228,7 @@ const GitHubActivity = () => {
         setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
         setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
         setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
-        setCommitsOlderThanYear(result?.commitsOlderThanYear ?? null);
+        setPriorYearCommits(result?.priorYearCommits ?? null);
       } catch (err: unknown) {
         console.error("Failed to fetch or parse GitHub activity:", err); // Log the full error object
         setError(
@@ -466,10 +461,10 @@ const GitHubActivity = () => {
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
               Lifetime contributions:{" "}
               <span className="font-semibold">{lifetimeContributionTotal.toLocaleString()}</span>
-              {commitsOlderThanYear && totalContributions !== null && (
+              {priorYearCommits && totalContributions !== null && (
                 <span className="ml-1 text-gray-500 dark:text-gray-400">
-                  (Prior years: {commitsOlderThanYear.totalCommits.toLocaleString()} + Trailing
-                  year: {totalContributions.toLocaleString()})
+                  (Prior years: {priorYearCommits.totalCommits.toLocaleString()} + Trailing year:{" "}
+                  {totalContributions.toLocaleString()})
                 </span>
               )}
             </div>

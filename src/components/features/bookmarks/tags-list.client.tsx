@@ -11,6 +11,9 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import type { TagsListClientProps } from "@/types/features/bookmarks";
 
+/** Maximum number of tags to show before collapsing with "Show More" */
+const MAX_VISIBLE_TAGS = 6;
+
 export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClientProps) {
   const [mounted, setMounted] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
@@ -24,7 +27,7 @@ export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClien
 
   // Using the shared tag formatter from utils
 
-  const hasMoreTags = tags.length > 6;
+  const hasMoreTags = tags.length > MAX_VISIBLE_TAGS;
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
@@ -41,7 +44,7 @@ export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClien
               selectedTag === tag
                 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                 : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-            } ${!mounted ? "pointer-events-none" : ""} ${index >= 6 && !showAllTags ? "hidden" : ""}`}
+            } ${!mounted ? "pointer-events-none" : ""} ${index >= MAX_VISIBLE_TAGS && !showAllTags ? "hidden" : ""}`}
           >
             {formatTagDisplay(tag)}
           </button>
@@ -55,7 +58,7 @@ export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClien
           onClick={() => mounted && setShowAllTags(!showAllTags)}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors border border-indigo-200 dark:border-indigo-800 ${!mounted ? "pointer-events-none" : ""}`}
         >
-          {showAllTags ? "Show Less" : `+${tags.length - 6} More`}
+          {showAllTags ? "Show Less" : `+${tags.length - MAX_VISIBLE_TAGS} More`}
         </button>
       )}
 

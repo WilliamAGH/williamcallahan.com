@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 
 // Responsive Table Component Types
 export type TableCellValue = string | number | ReactNode;
-export type TableRowData = Record<string, TableCellValue>;
+export type TableRowValues = Record<string, TableCellValue>;
 export type TableColumnDef = {
   key: string;
   label: string;
@@ -18,7 +18,7 @@ export type TableColumnDef = {
 
 export interface ResponsiveTableProps {
   /** Table data */
-  data: TableRowData[];
+  data: TableRowValues[];
   /** Column definitions */
   columns: TableColumnDef[];
   /** Whether table is sortable */
@@ -30,11 +30,10 @@ export interface ResponsiveTableProps {
 }
 
 // Helper types for parsing
-export type TableCell = ReactNode;
-export type TableRow = TableCell[];
-export type TableData = {
-  headers: TableCell[];
-  rows: TableRow[];
+export type TableRowCells = ReactNode[];
+export type TableContent = {
+  headers: ReactNode[];
+  rows: TableRowCells[];
 };
 
 export interface ResponsiveTableContainerProps extends React.HTMLAttributes<HTMLDivElement> {

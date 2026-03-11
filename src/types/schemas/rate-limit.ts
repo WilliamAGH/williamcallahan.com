@@ -10,7 +10,7 @@ export const rateLimitRecordSchema = z.object({
   resetAt: z.number(),
 });
 
-export type RateLimitRecord = z.infer<typeof rateLimitRecordSchema>;
+export type RateLimitEntry = z.infer<typeof rateLimitRecordSchema>;
 
 export const rateLimitStoreSchema = z.record(z.string(), rateLimitRecordSchema);
 

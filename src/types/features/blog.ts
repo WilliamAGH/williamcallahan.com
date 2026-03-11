@@ -292,7 +292,7 @@ export interface ReadingTime {
 /**
  * Frontmatter data extracted from an MDX file
  */
-export interface FrontmatterData {
+export interface Frontmatter {
   slug: string;
   title: string;
   author: string;

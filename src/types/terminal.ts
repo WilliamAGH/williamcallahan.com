@@ -8,18 +8,12 @@
 import { terminalSearchApiResponseSchema } from "@/types/schemas/terminal";
 
 // Base interfaces for terminal items
-export interface SelectionItem {
+export interface SelectionEntry {
   id: string;
   label: string;
   description: string;
   path: string;
 }
-
-/**
- * A more specific type for terminal search results.
- * It is compatible with SelectionItem but provides a clearer name.
- */
-export type TerminalSearchResult = SelectionItem;
 
 // Discriminated union types for terminal commands
 export interface BaseTerminalCommand {
@@ -35,7 +29,7 @@ export interface TextOutputCommand extends BaseTerminalCommand {
 
 export interface SelectionCommand extends BaseTerminalCommand {
   type: "selection";
-  items: SelectionItem[];
+  items: SelectionEntry[];
   selectedIndex?: number;
 }
 
@@ -97,7 +91,7 @@ export type TerminalAction = "signOut";
 
 export interface CommandResult {
   results: TerminalCommand[];
-  selectionItems?: SelectionItem[];
+  selectionItems?: SelectionEntry[];
   navigation?: string;
   clear?: boolean;
   /** Special action to execute (e.g., signOut requires Clerk hook) */
@@ -181,17 +175,17 @@ export function isTerminalCommandArray(data: unknown): data is TerminalCommand[]
   return Array.isArray(data) && data.every(isTerminalCommand);
 }
 
-export function parseTerminalSearchResponse(data: unknown): TerminalSearchResult[] {
+export function parseTerminalSearchResponse(data: unknown): SelectionEntry[] {
   const parsed = terminalSearchApiResponseSchema.parse(data);
   const rawResults = Array.isArray(parsed) ? parsed : parsed.results;
 
-  // Transform partial results to complete SelectionItems with fallbacks
+  // Transform partial results to complete SelectionEntrys with fallbacks
   return rawResults
     .filter(
       (item): item is { id?: string; label?: string; description?: string; path?: string } =>
         typeof item === "object" && item !== null,
     )
-    .map((item, index): TerminalSearchResult => {
+    .map((item, index): SelectionEntry => {
       const fallbackLabel = item.label || "Untitled";
       const fallbackPath = item.path || "#";
       const fallbackId = `${fallbackPath}:${fallbackLabel}:${index}`

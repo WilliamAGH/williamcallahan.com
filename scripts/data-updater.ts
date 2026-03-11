@@ -157,7 +157,7 @@ async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<vo
             };
             return acc;
           },
-          {} as Record<string, unknown>,
+          {} as { [k: string]: unknown },
         ),
       };
       await writeFile(LAST_RUN_DETAILS_FILE, JSON.stringify(details, null, 2));

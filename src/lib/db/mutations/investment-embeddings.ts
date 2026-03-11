@@ -19,7 +19,7 @@ import {
   CONTENT_EMBEDDING_DIMENSIONS,
 } from "@/lib/db/schema/content-embeddings";
 import type {
-  InvestmentEmbeddingRow,
+  InvestmentEmbeddingSelect,
   InvestmentEmbeddingBackfillOptions,
   InvestmentEmbeddingBackfillResult,
 } from "@/types/db/investments";
@@ -42,7 +42,7 @@ function buildHalfvecLiteral(embedding: number[]): string {
   return `'[${serialized.join(",")}]'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`;
 }
 
-function buildInvestmentEmbeddingInput(row: InvestmentEmbeddingRow): string {
+function buildInvestmentEmbeddingInput(row: InvestmentEmbeddingSelect): string {
   const source: {
     name: string;
     description: string;
@@ -69,7 +69,7 @@ function buildInvestmentEmbeddingInput(row: InvestmentEmbeddingRow): string {
   return buildEmbeddingText(INVESTMENT_EMBEDDING_FIELDS, source);
 }
 
-async function readMissingEmbeddingRows(limit: number): Promise<InvestmentEmbeddingRow[]> {
+async function readMissingEmbeddingRows(limit: number): Promise<InvestmentEmbeddingSelect[]> {
   const rows = await db.execute<{
     id: string;
     name: string;

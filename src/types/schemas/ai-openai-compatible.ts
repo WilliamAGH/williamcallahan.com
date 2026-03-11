@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import type { EmbeddingSpaceId } from "@/types/schemas/embedding-space";
+import { embeddingSpaceIdSchema } from "@/types/schemas/embedding-space";
 
 export const aiUpstreamApiModeSchema = z.enum(["chat_completions", "responses"]);
 export type AiUpstreamApiMode = z.infer<typeof aiUpstreamApiModeSchema>;
@@ -292,12 +292,15 @@ export type EndpointCompatibleEmbeddingsResponse = z.infer<
 >;
 
 /** Resolved config for endpoint-compatible /v1/embeddings calls. */
-export type EndpointCompatibleEmbeddingConfig = {
-  baseUrl: string;
-  apiKey: string;
-  embeddingSpaceId: EmbeddingSpaceId;
-  model: string;
-};
+export const endpointCompatibleEmbeddingConfigSchema = z.object({
+  baseUrl: z.string(),
+  apiKey: z.string(),
+  embeddingSpaceId: embeddingSpaceIdSchema,
+  model: z.string(),
+});
+export type EndpointCompatibleEmbeddingConfig = z.infer<
+  typeof endpointCompatibleEmbeddingConfigSchema
+>;
 
 export const openAiCompatibleResponsesResponseSchema = z.object({
   id: z.string().min(1),

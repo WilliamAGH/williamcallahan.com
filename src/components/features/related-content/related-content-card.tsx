@@ -10,6 +10,11 @@ import { tagToSlug } from "@/lib/utils/tag-utils";
 import { kebabCase } from "@/lib/utils/formatters";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getOptimizedImageSrc, shouldBypassOptimizer } from "@/lib/utils/cdn-utils";
+/** Maximum number of authors to display before showing "+N" overflow */
+const MAX_VISIBLE_AUTHORS = 2;
+/** Maximum number of tags to display before showing "+N" overflow */
+const MAX_VISIBLE_TAGS = 6;
+
 function sanitizeExternalHref(raw?: string): string | null {
   if (!raw) return null;
   const input = raw.trim();
@@ -86,7 +91,7 @@ export function RelatedContentCard({
 
   const aventureIconSrc = getStaticImageUrl("/images/ui-components/aVenture-research-button.png");
 
-  const displayTags = metadata.tags?.slice(0, 6) || [];
+  const displayTags = metadata.tags?.slice(0, MAX_VISIBLE_TAGS) || [];
   const typeBadge = getTypeBadge(type);
   const normalizedTagSet = new Set((metadata.tags || []).map((t) => t.toLowerCase()));
   const imageProxyWidth = getImageProxyWidth(type);
@@ -222,8 +227,9 @@ export function RelatedContentCard({
               </h3>
               {metadata.authors && metadata.authors.length > 0 && (
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                  {metadata.authors.slice(0, 2).join(", ")}
-                  {metadata.authors.length > 2 && ` +${metadata.authors.length - 2}`}
+                  {metadata.authors.slice(0, MAX_VISIBLE_AUTHORS).join(", ")}
+                  {metadata.authors.length > MAX_VISIBLE_AUTHORS &&
+                    ` +${metadata.authors.length - MAX_VISIBLE_AUTHORS}`}
                 </p>
               )}
             </div>
@@ -302,9 +308,9 @@ export function RelatedContentCard({
                     </span>
                   );
                 })}
-                {metadata.tags && metadata.tags.length > 6 && (
+                {metadata.tags && metadata.tags.length > MAX_VISIBLE_TAGS && (
                   <span className="px-1.5 py-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-                    +{metadata.tags.length - 6}
+                    +{metadata.tags.length - MAX_VISIBLE_TAGS}
                   </span>
                 )}
               </div>

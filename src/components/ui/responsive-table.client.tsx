@@ -10,7 +10,6 @@
 import { cn } from "@/lib/utils";
 import React, { Children, isValidElement, useMemo, type JSX, type ReactNode } from "react";
 import type {
-  TableCell,
   TableRow,
   TableData,
   ResponsiveTableContainerProps as ResponsiveTableProps,
@@ -20,7 +19,7 @@ import type {
  * Parses the children of a <table> element to extract headers and rows.
  */
 function parseTableChildren(children: ReactNode): TableData {
-  const headers: TableCell[] = [];
+  const headers: ReactNode[] = [];
   const rows: TableRow[] = [];
   let headerProcessed = false;
 
@@ -49,7 +48,7 @@ function parseTableChildren(children: ReactNode): TableData {
       Children.forEach(childProps.children, (tr) => {
         if (isValidElement(tr) && tr.type === "tr") {
           const trProps = tr.props as { children?: ReactNode }; // Type assertion
-          const currentRow: TableCell[] = [];
+          const currentRow: ReactNode[] = [];
           Children.forEach(trProps.children, (td) => {
             if (isValidElement(td) && td.type === "td") {
               const tdProps = td.props as { children?: ReactNode }; // Type assertion

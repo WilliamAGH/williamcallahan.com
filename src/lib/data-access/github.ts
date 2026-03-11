@@ -19,7 +19,7 @@ import {
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
   type StoredGithubActivityRecord,
-  type GithubRepoNode,
+  type GraphQLRepoNode,
 } from "@/types/github";
 import { getTrailingYearDate, startOfDay, endOfDay } from "@/lib/utils/date-format";
 import { isOperationAllowed } from "@/lib/rate-limiter";
@@ -131,7 +131,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     }
   }
   const now = new Date();
-  let uniqueRepoArray: GithubRepoNode[];
+  let uniqueRepoArray: GraphQLRepoNode[];
   let githubUserId: string | undefined; // Declare githubUserId
   try {
     console.log(
@@ -175,7 +175,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     yearLinesAdded,
     yearLinesRemoved,
     yearCategoryStats,
-    olderThanYearCommitStats,
+    priorYearCommitStats,
     allTimeLinesAdded,
     allTimeLinesRemoved,
     allTimeOverallDataComplete,
@@ -242,7 +242,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   }
 
   const lifetimeContributionEstimate =
-    (yearTotalCommits || 0) + (olderThanYearCommitStats.totalCommits || 0);
+    (yearTotalCommits || 0) + (priorYearCommitStats.totalCommits || 0);
 
   const allTimeData: StoredGithubActivityRecord = {
     source: "api", // Source is 'api' because it's processed from API/database cache.
@@ -251,7 +251,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     linesAdded: allTimeLinesAdded,
     linesRemoved: allTimeLinesRemoved,
     dataComplete: allTimeOverallDataComplete,
-    allCommitsOlderThanYear: olderThanYearCommitStats,
+    allPriorYearCommits: priorYearCommitStats,
     // No allTimeTotalContributions field here, totalContributions is the source of truth.
   };
 

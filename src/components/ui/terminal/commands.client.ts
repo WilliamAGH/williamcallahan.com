@@ -6,18 +6,14 @@
 
 "use client";
 
-import type { CommandResult, TerminalSearchResult } from "@/types/terminal";
+import type { CommandResult, SelectionItem } from "@/types/terminal";
 import { searchResultsSchema, type SearchResult } from "@/types/schemas/search";
 import { transformSearchResultToTerminalResult } from "@/lib/utils/search-helpers";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 
 // Factory function to create searchByScopeImpl
 function createSearchByScopeImpl() {
-  return async (
-    scope: string,
-    query: string,
-    signal?: AbortSignal,
-  ): Promise<TerminalSearchResult[]> => {
+  return async (scope: string, query: string, signal?: AbortSignal): Promise<SelectionItem[]> => {
     try {
       const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, {
         signal,
@@ -60,7 +56,7 @@ function createSearchByScopeImpl() {
 
 // Lazy-loaded search function - only loads when first search is performed
 let searchByScopeImpl:
-  | ((scope: string, query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>)
+  | ((scope: string, query: string, signal?: AbortSignal) => Promise<SelectionItem[]>)
   | null = null;
 
 // Helper function to call the consolidated search API with lazy loading
@@ -68,7 +64,7 @@ async function searchByScope(
   scope: string,
   query: string,
   signal?: AbortSignal,
-): Promise<TerminalSearchResult[]> {
+): Promise<SelectionItem[]> {
   // Lazy load the implementation on first use
   if (!searchByScopeImpl) {
     searchByScopeImpl = createSearchByScopeImpl();
@@ -79,7 +75,7 @@ async function searchByScope(
 
 // Factory function to create performSiteWideSearchImpl
 function createPerformSiteWideSearchImpl() {
-  return async (query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
+  return async (query: string, signal?: AbortSignal): Promise<SelectionItem[]> => {
     try {
       const response = await fetch(`/api/search/all?q=${encodeURIComponent(query)}`, { signal });
       if (!response.ok) {
@@ -110,14 +106,14 @@ function createPerformSiteWideSearchImpl() {
 
 // Lazy-loaded site-wide search function
 let performSiteWideSearchImpl:
-  | ((query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>)
+  | ((query: string, signal?: AbortSignal) => Promise<SelectionItem[]>)
   | null = null;
 
 // Helper function to perform site-wide search with lazy loading
 async function performSiteWideSearch(
   query: string,
   signal?: AbortSignal,
-): Promise<TerminalSearchResult[]> {
+): Promise<SelectionItem[]> {
   // Lazy load the implementation on first use
   if (!performSiteWideSearchImpl) {
     performSiteWideSearchImpl = createPerformSiteWideSearchImpl();

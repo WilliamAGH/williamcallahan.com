@@ -1,7 +1,7 @@
 import "server-only";
 
+import type { AiChatModelStreamUpdate } from "@/types/schemas/ai-openai-compatible-client";
 import type {
-  AiChatModelStreamEvent,
   AnalysisFeatureId,
   AnalysisHandleResult,
   ContentOutcomeCtx,
@@ -42,7 +42,7 @@ function buildTurnParams(args: {
   activeModel: string;
   analysisValidationAttempts: number;
   toolObservedResultsCount: number;
-  onStreamEvent?: (event: AiChatModelStreamEvent) => void;
+  onStreamEvent?: (event: AiChatModelStreamUpdate) => void;
   config: UpstreamRunnerConfig;
 }): UpstreamTurnParams {
   const { config } = args;
@@ -156,7 +156,7 @@ function resolveExhaustedTurnsMessage(
 
 export function createUpstreamRunner(args: UpstreamRunnerConfig) {
   return async function runUpstream(
-    onStreamEvent?: (event: AiChatModelStreamEvent) => void,
+    onStreamEvent?: (event: AiChatModelStreamUpdate) => void,
   ): Promise<string> {
     const loopState: ToolLoopState = {
       requestMessages: [...args.messages],
@@ -218,7 +218,7 @@ async function executeTurnWithFallback(ctx: {
   turn: number;
   activeModel: string;
   analysisValidationAttempts: number;
-  onStreamEvent?: (event: AiChatModelStreamEvent) => void;
+  onStreamEvent?: (event: AiChatModelStreamUpdate) => void;
   toolObservedResults: Array<{ title: string; url: string }>;
 }): Promise<{ result?: UpstreamTurnOutcome; switchedModel?: string }> {
   const turnParams = buildTurnParams({

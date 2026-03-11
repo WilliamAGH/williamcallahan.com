@@ -10,6 +10,9 @@ import { formatPercentage, cn } from "../../lib/utils";
 import type { JSX } from "react";
 import type { FinancialMetricsProps } from "@/types/ui/data-display";
 
+/** Threshold below which return values are considered effectively zero */
+const NEAR_ZERO_THRESHOLD = 0.01;
+
 /**
  * Financial Metrics Component
  * @component
@@ -22,7 +25,7 @@ export default function FinancialMetrics({ holding_return }: FinancialMetricsPro
   // Convert decimal to percentage and handle edge cases
   const returnValue = holding_return * 100;
   const returnColor =
-    Math.abs(returnValue) < 0.01
+    Math.abs(returnValue) < NEAR_ZERO_THRESHOLD
       ? "text-gray-600 dark:text-gray-400" // For values very close to 0
       : returnValue > 0
         ? "text-emerald-600 dark:text-emerald-400"

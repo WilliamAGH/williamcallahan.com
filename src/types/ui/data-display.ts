@@ -13,7 +13,7 @@ export interface FinancialMetricsProps {
  * Generic metric item for display within a metrics group.
  * Designed for MDX-driven articles where values are often preformatted strings.
  */
-export interface MetricItem {
+export interface MetricEntry {
   /** Human-readable label for the metric (e.g., "Cumulative return") */
   label: string;
   /** Preformatted value to display (e.g., "€45,341.58" or "+10.59%") */
@@ -33,5 +33,5 @@ export interface MetricsGroupProps {
   /** Optional as-of date or context string */
   date?: string;
   /** List of metric items to render */
-  metrics: MetricItem[];
+  metrics: MetricEntry[];
 }

@@ -10,7 +10,7 @@ import {
 } from "@/lib/db/schema/content-embeddings";
 import { bookmarkContentSchema } from "@/types/schemas/bookmark";
 import type {
-  BookmarkEmbeddingRow,
+  BookmarkEmbeddingSelect,
   BookmarkEmbeddingBackfillOptions,
   BookmarkEmbeddingBackfillResult,
 } from "@/types/db/bookmarks";
@@ -43,7 +43,7 @@ function resolveMaxRows(input?: number): number | undefined {
  * Special handling: deduplicates crawled title/description when they match
  * the primary bookmark title/description (domain-specific optimization).
  */
-function buildBookmarkEmbeddingInput(row: BookmarkEmbeddingRow): string {
+function buildBookmarkEmbeddingInput(row: BookmarkEmbeddingSelect): string {
   const parsedContent = bookmarkContentSchema.safeParse(row.content);
   const content = parsedContent.success ? parsedContent.data : null;
 
@@ -126,7 +126,7 @@ function normalizeBookmarkIds(bookmarkIds?: string[]): string[] | undefined {
 async function readMissingEmbeddingRows(
   limit: number,
   bookmarkIds?: string[],
-): Promise<BookmarkEmbeddingRow[]> {
+): Promise<BookmarkEmbeddingSelect[]> {
   const joins = sql`
     SELECT b.id, b.url, b.title, b.description, b.summary, b.note,
            b.domain, b.scraped_content_text, b.tags, b.content

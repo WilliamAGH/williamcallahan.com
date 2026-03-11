@@ -15,7 +15,7 @@ export interface BookmarkError extends ExtendedError {
  * Minimal bookmark record structure used by scripts that manipulate the JSON payload
  * written to S3/CDN. Kept intentionally loose to avoid assumptions about enrichment.
  */
-export interface BookmarkS3Record extends Record<string, unknown> {
+export interface BookmarkS3Entry extends Record<string, unknown> {
   id?: string;
   slug?: string;
   tags?: unknown;

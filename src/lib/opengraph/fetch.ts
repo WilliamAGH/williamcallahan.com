@@ -35,7 +35,7 @@ import {
 import { getDomainType, sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
 import {
   ogMetadataSchema,
-  type KarakeepImageFallback,
+  type ValidatedKarakeepImageFallback,
   type ValidatedOgMetadata,
 } from "@/types/seo/opengraph";
 import { extractOpenGraphTags } from "./parser";
@@ -93,7 +93,7 @@ async function tryPersistImageToS3(
  */
 export async function fetchExternalOpenGraphWithRetry(
   url: string,
-  fallbackImageData?: KarakeepImageFallback,
+  fallbackImageData?: ValidatedKarakeepImageFallback,
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   // Check if there's already an ongoing request for this URL
   const cacheKey = `${url}:${fallbackImageData?.idempotencyKey || "default"}`;
@@ -122,7 +122,7 @@ export async function fetchExternalOpenGraphWithRetry(
  */
 async function performFetchWithRetry(
   url: string,
-  fallbackImageData?: KarakeepImageFallback,
+  fallbackImageData?: ValidatedKarakeepImageFallback,
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   const originalUrl = new URL(url);
   const isTwitter =
@@ -265,7 +265,7 @@ async function performFetchWithRetry(
  */
 async function fetchExternalOpenGraph(
   url: string,
-  fallbackImageData?: KarakeepImageFallback,
+  fallbackImageData?: ValidatedKarakeepImageFallback,
 ): Promise<
   OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null
 > {

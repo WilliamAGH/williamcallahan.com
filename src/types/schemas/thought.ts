@@ -49,7 +49,7 @@ export const thoughtListItemSchema = thoughtSchema
     excerpt: z.string().optional(),
   });
 
-export type ThoughtListItem = z.infer<typeof thoughtListItemSchema>;
+export type ThoughtBrief = z.infer<typeof thoughtListItemSchema>;
 
 /**
  * Category summary for filtering UI
@@ -70,5 +70,5 @@ export const validateThought = (data: unknown): Thought => thoughtSchema.parse(d
 
 export const validateThoughtInput = (data: unknown): ThoughtInput => thoughtInputSchema.parse(data);
 
-export const validateThoughtListItem = (data: unknown): ThoughtListItem =>
+export const validateThoughtBrief = (data: unknown): ThoughtBrief =>
   thoughtListItemSchema.parse(data);

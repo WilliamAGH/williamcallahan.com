@@ -3,6 +3,10 @@
  * @module data-access/github-csv-repair
  */
 
+/** GitHub API status codes */
+const HTTP_ACCEPTED = 202;
+const HTTP_FORBIDDEN = 403;
+
 import { waitForPermit } from "@/lib/rate-limiter";
 import { createHash } from "node:crypto";
 import { createCategorizedError } from "@/lib/utils/error-utils";
@@ -11,7 +15,7 @@ import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
 import { repairCsvData, filterContributorStats } from "@/lib/data-access/github-processing";
 import { readRepoCsvChecksum } from "@/lib/db/queries/github-activity";
 import { writeRepoCsvChecksumToDb } from "@/lib/db/mutations/github-activity";
-import { ContributorStatsResponseSchema, type GithubRepoNode } from "@/types/github";
+import { ContributorStatsResponseSchema, type GraphQLRepoNode } from "@/types/github";
 import { GITHUB_API_RATE_LIMIT_CONFIG } from "@/lib/constants";
 import type { ChecksumCircuitState, CsvRepairResult } from "@/types/features/github-processing";
 import {
@@ -148,9 +152,9 @@ async function repairFromApi(repoOwner: string, repoName: string): Promise<boole
   }, "GITHUB_API");
 
   if (!statsResponse?.ok) {
-    if (statsResponse?.status === 202) {
+    if (statsResponse?.status === HTTP_ACCEPTED) {
       console.info(`[GitHub-CSV] Stats generating for ${repoOwner}/${repoName}`);
-    } else if (statsResponse?.status === 403) {
+    } else if (statsResponse?.status === HTTP_FORBIDDEN) {
       console.info(`[GitHub-CSV] Rate limited for ${repoOwner}/${repoName}`);
     } else {
       console.warn(`[GitHub-CSV] API error for ${repoOwner}/${repoName}: ${statsResponse?.status}`);
@@ -206,7 +210,7 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
     };
   }
 
-  let repoList: GithubRepoNode[] = [];
+  let repoList: GraphQLRepoNode[] = [];
   try {
     const { repositories } = await fetchContributedRepositories(GITHUB_REPO_OWNER);
     repoList = repositories;

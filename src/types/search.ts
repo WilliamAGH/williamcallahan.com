@@ -16,6 +16,9 @@ import type {
 // Generic Interfaces (can't be Zod schemas due to TypeScript generics)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Search result with relevance score wrapper. Generic — cannot be a Zod schema. */
+export type ScoredResult<T> = { item: T; score: number };
+
 /**
  * Configuration for a MiniSearch index.
  * Centralizes the repetitive MiniSearch options used across all index builders.

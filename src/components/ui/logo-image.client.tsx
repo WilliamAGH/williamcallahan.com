@@ -22,6 +22,9 @@ import {
 } from "@/lib/data-access/placeholder-images";
 import { getMonotonicTime } from "@/lib/utils";
 
+/** Minimum token count for a valid domain name (e.g. "example" + "com") */
+const MIN_DOMAIN_TOKENS = 2;
+
 const LOGO_FILENAME_REGEX = /\/logos\/(?:inverted\/)?([^/?#]+)\.(?:png|jpe?g|webp|svg|ico|avif)$/i;
 const HASH_TOKEN = /^[a-f0-9]{8}$/i;
 const KNOWN_LOGO_SOURCES = new Set([
@@ -69,7 +72,7 @@ function deriveDomainFromLogoKey(pathname: string): string | null {
   if (!filename) return null;
 
   const tokens = filename.split("_").filter(Boolean);
-  if (tokens.length < 2) return null;
+  if (tokens.length < MIN_DOMAIN_TOKENS) return null;
 
   const maybeHash = tokens[tokens.length - 1] ?? "";
   const maybeSource = tokens[tokens.length - 2] ?? "";
@@ -81,7 +84,7 @@ function deriveDomainFromLogoKey(pathname: string): string | null {
     domainTokens = tokens.slice(0, -1);
   }
 
-  if (domainTokens.length < 2) return null;
+  if (domainTokens.length < MIN_DOMAIN_TOKENS) return null;
 
   const tld = domainTokens.pop();
   const domainName = domainTokens.join(".");

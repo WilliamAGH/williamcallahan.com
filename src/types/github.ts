@@ -24,7 +24,7 @@ export type ContributionDay = z.infer<typeof ContributionDaySchema>;
  * Raw GitHub activity shape returned by getGithubActivity (flat structure)
  * This represents the canonical persisted activity record shape.
  */
-export interface StoredGithubActivityRecord {
+export interface StoredGithubActivity {
   source: "scraping" | "api" | "api_multi_file_cache";
   data: ContributionDay[];
   totalContributions: number;
@@ -34,13 +34,13 @@ export interface StoredGithubActivityRecord {
   error?: string;
   details?: string;
   allTimeTotalContributions?: number;
-  allCommitsOlderThanYear?: CommitsOlderThanYearSummary;
+  allPriorYearCommits?: PriorYearCommitSummary;
 }
 
 /**
  * Represents a segment of GitHub activity data with optional summary
  */
-export type GitHubActivitySegment = Omit<StoredGithubActivityRecord, "allTimeTotalContributions">;
+export type GitHubActivitySegment = Omit<StoredGithubActivity, "allTimeTotalContributions">;
 
 /**
  * Response from `/api/github-activity` with nested segments
@@ -83,7 +83,7 @@ export interface GitHubActivitySummary {
 /**
  * Per-repository stats for commits older than one trailing year window
  */
-export interface CommitsOlderThanYearRepoStats {
+export interface PriorYearCommitRepoStats {
   commits: number;
   linesAdded: number;
   linesRemoved: number;
@@ -93,13 +93,13 @@ export interface CommitsOlderThanYearRepoStats {
 /**
  * Aggregated commit statistics for activity that occurred more than one year ago
  */
-export interface CommitsOlderThanYearSummary {
+export interface PriorYearCommitSummary {
   totalCommits: number;
   totalLinesAdded: number;
   totalLinesRemoved: number;
   publicCommits: number;
   privateCommits: number;
-  perRepo: Record<string, CommitsOlderThanYearRepoStats>;
+  perRepo: Record<string, PriorYearCommitRepoStats>;
 }
 
 /**
@@ -135,9 +135,6 @@ export const GitHubGraphQLContributionResponseSchema = z.object({
 export type GitHubGraphQLContributionResponse = z.infer<
   typeof GitHubGraphQLContributionResponseSchema
 >;
-
-/** Represents a single repository node from the GraphQL contribution response. */
-export type GithubRepoNode = GraphQLRepoNode;
 
 // Schema for GraphQL commit history response
 export const GraphQLCommitHistoryResponseSchema = z.object({
@@ -257,7 +254,7 @@ export interface UserActivityView {
     linesAdded: number;
     linesRemoved: number;
   };
-  commitsOlderThanYear?: CommitsOlderThanYearSummary;
+  priorYearCommits?: PriorYearCommitSummary;
   lastRefreshed?: string;
 }
 
@@ -322,8 +319,8 @@ export interface GitHubActivityError extends ExtendedError {
  * Input for writing GitHub activity summaries
  */
 export type GitHubSummaryInput = {
-  trailingYearData: StoredGithubActivityRecord;
-  allTimeData: StoredGithubActivityRecord;
+  trailingYearData: StoredGithubActivity;
+  allTimeData: StoredGithubActivity;
   totalRepositoriesContributedTo: number;
   yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
   allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];

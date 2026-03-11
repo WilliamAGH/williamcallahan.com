@@ -1,4 +1,4 @@
-import type { BookmarkInsert, BookmarkRow } from "@/types/db/bookmarks";
+import type { BookmarkInsert, BookmarkSelect } from "@/types/db/bookmarks";
 import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const toUndefined = <T>(value: T | null): T | undefined => {
@@ -27,7 +27,7 @@ const generateDeterministicFallbackSlug = (url: string, id: string): string => {
   return `${base}-${id.slice(0, FALLBACK_SLUG_ID_PREFIX_LENGTH)}`;
 };
 
-const resolveRowSlug = (row: Pick<BookmarkRow, "id" | "slug" | "url">): string => {
+const resolveRowSlug = (row: Pick<BookmarkSelect, "id" | "slug" | "url">): string => {
   const normalizedSlug = row.slug.trim();
   if (normalizedSlug.length > 0) {
     return normalizedSlug;
@@ -40,7 +40,7 @@ const resolveRowSlug = (row: Pick<BookmarkRow, "id" | "slug" | "url">): string =
   return repairedSlug;
 };
 
-export function mapBookmarkRowToUnifiedBookmark(row: BookmarkRow): UnifiedBookmark {
+export function mapBookmarkSelectToUnifiedBookmark(row: BookmarkSelect): UnifiedBookmark {
   return unifiedBookmarkSchema.parse({
     id: row.id,
     url: row.url,
@@ -76,8 +76,10 @@ export function mapBookmarkRowToUnifiedBookmark(row: BookmarkRow): UnifiedBookma
   });
 }
 
-export function mapBookmarkRowsToUnifiedBookmarks(rows: readonly BookmarkRow[]): UnifiedBookmark[] {
-  return rows.map(mapBookmarkRowToUnifiedBookmark);
+export function mapBookmarkSelectsToUnifiedBookmarks(
+  rows: readonly BookmarkSelect[],
+): UnifiedBookmark[] {
+  return rows.map(mapBookmarkSelectToUnifiedBookmark);
 }
 
 export function mapUnifiedBookmarkToBookmarkInsert(bookmark: UnifiedBookmark): BookmarkInsert {

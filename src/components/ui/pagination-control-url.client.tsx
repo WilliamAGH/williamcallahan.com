@@ -6,6 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
 import type { PaginationControlUrlProps } from "@/types/ui/pagination";
 
+/** Page number threshold for showing leading ellipsis (gap between page 1 and visible range) */
+const ELLIPSIS_GAP_THRESHOLD = 2;
+
 const LinkButton = ({
   page,
   children,
@@ -186,7 +189,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
               >
                 1
               </LinkButton>
-              {visiblePages[0] > 2 && (
+              {visiblePages[0] > ELLIPSIS_GAP_THRESHOLD && (
                 <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
               )}
             </>

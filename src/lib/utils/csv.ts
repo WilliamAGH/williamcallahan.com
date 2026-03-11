@@ -6,12 +6,12 @@
  * @module lib/utils/csv
  */
 
-import type { CSVParseOptions, CSVRow } from "@/types/csv";
+import type { CSVParseOptions, CSVLine } from "@/types/csv";
 
 /**
  * Parse CSV string into array of objects or arrays
  */
-export function parseCSV<T = CSVRow>(csvString: string, options: CSVParseOptions = {}): T[] {
+export function parseCSV<T = CSVLine>(csvString: string, options: CSVParseOptions = {}): T[] {
   const { delimiter = ",", skipEmpty = true, maxRows, headers = false } = options;
 
   const lines = csvString

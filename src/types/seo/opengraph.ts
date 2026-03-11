@@ -154,6 +154,3 @@ export type ValidatedOgFetchResult = z.infer<typeof ogFetchResultSchema>;
 export type ValidatedOgResult = z.infer<typeof ogResultSchema>;
 export type ValidatedKarakeepImageFallback = z.infer<typeof karakeepImageFallbackSchema>;
 export type ValidatedOgCacheEntry = z.infer<typeof ogCacheEntrySchema>;
-
-// Alias for backward compatibility
-export type KarakeepImageFallback = ValidatedKarakeepImageFallback;

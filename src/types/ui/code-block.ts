@@ -50,5 +50,3 @@ export interface MDXCodeBlockWrapperProps {
   /** Optional wrapper title */
   title?: string;
 }
-
-export type MDXCodeBlockProps = CodeBlockProps;

@@ -49,11 +49,11 @@ export interface S3ObjectMetadata {
   contentType?: string;
 }
 
-export interface S3ObjectData extends S3ObjectMetadata {
+export interface S3ObjectContent extends S3ObjectMetadata {
   body: Buffer;
 }
 
-export interface S3ClientWrapper {
+export interface S3ClientFacade {
   /** Get a file handle by key. */
   file: (key: string) => S3File;
   /** List objects by prefix. */
@@ -85,7 +85,7 @@ export interface CdnConfig {
 }
 
 // --- Failure Tracking ---
-export interface FailureRecord {
+export interface FailureLog {
   failureCount: number;
   lastFailure: number;
   firstFailure: number;
@@ -100,7 +100,7 @@ export interface FailureTrackerOptions {
   name?: string;
 }
 
-export interface FailedItem<T> {
+export interface FailedEntry<T> {
   item: T;
   attempts: number;
   lastAttempt: number;
@@ -149,9 +149,6 @@ export interface ParsedS3Key {
   extension?: string;
   inverted?: boolean;
 }
-
-// Alias for backward compatibility (if needed)
-export type S3KeyMetadata = ParsedS3Key;
 
 /**
  * Content type categories for automatic ACL determination

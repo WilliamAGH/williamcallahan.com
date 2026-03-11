@@ -23,7 +23,7 @@ export function hasMessage(value: unknown): value is { message: string } {
     typeof value === "object" &&
     value !== null &&
     "message" in value &&
-    typeof (value as Record<string, unknown>).message === "string"
+    typeof (value as { message: unknown }).message === "string"
   );
 }
 
