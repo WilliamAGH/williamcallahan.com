@@ -13,10 +13,9 @@ import {
 } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
-import { z } from "zod/v4";
 import { getEnabledContentTypes } from "@/config/related-content.config";
-import type { RelatedContentType } from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
+import type { RelatedContentType } from "@/types/schemas/related-content";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 // Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
@@ -35,29 +34,32 @@ const MAX_LIMIT = 100;
 function parseDebugParams(
   searchParams: URLSearchParams,
 ): { sourceType: RelatedContentType; sourceId: string; limit: number } | null {
-  const sourceTypeRaw = searchParams.get("type") ?? undefined;
-  const sourceId = searchParams.get("id") ?? undefined;
+  const sourceTypeRaw = searchParams.get("type");
+  const sourceId = searchParams.get("id");
   const limitParam = searchParams.get("limit");
-  const limitRaw = limitParam?.trim() ? limitParam : undefined;
+  const limitRaw = limitParam?.trim() ? limitParam : null;
 
   const enabledTypes = getEnabledContentTypes();
   const enabledTypesSet = new Set<string>(enabledTypes);
   const isEnabledType = (value: string): value is RelatedContentType => enabledTypesSet.has(value);
 
-  const schema = z.object({
-    type: z.string().refine(isEnabledType, { message: "Unsupported type" }),
-    id: z.string().min(1),
-    limit: z.coerce.number().int().min(1).max(MAX_LIMIT).optional().default(DEFAULT_LIMIT),
-  });
+  if (!sourceTypeRaw || !isEnabledType(sourceTypeRaw)) {
+    return null;
+  }
 
-  const parsed = schema.safeParse({ type: sourceTypeRaw, id: sourceId, limit: limitRaw });
-  if (!parsed.success) return null;
-  if (!isEnabledType(parsed.data.type)) return null;
+  if (!sourceId || sourceId.length === 0) {
+    return null;
+  }
+
+  const parsedLimit = limitRaw === null ? DEFAULT_LIMIT : Number.parseInt(limitRaw, 10);
+  if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > MAX_LIMIT) {
+    return null;
+  }
 
   return {
-    sourceType: parsed.data.type,
-    sourceId: parsed.data.id,
-    limit: parsed.data.limit,
+    sourceType: sourceTypeRaw,
+    sourceId,
+    limit: parsedLimit,
   };
 }
 

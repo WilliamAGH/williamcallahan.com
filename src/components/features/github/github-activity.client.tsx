@@ -5,7 +5,8 @@
 
 "use client";
 
-import type { PriorYearCommitSummary, ContributionDay, UserActivityView } from "@/types/github";
+import type { UserActivityView } from "@/types/github";
+import type { ContributionDay, PriorYearCommitSummary } from "@/types/schemas/github-storage";
 import { formatDistanceToNow } from "date-fns";
 import { Code, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";

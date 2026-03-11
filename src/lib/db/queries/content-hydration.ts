@@ -26,10 +26,10 @@ import type {
   ScoredCandidate,
   HydrationEntry,
   RelatedContentSuggestion,
-  RelatedContentMetadata,
 } from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 import type { BookmarkTag } from "@/types/schemas/bookmark";
+import type { RelatedContentMetadata } from "@/types/schemas/related-content";
 
 /** Extract tag names from bookmark tags (which may be objects or strings). */
 function extractTagNames(tags: Array<BookmarkTag | string> | null | undefined): string[] {

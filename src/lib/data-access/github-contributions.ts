@@ -8,11 +8,8 @@ const MAX_CONTRIBUTION_LEVEL = 4;
 
 import { isDateInRange } from "@/lib/utils/date-format";
 import { createCategorizedError } from "@/lib/utils/error-utils";
-import type {
-  ContributionDay,
-  GraphQLContributionDay,
-  GraphQLContributionCalendar,
-} from "@/types/github";
+import type { GraphQLContributionDay, GraphQLContributionCalendar } from "@/types/github";
+import type { ContributionDay } from "@/types/schemas/github-storage";
 import { fetchContributionCalendar } from "./github-api";
 
 // Contribution level mapping

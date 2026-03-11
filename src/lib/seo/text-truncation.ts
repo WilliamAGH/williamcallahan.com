@@ -20,9 +20,6 @@ const MEDIUM_OVERAGE_RATIO = 0.7;
 /** Separator-based truncation minimum available chars */
 const MIN_AVAILABLE_MAIN_CHARS = 10;
 
-/** Duplicate display limit */
-const MAX_DISPLAYED_DUPLICATES = 10;
-
 /** Part count for separator split */
 const SEPARATOR_PART_COUNT = 2;
 

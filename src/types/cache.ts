@@ -6,7 +6,7 @@
  * such as the structure for cached image entries.
  */
 
-import type { GitHubActivityApiResponse } from "./github";
+import type { GitHubActivityApiResponse } from "./schemas/github-storage";
 import type { LogoResult } from "./logo";
 import type { ImageDataWithBuffer, ImageSource } from "./image";
 

@@ -11,11 +11,8 @@ import { debug } from "@/lib/utils/debug";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
-import type {
-  GitHubActivityApiResponse,
-  StoredGithubActivity,
-  UserActivityView,
-} from "@/types/github";
+import type { StoredGithubActivity, UserActivityView } from "@/types/github";
+import type { GitHubActivityApiResponse } from "@/types/schemas/github-storage";
 import {
   readGitHubActivityRecord,
   isFlatStoredGithubActivityFormat,

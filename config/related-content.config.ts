@@ -9,7 +9,7 @@
  */
 
 import { getEnvironment } from "@/lib/config/environment";
-import type { RelatedContentType } from "@/types/related-content";
+import type { RelatedContentType } from "@/types/schemas/related-content";
 
 /**
  * Maximum number of related items to show per content type

@@ -230,12 +230,6 @@ export interface RateLimiterConfig {
   skipFailedRequests?: boolean;
 }
 
-/** Rate limit tracking entry for internal store */
-export interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
 /** Current rate limit status */
 export interface RateLimitStatus {
   totalHits: number;

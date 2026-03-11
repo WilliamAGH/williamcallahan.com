@@ -1,9 +1,9 @@
+import type { GraphQLRepoNode } from "@/types/github";
 import type {
-  GraphQLRepoNode,
   GitHubActivitySummary,
   PriorYearCommitSummary,
   RepoWeeklyStatCache,
-} from "@/types/github";
+} from "@/types/schemas/github-storage";
 
 /** Input for calculating all-time commit counts */
 export type CommitCountInput = {

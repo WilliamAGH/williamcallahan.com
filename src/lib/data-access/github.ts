@@ -15,12 +15,11 @@
  */
 
 import { debug } from "@/lib/utils/debug";
-import {
-  type GitHubActivityApiResponse,
-  type GitHubActivitySegment,
-  type StoredGithubActivity,
-  type GraphQLRepoNode,
-} from "@/types/github";
+import { type StoredGithubActivity, type GraphQLRepoNode } from "@/types/github";
+import type {
+  GitHubActivityApiResponse,
+  GitHubActivitySegment,
+} from "@/types/schemas/github-storage";
 import { getTrailingYearDate, startOfDay, endOfDay } from "@/lib/utils/date-format";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { createCategorizedError } from "@/lib/utils/error-utils";

@@ -6,11 +6,8 @@
 import { BatchProcessor } from "@/lib/batch-processing";
 import { categorizeRepository, createEmptyCategoryStats } from "./github-processing";
 import { processSingleRepository } from "./github-repo-processor";
-import type {
-  PriorYearCommitSummary,
-  GraphQLRepoNode,
-  GitHubActivitySummary,
-} from "@/types/github";
+import type { GraphQLRepoNode } from "@/types/github";
+import type { GitHubActivitySummary, PriorYearCommitSummary } from "@/types/schemas/github-storage";
 import type {
   RepoProcessingInput,
   RepoProcessingResult,

@@ -15,7 +15,7 @@
  */
 
 import type { ReactNode } from "react";
-import type { ContributionDay } from "../github";
+import type { ContributionDay } from "../schemas/github-storage";
 
 /**
  * GitHub activity component props

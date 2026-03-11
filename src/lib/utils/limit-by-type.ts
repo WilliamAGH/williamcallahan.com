@@ -4,7 +4,7 @@
  * @module lib/utils/limit-by-type
  */
 
-import type { RelatedContentType } from "@/types/related-content";
+import type { RelatedContentType } from "@/types/schemas/related-content";
 
 /**
  * Groups items by `type`, sorts each group by `score` desc, slices to `maxPerType`,

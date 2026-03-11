@@ -184,28 +184,6 @@ export interface LogoPersistenceOptions {
 }
 
 /**
- * Logo manifest entry with CDN URL and original source
- */
-export interface LogoManifestEntry {
-  /** CDN URL where the logo is stored */
-  cdnUrl: string;
-  /** Original source service (google, duckduckgo, clearbit, etc.) */
-  originalSource: string;
-  /** CDN URL pointing to pre-inverted (dark-theme) version of the logo, when available */
-  invertedCdnUrl?: string;
-}
-
-/**
- * Logo manifest mapping domains to logo info
- */
-export type LogoManifest = Record<string, LogoManifestEntry>;
-
-/**
- * Generic image manifest as array of CDN URLs
- */
-export type ImageManifest = string[];
-
-/**
  * Mapping of static image local paths to CDN URLs
  */
 export interface StaticImageMapping {

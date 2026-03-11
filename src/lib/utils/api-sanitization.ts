@@ -31,16 +31,17 @@ export function sanitizeBlogPosts(posts: BlogPost[]): Omit<BlogPost, "filePath" 
  * Removes sensitive information from error objects
  * Prevents stack traces and system info from leaking in production
  */
-type SanitizedError = {
+export function sanitizeError(
+  error: unknown,
+  includeStack = false,
+): {
   message: string;
   timestamp: string;
   stack?: string;
-};
-
-export function sanitizeError(error: unknown, includeStack = false): SanitizedError {
+} {
   const isDev = process.env.NODE_ENV === "development";
 
-  const sanitized: SanitizedError = {
+  const sanitized: { message: string; timestamp: string; stack?: string } = {
     message: error instanceof Error ? error.message : "An unknown error occurred",
     timestamp: new Date().toISOString(),
   };

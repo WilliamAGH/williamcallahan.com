@@ -1,5 +1,11 @@
 import { z } from "zod/v4";
 import type { ExtendedError } from "./error";
+import {
+  repoRawWeeklyStatSchema,
+  type ContributionDay,
+  type GitHubActivitySummary,
+  type PriorYearCommitSummary,
+} from "./schemas/github-storage";
 
 /**
  * GitHub Activity Types
@@ -10,16 +16,6 @@ import type { ExtendedError } from "./error";
 /**
  * Represents a single day of contribution activity.
  */
-// Zod schemas for runtime validation - Single source of truth pattern
-export const ContributionDaySchema = z.object({
-  date: z.string(),
-  count: z.number(),
-  level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
-});
-
-// Infer type from schema (Zod v4 best practice)
-export type ContributionDay = z.infer<typeof ContributionDaySchema>;
-
 /**
  * Raw GitHub activity shape returned by getGithubActivity (flat structure)
  * This represents the canonical persisted activity record shape.
@@ -35,71 +31,6 @@ export interface StoredGithubActivity {
   details?: string;
   allTimeTotalContributions?: number;
   allPriorYearCommits?: PriorYearCommitSummary;
-}
-
-/**
- * Represents a segment of GitHub activity data with optional summary
- */
-export type GitHubActivitySegment = Omit<StoredGithubActivity, "allTimeTotalContributions">;
-
-/**
- * Response from `/api/github-activity` with nested segments
- */
-export interface GitHubActivityApiResponse {
-  /** Daily contributions over the last 365 days */
-  trailingYearData: GitHubActivitySegment;
-  /** Cumulative all-time contribution data */
-  cumulativeAllTimeData: GitHubActivitySegment;
-  /** Error message if fetching failed */
-  error?: string;
-  /** Additional error details */
-  details?: string;
-}
-
-/**
- * Structure of the persisted GitHub activity summary record.
- */
-export interface GitHubActivitySummary {
-  lastUpdatedAtPacific: string;
-  totalContributions: number;
-  totalLinesAdded: number;
-  totalLinesRemoved: number;
-  netLinesOfCode: number;
-  dataComplete: boolean;
-  totalRepositoriesContributedTo: number;
-  linesOfCodeByCategory: {
-    frontend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
-    backend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
-    dataEngineer: {
-      linesAdded: number;
-      linesRemoved: number;
-      netChange: number;
-      repoCount: number;
-    };
-    other: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
-  };
-}
-
-/**
- * Per-repository stats for commits older than one trailing year window
- */
-export interface PriorYearCommitRepoStats {
-  commits: number;
-  linesAdded: number;
-  linesRemoved: number;
-  isPrivate: boolean;
-}
-
-/**
- * Aggregated commit statistics for activity that occurred more than one year ago
- */
-export interface PriorYearCommitSummary {
-  totalCommits: number;
-  totalLinesAdded: number;
-  totalLinesRemoved: number;
-  publicCommits: number;
-  privateCommits: number;
-  perRepo: Record<string, PriorYearCommitRepoStats>;
 }
 
 /**
@@ -174,43 +105,6 @@ export const CommitResponseSchema = z.array(CommitSchema);
 export type CommitResponse = z.infer<typeof CommitResponseSchema>;
 
 /**
- * Represents the cache structure for repository weekly statistics.
- */
-export interface RepoWeeklyStatCache {
-  repoOwnerLogin: string;
-  repoName: string;
-  lastFetched: string; // ISO string
-  status:
-    | "complete"
-    | "pending_202_from_api"
-    | "pending_rate_limit"
-    | "fetch_error"
-    | "empty_no_user_contribs";
-  stats: RepoRawWeeklyStat[];
-}
-
-/**
- * Schema for raw weekly statistics for a repository
- */
-export const RepoRawWeeklyStatSchema = z.object({
-  w: z.number(), // week timestamp (seconds since epoch)
-  a: z.number(), // additions
-  d: z.number(), // deletions
-  c: z.number(), // commits
-});
-
-export type RepoRawWeeklyStat = z.infer<typeof RepoRawWeeklyStatSchema>;
-
-/**
- * Represents aggregated weekly activity data.
- */
-export interface AggregatedWeeklyActivity {
-  weekStartDate: string; // YYYY-MM-DD
-  linesAdded: number;
-  linesRemoved: number;
-}
-
-/**
  * Schema for GitHub author
  */
 export const GithubAuthorSchema = z.object({
@@ -226,7 +120,7 @@ export type GithubAuthor = z.infer<typeof GithubAuthorSchema>;
  */
 export const GithubContributorStatsEntrySchema = z.object({
   author: GithubAuthorSchema,
-  weeks: z.array(RepoRawWeeklyStatSchema),
+  weeks: z.array(repoRawWeeklyStatSchema),
   total: z.number().optional(), // Total commits for this contributor in this repo
 });
 

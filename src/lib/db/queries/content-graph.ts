@@ -16,8 +16,7 @@ import {
   type ContentGraphBuildMetadata,
   type TagGraph,
 } from "@/types/schemas/related-content";
-import type { BooksRelatedContent } from "@/types/related-content";
-import type { RelatedContentGraph } from "@/types/schemas/book";
+import type { BooksRelatedContent, RelatedContentGraph } from "@/types/schemas/book";
 
 /**
  * Read a single content graph artifact by type.

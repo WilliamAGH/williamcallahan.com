@@ -13,7 +13,7 @@ import {
   GitHubContributorStatsRateLimitError,
 } from "./github-api";
 import { readRepoWeeklyStatsRecord, writeRepoWeeklyStatsRecord } from "./github-storage";
-import type { RepoRawWeeklyStat, RepoWeeklyStatCache } from "@/types/github";
+import type { RepoRawWeeklyStat, RepoWeeklyStatCache } from "@/types/schemas/github-storage";
 import {
   isErrorOrPendingStatus,
   type SingleRepoProcessingInput,

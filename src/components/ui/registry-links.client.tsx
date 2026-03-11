@@ -14,18 +14,6 @@ import type { RegistryLinksProps } from "@/types/ui/interactive";
 import { safeExternalHref } from "@/lib/utils/url-utils";
 import { Package, Box, Code2, ExternalLink, Terminal } from "lucide-react";
 
-/** Configuration for rendering a specific registry type (icon and styling). */
-type RegistryConfig = {
-  icon: ComponentType<{ className?: string }>;
-  defaultLabel: string;
-  bgLight: string;
-  bgDark: string;
-  textLight: string;
-  textDark: string;
-  hoverLight: string;
-  hoverDark: string;
-};
-
 /**
  * GitHub icon component (lucide-react doesn't export a standalone GitHub icon type well for typing)
  */
@@ -37,7 +25,7 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-const REGISTRY_CONFIG: Record<RegistryType, RegistryConfig> = {
+const REGISTRY_CONFIG = {
   npm: {
     icon: Package,
     defaultLabel: "npm",
@@ -139,7 +127,19 @@ const REGISTRY_CONFIG: Record<RegistryType, RegistryConfig> = {
     hoverLight: "hover:bg-gray-100",
     hoverDark: "dark:hover:bg-gray-700/50",
   },
-};
+} satisfies Record<
+  RegistryType,
+  {
+    icon: ComponentType<{ className?: string }>;
+    defaultLabel: string;
+    bgLight: string;
+    bgDark: string;
+    textLight: string;
+    textDark: string;
+    hoverLight: string;
+    hoverDark: string;
+  }
+>;
 
 /**
  * Renders a list of package registry links as styled buttons.

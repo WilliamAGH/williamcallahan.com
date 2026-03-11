@@ -9,7 +9,8 @@
 import { readBooksRelatedContent } from "@/lib/db/queries/content-graph";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import type { BooksRelatedContent, RelatedContentEntry } from "@/types/related-content";
+import type { BooksRelatedContent } from "@/types/schemas/book";
+import type { RelatedContentEntry } from "@/types/schemas/related-content";
 
 const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours - matches generation frequency
 

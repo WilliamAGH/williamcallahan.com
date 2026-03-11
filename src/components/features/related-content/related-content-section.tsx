@@ -8,11 +8,8 @@
 
 import { RelatedContentCard } from "./related-content-card";
 import { getOrderedContentTypes, isContentTypeEnabled } from "@/config/related-content.config";
-import type {
-  RelatedContentSuggestion,
-  RelatedContentType,
-  RelatedContentSectionProps,
-} from "@/types/related-content";
+import type { RelatedContentSuggestion, RelatedContentSectionProps } from "@/types/related-content";
+import type { RelatedContentType } from "@/types/schemas/related-content";
 
 /**
  * Group items by type for better organization.

@@ -17,12 +17,9 @@ import { readRelatedContent } from "@/lib/db/queries/content-graph";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
-import type {
-  RelatedContentProps,
-  RelatedContentSuggestion,
-  RelatedContentType,
-} from "@/types/related-content";
+import type { RelatedContentProps, RelatedContentSuggestion } from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
+import type { RelatedContentType } from "@/types/schemas/related-content";
 
 import {
   DEFAULT_MAX_PER_TYPE,

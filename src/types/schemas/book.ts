@@ -7,7 +7,7 @@
  */
 
 import { z } from "zod/v4";
-import { relatedContentTypeSchema } from "./related-content";
+import { relatedContentEntrySchema } from "./related-content";
 
 const absoluteOrRootRelativeUrlSchema = z.union([
   z.url(),
@@ -228,44 +228,6 @@ export type FetchAbsLibraryItemsOptions = z.infer<typeof fetchAbsLibraryItemsOpt
 // ─────────────────────────────────────────────────────────────────────────────
 // Books Related Content S3 Data Schemas
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Metadata for related content display (optional fields)
- */
-export const relatedContentMetadataSchema = z
-  .object({
-    tags: z.array(z.string()).optional(),
-    domain: z.string().optional(),
-    date: z.string().optional(),
-    imageUrl: z.string().optional(),
-    readingTime: z.number().optional(),
-    stage: z.string().optional(),
-    category: z.string().optional(),
-    aventureUrl: z.string().optional(),
-    author: z
-      .object({
-        name: z.string(),
-        avatar: z.string().optional(),
-      })
-      .optional(),
-    authors: z.array(z.string()).optional(),
-    formats: z.array(z.string()).optional(),
-  })
-  .optional();
-
-/**
- * Pre-computed related content entry schema.
- * Validates data fetched from S3 for the books related content graph.
- */
-export const relatedContentEntrySchema = z.object({
-  type: relatedContentTypeSchema,
-  id: z.string(),
-  score: z.number(),
-  title: z.string(),
-  metadata: relatedContentMetadataSchema,
-});
-
-export type RelatedContentEntry = z.infer<typeof relatedContentEntrySchema>;
 
 export const relatedContentGraphSchema = z.record(z.string(), z.array(relatedContentEntrySchema));
 

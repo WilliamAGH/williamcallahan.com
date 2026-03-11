@@ -5,10 +5,7 @@
 
 import { z } from "zod/v4";
 
-/**
- * Content types that can be related/recommended.
- * Matches RelatedContentType from types/related-content.ts
- */
+/** Content types that can be related/recommended. */
 export const relatedContentTypeSchema = z.enum([
   "bookmark",
   "blog",
@@ -19,6 +16,37 @@ export const relatedContentTypeSchema = z.enum([
 ]);
 
 export type RelatedContentType = z.infer<typeof relatedContentTypeSchema>;
+
+export const relatedContentMetadataSchema = z.object({
+  tags: z.array(z.string()).optional(),
+  domain: z.string().optional(),
+  date: z.string().optional(),
+  imageUrl: z.string().optional(),
+  readingTime: z.number().optional(),
+  stage: z.string().optional(),
+  category: z.string().optional(),
+  aventureUrl: z.string().optional(),
+  author: z
+    .object({
+      name: z.string(),
+      avatar: z.string().optional(),
+    })
+    .optional(),
+  authors: z.array(z.string()).optional(),
+  formats: z.array(z.string()).optional(),
+});
+
+export type RelatedContentMetadata = z.infer<typeof relatedContentMetadataSchema>;
+
+export const relatedContentEntrySchema = z.object({
+  type: relatedContentTypeSchema,
+  id: z.string(),
+  score: z.number(),
+  title: z.string(),
+  metadata: relatedContentMetadataSchema.optional(),
+});
+
+export type RelatedContentEntry = z.infer<typeof relatedContentEntrySchema>;
 
 /**
  * Configuration for similarity scoring weights.
