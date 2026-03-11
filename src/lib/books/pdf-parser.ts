@@ -96,7 +96,8 @@ export async function parsePdfFromBuffer(
       const textContent = normalizeText(page.text);
 
       // Skip pages with minimal content
-      if (textContent.length < 10) continue;
+      const MIN_PAGE_TEXT_LENGTH = 10;
+      if (textContent.length < MIN_PAGE_TEXT_LENGTH) continue;
 
       pages.push({
         pageNumber: page.num,

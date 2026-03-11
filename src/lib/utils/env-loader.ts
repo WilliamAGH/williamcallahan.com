@@ -49,7 +49,8 @@ export function loadEnvironmentWithMultilineSupport(): void {
         const match = line.match(/^([^=]+)=(.*)$/);
         if (match) {
           const key = match[1];
-          const value = match[2];
+          const REGEX_VALUE_GROUP = 2;
+          const value = match[REGEX_VALUE_GROUP];
           if (!key) {
             continue;
           }

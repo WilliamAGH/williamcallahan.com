@@ -98,7 +98,8 @@ export function parseTestLimit(args: readonly string[]): number | undefined {
   if (!limitStr?.trim()) return undefined;
 
   const limit = parseInt(limitStr, 10);
-  if (Number.isNaN(limit) || limit <= 0 || limit > 10000) {
+  const MAX_TEST_LIMIT = 10000;
+  if (Number.isNaN(limit) || limit <= 0 || limit > MAX_TEST_LIMIT) {
     return undefined;
   }
   return limit;

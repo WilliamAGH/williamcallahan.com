@@ -39,7 +39,8 @@ export function validateSearchQuery(query: unknown): {
     };
   }
 
-  if (trimmed.length > 100) {
+  const MAX_QUERY_LENGTH = 100;
+  if (trimmed.length > MAX_QUERY_LENGTH) {
     return {
       isValid: false,
       sanitized: "",

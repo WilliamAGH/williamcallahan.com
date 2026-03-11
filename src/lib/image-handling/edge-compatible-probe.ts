@@ -8,69 +8,63 @@
 // Import ProbeResult type from declaration file
 import type { ProbeResult } from "@/types/probe-image-size";
 
-/** Image format magic bytes */
+/** HTTP / buffer size constants */
 const HTTP_PARTIAL_CONTENT = 206;
 const RANGE_REQUEST_SIZE = 65536;
-
-/** PNG signature bytes */
+/** PNG: signature + buffer offsets */
 const PNG_MIN_HEADER_SIZE = 24;
-const PNG_SIG_0 = 0x89;
-const PNG_SIG_1 = 0x50;
-const PNG_SIG_2 = 0x4e;
-const PNG_SIG_3 = 0x47;
-
-/** JPEG signature bytes */
+const PNG_SIG_0 = 0x89,
+  PNG_SIG_1 = 0x50,
+  PNG_SIG_2 = 0x4e,
+  PNG_SIG_3 = 0x47;
+const PNG_WIDTH_OFFSET = 16,
+  PNG_HEIGHT_OFFSET = 20;
+/** JPEG: signature + SOF marker ranges */
 const JPEG_MIN_HEADER_SIZE = 2;
-const JPEG_SOI_0 = 0xff;
-const JPEG_SOI_1 = 0xd8;
-const JPEG_MARKER_PREFIX = 0xff;
-const JPEG_SOF0_START = 0xc0;
-const JPEG_SOF0_END = 0xc3;
-const JPEG_SOF1_START = 0xc5;
-const JPEG_SOF1_END = 0xc7;
-const JPEG_SOF2_START = 0xc9;
-const JPEG_SOF2_END = 0xcb;
-const JPEG_SOF3_START = 0xcd;
-const JPEG_SOF3_END = 0xcf;
-const JPEG_SOI_MARKER = 0xd8;
-const JPEG_EOI_MARKER = 0xd9;
-
-/** GIF signature bytes */
+const JPEG_SOI_0 = 0xff,
+  JPEG_SOI_1 = 0xd8,
+  JPEG_MARKER_PREFIX = 0xff;
+const JPEG_SOF0_START = 0xc0,
+  JPEG_SOF0_END = 0xc3;
+const JPEG_SOF1_START = 0xc5,
+  JPEG_SOF1_END = 0xc7;
+const JPEG_SOF2_START = 0xc9,
+  JPEG_SOF2_END = 0xcb;
+const JPEG_SOF3_START = 0xcd,
+  JPEG_SOF3_END = 0xcf;
+const JPEG_SOI_MARKER = 0xd8,
+  JPEG_EOI_MARKER = 0xd9;
+/** GIF: signature + buffer offsets */
 const GIF_MIN_HEADER_SIZE = 10;
-const GIF_SIG_0 = 0x47;
-const GIF_SIG_1 = 0x49;
-const GIF_SIG_2 = 0x46;
-
-/** WebP signature bytes */
+const GIF_SIG_0 = 0x47,
+  GIF_SIG_1 = 0x49,
+  GIF_SIG_2 = 0x46;
+const GIF_WIDTH_OFFSET = 6,
+  GIF_HEIGHT_OFFSET = 8;
+/** WebP: RIFF + VP8 signatures + buffer offsets */
 const WEBP_MIN_HEADER_SIZE = 30;
-const WEBP_RIFF_R = 0x52;
-const WEBP_RIFF_I = 0x49;
-const WEBP_RIFF_F = 0x46;
-const WEBP_W = 0x57;
-const WEBP_E = 0x45;
-const WEBP_B = 0x42;
-const WEBP_P = 0x50;
-const VP8_LOSSY_SIG_0 = 0x9d;
-const VP8_LOSSY_SIG_1 = 0x01;
-const VP8_LOSSY_SIG_2 = 0x2a;
-
-/** SVG viewBox part count */
-const SVG_VIEWBOX_PARTS = 4;
-const SVG_VIEWBOX_WIDTH_INDEX = 2;
-const SVG_VIEWBOX_HEIGHT_INDEX = 3;
+const WEBP_RIFF_R = 0x52,
+  WEBP_RIFF_I = 0x49,
+  WEBP_RIFF_F = 0x46;
+const WEBP_W = 0x57,
+  WEBP_E = 0x45,
+  WEBP_B = 0x42,
+  WEBP_P = 0x50;
+const WEBP_W_OFFSET = 8,
+  WEBP_E_OFFSET = 9,
+  WEBP_B_OFFSET = 10,
+  WEBP_P_OFFSET = 11;
+const VP8_LOSSY_SIG_0 = 0x9d,
+  VP8_LOSSY_SIG_1 = 0x01,
+  VP8_LOSSY_SIG_2 = 0x2a;
+/** SVG + regex group indices */
+const SVG_VIEWBOX_PARTS = 4,
+  SVG_VIEWBOX_WIDTH_INDEX = 2,
+  SVG_VIEWBOX_HEIGHT_INDEX = 3;
 const REGEX_UNIT_GROUP = 2;
-
-/** Buffer offset indices for image format parsing */
-const BYTE_OFFSET_2 = 2;
-const BYTE_OFFSET_3 = 3;
-const GIF_WIDTH_OFFSET = 6;
-const GIF_HEIGHT_OFFSET = 8;
-const WEBP_W_OFFSET = 8;
-const WEBP_E_OFFSET = 9;
-const WEBP_B_OFFSET = 10;
-const WEBP_P_OFFSET = 11;
-const PNG_WIDTH_OFFSET = 16;
-const PNG_HEIGHT_OFFSET = 20;
+/** Byte offset indices */
+const BYTE_OFFSET_2 = 2,
+  BYTE_OFFSET_3 = 3;
 
 /**
  * Probe image size from URL or Buffer

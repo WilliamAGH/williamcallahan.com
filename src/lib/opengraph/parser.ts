@@ -282,7 +282,8 @@ export function extractLinkedInImages($: cheerio.CheerioAPI): {
       const match = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/);
       if (match?.[2]) {
         // Check if match and match[2] are not null/undefined
-        banner = match[2];
+        const REGEX_URL_GROUP = 2;
+        banner = match[REGEX_URL_GROUP];
       }
     }
   }

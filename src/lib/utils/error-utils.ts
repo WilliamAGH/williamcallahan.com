@@ -102,7 +102,8 @@ export function safeStringifyValue(value: unknown): string {
   if (typeof value === "function") {
     const funcStr = String(value);
     // Truncate long function strings
-    return `Function: ${funcStr.substring(0, Math.min(funcStr.length, 100))}${funcStr.length > 100 ? "..." : ""}`;
+    const MAX_FUNC_PREVIEW_LENGTH = 100;
+    return `Function: ${funcStr.substring(0, Math.min(funcStr.length, MAX_FUNC_PREVIEW_LENGTH))}${funcStr.length > MAX_FUNC_PREVIEW_LENGTH ? "..." : ""}`;
   }
 
   // For objects, try to access a 'message' property first

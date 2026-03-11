@@ -8,6 +8,11 @@
  * @module opengraph/fetch
  */
 
+/** HTTP status codes for fetch result classification */
+const HTTP_FORBIDDEN = 403;
+const HTTP_NOT_FOUND = 404;
+const HTTP_GONE = 410;
+
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
@@ -360,11 +365,11 @@ async function fetchExternalOpenGraph(
         },
       });
 
-      if (response.status === 404 || response.status === 410) {
+      if (response.status === HTTP_NOT_FOUND || response.status === HTTP_GONE) {
         return { permanentFailure: true, status: response.status };
       }
-      if (response.status === 403) {
-        return { blocked: true, status: 403 };
+      if (response.status === HTTP_FORBIDDEN) {
+        return { blocked: true, status: HTTP_FORBIDDEN };
       }
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

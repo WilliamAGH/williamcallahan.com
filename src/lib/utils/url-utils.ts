@@ -204,7 +204,9 @@ export function extractTld(domain: string): { name: string; tld: string } {
   const parts = domain.toLowerCase().split(".");
 
   // Check for complex TLDs
-  if (parts.length >= 3) {
+  const MIN_COMPLEX_TLD_PARTS = 3;
+  const MIN_SIMPLE_TLD_PARTS = 2;
+  if (parts.length >= MIN_COMPLEX_TLD_PARTS) {
     const possibleComplexTld = `${parts.at(-2)}.${parts.at(-1)}`;
     if (COMPLEX_TLDS.has(possibleComplexTld)) {
       return {
@@ -215,7 +217,7 @@ export function extractTld(domain: string): { name: string; tld: string } {
   }
 
   // Simple TLD
-  if (parts.length >= 2) {
+  if (parts.length >= MIN_SIMPLE_TLD_PARTS) {
     return {
       name: parts.slice(0, -1).join("."),
       tld: parts.at(-1) || "",

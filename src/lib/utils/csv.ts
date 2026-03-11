@@ -165,6 +165,10 @@ export function validateCSV(
  * Parse GitHub weekly stats CSV format
  * Format: w,a,d,c (week timestamp, additions, deletions, commits)
  */
+/** CSV column indices for GitHub stats (week, additions, deletions, commits) */
+const DELETIONS_INDEX = 2;
+const COMMITS_INDEX = 3;
+
 export function parseGitHubStatsCSV(csvString: string): Array<{
   w: number;
   a: number;
@@ -174,8 +178,8 @@ export function parseGitHubStatsCSV(csvString: string): Array<{
   return parseCSV<string[]>(csvString, { headers: false }).map((row) => ({
     w: Number(row[0]) || 0,
     a: Number(row[1]) || 0,
-    d: Number(row[2]) || 0,
-    c: Number(row[3]) || 0,
+    d: Number(row[DELETIONS_INDEX]) || 0,
+    c: Number(row[COMMITS_INDEX]) || 0,
   }));
 }
 

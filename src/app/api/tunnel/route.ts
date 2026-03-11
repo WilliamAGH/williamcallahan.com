@@ -44,7 +44,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Handle Sentry rate limiting with a descriptive error
-    if (upstreamResponse.status === 429) {
+    const HTTP_RATE_LIMITED = 429;
+    if (upstreamResponse.status === HTTP_RATE_LIMITED) {
       const retryAfter = upstreamResponse.headers.get("retry-after");
       const retryInfo = retryAfter ? ` Retry-After: ${retryAfter}s` : "";
       console.warn(`[Sentry Tunnel] Rate limited by Sentry (429). Logs not sent.${retryInfo}`);

@@ -9,6 +9,10 @@
  * Uses UnifiedImageService for consistent image handling across the application.
  */
 
+/** HTTP status indicating a technically OK response but semantically bad */
+const HTTP_OK = 200;
+const HTTP_BAD_GATEWAY = 502;
+
 import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
@@ -90,7 +94,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       clearTimeout(timeoutId);
       if (!upstream.ok || !upstream.body) {
         return new NextResponse(null, {
-          status: upstream.status === 200 ? 502 : upstream.status,
+          status: upstream.status === HTTP_OK ? HTTP_BAD_GATEWAY : upstream.status,
         });
       }
 
@@ -127,7 +131,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (!upstream.ok || !upstream.body) {
           return NextResponse.json(
             { error: "Failed to fetch cached image", status: upstream.status },
-            { status: upstream.status === 200 ? 502 : upstream.status || 502 },
+            {
+              status:
+                upstream.status === HTTP_OK
+                  ? HTTP_BAD_GATEWAY
+                  : upstream.status || HTTP_BAD_GATEWAY,
+            },
           );
         }
 

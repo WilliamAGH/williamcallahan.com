@@ -51,7 +51,8 @@ export function validateBookmarksDataset(bookmarks: UnifiedBookmark[]): {
     console.error(
       `[validateBookmarksDataset][SAFEGUARD][DETAILED] Total bookmarks with missing URLs: ${missingUrlCount}`,
     );
-    if (missingUrlCount <= 5) {
+    const MAX_DETAILED_MISSING_URLS = 5;
+    if (missingUrlCount <= MAX_DETAILED_MISSING_URLS) {
       console.error(
         "[validateBookmarksDataset][SAFEGUARD][DETAILED] Bookmarks with missing URLs (ID, Title):",
         bookmarks
