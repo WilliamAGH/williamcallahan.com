@@ -41,7 +41,8 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
     }))
     .toSorted((a, b) => {
       const scoreDiff = b.score - a.score;
-      if (Math.abs(scoreDiff) > 0.01) return scoreDiff;
+      const SCORE_EPSILON = 0.01;
+      if (Math.abs(scoreDiff) > SCORE_EPSILON) return scoreDiff;
       const aDate = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
       const bDate = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
       return bDate - aDate;

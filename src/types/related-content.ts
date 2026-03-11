@@ -56,7 +56,7 @@ export type RelatedContentType =
 /**
  * UI-ready related content item with rich metadata.
  */
-export interface RelatedContentCard {
+export interface RelatedContentSuggestion {
   /** Type of content */
   readonly type: RelatedContentType;
   /** Unique identifier */
@@ -179,7 +179,7 @@ export interface RelatedContentProps {
  */
 export interface RelatedContentCardProps {
   /** The related content item */
-  item: RelatedContentCard;
+  item: RelatedContentSuggestion;
   /** Optional click handler */
   onClick?: () => void;
   /** Optional CSS classes */
@@ -195,7 +195,7 @@ export interface RelatedContentSectionProps {
   /** Section title */
   title: string;
   /** Related content items to display */
-  items: RelatedContentCard[];
+  items: RelatedContentSuggestion[];
   /** Optional CSS classes */
   className?: string;
   /** Show similarity scores on cards */

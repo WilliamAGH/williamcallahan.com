@@ -100,7 +100,8 @@ export function verifyAiGateToken(
   nowMs = Date.now(),
 ): AiGateTokenVerificationResult {
   const parts = token.split(".");
-  if (parts.length !== 2) return { ok: false, reason: "invalid_format" };
+  const TOKEN_PART_COUNT = 2;
+  if (parts.length !== TOKEN_PART_COUNT) return { ok: false, reason: "invalid_format" };
 
   const [payloadB64, sig] = parts;
   if (!payloadB64 || !sig) return { ok: false, reason: "invalid_format" };

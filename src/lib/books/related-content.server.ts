@@ -9,7 +9,7 @@
 import { readBooksRelatedContent } from "@/lib/db/queries/content-graph";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import type { BooksRelatedContentData, RelatedContentEntry } from "@/types/related-content";
+import type { BooksRelatedContent, RelatedContentEntry } from "@/types/related-content";
 
 const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours - matches generation frequency
 
@@ -17,7 +17,7 @@ const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours - matches generation frequen
  * Load related content dataset from PostgreSQL.
  * Returns null when not available and logs infrastructure failures.
  */
-async function loadRelatedContentDirect(): Promise<BooksRelatedContentData | null> {
+async function loadRelatedContentDirect(): Promise<BooksRelatedContent | null> {
   try {
     return await readBooksRelatedContent();
   } catch (error) {
@@ -30,14 +30,14 @@ async function loadRelatedContentDirect(): Promise<BooksRelatedContentData | nul
   return null;
 }
 
-async function loadRelatedContentCached(): Promise<BooksRelatedContentData | null> {
+async function loadRelatedContentCached(): Promise<BooksRelatedContent | null> {
   "use cache";
   cacheContextGuards.cacheLife("BooksRelatedContent", { revalidate: CACHE_TTL_SECONDS });
   cacheContextGuards.cacheTag("BooksRelatedContent", "books-related-content");
   return loadRelatedContentDirect();
 }
 
-async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
+async function ensureCacheLoaded(): Promise<BooksRelatedContent | null> {
   if (!USE_NEXTJS_CACHE) {
     return loadRelatedContentDirect();
   }

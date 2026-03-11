@@ -13,7 +13,7 @@ import type {
   InventoryPaginationMeta,
   InventoryPaginationState,
   InventorySectionName,
-  SectionPaginationData,
+  SectionPagination,
 } from "@/types/rag";
 import { SECTION_LABELS } from "./inventory-format";
 
@@ -27,7 +27,7 @@ export const DEFAULT_PAGE_SIZE = 25;
 const withSectionUpdate = (
   state: InventoryPaginationState,
   section: InventorySectionName,
-  data: SectionPaginationData,
+  data: SectionPagination,
   lastRequested?: InventorySectionName,
 ): InventoryPaginationState => ({
   ...state,

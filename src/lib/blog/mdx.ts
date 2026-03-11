@@ -21,7 +21,7 @@ assertServerOnly(); // Ensure this module runs only on the server
 import { assertServerOnly } from "../utils/ensure-server-only";
 // rehype-raw removed to avoid conflicts with MDX v3 JSX nodes
 import { formatSeoDate } from "../seo/utils"; // Import the Pacific Time formatter
-import type { FrontmatterData } from "@/types/features/blog";
+import type { Frontmatter } from "@/types/features/blog";
 
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -217,7 +217,7 @@ export async function getMDXPost(
 
     // Parse frontmatter
     const parsed = matter(fileContents);
-    const frontmatter = parsed.data as FrontmatterData;
+    const frontmatter = parsed.data as Frontmatter;
     const content = parsed.content;
 
     // Validate frontmatter slug consistency
@@ -430,7 +430,7 @@ export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogP
         // gray-matter returns { data, content, ... }; extract with proper typing
         const matterResult: unknown = matter(fileContents);
         const { data: frontmatter } = matterResult as {
-          data: FrontmatterData;
+          data: Frontmatter;
           content: string;
         };
 

@@ -13,7 +13,7 @@ import { GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
 import type {
   GitHubActivityApiResponse,
-  StoredGithubActivityRecord,
+  StoredGithubActivity,
   UserActivityView,
 } from "@/types/github";
 import {
@@ -120,7 +120,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   // Handle old flat format (backward compatibility)
   if (isFlatStoredGithubActivityFormat(activityData)) {
     debug("[DataAccess/GitHub:getGithubActivity] Converting old flat format to new nested format");
-    const oldFormatData = activityData as StoredGithubActivityRecord;
+    const oldFormatData = activityData as StoredGithubActivity;
     activityData = {
       trailingYearData: oldFormatData,
       cumulativeAllTimeData: oldFormatData,

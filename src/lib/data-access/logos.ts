@@ -13,7 +13,7 @@
 import { revalidateTag } from "next/cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
-import type { LogoResult, LogoInversion, LogoData } from "@/types/logo";
+import type { LogoResult, LogoInversion, Logo } from "@/types/logo";
 import { USE_NEXTJS_CACHE } from "@/lib/cache";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { DEFAULT_IMAGE_CONTENT_TYPE } from "@/lib/utils/content-type";
@@ -80,7 +80,7 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
  * Resolve a CDN-safe logo URL directly via UnifiedImageService without using the API proxy.
  * Returns null when no persistent asset exists.
  */
-export async function getLogoCdnData(domain: string): Promise<LogoData | null> {
+export async function getLogoCdnData(domain: string): Promise<Logo | null> {
   if (!domain) {
     return null;
   }

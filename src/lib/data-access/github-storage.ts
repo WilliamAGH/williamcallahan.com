@@ -21,7 +21,7 @@ import {
   writeRepoWeeklyStatsToDb,
   writeAggregatedWeeklyActivityToDb,
 } from "@/lib/db/mutations/github-activity";
-import type { StoredGithubActivityRecord } from "@/types/github";
+import type { StoredGithubActivity } from "@/types/github";
 import type {
   AggregatedWeeklyActivity,
   GitHubActivityApiResponse,
@@ -127,15 +127,15 @@ export async function getGitHubActivityMetadata(): Promise<{ lastModified?: Date
  * Check if an object uses the old flat stored GitHub activity format.
  * Retained for backward compatibility in consumers that handle legacy data shapes.
  */
-export function isFlatStoredGithubActivityFormat(obj: unknown): obj is StoredGithubActivityRecord {
+export function isFlatStoredGithubActivityFormat(obj: unknown): obj is StoredGithubActivity {
   if (!obj || typeof obj !== "object") return false;
 
   return (
     "source" in obj &&
-    typeof (obj as StoredGithubActivityRecord).source === "string" &&
+    typeof (obj as StoredGithubActivity).source === "string" &&
     "data" in obj &&
-    Array.isArray((obj as StoredGithubActivityRecord).data) &&
+    Array.isArray((obj as StoredGithubActivity).data) &&
     "totalContributions" in obj &&
-    typeof (obj as StoredGithubActivityRecord).totalContributions === "number"
+    typeof (obj as StoredGithubActivity).totalContributions === "number"
   );
 }

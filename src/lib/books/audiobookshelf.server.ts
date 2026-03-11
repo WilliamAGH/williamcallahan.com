@@ -11,10 +11,10 @@ import { fetchWithTimeout } from "@/lib/utils/http-client";
 import { envLogger } from "@/lib/utils/env-logger";
 import {
   validateAbsLibraryItemsResponse,
-  validateAbsLibraryItem,
-  type AbsLibraryItem,
+  validateAbsLibraryEntry,
+  type AbsLibraryEntry,
   type Book,
-  type BookListItem,
+  type BookBrief,
   type FetchAbsLibraryItemsOptions,
 } from "@/types/schemas/book";
 import { absConfigSchema, type AbsConfig } from "@/types/schemas/env";
@@ -116,7 +116,7 @@ async function absApi<T>(path: string, validate: (data: unknown) => T): Promise<
  */
 export async function fetchAbsLibraryItems(
   options: FetchAbsLibraryItemsOptions = {},
-): Promise<AbsLibraryItem[]> {
+): Promise<AbsLibraryEntry[]> {
   const { libraryId } = getConfig();
   const { sort = "addedAt", desc = true } = options;
 
@@ -224,7 +224,7 @@ export async function fetchBooks(
  */
 export async function fetchBookListItemsWithFallback(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
-): Promise<{ books: BookListItem[]; isFallback: boolean; fetchedAt: number }> {
+): Promise<{ books: BookBrief[]; isFallback: boolean; fetchedAt: number }> {
   const { includeBlurPlaceholders = false, ...fetchOptions } = options;
 
   try {
@@ -280,7 +280,7 @@ export async function fetchBookListItemsWithFallback(
  */
 export async function fetchBookListItems(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
-): Promise<BookListItem[]> {
+): Promise<BookBrief[]> {
   const result = await fetchBookListItemsWithFallback(options);
   return result.books;
 }
@@ -309,13 +309,14 @@ export async function fetchBookById(
     });
 
     if (!response.ok) {
-      if (response.status === 404) return null;
+      const HTTP_NOT_FOUND = 404;
+      if (response.status === HTTP_NOT_FOUND) return null;
       throw new Error(`AudioBookShelf API error: ${response.status}`);
     }
 
     const absItemResponse: unknown = await response.json();
     // Validate single item response against schema
-    const item = validateAbsLibraryItem(absItemResponse);
+    const item = validateAbsLibraryEntry(absItemResponse);
     const book = absItemToBook(item, { baseUrl, apiKey });
 
     // Optionally generate blur placeholder using direct URL

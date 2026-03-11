@@ -13,7 +13,7 @@
 import MiniSearch from "minisearch";
 import {
   type BookmarkIndexInput,
-  type BookmarkIndexItem,
+  type BookmarkIndexEntry,
   type SerializedIndex,
 } from "@/types/schemas/search";
 import type { Book } from "@/types/schemas/book";
@@ -46,9 +46,9 @@ const devLog = (...args: unknown[]) => {
  */
 export function buildBookmarksIndex(
   bookmarks: BookmarkIndexInput[],
-): MiniSearch<BookmarkIndexItem> {
+): MiniSearch<BookmarkIndexEntry> {
   // Transform bookmarks for indexing
-  const bookmarksForIndex: BookmarkIndexItem[] = [];
+  const bookmarksForIndex: BookmarkIndexEntry[] = [];
   for (const b of bookmarks) {
     const slug = b.slug ?? generateFallbackSlug(b.url, b.id);
 
@@ -77,8 +77,8 @@ export function buildBookmarksIndex(
  * @returns Object containing the MiniSearch index and bookmark data for result mapping
  */
 export async function getBookmarksIndex(): Promise<{
-  index: MiniSearch<BookmarkIndexItem>;
-  bookmarks: Array<BookmarkIndexItem & { slug: string }>;
+  index: MiniSearch<BookmarkIndexEntry>;
+  bookmarks: Array<BookmarkIndexEntry & { slug: string }>;
 }> {
   devLog("[getBookmarksIndex] Building/Loading bookmarks index. start");
 
@@ -165,14 +165,14 @@ export async function getBookmarksIndex(): Promise<{
   const slugMapping = await loadSlugMapping();
 
   // Try to load index from persisted artifacts
-  let bookmarksIndex: MiniSearch<BookmarkIndexItem>;
+  let bookmarksIndex: MiniSearch<BookmarkIndexEntry>;
 
   if (USE_S3_INDEXES) {
     try {
       const serializedIndex = await getSerializedSearchIndexArtifact("bookmarks");
       if (serializedIndex?.index && serializedIndex.metadata) {
         persistedBookmarksIndex = serializedIndex;
-        bookmarksIndex = loadIndexFromJSON<BookmarkIndexItem>(
+        bookmarksIndex = loadIndexFromJSON<BookmarkIndexEntry>(
           serializedIndex,
           BOOKMARKS_INDEX_CONFIG,
         );
@@ -191,7 +191,7 @@ export async function getBookmarksIndex(): Promise<{
   }
 
   // Transform bookmarks for result mapping
-  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = [];
+  const bookmarksForIndex: Array<BookmarkIndexEntry & { slug: string }> = [];
 
   for (const b of bookmarks) {
     const embedded = tryGetEmbeddedSlug(b);

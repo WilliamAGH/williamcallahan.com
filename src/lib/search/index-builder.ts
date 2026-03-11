@@ -13,8 +13,8 @@ assertServerOnly();
 
 import MiniSearch from "minisearch";
 import type {
-  EducationItem,
-  BookmarkIndexItem,
+  EducationEntry,
+  BookmarkIndexEntry,
   SerializedIndex,
   AllSerializedIndexes,
 } from "@/types/schemas/search";
@@ -109,7 +109,7 @@ function buildEducationIndex(): SerializedIndex {
   const index = createEmptyIndex(EDUCATION_INDEX_CONFIG);
 
   // Combine education and certifications
-  const allEducationItems: EducationItem[] = [
+  const allEducationItems: EducationEntry[] = [
     ...education.map((edu) => ({
       id: edu.id,
       label: edu.institution,
@@ -158,7 +158,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
 
   // Transform bookmarks for indexing with slug resolution
   let fallbackCount = 0;
-  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map((b) => {
+  const bookmarksForIndex: BookmarkIndexEntry[] = bookmarks.map((b) => {
     const embedded = tryGetEmbeddedSlug(b);
     let slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 

@@ -85,7 +85,8 @@ export async function POST(
   const validDomain = domain as AnalysisDomain;
 
   // Validate ID
-  if (!id || id.length === 0 || id.length > 100) {
+  const MAX_ID_LENGTH = 100;
+  if (!id || id.length === 0 || id.length > MAX_ID_LENGTH) {
     return createErrorResponse("Invalid ID", 400);
   }
 

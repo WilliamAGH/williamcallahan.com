@@ -25,7 +25,8 @@ const createS3StubError = (params: {
     name: S3ErrorName;
     $metadata: { httpStatusCode: number };
   };
-  error.name = overrideName ?? (status === 404 ? "NotFound" : "S3StubError");
+  const HTTP_NOT_FOUND = 404;
+  error.name = overrideName ?? (status === HTTP_NOT_FOUND ? "NotFound" : "S3StubError");
   error.$metadata = { httpStatusCode: status };
   return error;
 };

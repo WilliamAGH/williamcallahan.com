@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 
-import { mapBookmarkRowToUnifiedBookmark } from "@/lib/db/bookmark-record-mapper";
+import { mapBookmarkSelectToUnifiedBookmark } from "@/lib/db/bookmark-record-mapper";
 import { db } from "@/lib/db/connection";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
@@ -33,7 +33,8 @@ function computeNoveltyBoost(impressions: number): number {
   if (impressions <= 0) {
     return 1.2;
   }
-  if (impressions < 5) {
+  const NOVELTY_IMPRESSION_THRESHOLD = 5;
+  if (impressions < NOVELTY_IMPRESSION_THRESHOLD) {
     return 1.1;
   }
   return 1;
@@ -90,7 +91,7 @@ export async function getDiscoveryRankedBookmarks(
   limit: number,
 ): Promise<
   Array<{
-    bookmark: ReturnType<typeof mapBookmarkRowToUnifiedBookmark>;
+    bookmark: ReturnType<typeof mapBookmarkSelectToUnifiedBookmark>;
     discoveryScore: number;
     hasEngagement: boolean;
   }>
@@ -168,7 +169,7 @@ export async function getDiscoveryRankedBookmarks(
         engagementCoverage,
       });
       return {
-        bookmark: mapBookmarkRowToUnifiedBookmark(row.bookmark),
+        bookmark: mapBookmarkSelectToUnifiedBookmark(row.bookmark),
         discoveryScore: score,
         hasEngagement: engagementSignal !== null,
       };

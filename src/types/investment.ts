@@ -3,7 +3,7 @@
  */
 
 import type { Accelerator } from "./schemas/accelerator";
-import type { LogoData } from "./logo";
+import type { Logo } from "./logo";
 
 import type { JSX } from "react";
 
@@ -83,7 +83,7 @@ export interface Investment {
  */
 export interface ThemeWrapperProps {
   investment: Investment;
-  logoData: LogoData;
+  logoData: Logo;
   renderedMetrics: JSX.Element;
 }
 

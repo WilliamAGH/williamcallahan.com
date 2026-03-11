@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { TopicSection } from "./topic-section.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
-import type { DiscoverFeedData, DiscoverFeedProps } from "@/types/features/discovery";
+import type { DiscoverFeedContent, DiscoverFeedProps } from "@/types/features/discovery";
 
 const OBSERVER_ROOT_MARGIN = "280px 0px";
 
 function mergeTopicSections(
-  currentSections: ReadonlyArray<DiscoverFeedData["topicSections"][number]>,
-  incomingSections: ReadonlyArray<DiscoverFeedData["topicSections"][number]>,
-): DiscoverFeedData["topicSections"][number][] {
+  currentSections: ReadonlyArray<DiscoverFeedContent["topicSections"][number]>,
+  incomingSections: ReadonlyArray<DiscoverFeedContent["topicSections"][number]>,
+): DiscoverFeedContent["topicSections"][number][] {
   const sectionByTagSlug = new Map(currentSections.map((section) => [section.tagSlug, section]));
   for (const section of incomingSections) {
     sectionByTagSlug.set(section.tagSlug, section);
@@ -20,7 +20,7 @@ function mergeTopicSections(
   return Array.from(sectionByTagSlug.values());
 }
 
-function parseGroupedDiscoverPayload(payload: unknown): DiscoverFeedData {
+function parseGroupedDiscoverPayload(payload: unknown): DiscoverFeedContent {
   if (typeof payload !== "object" || payload === null) {
     throw new Error("Invalid discover feed payload: response was not an object.");
   }
@@ -28,7 +28,7 @@ function parseGroupedDiscoverPayload(payload: unknown): DiscoverFeedData {
   if (typeof root.data !== "object" || root.data === null) {
     throw new Error("Invalid discover feed payload: missing data object.");
   }
-  const feedPayload = root.data as Partial<DiscoverFeedData>;
+  const feedPayload = root.data as Partial<DiscoverFeedContent>;
   const pagination = feedPayload.pagination;
   const degradation = feedPayload.degradation;
   if (
@@ -44,14 +44,14 @@ function parseGroupedDiscoverPayload(payload: unknown): DiscoverFeedData {
   ) {
     throw new Error("Invalid discover feed payload: missing required grouped discover fields.");
   }
-  return feedPayload as DiscoverFeedData;
+  return feedPayload as DiscoverFeedContent;
 }
 
 export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   const { trackImpression } = useEngagementTracker();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadMoreInFlightRef = useRef(false);
-  const [topicSections, setTopicSections] = useState<DiscoverFeedData["topicSections"]>(
+  const [topicSections, setTopicSections] = useState<DiscoverFeedContent["topicSections"]>(
     () => data.topicSections,
   );
   const [internalHrefs, setInternalHrefs] = useState<Record<string, string>>(

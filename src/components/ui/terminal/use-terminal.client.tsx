@@ -6,7 +6,7 @@
 
 "use client";
 
-import type { SelectionItem } from "@/types/terminal";
+import type { SelectionEntry } from "@/types/terminal";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -40,7 +40,7 @@ export function useTerminal() {
     // isReady is no longer part of this context
   } = useTerminalContext();
   const [input, setInput] = useState("");
-  const [selection, setSelection] = useState<SelectionItem[] | null>(null);
+  const [selection, setSelection] = useState<SelectionEntry[] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeApp, setActiveApp] = useState<null | "ai-chat">(null);
   const [aiChatConversationId, setAiChatConversationId] = useState<string>(() =>
@@ -332,7 +332,7 @@ export function useTerminal() {
   };
 
   const handleSelection = useCallback(
-    (item: SelectionItem) => {
+    (item: SelectionEntry) => {
       setSelection(null);
       if (item.path) {
         router.push(item.path);

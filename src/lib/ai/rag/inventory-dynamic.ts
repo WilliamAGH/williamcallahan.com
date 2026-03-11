@@ -17,7 +17,7 @@ import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { listAnalysisItemIds } from "@/lib/ai-analysis/reader.server";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { Book } from "@/types/schemas/book";
-import type { BookmarkIndexItem, AggregatedTag } from "@/types/schemas/search";
+import type { BookmarkIndexEntry, AggregatedTag } from "@/types/schemas/search";
 import type { BlogPost } from "@/types/blog";
 import type {
   InventorySectionBuildResult,
@@ -26,7 +26,7 @@ import type {
 } from "@/types/rag";
 import { buildSectionLines, formatLine } from "./inventory-format";
 
-const buildBookmarksRows = (bookmarks: Array<BookmarkIndexItem & { slug: string }>): string[] =>
+const buildBookmarksRows = (bookmarks: Array<BookmarkIndexEntry & { slug: string }>): string[] =>
   bookmarks
     .toSorted((a, b) => (a.title ?? "").localeCompare(b.title ?? ""))
     .map((bookmark) =>
@@ -94,7 +94,7 @@ const buildAnalysisRows = (args: {
 
 async function buildTagsSection(args: {
   blogPosts: BlogPost[];
-  bookmarks: Array<BookmarkIndexItem & { slug: string }>;
+  bookmarks: Array<BookmarkIndexEntry & { slug: string }>;
   books: Book[];
 }): Promise<{ section: InventorySectionBuildResult; failed: boolean }> {
   const tagSources: Array<Promise<AggregatedTag[]>> = [];
@@ -168,7 +168,7 @@ async function buildTagsSection(args: {
 }
 
 function buildLookupMaps(
-  bookmarks: Array<BookmarkIndexItem & { slug: string }>,
+  bookmarks: Array<BookmarkIndexEntry & { slug: string }>,
   books: Book[],
 ): {
   bookmarksById: Map<string, { title: string; url: string }>;
@@ -223,7 +223,7 @@ export async function buildDynamicInventorySections(input: { blogPosts: BlogPost
   const failedSections: InventorySectionName[] = [];
   const { blogPosts } = input;
 
-  let bookmarks: Array<BookmarkIndexItem & { slug: string }> = [];
+  let bookmarks: Array<BookmarkIndexEntry & { slug: string }> = [];
   let books: Book[] = [];
 
   try {

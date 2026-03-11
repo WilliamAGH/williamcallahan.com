@@ -19,7 +19,7 @@ import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import CvPdfDownloadButtonEnhancer from "@/components/features/cv/CvPdfDownloadButton";
 import { X } from "@/components/ui/social-icons/x-icon";
-import { getCvData } from "@/lib/cv/cv-data";
+import { getCurriculumVitae } from "@/lib/cv/cv-data";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { formatSeoDate } from "@/lib/seo/utils";
@@ -99,7 +99,7 @@ export default async function CvPage(): Promise<React.JSX.Element> {
     linkedInUrl,
     linkedInLabel,
     lastUpdatedDisplay,
-  } = await Promise.resolve(getCvData());
+  } = await Promise.resolve(getCurriculumVitae());
 
   // Temporary: hide Qualifications section during iteration
   const showQualifications: boolean = false;

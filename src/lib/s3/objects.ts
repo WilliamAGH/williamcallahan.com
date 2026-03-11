@@ -15,7 +15,7 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
-import type { S3ErrorContext, S3ObjectData, S3ObjectMetadata } from "@/types/s3-cdn";
+import type { S3ErrorContext, S3ObjectContent, S3ObjectMetadata } from "@/types/s3-cdn";
 import { safeStringifyValue } from "@/lib/utils/error-utils";
 import { isS3Error, isS3NotFound } from "@/lib/utils/s3-error-guards";
 import { getS3Client } from "./client";
@@ -55,7 +55,10 @@ const toBuffer = async (body: unknown): Promise<Buffer> => {
   throw new S3OperationError("Unsupported S3 response body type", { operation: "getObject" });
 };
 
-export async function getObject(key: string, options?: { range?: string }): Promise<S3ObjectData> {
+export async function getObject(
+  key: string,
+  options?: { range?: string },
+): Promise<S3ObjectContent> {
   const config = getS3Config();
   const client = getS3Client();
 

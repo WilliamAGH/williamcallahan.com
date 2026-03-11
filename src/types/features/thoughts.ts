@@ -6,7 +6,7 @@
  * Business logic types are in types/schemas/thought.ts
  */
 
-import type { ThoughtListItem, Thought } from "@/types/schemas/thought";
+import type { ThoughtBrief, Thought } from "@/types/schemas/thought";
 import type { WindowStateValue } from "@/types/ui/window";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ export interface ThoughtDetailCategoryColor {
  * Props for ThoughtCard (individual thought preview in list)
  */
 export interface ThoughtCardProps {
-  thought: ThoughtListItem;
+  thought: ThoughtBrief;
   /** Enable preload hints for images/links */
   preload?: boolean;
 }
@@ -75,7 +75,7 @@ export interface ThoughtCardProps {
  * Props for ThoughtsList (grid/list of thought cards)
  */
 export interface ThoughtsListProps {
-  thoughts: ThoughtListItem[];
+  thoughts: ThoughtBrief[];
   /** Title displayed above the list */
   title?: string;
   /** Description/subtitle */
@@ -86,7 +86,7 @@ export interface ThoughtsListProps {
  * Props for ThoughtsServer (server component wrapper)
  */
 export interface ThoughtsServerProps {
-  thoughts: ThoughtListItem[];
+  thoughts: ThoughtBrief[];
   title?: string;
   description?: string;
 }

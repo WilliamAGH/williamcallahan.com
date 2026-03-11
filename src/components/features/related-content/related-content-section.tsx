@@ -9,7 +9,7 @@
 import { RelatedContentCard } from "./related-content-card";
 import { getOrderedContentTypes, isContentTypeEnabled } from "@/config/related-content.config";
 import type {
-  RelatedContentItem,
+  RelatedContentSuggestion,
   RelatedContentType,
   RelatedContentSectionProps,
 } from "@/types/related-content";
@@ -20,14 +20,14 @@ import type {
  * Same content type as source appears first for better UX.
  */
 function groupItemsByType(
-  items: RelatedContentItem[],
+  items: RelatedContentSuggestion[],
   sourceType?: RelatedContentType,
-): Record<RelatedContentType, RelatedContentItem[]> {
+): Record<RelatedContentType, RelatedContentSuggestion[]> {
   // Get the ordered content types (filtered by environment, sourceType first)
   const orderedTypes = getOrderedContentTypes(sourceType);
 
   // First pass: collect items by type (only enabled types)
-  const collected = {} as Record<RelatedContentType, RelatedContentItem[]>;
+  const collected = {} as Record<RelatedContentType, RelatedContentSuggestion[]>;
   for (const item of items) {
     // Skip items of disabled content types
     if (!isContentTypeEnabled(item.type)) {
@@ -40,7 +40,7 @@ function groupItemsByType(
   }
 
   // Second pass: build ordered result following dynamic type order
-  const grouped = {} as Record<RelatedContentType, RelatedContentItem[]>;
+  const grouped = {} as Record<RelatedContentType, RelatedContentSuggestion[]>;
   for (const type of orderedTypes) {
     if (collected[type]?.length) {
       grouped[type] = collected[type];

@@ -15,10 +15,17 @@ import {
   aiTokenResponseSchema,
 } from "@/types/schemas/ai-openai-compatible-client";
 
+/** Token expiry safety margin (ms) */
+const TOKEN_EXPIRY_BUFFER_MS = 5_000;
+/** Max body preview length for error messages */
+const MAX_BODY_PREVIEW_LENGTH = 240;
+/** HTTP status for unauthorized */
+const HTTP_UNAUTHORIZED = 401;
+
 let cachedToken: AiBrowserTokenCache | null = null;
 
 function tokenIsValid(token: AiBrowserTokenCache): boolean {
-  return token.expiresAtMs - Date.now() > 5_000;
+  return token.expiresAtMs - Date.now() > TOKEN_EXPIRY_BUFFER_MS;
 }
 
 function parseSseMessage(raw: string): { event: string; data: string } | null {
@@ -65,7 +72,10 @@ async function assertSseContentType(response: Response): Promise<void> {
 
   const responseText = await response.text();
   const bodyPreview = responseText.trim();
-  const preview = bodyPreview.length > 240 ? `${bodyPreview.slice(0, 240)}...` : bodyPreview;
+  const preview =
+    bodyPreview.length > MAX_BODY_PREVIEW_LENGTH
+      ? `${bodyPreview.slice(0, MAX_BODY_PREVIEW_LENGTH)}...`
+      : bodyPreview;
   const headerValue = contentType || "missing";
   throw new Error(
     `AI chat expected text/event-stream but received '${headerValue}' (status ${response.status}). ${preview}`,
@@ -285,7 +295,7 @@ export async function aiChat(
     signal: options.signal,
   });
 
-  if (response.status === 401 && !options.forceNewToken) {
+  if (response.status === HTTP_UNAUTHORIZED && !options.forceNewToken) {
     const refreshed = await getAiToken({ ...options, forceNewToken: true });
     const retry = await fetch(`/api/ai/chat/${encodeURIComponent(feature)}`, {
       method: "POST",

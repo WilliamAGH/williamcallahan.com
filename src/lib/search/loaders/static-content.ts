@@ -10,7 +10,7 @@
 import MiniSearch from "minisearch";
 import type { Investment } from "@/types/investment";
 import type { Experience } from "@/types/schemas/experience";
-import type { EducationItem, StaticSearchIndexArtifactDomain } from "@/types/schemas/search";
+import type { EducationEntry, StaticSearchIndexArtifactDomain } from "@/types/schemas/search";
 import type { IndexFieldConfig } from "@/types/search";
 import type { Project } from "@/types/project";
 import { investments } from "@/data/investments";
@@ -126,9 +126,9 @@ export { experiences };
 // --- Education ---
 
 /**
- * Transform raw education and certification data into EducationItem format.
+ * Transform raw education and certification data into EducationEntry format.
  */
-export function getEducationItems(): EducationItem[] {
+export function getEducationItems(): EducationEntry[] {
   return [
     ...education.map((edu) => ({
       id: edu.id,
@@ -145,7 +145,7 @@ export function getEducationItems(): EducationItem[] {
   ];
 }
 
-function buildEducationIndex(): MiniSearch<EducationItem> {
+function buildEducationIndex(): MiniSearch<EducationEntry> {
   const educationItems = getEducationItems();
   return createIndex(EDUCATION_INDEX_CONFIG, educationItems, "Education");
 }
@@ -154,7 +154,7 @@ function buildEducationIndex(): MiniSearch<EducationItem> {
  * Get or build the education search index.
  * Loads from PostgreSQL if available, falls back to building in-memory.
  */
-export async function getEducationIndex(): Promise<MiniSearch<EducationItem>> {
+export async function getEducationIndex(): Promise<MiniSearch<EducationEntry>> {
   return loadOrBuildIndex(
     "education",
     SEARCH_INDEX_KEYS.EDUCATION,

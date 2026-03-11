@@ -3,7 +3,7 @@
  *
  * Given lean ScoredCandidate[] from pgvector ANN search, fetches full
  * display data from each domain table in batched queries (one per domain).
- * Produces RelatedContentItem[] ready for UI rendering.
+ * Produces RelatedContentSuggestion[] ready for UI rendering.
  *
  * @module db/queries/content-hydration
  */
@@ -25,7 +25,7 @@ import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type {
   ScoredCandidate,
   HydrationEntry,
-  RelatedContentItem,
+  RelatedContentSuggestion,
   RelatedContentMetadata,
 } from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
@@ -65,7 +65,7 @@ async function resolveInvestmentLogo(row: {
 
 // ─── Per-domain batch fetchers ───────────────────────────────────────────────
 
-async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedContentItem[]> {
+async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
   const ids = entries.map((e) => e.entityId);
   const rows = await db
     .select({
@@ -119,7 +119,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
   });
 }
 
-async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedContentItem[]> {
+async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
   const ids = entries.map((e) => e.entityId);
   const rows = await db
     .select({
@@ -156,7 +156,7 @@ async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedConte
   });
 }
 
-async function hydrateInvestments(entries: HydrationEntry[]): Promise<RelatedContentItem[]> {
+async function hydrateInvestments(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
   const ids = entries.map((e) => e.entityId);
   const rows = await db
     .select({
@@ -196,7 +196,7 @@ async function hydrateInvestments(entries: HydrationEntry[]): Promise<RelatedCon
   );
 }
 
-async function hydrateProjects(entries: HydrationEntry[]): Promise<RelatedContentItem[]> {
+async function hydrateProjects(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
   const ids = entries.map((e) => e.entityId);
   const rows = await db
     .select({
@@ -230,7 +230,7 @@ async function hydrateProjects(entries: HydrationEntry[]): Promise<RelatedConten
   });
 }
 
-async function hydrateBooks(entries: HydrationEntry[]): Promise<RelatedContentItem[]> {
+async function hydrateBooks(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
   const ids = entries.map((e) => e.entityId);
   const rows = await db
     .select({
@@ -267,7 +267,7 @@ async function hydrateBooks(entries: HydrationEntry[]): Promise<RelatedContentIt
   });
 }
 
-async function hydrateThoughts(entries: HydrationEntry[]): Promise<RelatedContentItem[]> {
+async function hydrateThoughts(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
   const ids = entries.map((e) => e.entityId);
   const rows = await db
     .select({
@@ -308,7 +308,7 @@ async function hydrateThoughts(entries: HydrationEntry[]): Promise<RelatedConten
 
 const DOMAIN_HYDRATORS: Record<
   ContentEmbeddingDomain,
-  ((entries: HydrationEntry[]) => Promise<RelatedContentItem[]>) | null
+  ((entries: HydrationEntry[]) => Promise<RelatedContentSuggestion[]>) | null
 > = {
   bookmark: hydrateBookmarks,
   blog: hydrateBlogPosts,
@@ -321,7 +321,7 @@ const DOMAIN_HYDRATORS: Record<
 };
 
 /**
- * Hydrate scored similarity candidates into full RelatedContentItem[].
+ * Hydrate scored similarity candidates into full RelatedContentSuggestion[].
  *
  * Groups candidates by domain, issues one batch query per domain,
  * and maps results to UI-ready items with rich metadata.
@@ -329,7 +329,7 @@ const DOMAIN_HYDRATORS: Record<
  */
 export async function hydrateRelatedContent(
   candidates: ScoredCandidate[],
-): Promise<RelatedContentItem[]> {
+): Promise<RelatedContentSuggestion[]> {
   // Group by domain
   const byDomain = new Map<ContentEmbeddingDomain, HydrationEntry[]>();
   for (const c of candidates) {
@@ -339,7 +339,7 @@ export async function hydrateRelatedContent(
   }
 
   // Batch-fetch all domains in parallel
-  const hydrationPromises: Promise<RelatedContentItem[]>[] = [];
+  const hydrationPromises: Promise<RelatedContentSuggestion[]>[] = [];
   for (const [domain, entries] of byDomain) {
     const hydrator = DOMAIN_HYDRATORS[domain];
     if (hydrator) {

@@ -9,7 +9,7 @@
 import type { RateLimiterConfig, CircuitBreakerState, CircuitBreakerConfig } from "@/types/lib";
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getMonotonicTime } from "@/lib/utils";
-import type { RateLimitRecord } from "@/types/schemas/rate-limit";
+import type { RateLimitEntry } from "@/types/schemas/rate-limit";
 
 /**
  * In-memory store for rate limit records.
@@ -17,7 +17,7 @@ import type { RateLimitRecord } from "@/types/schemas/rate-limit";
  * or a fixed string like 'opengraph_fetches' for global outgoing request limiting).
  * The outer key is a 'namespace' or 'storeName' to keep different limiters separate.
  */
-const rateLimitStores: Record<string, Record<string, RateLimitRecord>> = {};
+const rateLimitStores: Record<string, Record<string, RateLimitEntry>> = {};
 
 /**
  * Circuit breaker state for each store/context combination
@@ -133,7 +133,8 @@ export async function waitForPermit(
       const timeToReset = Math.max(0, record.resetAt - loopNow);
 
       // For long waits (>1 second), sleep until reset with small buffer instead of polling
-      if (timeToReset > 1000) {
+      const LONG_WAIT_THRESHOLD_MS = 1000;
+      if (timeToReset > LONG_WAIT_THRESHOLD_MS) {
         waitTime = Math.max(1000, timeToReset + 50); // Wait until reset + buffer, enforce minimum sensible delay
       } else {
         // For short waits, use standard poll interval or time to reset, whichever is shorter

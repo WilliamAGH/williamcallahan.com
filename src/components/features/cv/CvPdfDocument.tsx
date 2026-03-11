@@ -1,6 +1,6 @@
 import React from "react";
 import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
-import { getCvData } from "@/lib/cv/cv-data";
+import { getCurriculumVitae } from "@/lib/cv/cv-data";
 import logger from "@/lib/utils/logger";
 import path from "path";
 import { existsSync } from "node:fs";
@@ -517,7 +517,7 @@ const CvPdfDocument = (): React.ReactElement => {
     linkedInUrl,
     linkedInLabel,
     lastUpdatedDisplay,
-  } = getCvData();
+  } = getCurriculumVitae();
 
   return (
     <Document

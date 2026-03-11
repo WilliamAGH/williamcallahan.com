@@ -65,7 +65,7 @@ export type { GroupOptions, RecentOptions };
 // Server → Client Data Transfer
 // ---------------------------------------------------------------------------
 
-export type DiscoverFeed = {
+export type DiscoverFeedContent = {
   recentlyAdded: SerializableBookmark[];
   topicSections: Array<{
     tagSlug: string;
@@ -93,7 +93,7 @@ export type DiscoverFeed = {
 // ---------------------------------------------------------------------------
 
 export type DiscoverFeedProps = {
-  data: DiscoverFeed;
+  data: DiscoverFeedContent;
 };
 
 export type TopicSectionProps = {
