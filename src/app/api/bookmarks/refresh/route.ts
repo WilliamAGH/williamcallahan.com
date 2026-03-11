@@ -6,6 +6,7 @@
  */
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import { isOperationAllowed } from "@/lib/rate-limiter";
@@ -174,12 +175,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             console.error("[API Trigger] Failed to invalidate cache:", cacheError);
           }
         } else {
+          const failureError = new Error(
+            `Bookmark background refresh failed: ${bookmarkResult?.error ?? "unknown"}`,
+          );
+          Sentry.captureException(failureError);
           console.log(`[API Trigger] ❌ Refresh failed: ${bookmarkResult?.error}`);
           logger.error(`[API Bookmarks Refresh] Background refresh failed:`, bookmarkResult?.error);
         }
         return undefined;
       })
       .catch((error) => {
+        Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
         console.log(`[API Trigger] ❌ Refresh error: ${error}`);
         logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
       })
@@ -208,6 +214,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
+    Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
     logger.error("Failed to refresh bookmarks:", error);
     return NextResponse.json(
       {

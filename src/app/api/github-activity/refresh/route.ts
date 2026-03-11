@@ -9,6 +9,7 @@
  * updates the application's data store, and returns statistics about the fetched data.
  */
 
+import * as Sentry from "@sentry/nextjs";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse, type NextRequest } from "next/server";
@@ -192,7 +193,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       return NextResponse.json(responseData, { status: 200 });
     }
-    // Removed useless else: The previous if block returns early.
+    const noDataError = new Error("GitHub activity refresh returned no data");
+    Sentry.captureException(noDataError);
     console.warn("[API Refresh] GitHub activity data refresh process started but returned no data");
     return NextResponse.json(
       {
@@ -203,6 +205,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 },
     );
   } catch (error: unknown) {
+    Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     console.error(
       "[API Refresh] Critical error during GitHub activity data refresh:",
