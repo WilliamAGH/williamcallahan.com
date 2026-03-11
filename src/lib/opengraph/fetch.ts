@@ -141,15 +141,13 @@ async function performFetchWithRetry(
       async () => {
         let lastAttemptError: Error | null = null;
 
-        // Try direct fetch first, then proxies
-        const urlsToTry = [
-          url,
-          ...proxies.map((proxy) => {
-            const proxyUrl = new URL(url);
-            proxyUrl.hostname = proxy;
-            return proxyUrl.toString();
-          }),
-        ];
+        // For X/Twitter: try proxy first (direct fetch is always blocked by X)
+        const proxyUrls = proxies.map((proxy) => {
+          const proxyUrl = new URL(url);
+          proxyUrl.hostname = proxy;
+          return proxyUrl.toString();
+        });
+        const urlsToTry = isTwitter ? [...proxyUrls, url] : [url, ...proxyUrls];
 
         for (const effectiveUrl of urlsToTry) {
           const isProxy = effectiveUrl !== url;
@@ -245,8 +243,16 @@ async function performFetchWithRetry(
       errorMessage.includes("timeout") ||
       errorMessage.includes("ECONNREFUSED");
 
+    const isHttpError =
+      errorMessage.includes("HTTP 4") ||
+      errorMessage.includes("HTTP 5") ||
+      errorMessage.includes("retries") ||
+      errorMessage.includes("All OpenGraph fetch attempts failed");
+
     if (isNetworkError) {
       debug(`[DataAccess/OpenGraph] Final network connectivity issue for ${url}: ${errorMessage}`);
+    } else if (isHttpError) {
+      debug(`[DataAccess/OpenGraph] Final HTTP error for ${url}: ${errorMessage}`);
     } else {
       envLogger.log(
         `Final unexpected error for OpenGraph fetch`,
