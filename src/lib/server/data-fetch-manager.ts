@@ -639,7 +639,8 @@ export class DataFetchManager {
       const parts = beforeHash.split("_");
       const source = parts.pop() || "unknown";
       const domainParts = parts;
-      if (domainParts.length < 2) continue;
+      const MIN_DOMAIN_PARTS = 2;
+      if (domainParts.length < MIN_DOMAIN_PARTS) continue;
 
       const tld = domainParts[domainParts.length - 1];
       const name = domainParts.slice(0, -1).join(".");

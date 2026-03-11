@@ -16,7 +16,7 @@ import {
   type ContentGraphBuildMetadata,
   type TagGraph,
 } from "@/types/schemas/related-content";
-import type { BooksRelatedContentData } from "@/types/related-content";
+import type { BooksRelatedContent } from "@/types/related-content";
 import type { RelatedContentGraph } from "@/types/schemas/book";
 
 /**
@@ -55,9 +55,9 @@ export async function readRelatedContent(): Promise<RelatedContentGraph | null> 
 
 /**
  * Read the books-specific related content dataset.
- * Returns the full validated BooksRelatedContentData, or null.
+ * Returns the full validated BooksRelatedContent, or null.
  */
-export async function readBooksRelatedContent(): Promise<BooksRelatedContentData | null> {
+export async function readBooksRelatedContent(): Promise<BooksRelatedContent | null> {
   const payload = await readContentGraphArtifact("books-related");
   if (!payload) {
     return null;

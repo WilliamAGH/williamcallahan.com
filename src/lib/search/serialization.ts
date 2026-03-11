@@ -10,7 +10,7 @@
 import type MiniSearch from "minisearch";
 import type {
   SerializedIndex,
-  BookmarkIndexItem,
+  BookmarkIndexEntry,
   MiniSearchStoredFields,
 } from "@/types/schemas/search";
 
@@ -84,7 +84,7 @@ export function parseSerializedIndexObject(
  */
 export function extractBookmarksFromSerializedIndex(
   serializedIndex: SerializedIndex,
-): Array<BookmarkIndexItem & { slug: string }> {
+): Array<BookmarkIndexEntry & { slug: string }> {
   const indexObject = parseSerializedIndexObject(serializedIndex);
   if (!indexObject) {
     return [];
@@ -97,7 +97,7 @@ export function extractBookmarksFromSerializedIndex(
     return [];
   }
 
-  const bookmarks: Array<BookmarkIndexItem & { slug: string }> = [];
+  const bookmarks: Array<BookmarkIndexEntry & { slug: string }> = [];
   for (const [shortId, docId] of Object.entries(documentIdsRaw)) {
     const stored = storedFieldsRaw[shortId];
     if (!isRecord(stored)) continue;
