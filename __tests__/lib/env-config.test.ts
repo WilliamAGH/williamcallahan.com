@@ -219,4 +219,51 @@ describe("Environment Variable Configuration", () => {
       expect(result.success).toBe(false);
     });
   });
+
+  describe("PostgreSQL Access Mode", () => {
+    it("keeps test sessions read-only by default", async () => {
+      process.env.NODE_ENV = "test";
+      Reflect.deleteProperty(process.env, "DEPLOYMENT_ENV");
+
+      const { resolveDatabaseAccessMode } = await import("@/lib/db/connection");
+
+      expect(resolveDatabaseAccessMode()).toEqual({
+        allowWrites: false,
+        environment: "test",
+        source: "NODE_ENV",
+      });
+    });
+
+    it("allows writes only when deployment environment resolves to production", async () => {
+      process.env.NODE_ENV = "test";
+      process.env.DEPLOYMENT_ENV = "production";
+
+      const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
+        await import("@/lib/db/connection");
+
+      expect(resolveDatabaseAccessMode()).toEqual({
+        allowWrites: true,
+        environment: "production",
+        source: "DEPLOYMENT_ENV",
+      });
+      expect(() => assertDatabaseWriteAllowed("test-operation")).not.toThrow();
+    });
+
+    it("blocks writes when deployment environment is not production", async () => {
+      process.env.NODE_ENV = "development";
+      process.env.DEPLOYMENT_ENV = "testing";
+
+      const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
+        await import("@/lib/db/connection");
+
+      expect(resolveDatabaseAccessMode()).toEqual({
+        allowWrites: false,
+        environment: "test",
+        source: "DEPLOYMENT_ENV",
+      });
+      expect(() => assertDatabaseWriteAllowed("test-operation")).toThrow(
+        'Blocked PostgreSQL write "test-operation"',
+      );
+    });
+  });
 });

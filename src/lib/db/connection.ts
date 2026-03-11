@@ -12,7 +12,6 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 
 const DEFAULT_DATABASE_POOL_MAX = 5;
-const TEST_DATABASE_URL_PLACEHOLDER = "postgres://invalid:invalid@127.0.0.1:5432/invalid";
 const PRODUCTION_ENVIRONMENT = "production";
 const PRODUCTION_SITE_URL = "https://williamcallahan.com";
 const EXTERNAL_PRODUCTION_DB_HOST = "167.234.219.57";
@@ -64,13 +63,10 @@ const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string
 };
 
 const databaseUrl = rewriteDatabaseUrlForProductionSite(process.env.DATABASE_URL?.trim());
-const isTestEnvironment = process.env.NODE_ENV === "test";
 
-if (!databaseUrl && !isTestEnvironment) {
+if (!databaseUrl) {
   throw new Error("DATABASE_URL environment variable is required for PostgreSQL access.");
 }
-
-const resolvedDatabaseUrl = databaseUrl ?? TEST_DATABASE_URL_PLACEHOLDER;
 
 const normalizeEnvironmentName = (value: string | undefined): string => {
   const normalized = (value ?? "").trim().toLowerCase();
@@ -106,9 +102,21 @@ const resolveWriteEnvironment = (): { environment: string; source: string } => {
   };
 };
 
+export const resolveDatabaseAccessMode = (): {
+  allowWrites: boolean;
+  environment: string;
+  source: string;
+} => {
+  const resolvedEnvironment = resolveWriteEnvironment();
+  return {
+    allowWrites: resolvedEnvironment.environment === PRODUCTION_ENVIRONMENT,
+    ...resolvedEnvironment,
+  };
+};
+
 export function assertDatabaseWriteAllowed(operation: string): void {
-  const { environment, source } = resolveWriteEnvironment();
-  if (environment === PRODUCTION_ENVIRONMENT) {
+  const { allowWrites, environment, source } = resolveDatabaseAccessMode();
+  if (allowWrites) {
     return;
   }
 
@@ -132,13 +140,20 @@ const resolveOptionalPositiveInt = (envName: string, defaultValue: number): numb
   return parsedValue;
 };
 
-const createClient = (): Sql<Record<string, unknown>> =>
-  postgres(resolvedDatabaseUrl, {
+const createClient = (): Sql<Record<string, unknown>> => {
+  const { allowWrites, environment } = resolveDatabaseAccessMode();
+
+  return postgres(databaseUrl, {
     max: resolveOptionalPositiveInt("DATABASE_POOL_MAX", DEFAULT_DATABASE_POOL_MAX),
     idle_timeout: resolveOptionalPositiveInt("DATABASE_IDLE_TIMEOUT_SECONDS", 20),
     connect_timeout: resolveOptionalPositiveInt("DATABASE_CONNECT_TIMEOUT_SECONDS", 10),
     ssl: "require",
+    connection: {
+      application_name: `williamcallahan.com:${environment || "unknown"}`,
+      default_transaction_read_only: !allowWrites,
+    },
   });
+};
 
 const globalForDb = globalThis as typeof globalThis & {
   drizzleClientSingleton?: Sql<Record<string, unknown>>;
