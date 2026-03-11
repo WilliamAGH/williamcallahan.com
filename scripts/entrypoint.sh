@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e # Exit on error
+set -euo pipefail
 
 CANONICAL_PRODUCTION_SITE_URL="https://williamcallahan.com"
 EXTERNAL_PRODUCTION_DB_HOST="167.234.219.57"
@@ -159,13 +159,19 @@ echo "✅ [Entrypoint] Cache directory /app/cache/s3_data ensured."
 
 echo "📊 [Entrypoint] Checking for initial data population..."
 # Check if critical data exists, if not mark for background population
-if ! npx tsx scripts/debug-slug-mapping.ts 2>&1 | grep -q "Slug mapping exists"; then
+if ! slug_mapping_output="$(npx tsx scripts/debug-slug-mapping.ts 2>&1)"; then
+    echo "❌ [Entrypoint] Failed to inspect slug mapping state"
+    printf '%s\n' "$slug_mapping_output"
+    exit 1
+fi
+
+if printf '%s\n' "$slug_mapping_output" | grep -q "Slug mapping exists"; then
+    echo "✅ [Entrypoint] Data already exists, skipping initial population"
+else
     echo "⚠️  [Entrypoint] Slug mapping missing, marking for background population..."
     # Create a marker file to trigger background population
     touch /tmp/needs-initial-data-population
     echo "✅ [Entrypoint] Marker created for background data population"
-else
-    echo "✅ [Entrypoint] Data already exists, skipping initial population"
 fi
 
 if [ "${ENABLE_BACKGROUND_SERVICES}" = "1" ]; then

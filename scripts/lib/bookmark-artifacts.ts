@@ -6,7 +6,8 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
+import type { BookmarkS3Record } from "@/types/bookmark";
+import type { BookmarkSlugMapping } from "@/types/schemas/bookmark";
 
 /** Default number of bookmarks per paginated page */
 const DEFAULT_BOOKMARKS_PAGE_SIZE = 24;
@@ -93,7 +94,7 @@ export function buildPaginationArtifacts(
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
   let pageSize = DEFAULT_BOOKMARKS_PAGE_SIZE;
   if (typeof index === "object" && index !== null && "pageSize" in index) {
-    const rawPageSize = (index as Record<string, unknown>).pageSize;
+    const rawPageSize = (index as { pageSize?: unknown }).pageSize;
     if (typeof rawPageSize === "number" && rawPageSize > 0) {
       pageSize = rawPageSize;
     }
