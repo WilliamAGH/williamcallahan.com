@@ -97,18 +97,3 @@ export const tagGraphSchema = z.object({
 });
 
 export type TagGraph = z.infer<typeof tagGraphSchema>;
-
-export const createRelatedContentDebugParamsSchema = ({
-  maxLimit,
-  defaultLimit,
-  isEnabledType,
-}: {
-  maxLimit: number;
-  defaultLimit: number;
-  isEnabledType: (value: string) => boolean;
-}) =>
-  z.object({
-    type: z.string().refine(isEnabledType, { message: "Unsupported type" }),
-    id: z.string().min(1),
-    limit: z.coerce.number().int().min(1).max(maxLimit).optional().default(defaultLimit),
-  });

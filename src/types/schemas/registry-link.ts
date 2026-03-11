@@ -6,7 +6,6 @@
  * Enables projects and bookmarks to link to their package distributions.
  */
 
-import type { ComponentType } from "react";
 import { z } from "zod/v4";
 
 /**
@@ -63,27 +62,4 @@ export const validateRegistryLink = (data: unknown): RegistryLink => {
 
 export const validateRegistryLinks = (data: unknown): RegistryLink[] => {
   return z.array(registryLinkSchema).parse(data);
-};
-
-/**
- * Configuration for rendering a specific registry type.
- * Used by the RegistryLinks UI component for icon and styling.
- */
-export type RegistryConfig = {
-  /** Lucide icon component to use (technically LucideIcon type, kept generic for flexibility) */
-  icon: ComponentType<{ className?: string }>;
-  /** Default display label (e.g., "npm", "PyPI") */
-  defaultLabel: string;
-  /** Tailwind classes for light mode background */
-  bgLight: string;
-  /** Tailwind classes for dark mode background */
-  bgDark: string;
-  /** Tailwind classes for light mode text */
-  textLight: string;
-  /** Tailwind classes for dark mode text */
-  textDark: string;
-  /** Tailwind classes for light mode hover */
-  hoverLight: string;
-  /** Tailwind classes for dark mode hover */
-  hoverDark: string;
 };

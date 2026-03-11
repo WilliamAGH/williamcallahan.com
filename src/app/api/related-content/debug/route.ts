@@ -13,8 +13,8 @@ import {
 } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
+import { z } from "zod/v4";
 import { getEnabledContentTypes } from "@/config/related-content.config";
-import { createRelatedContentDebugParamsSchema } from "@/types/schemas/related-content";
 import type { RelatedContentType } from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 
@@ -44,10 +44,10 @@ function parseDebugParams(
   const enabledTypesSet = new Set<string>(enabledTypes);
   const isEnabledType = (value: string): value is RelatedContentType => enabledTypesSet.has(value);
 
-  const schema = createRelatedContentDebugParamsSchema({
-    maxLimit: MAX_LIMIT,
-    defaultLimit: DEFAULT_LIMIT,
-    isEnabledType,
+  const schema = z.object({
+    type: z.string().refine(isEnabledType, { message: "Unsupported type" }),
+    id: z.string().min(1),
+    limit: z.coerce.number().int().min(1).max(MAX_LIMIT).optional().default(DEFAULT_LIMIT),
   });
 
   const parsed = schema.safeParse({ type: sourceTypeRaw, id: sourceId, limit: limitRaw });
