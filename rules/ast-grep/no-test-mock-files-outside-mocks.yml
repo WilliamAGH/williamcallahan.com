@@ -2,7 +2,7 @@
 # Prevents ad-hoc mock modules living directly under __tests__.
 
 id: no-test-mock-files-outside-mocks
-language: typescript
+language: tsx
 severity: error
 message: "[TST2] Mock files belong in __tests__/__mocks__"
 
