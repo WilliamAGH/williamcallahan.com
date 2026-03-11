@@ -231,7 +231,7 @@ const config = defineConfig(
   // Disable overlapping ESLint rules with Oxlint to avoid duplicate diagnostics
   // Derive the rule-disable list from the same .oxlintrc.json Oxlint uses, to avoid drift.
   // This should remain last in the config array (per eslint-plugin-oxlint docs).
-  ...oxlint.buildFromOxlintConfigFile("./.oxlintrc.json"),
+  ...oxlint.buildFromOxlintConfigFile("./config/oxlintrc.json"),
 );
 
 export default config;

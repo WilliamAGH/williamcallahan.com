@@ -1,0 +1,25 @@
+# lefthook.yml — Git hook configuration (replaces .husky/)
+# Pre-commit: lint + format staged files (parallel)
+# Pre-push: build + validate + smoke tests (sequential)
+
+pre-commit:
+  parallel: true
+  commands:
+    oxlint:
+      glob: "*.{js,jsx,ts,tsx}"
+      run: bunx oxlint -c config/oxlintrc.json --fix {staged_files}
+      stage_fixed: true
+    oxfmt:
+      glob: "*.{js,jsx,ts,tsx}"
+      run: bunx oxfmt -c config/oxfmtrc.json --write {staged_files}
+      stage_fixed: true
+
+pre-push:
+  piped: true
+  commands:
+    build:
+      run: USE_NEXTJS_CACHE=false bun run build
+    validate:
+      run: bun run validate
+    smoke-test:
+      run: bun run test:smoke

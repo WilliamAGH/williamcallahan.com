@@ -485,14 +485,23 @@ File/Path Functionality Description
 ## Config Directory
 
 - [x] `.browserslistrc` `config` - Browserslist configuration
+- [x] `.hintrc` `config` - webhint configuration
 - [x] `.remarkrc.mjs` `config` - Remark (Markdown processor) configuration
+- [x] `biome.json` `linting-formatting` - Biome (linter/formatter) configuration
+- [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync
 - [x] **eslint/** `linting-formatting` - ESLint custom rules (project-specific)
   - [x] **rules/** (empty — `no-duplicate-types` moved to `scripts/check-duplicate-types.ts`)
+- [x] `eslint.config.ts` `linting-formatting` - ESLint flat configuration
+- [x] `oxfmtrc.json` `linting-formatting` - Oxfmt (formatter) configuration
+- [x] `oxlintrc.json` `linting-formatting` - Oxlint (linter) configuration
 - [x] **oxlint/** `linting-formatting` - Oxlint JS plugins (experimental)
   - [x] **js-plugins/**
     - [x] `s3-no-hardcoded-images.mjs` `image-handling` - Prevents hardcoded `/images/*` usage; enforces `getStaticImageUrl()`
+- [x] `sgconfig.yml` `linting-formatting` - ast-grep root configuration
+- [x] `stylelint.config.js` `linting-formatting` - Stylelint CSS linter configuration
 - [x] `happydom.ts` `testing-config` - Happy DOM (test environment) configuration
 - [x] `tools.config.js` `config` - Master configuration for multiple tools
+- [x] `vitest.config.ts` `testing-config` - Vitest test configuration
 - [x] **vitest/** `testing-config` - Vitest test framework configuration files
   - [x] `env-setup.ts` `testing-config` - Targeted environment mocks for tests
   - [x] `global-mocks.ts` `testing-config` - Global cache API stubs
@@ -508,19 +517,14 @@ File/Path Functionality Description
 - [x] `.cursorrules` `config` - Cursor AI configuration
 - [x] `.env-example` `config` - Example environment variables
 - [x] `.gitignore` `config` - Git ignore file
-- [x] `.hintrc` `config` - webhint configuration
-- [x] `biome.json` `linting-formatting` - Biome (linter/formatter) configuration
 - [x] `bun.lock` `deps` - Bun lockfile
 - [x] `components.json` `config` - ShadCN UI component configuration
 - [x] `Dockerfile` `deployment` - Docker container configuration
 - [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
 - [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
-- [x] `eslint.config.ts` `linting-formatting` - ESLint configuration
-- [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync (`bookmarks`, taxonomy/index tables, `github_activity_store`, `content_graph_artifacts`, books/AI/OpenGraph tables)
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Server-side instrumentation setup
-- [x] `vitest.config.ts` `testing-config` - Vitest configuration
 - [x] `src/proxy.ts` `middleware` - Next.js Proxy (middleware) entrypoint (Next.js 16)
 - [x] `next-env.d.ts` `config` - Next.js environment type definitions
 - [x] `next.config.ts` `config` - Next.js configuration

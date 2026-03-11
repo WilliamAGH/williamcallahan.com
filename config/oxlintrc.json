@@ -1,0 +1,350 @@
+{
+  "$schema": "../node_modules/oxlint/configuration_schema.json",
+  "jsPlugins": [
+    {
+      "specifier": "./oxlint/js-plugins/s3-no-hardcoded-images.mjs",
+      "name": "s3"
+    }
+  ],
+  "plugins": [
+    "unicorn",
+    "oxc",
+    "typescript",
+    "import",
+    "vitest",
+    "react",
+    "jsx-a11y",
+    "promise",
+    "nextjs"
+  ],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2023": true
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn",
+    "style": "off",
+    "pedantic": "off"
+  },
+  "rules": {
+    "default-param-last": "error",
+    "eqeqeq": [
+      "error",
+      "always",
+      {
+        "null": "ignore"
+      }
+    ],
+    "func-style": [
+      "warn",
+      "declaration",
+      {
+        "allowArrowFunctions": true
+      }
+    ],
+    "import/default": "off",
+    "import/namespace": "off",
+    "import/no-cycle": "warn",
+    "import/no-duplicates": "error",
+    "import/no-mutable-exports": "error",
+    "import/no-named-as-default": "warn",
+    "import/no-named-as-default-member": "warn",
+    "import/no-unassigned-import": [
+      "warn",
+      {
+        "allow": ["server-only", "dotenv/config", "@testing-library/jest-dom/vitest", "**/*.css"]
+      }
+    ],
+    "max-params": [
+      "warn",
+      {
+        "max": 9
+      }
+    ],
+    "nextjs/google-font-display": "warn",
+    "nextjs/google-font-preconnect": "warn",
+    "nextjs/no-before-interactive-script-outside-document": "off",
+    "nextjs/no-html-link-for-pages": "off",
+    "nextjs/no-img-element": "warn",
+    "nextjs/no-page-custom-font": "warn",
+    "nextjs/no-typos": "warn",
+    "no-alert": "warn",
+    "no-await-in-loop": "off",
+    "no-console": "off",
+    "no-empty": [
+      "error",
+      {
+        "allowEmptyCatch": false
+      }
+    ],
+    "no-empty-function": [
+      "warn",
+      {
+        "allow": ["arrowFunctions", "constructors"]
+      }
+    ],
+    "no-empty-static-block": "warn",
+    "no-new-func": "error",
+    "no-throw-literal": "error",
+    "no-undef": "error",
+    "no-undefined": "off",
+    "no-unreachable": "error",
+    "no-unused-expressions": [
+      "error",
+      {
+        "allowShortCircuit": true,
+        "allowTernary": true,
+        "allowTaggedTemplates": true
+      }
+    ],
+    "no-unused-vars": [
+      "error",
+      {
+        "args": "all",
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrors": "all",
+        "caughtErrorsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "no-use-before-define": [
+      "error",
+      {
+        "functions": false,
+        "classes": true,
+        "variables": true
+      }
+    ],
+    "no-useless-concat": "error",
+    "no-useless-constructor": "error",
+    "no-useless-return": "error",
+    "no-var": "error",
+    "no-void": [
+      "error",
+      {
+        "allowAsStatement": true
+      }
+    ],
+    "no-with": "error",
+    "oxc/no-map-spread": "off",
+    "prefer-const": "error",
+    "prefer-rest-params": "error",
+    "promise/catch-or-return": "error",
+    "promise/no-promise-in-callback": "warn",
+    "promise/no-return-wrap": "error",
+    "promise/param-names": "error",
+    "radix": "error",
+    "react-perf/jsx-no-jsx-as-prop": "off",
+    "react-perf/jsx-no-new-array-as-prop": "off",
+    "react-perf/jsx-no-new-function-as-prop": "off",
+    "react-perf/jsx-no-new-object-as-prop": "off",
+    "react/exhaustive-deps": "warn",
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-no-target-blank": "error",
+    "react/jsx-no-useless-fragment": "off",
+    "react/jsx-pascal-case": "error",
+    "react/no-array-index-key": "off",
+    "react/no-children-prop": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-deprecated": "warn",
+    "react/no-direct-mutation-state": "error",
+    "react/no-find-dom-node": "error",
+    "react/no-is-mounted": "error",
+    "react/no-render-return-value": "error",
+    "react/no-string-refs": "error",
+    "react/no-unescaped-entities": "warn",
+    "react/no-unknown-property": ["error"],
+    "react/no-unsafe": "warn",
+    "react/no-unused-state": "warn",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/require-render-return": "error",
+    "react/rules-of-hooks": "error",
+    "s3/no-hardcoded-images": "warn",
+    "typescript/no-deprecated": "error",
+    "typescript/no-base-to-string": "off",
+    "typescript/no-confusing-non-null-assertion": "warn",
+    "typescript/no-duplicate-enum-values": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-extra-non-null-assertion": "error",
+    "typescript/no-extraneous-class": [
+      "warn",
+      {
+        "allowEmpty": false,
+        "allowConstructorOnly": false,
+        "allowStaticOnly": false,
+        "allowWithDecorator": true
+      }
+    ],
+    "typescript/no-floating-promises": "off",
+    "typescript/no-misused-new": "error",
+    "typescript/no-misused-promises": "warn",
+    "typescript/no-redundant-type-constituents": "warn",
+    "typescript/no-unnecessary-boolean-literal-compare": "warn",
+    "typescript/no-unnecessary-parameter-property-assignment": "error",
+    "typescript/no-unnecessary-type-arguments": "warn",
+    "typescript/no-unnecessary-type-assertion": "warn",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unsafe-declaration-merging": "error",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "typescript/restrict-template-expressions": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/no-await-expression-member": "warn",
+    "unicorn/no-empty-file": "warn",
+    "unicorn/no-instanceof-array": "error",
+    "unicorn/no-null": "off",
+    "unicorn/no-object-as-default-parameter": "error",
+    "unicorn/no-useless-undefined": "off",
+    "unicorn/prefer-add-event-listener": "off",
+    "unicorn/prefer-array-find": "error",
+    "unicorn/prefer-array-flat": "error",
+    "unicorn/prefer-array-flat-map": "error",
+    "unicorn/prefer-array-index-of": "error",
+    "unicorn/prefer-array-some": "error",
+    "unicorn/prefer-includes": "error",
+    "unicorn/prefer-type-error": "warn",
+    "yoda": ["error", "never"]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.{js,cjs,mjs}"],
+      "rules": {
+        "typescript/*": "off"
+      }
+    },
+    {
+      "files": ["config/**/*", "scripts/**/*"],
+      "rules": {
+        "s3/no-hardcoded-images": "off"
+      }
+    },
+    {
+      "files": ["**/*.server.{ts,tsx}"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "window",
+            "message": "Cannot use window in Server Components"
+          },
+          {
+            "name": "document",
+            "message": "Cannot use document in Server Components"
+          }
+        ]
+      }
+    },
+    {
+      "files": ["**/*.{test,spec}.{js,jsx,ts,tsx}", "**/__tests__/**/*.{js,jsx,ts,tsx}"],
+      "globals": {
+        "vi": "readonly",
+        "vitest": "readonly",
+        "describe": "readonly",
+        "it": "readonly",
+        "test": "readonly",
+        "expect": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly"
+      },
+      "rules": {
+        "s3/no-hardcoded-images": "off",
+        "nextjs/no-img-element": "off",
+        "max-params": "off",
+        "no-await-in-loop": "off",
+        "no-new": "off",
+        "typescript/no-explicit-any": "off",
+        "unicorn/consistent-function-scoping": "off",
+        "unicorn/prefer-set-has": "off",
+        "unicorn/prefer-type-error": "off",
+        "vitest/expect-expect": "error",
+        "vitest/no-conditional-expect": "off",
+        "vitest/no-conditional-tests": "error",
+        "vitest/no-disabled-tests": "warn",
+        "vitest/no-focused-tests": "error",
+        "vitest/no-identical-title": "error",
+        "vitest/no-import-node-test": "error",
+        "vitest/no-interpolation-in-snapshots": "error",
+        "vitest/no-mocks-import": "error",
+        "vitest/no-standalone-expect": "error",
+        "vitest/require-local-test-context-for-concurrent-snapshots": "error",
+        "vitest/require-to-throw-message": "off",
+        "vitest/valid-describe-callback": "error",
+        "vitest/valid-expect": "error",
+        "vitest/valid-title": "error",
+        "vitest/warn-todo": "off"
+      }
+    },
+    {
+      "files": ["scripts/**/*.ts"],
+      "rules": {
+        "no-await-in-loop": "off",
+        "s3/no-hardcoded-images": "off",
+        "typescript/no-explicit-any": "off"
+      }
+    },
+    {
+      "files": ["src/app/api/og/**/*.{ts,tsx}", "src/lib/og-image/**/*.tsx"],
+      "rules": {
+        "nextjs/no-img-element": "off"
+      }
+    },
+    {
+      "files": ["src/lib/utils/sanitize.ts"],
+      "rules": {
+        "no-control-regex": "off"
+      }
+    },
+    {
+      "files": ["*.config.ts", "config/**/*.ts", "src/instrumentation*.ts"],
+      "rules": {
+        "no-use-before-define": "off",
+        "s3/no-hardcoded-images": "off",
+        "typescript/no-explicit-any": "off"
+      }
+    },
+    {
+      "files": ["config/vitest/**/*.{ts,js}"],
+      "globals": {
+        "vi": "readonly",
+        "vitest": "readonly"
+      },
+      "rules": {
+        "no-undef": "off"
+      }
+    },
+    {
+      "files": ["src/hooks/use-clerk-safe.client.ts"],
+      "rules": {
+        "react/rules-of-hooks": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "**/.next/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/out/**",
+    "**/*.d.ts",
+    "**/*.mdx",
+    "next-env.d.ts",
+    "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
+    ".husky/**",
+    "public/**",
+    "coverage/**"
+  ]
+}

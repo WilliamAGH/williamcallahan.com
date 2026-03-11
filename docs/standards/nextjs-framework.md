@@ -439,7 +439,7 @@ Think of Cache Components as **inverting the default**:
 | Metadata     | Use React 19 head primitives; server metadata builders must `await` params ids.                  |
 | Data Caching | Import `{ cacheLife, cacheTag }` from `next/cache` with stable names.                            |
 | Images       | Configure `images.maximumRedirects` deliberately when deviating from the default (3).            |
-| Tests        | Reference `vitest.config.ts` and Vitest APIs directly; document any mock shims.                  |
+| Tests        | Reference `config/vitest.config.ts` and Vitest APIs directly; document any mock shims.           |
 | Tooling      | Run `bun run validate` plus at least one MCP doc fetch + node_modules citation per task.         |
 
 ## Outlawed Patterns ()

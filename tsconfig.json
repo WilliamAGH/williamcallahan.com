@@ -57,7 +57,6 @@
     "src/app/**/*",
     "src/lib/**/*",
     "src/types/**/*",
-    "eslint.config.ts",
     "src/instrumentation.ts",
     ".next/dev/types/**/*.ts",
     ".next/dev/dev/types/**/*.ts"

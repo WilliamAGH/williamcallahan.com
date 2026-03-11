@@ -4,7 +4,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const rootDir = dirname(fileURLToPath(import.meta.url));
+const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],

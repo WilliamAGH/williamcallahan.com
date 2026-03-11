@@ -62,13 +62,10 @@
   "overrides": [
     {
       "includes": [
-        "eslint.config.ts",
-        "eslint.config.js",
         "*.config.{js,ts,mjs,cjs}",
+        "config/*.config.{js,ts,mjs,cjs}",
         "next.config.*",
-        "postcss.config.*",
-        "tailwind.config.*",
-        "stylelint.config.*"
+        "postcss.config.*"
       ],
       "linter": {
         "rules": {
