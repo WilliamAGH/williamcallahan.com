@@ -99,13 +99,18 @@ export const cacheContextGuards = {
   }),
 };
 
+/** Cache profile TTL boundaries (seconds) */
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 3600;
+const SECONDS_PER_DAY = 86400;
+
 /**
  * Maps TTL seconds to Next.js cache profiles
  */
 export function getCacheProfile(ttlSeconds: number): CacheDurationProfile {
-  if (ttlSeconds <= 60) return "minutes";
-  if (ttlSeconds <= 3600) return "hours";
-  if (ttlSeconds <= 86400) return "days";
+  if (ttlSeconds <= SECONDS_PER_MINUTE) return "minutes";
+  if (ttlSeconds <= SECONDS_PER_HOUR) return "hours";
+  if (ttlSeconds <= SECONDS_PER_DAY) return "days";
   return "weeks";
 }
 

@@ -13,6 +13,19 @@ import type {
   CreateResultParams,
 } from "@/types/seo";
 
+/** Truncation strategy thresholds */
+const LIGHT_OVERAGE_RATIO = 0.3;
+const MEDIUM_OVERAGE_RATIO = 0.7;
+
+/** Separator-based truncation minimum available chars */
+const MIN_AVAILABLE_MAIN_CHARS = 10;
+
+/** Duplicate display limit */
+const MAX_DISPLAYED_DUPLICATES = 10;
+
+/** Part count for separator split */
+const SEPARATOR_PART_COUNT = 2;
+
 /**
  * Unicode-safe string operations using Intl.Segmenter
  * Handles emojis, combining characters, and international text correctly
@@ -195,12 +208,12 @@ export function gradientTruncate(
     // Hard limit exceeded - must truncate
     truncated = hardTruncate(safeString, hardLimit, options);
     method = "hard";
-  } else if (overageRatio < 0.3) {
+  } else if (overageRatio < LIGHT_OVERAGE_RATIO) {
     // Light truncation (0-30% over)
     const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
     truncated = lightTruncate(safeString, options) ?? hardTruncatedResult;
     method = truncated === hardTruncatedResult ? "hard" : "filler-word";
-  } else if (overageRatio < 0.7) {
+  } else if (overageRatio < MEDIUM_OVERAGE_RATIO) {
     // Medium truncation (30-70% over)
     const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
     truncated = mediumTruncate(safeString, options) ?? hardTruncatedResult;
@@ -253,14 +266,14 @@ function mediumTruncate(text: SafeString, options: TruncationOptions): string | 
   // Handle separator-based content (e.g., "Title | Site Name")
   if (options.preserveSeparator && result.includes(options.preserveSeparator)) {
     const parts = result.split(options.preserveSeparator);
-    if (parts.length === 2) {
+    if (parts.length === SEPARATOR_PART_COUNT) {
       const [main, suffix] = parts;
       if (main && suffix) {
         const suffixWithSep = `${options.preserveSeparator}${suffix}`;
         const ellipsis = options.ellipsis || "...";
         const availableForMain = options.softLimit - suffixWithSep.length - ellipsis.length;
 
-        if (availableForMain > 10) {
+        if (availableForMain > MIN_AVAILABLE_MAIN_CHARS) {
           const truncatedMain = new SafeString(main.trim()).slice(0, availableForMain);
           return `${truncatedMain}${ellipsis}${suffixWithSep}`;
         }

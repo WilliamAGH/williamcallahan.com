@@ -10,6 +10,19 @@ import { metadata } from "@/data/metadata";
 import type { OGImageValidation, OGImage, OGMetadata } from "../../types/seo/validation";
 import { FIXED_BUILD_TIMESTAMP } from "@/lib/utils";
 
+/** OG image dimension constraints (pixels) */
+const TWITTER_MIN_DIMENSION = 144;
+const TWITTER_RECOMMENDED_WIDTH = 300;
+const TWITTER_RECOMMENDED_HEIGHT = 157;
+const OG_OPTIMAL_WIDTH = 1200;
+const OG_OPTIMAL_HEIGHT = 630;
+const OG_ASPECT_RATIO_MIN = 1.85;
+const OG_ASPECT_RATIO_MAX = 2.1;
+
+/** OG text length limits */
+const OG_TITLE_MAX_LENGTH = 60;
+const OG_DESCRIPTION_MAX_LENGTH = 160;
+
 /**
  * Validates an OpenGraph image URL according to platform requirements
  * @param imageUrl - The image URL to validate
@@ -45,23 +58,23 @@ export function validateOGImage(
   // Validate dimensions
   if (width && height) {
     // Twitter minimum requirements
-    if (width < 144 || height < 144) {
+    if (width < TWITTER_MIN_DIMENSION || height < TWITTER_MIN_DIMENSION) {
       errors.push("Image dimensions are too small (minimum 144x144 pixels)");
     }
 
     // Recommended dimensions for Twitter Cards
-    if (width < 300 || height < 157) {
+    if (width < TWITTER_RECOMMENDED_WIDTH || height < TWITTER_RECOMMENDED_HEIGHT) {
       warnings.push("Image dimensions are below Twitter Cards recommendation (300x157 minimum)");
     }
 
     // Optimal dimensions
-    if (width < 1200 || height < 630) {
+    if (width < OG_OPTIMAL_WIDTH || height < OG_OPTIMAL_HEIGHT) {
       recommendations.push("Consider using larger images (1200x630) for better display quality");
     }
 
     // Check aspect ratio
     const aspectRatio = width / height;
-    if (aspectRatio < 1.85 || aspectRatio > 2.1) {
+    if (aspectRatio < OG_ASPECT_RATIO_MIN || aspectRatio > OG_ASPECT_RATIO_MAX) {
       warnings.push("Image aspect ratio should be close to 1.91:1 for optimal display");
     }
   } else {
@@ -105,13 +118,13 @@ export function validateOpenGraphMetadata(ogData: OGMetadata): OGImageValidation
   // Required properties
   if (!ogData.title) {
     errors.push("OpenGraph title is required");
-  } else if (ogData.title.length > 60) {
+  } else if (ogData.title.length > OG_TITLE_MAX_LENGTH) {
     warnings.push("OpenGraph title is longer than recommended 60 characters");
   }
 
   if (!ogData.description) {
     errors.push("OpenGraph description is required");
-  } else if (ogData.description.length > 160) {
+  } else if (ogData.description.length > OG_DESCRIPTION_MAX_LENGTH) {
     warnings.push("OpenGraph description is longer than recommended 160 characters");
   }
 

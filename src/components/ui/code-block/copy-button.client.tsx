@@ -13,6 +13,9 @@ import { useState } from "react";
 import type { CopyButtonExtendedProps as CopyButtonProps } from "@/types/ui/code-block";
 import { cn } from "../../../lib/utils";
 
+/** Maximum line count for centering the copy button vertically */
+const SHORT_CODE_MAX_LINES = 3;
+
 /**
  * A button component that copies content to clipboard with visual feedback
  * @component
@@ -45,7 +48,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
   const lineCount = content.split("\n").length;
 
   // Determine positioning based on line count
-  const isShortCode = lineCount <= 3;
+  const isShortCode = lineCount <= SHORT_CODE_MAX_LINES;
   const rightPosition = parentIsPadded ? "right-6" : "right-2";
   const verticalPosition = isShortCode
     ? "top-1/2 -translate-y-1/2" // Centered for 3 or fewer lines
