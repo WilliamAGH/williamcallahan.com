@@ -78,6 +78,42 @@ export function filterRecentlyAdded(
     .map((row) => row.bookmark);
 }
 
+export function dedupeDiscoverSections(
+  recentBookmarks: ReadonlyArray<ScoredBookmark["bookmark"]>,
+  rankedSections: ReadonlyArray<TopicSection>,
+): { recentBookmarks: ScoredBookmark["bookmark"][]; rankedSections: TopicSection[] } {
+  const seenBookmarkIds = new Set<string>();
+  const dedupedRecentBookmarks = recentBookmarks.filter((bookmark) => {
+    if (seenBookmarkIds.has(bookmark.id)) {
+      return false;
+    }
+    seenBookmarkIds.add(bookmark.id);
+    return true;
+  });
+
+  const dedupedRankedSections = rankedSections
+    .map((section) => {
+      const dedupedBookmarks = section.bookmarks.filter((bookmark) => {
+        if (seenBookmarkIds.has(bookmark.id)) {
+          return false;
+        }
+        seenBookmarkIds.add(bookmark.id);
+        return true;
+      });
+      return {
+        ...section,
+        totalCount: dedupedBookmarks.length,
+        bookmarks: dedupedBookmarks,
+      };
+    })
+    .filter((section) => section.bookmarks.length > 0);
+
+  return {
+    recentBookmarks: dedupedRecentBookmarks,
+    rankedSections: dedupedRankedSections,
+  };
+}
+
 async function loadEngagementMap(): Promise<Map<string, number>> {
   const rows = await db
     .select({
@@ -219,9 +255,10 @@ export async function getDiscoveryGroupedBookmarks(
   }
 
   const recentBookmarks = filterRecentlyAdded(scored, { days: RECENT_DAYS, limit: RECENT_LIMIT });
-  const totalSections = rankedSections.length;
+  const dedupedDiscoverData = dedupeDiscoverSections(recentBookmarks, rankedSections);
+  const totalSections = dedupedDiscoverData.rankedSections.length;
   const offset = (sectionPage - 1) * sectionsPerPage;
-  const pagedSections = rankedSections.slice(offset, offset + sectionsPerPage);
+  const pagedSections = dedupedDiscoverData.rankedSections.slice(offset, offset + sectionsPerPage);
   const hasNextSectionPage = offset + sectionsPerPage < totalSections;
 
   const internalHrefs: Record<string, string> = {};
@@ -229,7 +266,9 @@ export async function getDiscoveryGroupedBookmarks(
 
   return {
     recentlyAdded:
-      sectionPage === 1 ? recentBookmarks.map((bookmark) => serializeWithHref(bookmark)) : [],
+      sectionPage === 1
+        ? dedupedDiscoverData.recentBookmarks.map((bookmark) => serializeWithHref(bookmark))
+        : [],
     topicSections: pagedSections.map((section) => ({
       tagSlug: section.tagSlug,
       tagName: section.tagName,
