@@ -34,15 +34,28 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [CC1b] DRY: remove duplication; single sources of truth; extract shared logic; if code is repeated, refactor to one source
 - [CC1c] YAGNI: no speculative code; no dead code; solve today's problem only; new abstractions must earn reuse by removing real duplication
 - [CC1d] Clean Architecture: dependencies point inward; domain logic must not import from UI/framework layers; contract: `docs/standards/code-change.md`
+- [CC1e] Tracer bullet: build one tiny end-to-end slice through all layers first; validate it works; then expand — never build horizontal layers in isolation
+
+### [SS1] Single Semantic Owner (Blocking)
+
+- [SS1a] One semantic owner only: for any governed concept, exactly one file/module may define its field inventory, names, allowed keys, dependency graph, or behavior selection
+- [SS1b] No mirror owners anywhere: tests, fixtures, docs, examples, generators, hooks, components, route helpers, and schemas are NOT exempt; they must bind/import/project the canonical owner instead of restating it
+- [SS1c] Projection rule: every non-canonical location may only project the canonical owner with identical governed names; renaming governed fields in projections is prohibited
+- [SS1d] No alias surfaces: plural/singular variants, compatibility aliases, label-as-identifier flows, alternate display-name identifiers, and convenience transport names for a governed concept are prohibited
+- [SS1e] Canonical-key parity: catalog-backed request/query/schema fields MUST use the exact canonical key name; transport aliases and convenience plurals are prohibited
+- [SS1f] Stop-work trigger: if an implementation requires listing the same governed fields/keys/rules in a second place, stop and redesign before editing
+- [SS1g] No positional-null constructor sludge: constructor/factory calls with repeated placeholder nulls or low-legibility optional argument trains are prohibited; use named factories/builders, parameter objects, or bind/import the canonical owner
+- [SS1h] If a file "knows the whole list" of a governed concept and it is not the canonical owner, the design is presumed wrong and must be reduced or removed
 
 ### [MO1] Modularity & SRP
 
 - [MO1a] No monoliths: avoid multi-concern files and catch-all modules
-- [MO1b] New work starts in new files (New feature -> New file); when touching a monolith (Bug fix -> Edit existing), extract at least one seam
+- [MO1b] New work starts in new files (New feature -> New file); deliver one vertical slice end-to-end before adding the next; when touching a monolith (Bug fix -> Edit existing), extract at least one seam
 - [MO1c] If safe extraction impossible, halt and ask
 - [MO1d] Strict SRP: each unit serves one actor; separate logic that changes for different reasons
 - [MO1e] Boundary rule: cross-module interaction happens only through explicit, typed contracts; don't mix web/use-case/domain/persistence concerns in one unit
 - [MO1f] Extension (OCP): Add functionality via new classes/composition; do not modify stable code to add features; contract: `docs/standards/code-change.md`
+- [MO1g] One canonical type per domain concept: never overload files with unrelated types/schemas/interfaces; split by domain concept, not by convenience
 
 ---
 
@@ -60,6 +73,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [GT1f] If an unexpected file is staged or modified by hooks, pause and show the diff; do not attempt to "fix" it unprompted.
 - [GT1g] **No Panic About Working State**: Do not comment on or halt for unrelated uncommitted changes. Keep working on the requested task and do not bring up the git working state unless the user explicitly asks.
 - [GT1h] **No Halts For Unrelated Changes**: Never stop or pause work because you noticed unexpected or unrelated file changes; continue the task unless the user explicitly asks you to investigate.
+- [GT1i] **Repository-Local Writes Only**: NEVER commit or push to this repository from a temporary clone, alternate checkout/worktree, or any other directory copy of the same repo. All git writes must be executed from this exact working tree.
 
 ### [LC1] Line Count Ceiling (Blocking)
 
@@ -74,6 +88,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [RC1b] No error swallowing: no empty catch blocks, no catch-and-ignore, no silent `try/catch` that hides failures
 - [RC1c] Investigate -> understand -> fix; no workarounds/shims/compat layers (fix at source or halt)
 - [RC1d] One real implementation: no shadow implementations behind flags to "hedge"; contract: `docs/standards/code-change.md`
+- [RC1e] BANNED slop indirection: no `*Adapter`, `*Transformer`, `*Normalizer`, `*Bridge`, `*Converter`, `*Mapper`, `*Compatibility`, `*Transition` modules that exist solely to reshape data between equivalent types; fix the type mismatch at source
 
 ### [TS1] Type Safety & Validation (Blocking)
 
@@ -152,7 +167,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [IMG1a] CDN URLs (s3-storage.callahan.cloud, \*.digitaloceanspaces.com) flow directly to `<Image>` for Next.js optimization; never wrap in `buildCachedImageUrl()` or proxy through `/api/cache/images`
 - [IMG1b] Only external URLs (third-party origins) use the image proxy for SSRF protection; these require `unoptimized` prop
 - [IMG1c] All `<Image>` components with remote sources must have a `sizes` prop for correct srcset generation
-- [IMG1d] Contract: `docs/architecture/image-handling.md` (Image Optimization Decision Matrix); lint enforced via `rules/ast-grep/no-cdn-image-proxy.yml`
+- [IMG1d] Contract: `docs/architecture/image-handling.md` (Image Optimization Decision Matrix)
 
 ---
 
@@ -166,6 +181,8 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [VR1d] Typecheck via `bun run type-check` (and `bun run type-check:tests` when relevant)
 - [VR1e] Format via `bun run format` and `bun run format:check`
 - [VR1f] Deployment readiness: use `bun run deploy:verify` and/or `bun run deploy:smoke-test`
+- [VR1g] Validate each slice: after completing an end-to-end slice ([CC1e]), run `bun run validate` before starting the next slice
+- [VR1h] Contract cleanup handoff must name the canonical owner, list each duplicate owner removed, prove that tests/fixtures now bind or import the canonical owner, and explicitly call out any remaining duplicate owner as a blocker
 
 ### [TST1] Testing Protocols
 

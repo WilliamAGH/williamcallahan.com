@@ -14,7 +14,7 @@ import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manage
 import { redirect } from "next/navigation";
 
 import type { DomainPageRedirectorProps } from "@/types/api";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 export default async function DomainPageRedirector({
   params,

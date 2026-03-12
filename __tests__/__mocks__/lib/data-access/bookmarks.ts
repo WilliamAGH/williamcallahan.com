@@ -1,7 +1,7 @@
 /**
  * Mock for @/lib/bookmarks/bookmarks-data-access.server
  *
- * This mock is used via Vitest alias in vitest.config.ts.
+ * This mock is used via Vitest alias in config/vitest.config.ts.
  * All exports from the real module must be present here.
  */
 import { vi } from "vitest";

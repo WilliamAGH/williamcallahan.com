@@ -6,18 +6,14 @@
 
 "use client";
 
-import type { CommandResult, TerminalSearchResult } from "@/types/terminal";
-import { searchResultsSchema, type SearchResult } from "@/types/search";
+import type { CommandResult, SelectionEntry } from "@/types/terminal";
+import { searchResultsSchema, type SearchResult } from "@/types/schemas/search";
 import { transformSearchResultToTerminalResult } from "@/lib/utils/search-helpers";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 
 // Factory function to create searchByScopeImpl
 function createSearchByScopeImpl() {
-  return async (
-    scope: string,
-    query: string,
-    signal?: AbortSignal,
-  ): Promise<TerminalSearchResult[]> => {
+  return async (scope: string, query: string, signal?: AbortSignal): Promise<SelectionEntry[]> => {
     try {
       const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, {
         signal,
@@ -27,19 +23,23 @@ function createSearchByScopeImpl() {
         // Return empty array instead of throwing to prevent terminal from breaking
         return [];
       }
-      const data: unknown = await response.json();
+      const searchApiResponse: unknown = await response.json();
 
       // Handle the different response format from scoped search API
       // The API returns { results: SearchResult[], meta: {...} }
       let searchResults: SearchResult[];
-      if (data && typeof data === "object" && "results" in data) {
+      if (
+        searchApiResponse &&
+        typeof searchApiResponse === "object" &&
+        "results" in searchApiResponse
+      ) {
         // Type guard for scoped search response
-        const typedData = data as { results: unknown; meta?: unknown };
+        const typedData = searchApiResponse as { results: unknown; meta?: unknown };
         // Parse the results array from the response object
         searchResults = searchResultsSchema.parse(typedData.results);
       } else {
         // Fallback: try parsing the data directly as an array
-        searchResults = searchResultsSchema.parse(data);
+        searchResults = searchResultsSchema.parse(searchApiResponse);
       }
 
       return searchResults.map(transformSearchResultToTerminalResult);
@@ -56,7 +56,7 @@ function createSearchByScopeImpl() {
 
 // Lazy-loaded search function - only loads when first search is performed
 let searchByScopeImpl:
-  | ((scope: string, query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>)
+  | ((scope: string, query: string, signal?: AbortSignal) => Promise<SelectionEntry[]>)
   | null = null;
 
 // Helper function to call the consolidated search API with lazy loading
@@ -64,7 +64,7 @@ async function searchByScope(
   scope: string,
   query: string,
   signal?: AbortSignal,
-): Promise<TerminalSearchResult[]> {
+): Promise<SelectionEntry[]> {
   // Lazy load the implementation on first use
   if (!searchByScopeImpl) {
     searchByScopeImpl = createSearchByScopeImpl();
@@ -75,7 +75,7 @@ async function searchByScope(
 
 // Factory function to create performSiteWideSearchImpl
 function createPerformSiteWideSearchImpl() {
-  return async (query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
+  return async (query: string, signal?: AbortSignal): Promise<SelectionEntry[]> => {
     try {
       const response = await fetch(`/api/search/all?q=${encodeURIComponent(query)}`, { signal });
       if (!response.ok) {
@@ -83,13 +83,13 @@ function createPerformSiteWideSearchImpl() {
         // Return empty array instead of throwing to prevent terminal from breaking
         return [];
       }
-      const data: unknown = await response.json();
+      const searchApiResponse: unknown = await response.json();
 
       // The site-wide search API may return either an array or
       // an object of shape { results: SearchResult[] }. Handle both.
-      const rawArray = Array.isArray(data)
-        ? data
-        : ((data as { results?: unknown[] })?.results ?? []);
+      const rawArray = Array.isArray(searchApiResponse)
+        ? searchApiResponse
+        : ((searchApiResponse as { results?: unknown[] })?.results ?? []);
 
       const searchResults: SearchResult[] = searchResultsSchema.parse(rawArray);
       return searchResults.map(transformSearchResultToTerminalResult);
@@ -106,14 +106,14 @@ function createPerformSiteWideSearchImpl() {
 
 // Lazy-loaded site-wide search function
 let performSiteWideSearchImpl:
-  | ((query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>)
+  | ((query: string, signal?: AbortSignal) => Promise<SelectionEntry[]>)
   | null = null;
 
 // Helper function to perform site-wide search with lazy loading
 async function performSiteWideSearch(
   query: string,
   signal?: AbortSignal,
-): Promise<TerminalSearchResult[]> {
+): Promise<SelectionEntry[]> {
   // Lazy load the implementation on first use
   if (!performSiteWideSearchImpl) {
     performSiteWideSearchImpl = createPerformSiteWideSearchImpl();

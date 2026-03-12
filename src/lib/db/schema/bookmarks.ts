@@ -4,7 +4,7 @@ import type {
   BookmarkAsset,
   BookmarkContent,
   BookmarkTag,
-  BookmarkLogoData,
+  BookmarkLogo,
 } from "@/types/schemas/bookmark";
 
 const tsvector = customType<{ data: string }>({
@@ -29,7 +29,7 @@ export const bookmarks = pgTable(
       .default(sql`'[]'::jsonb`),
     content: jsonb("content").$type<BookmarkContent | null>(),
     assets: jsonb("assets").$type<BookmarkAsset[] | null>(),
-    logoData: jsonb("logo_data").$type<BookmarkLogoData | null>(),
+    logoData: jsonb("logo_data").$type<BookmarkLogo | null>(),
     ogImage: text("og_image"),
     ogTitle: text("og_title"),
     ogDescription: text("og_description"),

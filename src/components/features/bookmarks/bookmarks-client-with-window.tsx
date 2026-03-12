@@ -14,7 +14,7 @@ import { BookmarksWindow } from "./bookmarks-window.client";
 // Alias BookmarksPaginatedClient as BookmarksClient for backwards compatibility with tests and type checks
 import { BookmarksPaginatedClient as BookmarksClient } from "./bookmarks-paginated.client";
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Loading state when bookmarks are fetching
 function BookmarksLoading() {

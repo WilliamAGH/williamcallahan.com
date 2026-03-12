@@ -8,10 +8,11 @@
 
 "use client";
 
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider, useClerk } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { ThemeProvider, useTheme } from "@/components/ui/theme/theme-provider.client";
 import { Suspense } from "react";
+import { ClerkSafeProvider, noOpClerk } from "@/hooks/use-clerk-safe.client";
 
 /**
  * Check if Clerk is configured (publishable key available)
@@ -29,7 +30,7 @@ function ThemedClerkProvider({ children }: { children: React.ReactNode }) {
 
   // Skip Clerk if not configured (missing publishable key)
   if (!isClerkConfigured) {
-    return <>{children}</>;
+    return <ClerkSafeProvider value={noOpClerk}>{children}</ClerkSafeProvider>;
   }
 
   return (
@@ -43,8 +44,22 @@ function ThemedClerkProvider({ children }: { children: React.ReactNode }) {
         },
       }}
     >
-      {children}
+      <ConfiguredClerkSafeProvider>{children}</ConfiguredClerkSafeProvider>
     </ClerkProvider>
+  );
+}
+
+function ConfiguredClerkSafeProvider({ children }: { children: React.ReactNode }) {
+  const clerk = useClerk();
+
+  return (
+    <ClerkSafeProvider
+      value={{
+        signOut: (options) => clerk.signOut(options),
+      }}
+    >
+      {children}
+    </ClerkSafeProvider>
   );
 }
 

@@ -19,7 +19,7 @@ import {
 } from "react";
 import type {
   WindowStateValue,
-  WindowInstanceInfo,
+  WindowInstance,
   GlobalWindowRegistryContextType,
   GlobalWindowRegistryProviderProps,
   RegisteredWindowState,
@@ -45,7 +45,7 @@ const NOOP_WINDOW_REGISTRY: GlobalWindowRegistryContextType = {
 
 // Define the provider component
 export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryProviderProps) => {
-  const [windows, setWindows] = useState<Record<string, WindowInstanceInfo>>({});
+  const [windows, setWindows] = useState<Record<string, WindowInstance>>({});
 
   const registerWindow = useCallback(
     (id: string, icon: LucideIcon, title: string, initialState: WindowStateValue = "normal") => {
@@ -100,7 +100,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   }, []);
 
   const getWindowState = useCallback(
-    (id: string): WindowInstanceInfo | undefined => {
+    (id: string): WindowInstance | undefined => {
       return windows[id];
     },
     [windows],

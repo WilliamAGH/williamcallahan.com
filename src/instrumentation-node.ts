@@ -39,9 +39,13 @@ export async function register(): Promise<void> {
     /* ignore failed EventEmitter tweak */
   }
 
-  // Global unhandled-rejection guard
+  // Global unhandled-rejection guard — also forward to Sentry so these
+  // surface as issues instead of disappearing into stdout logs.
   process.on("unhandledRejection", (reason: unknown) => {
     console.error("[Instrumentation] Unhandled Promise Rejection:", reason);
+    if (SentryModule) {
+      SentryModule.captureException(reason instanceof Error ? reason : new Error(String(reason)));
+    }
   });
 
   /** Sentry (Node) **/

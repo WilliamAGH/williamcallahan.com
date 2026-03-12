@@ -10,7 +10,7 @@ import { truncateText } from "@/lib/utils";
 import { OG_COLORS, OG_LAYOUT, OG_TYPOGRAPHY } from "../design-tokens";
 import type { OgBookLayoutProps } from "@/types/schemas/og-image";
 import { renderBranding } from "./shared-branding";
-import { renderPlaceholderCover } from "./shared-placeholder";
+import { renderOgImage, renderPlaceholderCover } from "./shared-placeholder";
 
 export function renderBookLayout({ title, author, coverDataUrl }: OgBookLayoutProps) {
   const displayTitle = truncateText(title, 60);
@@ -47,24 +47,21 @@ export function renderBookLayout({ title, author, coverDataUrl }: OgBookLayoutPr
             flexShrink: 0,
           }}
         >
-          {coverDataUrl ? (
-            <img
-              src={coverDataUrl}
-              alt=""
-              width={OG_LAYOUT.coverImageWidth}
-              height={OG_LAYOUT.coverImageHeight}
-              style={{
+          {coverDataUrl
+            ? renderOgImage({
+                src: coverDataUrl,
                 width: OG_LAYOUT.coverImageWidth,
                 height: OG_LAYOUT.coverImageHeight,
-                objectFit: "cover",
-                borderRadius: OG_LAYOUT.borderRadius,
-                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-              }}
-            />
-          ) : (
-            renderPlaceholderCover()
-          )}
+                style: {
+                  width: OG_LAYOUT.coverImageWidth,
+                  height: OG_LAYOUT.coverImageHeight,
+                  objectFit: "cover",
+                  borderRadius: OG_LAYOUT.borderRadius,
+                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                },
+              })
+            : renderPlaceholderCover()}
         </div>
 
         {/* Text content */}

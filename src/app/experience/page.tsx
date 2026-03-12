@@ -21,11 +21,8 @@ import { getLogoCdnData } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
-import type {
-  Experience as ExperienceType,
-  ProcessedExperienceItem,
-} from "@/types/schemas/experience";
-import type { LogoData } from "@/types/logo";
+import type { Experience as ExperienceType, ProcessedExperience } from "@/types/schemas/experience";
+import type { Logo } from "@/types/logo";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { mapWithBoundedConcurrency } from "@/lib/utils/async-lock";
 
@@ -78,7 +75,7 @@ export default async function ExperiencePage() {
   const experienceData = await mapWithBoundedConcurrency(
     experiences,
     EXPERIENCE_LOGO_BATCH_SIZE,
-    async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {
+    async (exp: ExperienceType): Promise<ProcessedExperience> => {
       const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
       const domain = hasOverrideDomain
         ? normalizeDomain(exp.logoOnlyDomain as string)
@@ -88,12 +85,12 @@ export default async function ExperiencePage() {
 
       try {
         if (!hasOverrideDomain && exp.logo) {
-          const staticLogoData: LogoData = { url: exp.logo, source: "static" };
+          const staticLogoData: Logo = { url: exp.logo, source: "static" };
           return { ...exp, logoData: staticLogoData };
         }
 
         if (!domain) {
-          const fallbackLogoData: LogoData = {
+          const fallbackLogoData: Logo = {
             url: exp.logo ?? getCompanyPlaceholder(),
             source: exp.logo ? "static" : null,
           };
@@ -102,7 +99,7 @@ export default async function ExperiencePage() {
 
         const manifestEntry = await getLogoFromManifestAsync(domain);
         if (manifestEntry?.cdnUrl) {
-          const manifestLogo: LogoData = {
+          const manifestLogo: Logo = {
             url: manifestEntry.cdnUrl,
             source: manifestEntry.originalSource,
           };
@@ -116,7 +113,7 @@ export default async function ExperiencePage() {
 
         const remoteOrStaticUrl = exp.logo ? exp.logo : getCompanyPlaceholder();
 
-        const resolvedLogoData: LogoData = {
+        const resolvedLogoData: Logo = {
           url: remoteOrStaticUrl,
           source: exp.logo ? "static" : null,
         };

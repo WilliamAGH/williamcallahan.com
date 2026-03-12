@@ -12,7 +12,7 @@ import {
   validateClassArray,
   validateEducationArray,
   validateCertificationArray,
-} from "@/types/education";
+} from "@/types/schemas/education";
 
 const recentCoursesData: Class[] = [
   // Stanford University — Priority

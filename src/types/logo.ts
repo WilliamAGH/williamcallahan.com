@@ -7,7 +7,7 @@
  *
  * === INCLUSION RULES ===
  * ✅ DO ADD:
- *   - Logo data models (e.g., LogoData, CompanyData)
+ *   - Logo data models (e.g., Logo, CompanyData)
  *   - API response types for logo services
  *   - Enums for logo-related states (e.g., LogoSource)
  *
@@ -54,7 +54,7 @@ export interface LogoSourcesConfig {
   readonly direct: DirectLogoSourceFunctions;
 }
 
-export interface LogoData {
+export interface Logo {
   url: string;
   source: string | null;
   needsInversion?: boolean;
@@ -173,7 +173,7 @@ export interface BlockedDomain {
 /**
  * Logo debug information for troubleshooting fetch operations
  */
-export interface LogoDebugInfo {
+export interface LogoDebugDetail {
   domain: string;
   timestamp: number;
   attempts: {

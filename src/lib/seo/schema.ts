@@ -26,19 +26,19 @@
 
 import { SITE_NAME, metadata } from "@/data/metadata";
 import type {
-  ArticleSchema,
-  BreadcrumbListSchema,
-  CollectionPageSchema,
-  DatasetSchema,
-  ImageObjectSchema,
-  NewsArticleSchema,
-  PersonSchema,
-  ProfilePageSchema,
+  ArticleEntity,
+  BreadcrumbListEntity,
+  CollectionPageEntity,
+  DatasetEntity,
+  ImageObjectEntity,
+  NewsArticleEntity,
+  PersonEntity,
+  ProfilePageEntity,
   SchemaGraph,
   SchemaParams,
-  SoftwareApplicationSchema,
+  SoftwareApplicationEntity,
   WebPageBase,
-  WebSiteSchema,
+  WebSiteEntity,
 } from "../../types/seo/schema";
 import { ensureAbsoluteUrl } from "./url-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
@@ -54,7 +54,7 @@ function createIdUrl(path: string, fragment?: string): string {
 /**
  * Creates the Person entity representing the website owner
  */
-function createPersonEntity(): PersonSchema {
+function createPersonEntity(): PersonEntity {
   return {
     "@type": "Person",
     "@id": createIdUrl("/", "person"),
@@ -69,7 +69,7 @@ function createPersonEntity(): PersonSchema {
 /**
  * Creates the Website entity
  */
-function createWebSiteEntity(): WebSiteSchema {
+function createWebSiteEntity(): WebSiteEntity {
   return {
     "@type": "WebSite",
     "@id": createIdUrl("/", "website"),
@@ -91,7 +91,7 @@ function createImageEntity(
   caption: string,
   width?: number,
   height?: number,
-): ImageObjectSchema {
+): ImageObjectEntity {
   const absoluteUrl = ensureAbsoluteUrl(imageUrl);
   return {
     "@type": "ImageObject",
@@ -110,7 +110,7 @@ function createImageEntity(
 function createBreadcrumbListEntity(
   path: string,
   breadcrumbs: Array<{ path: string; name: string }>,
-): BreadcrumbListSchema {
+): BreadcrumbListEntity {
   return {
     "@type": "BreadcrumbList",
     "@id": createIdUrl(path, "breadcrumb"),
@@ -158,7 +158,7 @@ function createWebPageEntity(params: SchemaParams): WebPageBase {
 /**
  * Creates an Article entity for blog posts
  */
-function createArticleEntity(params: SchemaParams): ArticleSchema {
+function createArticleEntity(params: SchemaParams): ArticleEntity {
   if (!params.articleBody) {
     throw new Error("Article body is required for article schema");
   }
@@ -186,7 +186,7 @@ function createArticleEntity(params: SchemaParams): ArticleSchema {
 /**
  * Creates a Dataset entity for investment data
  */
-function createDatasetEntity(params: SchemaParams): DatasetSchema {
+function createDatasetEntity(params: SchemaParams): DatasetEntity {
   return {
     "@type": "Dataset",
     "@id": createIdUrl(params.path, "dataset"),
@@ -210,7 +210,7 @@ function createDatasetEntity(params: SchemaParams): DatasetSchema {
 function createCollectionPageEntity(
   params: SchemaParams,
   items: Array<{ url: string; position: number }>,
-): CollectionPageSchema {
+): CollectionPageEntity {
   return {
     "@type": "CollectionPage",
     "@id": createIdUrl(params.path, "collection"),
@@ -234,7 +234,7 @@ function createCollectionPageEntity(
 /**
  * Creates a ProfilePage entity for personal profile pages
  */
-function createProfilePageEntity(params: SchemaParams): ProfilePageSchema {
+function createProfilePageEntity(params: SchemaParams): ProfilePageEntity {
   // Get profile-specific metadata if available
   const profileMetadata = params.profileMetadata || {};
 
@@ -294,7 +294,7 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageSchema {
 /**
  * Creates a NewsArticle entity for news-style blog posts
  */
-function createNewsArticleEntity(params: SchemaParams): NewsArticleSchema {
+function createNewsArticleEntity(params: SchemaParams): NewsArticleEntity {
   // Create array of images
   const images =
     params.images ||
@@ -332,7 +332,7 @@ function createNewsArticleEntity(params: SchemaParams): NewsArticleSchema {
 /**
  * Creates a SoftwareApplication entity for software and extensions
  */
-function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicationSchema {
+function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicationEntity {
   if (!params.softwareMetadata) {
     throw new Error("Software metadata is required for SoftwareApplication schema");
   }
@@ -340,7 +340,7 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
   const softwareMetadata = params.softwareMetadata;
 
   // Create base schema
-  const schema: SoftwareApplicationSchema = {
+  const schema: SoftwareApplicationEntity = {
     "@type": "SoftwareApplication",
     "@id": createIdUrl(params.path, "software"),
     name: softwareMetadata.name,
@@ -421,7 +421,7 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
  * If params.softwareMetadata is provided we treat the bookmark as software; otherwise we fall back
  * to an Article (CreativeWork) to satisfy Google rich-result requirements.
  */
-function createBookmarkItemEntity(params: SchemaParams): ArticleSchema | SoftwareApplicationSchema {
+function createBookmarkItemEntity(params: SchemaParams): ArticleEntity | SoftwareApplicationEntity {
   if (params.softwareMetadata) {
     return createSoftwareApplicationEntity(params);
   }
@@ -452,7 +452,7 @@ function createBookmarkItemEntity(params: SchemaParams): ArticleSchema | Softwar
 function createBookmarkCollectionEntity(
   params: SchemaParams,
   items: Array<{ url: string; position: number }>,
-): CollectionPageSchema {
+): CollectionPageEntity {
   return createCollectionPageEntity(params, items);
 }
 

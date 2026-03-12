@@ -10,7 +10,9 @@ coverImage: "/images/posts/jules-ai.png"
 ---
 
 <BackgroundInfo title="Jules overview">
-Jules is Google's autonomous coding service released during Google I/O 2025. It runs on managed Google Cloud VMs, connects to GitHub repositories, and executes tasks asynchronously. Jobs run until completion and return a diff, plan, and reasoning trace.
+  Jules is Google's autonomous coding service released during Google I/O 2025. It runs on managed
+  Google Cloud VMs, connects to GitHub repositories, and executes tasks asynchronously. Jobs run
+  until completion and return a diff, plan, and reasoning trace.
 </BackgroundInfo>
 
 # Google's Jules: An Autonomous & Asynchronous Coding Agent
@@ -39,12 +41,12 @@ The agent does not currently support self-hosted runners or on-prem repositories
 
 ## Default tools
 
-| Area | Default behavior |
-| --- | --- |
-| Runtime | Node.js 22, Python 3.12, Java 21 images available. |
-| Package managers | npm is detected automatically; pnpm, Bun, or Yarn require manual configuration. |
-| Auth | Environment variables defined in the configuration UI are injected before the setup script runs. |
-| Output | Each task produces a diff, plan summary, and optional audio recap. |
+| Area             | Default behavior                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| Runtime          | Node.js 22, Python 3.12, Java 21 images available.                                               |
+| Package managers | npm is detected automatically; pnpm, Bun, or Yarn require manual configuration.                  |
+| Auth             | Environment variables defined in the configuration UI are injected before the setup script runs. |
+| Output           | Each task produces a diff, plan summary, and optional audio recap.                               |
 
 ## Custom package manager setup
 
@@ -100,13 +102,12 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 bun install
 ```
 
-
 These scripts:
+
 - Install NVM (Node Version Manager)
 - Set up Node.js 22 (latest stable)
 - Install the latest version of your chosen package manager
 - Install project dependencies with frozen lockfiles
-
 
 <TweetEmbed url="https://x.com/leerob/status/1925228425301893481" />
 

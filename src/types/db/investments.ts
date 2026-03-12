@@ -1,5 +1,5 @@
 /** Row shape for investment embedding backfill queries. */
-export interface InvestmentEmbeddingRow {
+export interface InvestmentEmbeddingSelect {
   id: string;
   name: string;
   description: string;

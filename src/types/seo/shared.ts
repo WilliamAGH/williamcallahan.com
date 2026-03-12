@@ -51,9 +51,12 @@ export function isArticleDates(dates: unknown): dates is ArticleDates {
     return false;
   }
 
-  // Check if properties exist and are strings before calling isPacificDateString
-  // Use type assertion to Record<string, unknown> for safe property access
-  const dateObj = dates as Record<string, unknown>;
+  // Use narrowed type with the specific fields we need to check
+  const dateObj = dates as {
+    datePublished?: unknown;
+    dateModified?: unknown;
+    dateCreated?: unknown;
+  };
 
   const hasValidPublished =
     typeof dateObj.datePublished === "string" && isPacificDateString(dateObj.datePublished);

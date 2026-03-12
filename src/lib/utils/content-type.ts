@@ -65,7 +65,9 @@ export function detectImageContentType(buffer: Buffer): string {
   }
 
   // Check for other common image signatures
-  if (buffer.length >= 8) {
+  const MIN_HEADER_SIZE = 8;
+  const MIN_WEBP_HEADER_SIZE = 12;
+  if (buffer.length >= MIN_HEADER_SIZE) {
     const header = buffer.toString("hex", 0, 8).toUpperCase();
 
     // PNG signature: 89 50 4E 47 0D 0A 1A 0A
@@ -78,7 +80,7 @@ export function detectImageContentType(buffer: Buffer): string {
     if (header.startsWith("47494638")) return "image/gif";
 
     // WebP signature: RIFF....WEBP
-    if (buffer.length >= 12) {
+    if (buffer.length >= MIN_WEBP_HEADER_SIZE) {
       const riff = buffer.toString("ascii", 0, 4);
       const webp = buffer.toString("ascii", 8, 12);
       if (riff === "RIFF" && webp === "WEBP") return "image/webp";

@@ -14,12 +14,12 @@ tags:
     "refactoring",
     "java",
     "api design",
-    "boundaries"
+    "boundaries",
   ]
 coverImage: "/images/posts/clean-software-architecture-boundaries.png"
 ---
 
-I've been writing code with hygiene and type safety in mind for a while now (or at least trying to). Every function gets explicit return types (even in languages where it's not required), objects get validated, repository methods get tested. But I've noticed I'm not quite strict enough about the *other* boundaries.
+I've been writing code with hygiene and type safety in mind for a while now (or at least trying to). Every function gets explicit return types (even in languages where it's not required), objects get validated, repository methods get tested. But I've noticed I'm not quite strict enough about the _other_ boundaries.
 
 Principles of _modularity_ (e.g., in the 'lego blocks' or 'IKEA furniture' sense) and _abstraction_ always came more naturally to me, but for whatever reason the principles of clean _encapsulation_ and _inheritance_ (other pillars of Object-Oriented Programming) and their boundaries were less intuitive to me, so I find I have to pause and reflect a bit more about them to ensure they are well defined and enforced.
 
@@ -54,6 +54,7 @@ public ResponseEntity<Map<String, Object>> updatePersonDetail(
 I think it would have been better to have put the identifier resolution and slug normalization in a use-case layer, not in the HTTP adapter.
 
 **Potential improvements**
+
 - `resolveIdOrThrow()` → belongs in a `PersonIdentifierResolver` use-case service
 - `normalizeOptionalSlug()` → belongs in a `SlugNormalizationService` domain service
 - `body.put("slug", ...)` → should happen in the use-case layer, not the controller
@@ -78,6 +79,7 @@ public String create(Map<String, Object> request) {
 ```
 
 **Potential improvements**
+
 - `ControllerParameterUtils.normalizeSlugStrict()` → should use a domain `SlugNormalizer` instead
 - `SlugUtils.slugify()` → belongs in a `PersonNameSlugGenerator` domain service
 - `ensureUniqueSlug()` → belongs in a `UniqueSlugValidator` use-case service
@@ -89,13 +91,13 @@ _As mentioned, the 'elephant in the room' of a lot of these examples is that the
 
 A model for cleaner boundaries in the highest risk areas I found having their definitions conflated:
 
-| Layer | Knows About | Doesn't Know About | Key Question | Example from aVenture.vc |
-|-------|-------------|-------------------|--------------|--------------------------|
-| **Controller** | HTTP, JSON, request/response | Business rules, database | "What did the user request?" | `PeopleV1Controller` maps `POST /api/people` to `CreatePersonCommand` |
-| **Use Case** | Business flow, transaction boundaries | HTTP, SQL specifics | "What does this operation do?" | `CreatePersonUseCase` coordinates duplicate check, domain creation, persistence |
-| **Domain Service** | Business rules, domain logic | HTTP, persistence | "Is this valid by business rules?" | `DuplicateEmailChecker` validates email uniqueness against business rules |
-| **Repository** | Persistence, queries | Business logic, HTTP | "How do I store/retrieve this?" | `PersonRepository` saves/retrieves `Person` entities using JDBC/JPA |
-| **Domain Entity** | Its own invariants | Everything else | "Am I in a valid state?" | `Person` enforces required name/email and valid email format |
+| Layer              | Knows About                           | Doesn't Know About       | Key Question                       | Example from aVenture.vc                                                        |
+| ------------------ | ------------------------------------- | ------------------------ | ---------------------------------- | ------------------------------------------------------------------------------- |
+| **Controller**     | HTTP, JSON, request/response          | Business rules, database | "What did the user request?"       | `PeopleV1Controller` maps `POST /api/people` to `CreatePersonCommand`           |
+| **Use Case**       | Business flow, transaction boundaries | HTTP, SQL specifics      | "What does this operation do?"     | `CreatePersonUseCase` coordinates duplicate check, domain creation, persistence |
+| **Domain Service** | Business rules, domain logic          | HTTP, persistence        | "Is this valid by business rules?" | `DuplicateEmailChecker` validates email uniqueness against business rules       |
+| **Repository**     | Persistence, queries                  | Business logic, HTTP     | "How do I store/retrieve this?"    | `PersonRepository` saves/retrieves `Person` entities using JDBC/JPA             |
+| **Domain Entity**  | Its own invariants                    | Everything else          | "Am I in a valid state?"           | `Person` enforces required name/email and valid email format                    |
 
 Here are a few more examples of boundary violations I found:
 
@@ -149,12 +151,14 @@ public int update(String id, Map<String, Object> request) {
 ```
 
 **Potential improvements**
+
 - Controller should accept a typed `UpdatePersonRequest` DTO
 - Service should accept a `UpdatePersonCommand` use-case object
 - Repository should accept a `Person` domain entity
 - All three should share a single validation schema, not three separate Map key interpretations
 
 When I add a new field like `linkedinUrl`, I currently have to update:
+
 1. OpenAPI annotations in the controller
 2. Map key handling in the service
 3. Column mapping in the repository
@@ -164,7 +168,7 @@ When I add a new field like `linkedinUrl`, I currently have to update:
 
 ## So what went wrong, exactly?
 
-The issue truly was remembering the strict boundaries for each layer (knowing exactly where one ends and one should begin). You can't see it from this blog post, but there *were/are* a lot of clean boundaries in the codebase already, but the examples given were some of the worst 'all-in-one' files that I should have put strict boundaries on right out of the gate to prevent them from this level of scope creep.
+The issue truly was remembering the strict boundaries for each layer (knowing exactly where one ends and one should begin). You can't see it from this blog post, but there _were/are_ a lot of clean boundaries in the codebase already, but the examples given were some of the worst 'all-in-one' files that I should have put strict boundaries on right out of the gate to prevent them from this level of scope creep.
 
 This leads to a particular kind of technical debt that’s hard to spot early or measure objectively. It’s also the dominant style of code I've often seen online and from AI/LLMs. The code runs. Tests pass. The API responds. But the code is messy, hard to understand, and difficult to maintain.
 
@@ -210,6 +214,7 @@ private final ArchRule new_use_cases_follow_clean_architecture =
 ```
 
 This required adding `archunit.properties`:
+
 ```properties
 freeze.store.default.path=archunit_store
 freeze.allow.store.creation=true
@@ -258,6 +263,7 @@ public Map<String, Object> createPerson(Map<String, Object> request) {
 ```
 
 **The core problems:**
+
 - Business rules scattered across layers
 - No clear transaction boundaries
 - Hard to test individual business operations in isolation
@@ -317,6 +323,7 @@ public record CreatePersonCommand(
 ```
 
 **Benefits of this approach:**
+
 - Each use case is 20-50 lines of focused logic
 - Business rules are explicit and testable
 - Strong typing catches errors at compile time
@@ -365,18 +372,18 @@ This seems to eliminate a category of bugs where DTOs and domain models get out 
 
 ```markdown
 src/ [...]
-├── boot/                   # entry + typed config (in this example, for Spring Boot)
-├── domain/                 # Business types (minimal framework deps)
-│   ├── model/              # Value objects and aggregates
-│   ├── service/            # Domain rules and calculations
-│   └── port/               # Repository interfaces
-├── application/            # Use cases (transactional boundaries)
-│   ├── usecase/            # One class per business action
-│   └── dto/                # Input/output records for use cases
+├── boot/ # entry + typed config (in this example, for Spring Boot)
+├── domain/ # Business types (minimal framework deps)
+│ ├── model/ # Value objects and aggregates
+│ ├── service/ # Domain rules and calculations
+│ └── port/ # Repository interfaces
+├── application/ # Use cases (transactional boundaries)
+│ ├── usecase/ # One class per business action
+│ └── dto/ # Input/output records for use cases
 ├── adapters/
-│   ├── in/web/             # HTTP layer (controllers, DTOs, mappers)
-│   └── out/persistence/    # Database layer (repositories, entities)
-└── shared/                 # Cross-cutting utilities
+│ ├── in/web/ # HTTP layer (controllers, DTOs, mappers)
+│ └── out/persistence/ # Database layer (repositories, entities)
+└── shared/ # Cross-cutting utilities
 ```
 
 ---

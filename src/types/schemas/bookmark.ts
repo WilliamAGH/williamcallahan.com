@@ -118,7 +118,7 @@ export const logoDataSchema = z.object({
 });
 
 /** Bookmark logo display data (url, alt text, dimensions) — inferred from Zod schema. */
-export type BookmarkLogoData = z.infer<typeof logoDataSchema>;
+export type BookmarkLogo = z.infer<typeof logoDataSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UnifiedBookmark Schema (most comprehensive bookmark type)
@@ -265,29 +265,27 @@ export const bookmarkRefreshResponseSchema = z.object({
 });
 export type BookmarkRefreshResponse = z.infer<typeof bookmarkRefreshResponseSchema>;
 
-const discoverSerializableBookmarkSchema = z
-  .object({
-    id: z.string(),
-    slug: z.string().min(1),
-    title: z.string().min(1),
-    url: z.url(),
-    description: z.string(),
-    dateBookmarked: z.string(),
-    tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
-    isPrivate: z.boolean(),
-    isFavorite: z.boolean(),
-    ogImage: z.string().optional(),
-    ogImageExternal: z.string().optional(),
-    dateCreated: z.string().optional(),
-    content: bookmarkContentSchema.optional(),
-    logoData: logoDataSchema.nullable().optional(),
-    readingTime: z.number().int().min(0).optional(),
-    wordCount: z.number().int().min(0).optional(),
-    ogTitle: z.string().nullable().optional(),
-    ogDescription: z.string().nullable().optional(),
-    domain: z.string().optional(),
-  })
-  .passthrough();
+const discoverSerializableBookmarkSchema = z.object({
+  id: z.string(),
+  slug: z.string().min(1),
+  title: z.string().min(1),
+  url: z.url(),
+  description: z.string(),
+  dateBookmarked: z.string(),
+  tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
+  isPrivate: z.boolean(),
+  isFavorite: z.boolean(),
+  ogImage: z.string().optional(),
+  ogImageExternal: z.string().optional(),
+  dateCreated: z.string().optional(),
+  content: bookmarkContentSchema.optional(),
+  logoData: logoDataSchema.nullable().optional(),
+  readingTime: z.number().int().min(0).optional(),
+  wordCount: z.number().int().min(0).optional(),
+  ogTitle: z.string().nullable().optional(),
+  ogDescription: z.string().nullable().optional(),
+  domain: z.string().optional(),
+});
 
 const discoverPaginationSchema = z.object({
   sectionPage: z.number().int().min(1),

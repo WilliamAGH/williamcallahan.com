@@ -5,19 +5,20 @@ excerpt: "If your Spaces policy or access-log commands return 403, you’re prob
 publishedAt: "2025-07-20"
 updatedAt: "2026-02-05"
 author: "william-callahan"
-tags: [
-  "digitalocean",
-  "s3",
-  "object storage",
-  "aws-cli",
-  "s3cmd",
-  "devops",
-  "sysadmin",
-  "hosting",
-  "cdn",
-  "bucket policy",
-  "acl"
-]
+tags:
+  [
+    "digitalocean",
+    "s3",
+    "object storage",
+    "aws-cli",
+    "s3cmd",
+    "devops",
+    "sysadmin",
+    "hosting",
+    "cdn",
+    "bucket policy",
+    "acl",
+  ]
 coverImage: "/images/posts/digitalocean-spaces-s3-object-storage-policy-config.png"
 ---
 
@@ -27,7 +28,7 @@ This guide covers:
 - Why [limited (per-bucket) access keys](https://docs.digitalocean.com/products/spaces/how-to/manage-access/) cause `403 Forbidden` on bucket-level operations.
 - Two ways to make objects public by default: `--acl-public` via [`s3cmd`](https://docs.digitalocean.com/products/spaces/reference/s3cmd/) and a JSON [bucket policy](https://docs.digitalocean.com/products/spaces/how-to/manage-access/#bucket-policies).
 - How to enable [Spaces access logs](https://docs.digitalocean.com/products/spaces/how-to/configure-access-logs/) through the S3-compatible API.
-</BackgroundInfo>
+  </BackgroundInfo>
 
 DigitalOcean Spaces is S3-compatible, but not every S3 operation works with every kind of Spaces access key.
 

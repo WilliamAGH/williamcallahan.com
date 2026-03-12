@@ -43,7 +43,7 @@ export interface SoftwareSchemaProps {
  *
  * @see {@link "https://schema.org/SoftwareApplication"}
  */
-export interface SoftwareScriptSchema {
+export interface SoftwareScript {
   "@context": "https://schema.org";
   "@id": string;
   "@type": "SoftwareApplication";

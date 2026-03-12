@@ -12,6 +12,9 @@ import { ArrowRight } from "lucide-react";
 import { formatDate, cn } from "@/lib/utils";
 import type { ThoughtCardProps, ThoughtCardCategoryColor } from "@/types/features/thoughts";
 
+/** Maximum tags to display inline before showing "+N" overflow */
+const MAX_VISIBLE_TAGS = 2;
+
 /**
  * Default category colors (used for fallback)
  */
@@ -217,8 +220,9 @@ export function ThoughtCard({ thought, preload = false }: ThoughtCardProps) {
             <>
               <span className="text-zinc-300 dark:text-zinc-700">·</span>
               <span className="truncate max-w-[180px] text-zinc-400 dark:text-zinc-500">
-                {thought.tags.slice(0, 2).join(", ")}
-                {thought.tags.length > 2 && ` +${thought.tags.length - 2}`}
+                {thought.tags.slice(0, MAX_VISIBLE_TAGS).join(", ")}
+                {thought.tags.length > MAX_VISIBLE_TAGS &&
+                  ` +${thought.tags.length - MAX_VISIBLE_TAGS}`}
               </span>
             </>
           )}

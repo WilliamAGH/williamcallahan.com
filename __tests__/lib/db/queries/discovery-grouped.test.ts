@@ -1,7 +1,9 @@
+import { vi } from "vitest";
 import {
+  dedupeDiscoverSections,
   filterRecentlyAdded,
   groupByPrimaryTag,
-  type ScoredBookmarkRow,
+  type ScoredBookmark,
 } from "@/lib/db/queries/discovery-grouped";
 
 function makeScoredRow(
@@ -9,7 +11,7 @@ function makeScoredRow(
   primaryTag: { slug: string; name: string } | null,
   discoveryScore: number,
   dateBookmarked: string,
-): ScoredBookmarkRow {
+): ScoredBookmark {
   return {
     bookmark: {
       id,
@@ -28,7 +30,7 @@ function makeScoredRow(
 
 describe("groupByPrimaryTag", () => {
   it("groups rows by canonical tag and sorts by top score", () => {
-    const rows: ScoredBookmarkRow[] = [
+    const rows: ScoredBookmark[] = [
       makeScoredRow("1", { slug: "ai", name: "AI" }, 0.95, "2026-02-27T00:00:00Z"),
       makeScoredRow("2", { slug: "ai", name: "AI" }, 0.8, "2026-02-26T00:00:00Z"),
       makeScoredRow(
@@ -57,7 +59,7 @@ describe("groupByPrimaryTag", () => {
   });
 
   it("excludes rows with no primary tag", () => {
-    const rows: ScoredBookmarkRow[] = [
+    const rows: ScoredBookmark[] = [
       makeScoredRow("1", null, 0.99, "2026-02-27T00:00:00Z"),
       makeScoredRow("2", { slug: "ai", name: "AI" }, 0.8, "2026-02-27T00:00:00Z"),
       makeScoredRow("3", { slug: "ai", name: "AI" }, 0.7, "2026-02-26T00:00:00Z"),
@@ -70,7 +72,7 @@ describe("groupByPrimaryTag", () => {
   });
 
   it("caps section bookmarks at perSection", () => {
-    const rows: ScoredBookmarkRow[] = Array.from({ length: 10 }, (_, i) =>
+    const rows: ScoredBookmark[] = Array.from({ length: 10 }, (_, i) =>
       makeScoredRow(
         String(i),
         { slug: "ai", name: "AI" },
@@ -91,7 +93,7 @@ describe("filterRecentlyAdded", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-02-27T12:00:00Z"));
 
-    const rows: ScoredBookmarkRow[] = [
+    const rows: ScoredBookmark[] = [
       makeScoredRow("new1", { slug: "ai", name: "AI" }, 0.95, "2026-02-25T00:00:00Z"),
       makeScoredRow(
         "new2",
@@ -115,7 +117,7 @@ describe("filterRecentlyAdded", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-02-27T12:00:00Z"));
 
-    const rows: ScoredBookmarkRow[] = Array.from({ length: 10 }, (_, i) =>
+    const rows: ScoredBookmark[] = Array.from({ length: 10 }, (_, i) =>
       makeScoredRow(String(i), { slug: "ai", name: "AI" }, 0.9 - i * 0.01, "2026-02-26T00:00:00Z"),
     );
 
@@ -124,5 +126,59 @@ describe("filterRecentlyAdded", () => {
     expect(result).toHaveLength(3);
 
     vi.useRealTimers();
+  });
+});
+
+describe("dedupeDiscoverSections", () => {
+  it("keeps the first occurrence based on discover rendering order", () => {
+    const bookmarkA = makeScoredRow(
+      "bookmark-a",
+      { slug: "ai", name: "AI" },
+      0.99,
+      "2026-02-27T00:00:00Z",
+    ).bookmark;
+    const bookmarkB = makeScoredRow(
+      "bookmark-b",
+      { slug: "dev-tools", name: "Developer Tools" },
+      0.92,
+      "2026-02-26T00:00:00Z",
+    ).bookmark;
+    const bookmarkC = makeScoredRow(
+      "bookmark-c",
+      { slug: "cloud", name: "Cloud" },
+      0.83,
+      "2026-02-25T00:00:00Z",
+    ).bookmark;
+
+    const result = dedupeDiscoverSections(
+      [bookmarkA, bookmarkB],
+      [
+        {
+          tagSlug: "ai",
+          tagName: "AI",
+          topScore: 0.99,
+          totalCount: 3,
+          bookmarks: [bookmarkA, bookmarkC],
+        },
+        {
+          tagSlug: "dev-tools",
+          tagName: "Developer Tools",
+          topScore: 0.92,
+          totalCount: 2,
+          bookmarks: [bookmarkB, bookmarkC],
+        },
+      ],
+    );
+
+    expect(result.recentBookmarks.map((bookmark) => bookmark.id)).toEqual([
+      "bookmark-a",
+      "bookmark-b",
+    ]);
+    expect(result.rankedSections).toHaveLength(1);
+    expect(result.rankedSections[0]?.tagSlug).toBe("ai");
+    expect(result.rankedSections[0]?.bookmarks.map((bookmark) => bookmark.id)).toEqual([
+      "bookmark-c",
+    ]);
+    expect(result.rankedSections[0]?.totalCount).toBe(1);
   });
 });

@@ -14,9 +14,10 @@ import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { requestLock } from "@/lib/server/request-lock";
 import { getMonotonicTime } from "@/lib/utils";
-import type { RelatedContentItem, RelatedContentType } from "@/types/related-content";
+import type { RelatedContentSuggestion } from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 import { getEnabledContentTypes, DEFAULT_MAX_PER_TYPE } from "@/config/related-content.config";
+import type { RelatedContentType } from "@/types/schemas/related-content";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
@@ -101,7 +102,10 @@ export async function GET(request: NextRequest) {
     );
 
     const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 100 ? limitRaw : 10;
+    const MAX_LIMIT = 100;
+    const DEFAULT_LIMIT = 10;
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= MAX_LIMIT ? limitRaw : DEFAULT_LIMIT;
     const maxPerType =
       Number.isFinite(maxPerTypeRaw) && maxPerTypeRaw > 0
         ? Math.min(maxPerTypeRaw, 500)
@@ -114,7 +118,7 @@ export async function GET(request: NextRequest) {
     const finalSourceId = sourceId;
 
     // Run similarity search under request lock to prevent duplicate work
-    const hydratedItems = await requestLock.run<RelatedContentItem[] | null>({
+    const hydratedItems = await requestLock.run<RelatedContentSuggestion[] | null>({
       key: lockKey,
       work: async () => {
         const sourceDomain: ContentEmbeddingDomain = sourceType;

@@ -196,9 +196,6 @@ export interface SoftwareAppParams {
   }>;
 }
 
-export * from "./seo/opengraph";
-export * from "./seo/schema";
-
 /**
  * Text Truncation Types
  * @description Types for gradient truncation system that intelligently

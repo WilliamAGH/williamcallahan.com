@@ -36,18 +36,18 @@ export function ShellTab({ children }: ShellTabProps): JSX.Element {
   const childrenWithProps = Children.map(children, (child) => {
     if (isValidElement(child)) {
       // Create properly typed props object
+      const childPropsUnknown: unknown = child.props;
+      const existingProps =
+        typeof childPropsUnknown === "object" && childPropsUnknown !== null
+          ? (childPropsUnknown as { className?: string; [key: string]: unknown })
+          : ({} as { className?: string; [key: string]: unknown });
       const props = {
-        // Type assertion to allow custom property
-        ...(child.props as Record<string, unknown>),
+        ...existingProps,
         // Add marker property
         __IS_SHELL_TAB: true,
         // Add properly typed className
         className: cn(
-          // Safely access className from props if it exists
-          (() => {
-            const childProps = child.props as Record<string, unknown>;
-            return typeof childProps.className === "string" ? childProps.className : "";
-          })(),
+          typeof existingProps.className === "string" ? existingProps.className : "",
           // Ensure links are properly styled in shell tabs
           "[&_a]:text-blue-600 [&_a]:dark:text-blue-400 [&_a]:underline [&_a]:font-medium",
           "[&_a:hover]:text-blue-500 [&_a:hover]:dark:text-blue-300 [&_a:hover]:no-underline",

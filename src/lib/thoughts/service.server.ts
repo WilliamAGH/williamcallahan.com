@@ -6,7 +6,7 @@
  * Backed by PostgreSQL via Drizzle ORM.
  */
 
-import type { Thought, ThoughtListItem, ThoughtCategory } from "@/types/schemas/thought";
+import type { Thought, ThoughtBrief, ThoughtCategory } from "@/types/schemas/thought";
 import {
   readAllThoughts,
   readThoughtBySlug,
@@ -25,7 +25,7 @@ export function getThoughts(): Promise<Thought[]> {
 /**
  * Get all published thoughts as list items (excerpt instead of full content).
  */
-export function getThoughtListItems(): Promise<ThoughtListItem[]> {
+export function getThoughtListItems(): Promise<ThoughtBrief[]> {
   return readThoughtListItems();
 }
 

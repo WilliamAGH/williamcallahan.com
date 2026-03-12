@@ -1,10 +1,10 @@
 import { getTableColumns } from "drizzle-orm";
 import {
   CONTENT_EMBEDDING_DIMENSIONS,
-  CONTENT_EMBEDDING_DOMAINS,
   CONTENT_EMBEDDING_MODEL,
   embeddings,
 } from "@/lib/db/schema/content-embeddings";
+import { CONTENT_EMBEDDING_DOMAINS } from "@/types/db/embeddings";
 
 describe("content-embeddings schema", () => {
   it("enforces 2560 dimensions for Qwen3-Embedding-4B FP16", () => {

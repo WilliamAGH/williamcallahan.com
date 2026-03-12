@@ -15,12 +15,11 @@
  */
 
 import { debug } from "@/lib/utils/debug";
-import {
-  type GitHubActivityApiResponse,
-  type GitHubActivitySegment,
-  type StoredGithubActivityRecord,
-  type GithubRepoNode,
-} from "@/types/github";
+import { type StoredGithubActivity, type GraphQLRepoNode } from "@/types/github";
+import type {
+  GitHubActivityApiResponse,
+  GitHubActivitySegment,
+} from "@/types/schemas/github-storage";
 import { getTrailingYearDate, startOfDay, endOfDay } from "@/lib/utils/date-format";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { createCategorizedError } from "@/lib/utils/error-utils";
@@ -55,8 +54,8 @@ const GITHUB_REPO_OWNER = getGitHubUsername();
  */
 function wrapGithubActivity(
   fetchedParts: {
-    trailingYearData: StoredGithubActivityRecord;
-    allTimeData: StoredGithubActivityRecord;
+    trailingYearData: StoredGithubActivity;
+    allTimeData: StoredGithubActivity;
   } | null,
 ): GitHubActivityApiResponse | null {
   if (!fetchedParts || !fetchedParts.trailingYearData || !fetchedParts.allTimeData) {
@@ -93,8 +92,8 @@ function wrapGithubActivity(
  * @returns A promise that resolves to an object containing `trailingYearData` and `allTimeData`, or `null` if the refresh fails
  */
 export async function refreshGitHubActivityDataFromApi(): Promise<{
-  trailingYearData: StoredGithubActivityRecord;
-  allTimeData: StoredGithubActivityRecord;
+  trailingYearData: StoredGithubActivity;
+  allTimeData: StoredGithubActivity;
 } | null> {
   console.log(
     "[DataAccess/GitHub:refreshGitHubActivity] Attempting to refresh GitHub activity data from API...",
@@ -131,7 +130,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     }
   }
   const now = new Date();
-  let uniqueRepoArray: GithubRepoNode[];
+  let uniqueRepoArray: GraphQLRepoNode[];
   let githubUserId: string | undefined; // Declare githubUserId
   try {
     console.log(
@@ -152,7 +151,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   if (uniqueRepoArray.length === 0) {
     console.warn("[DataAccess/GitHub] No non-forked repositories contributed to found for user.");
-    const emptyRawResponse: StoredGithubActivityRecord = {
+    const emptyRawResponse: StoredGithubActivity = {
       source: "api",
       data: [],
       totalContributions: 0,
@@ -175,7 +174,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     yearLinesAdded,
     yearLinesRemoved,
     yearCategoryStats,
-    olderThanYearCommitStats,
+    priorYearCommitStats,
     allTimeLinesAdded,
     allTimeLinesRemoved,
     allTimeOverallDataComplete,
@@ -209,7 +208,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   const yearOverallDataComplete = uniqueRepoArray.length === 0 ? true : allTimeOverallDataComplete;
 
-  const trailingYearData: StoredGithubActivityRecord = {
+  const trailingYearData: StoredGithubActivity = {
     source: "api",
     data: trailingYearContributionsCalendar,
     totalContributions: yearTotalCommits,
@@ -242,16 +241,16 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   }
 
   const lifetimeContributionEstimate =
-    (yearTotalCommits || 0) + (olderThanYearCommitStats.totalCommits || 0);
+    (yearTotalCommits || 0) + (priorYearCommitStats.totalCommits || 0);
 
-  const allTimeData: StoredGithubActivityRecord = {
+  const allTimeData: StoredGithubActivity = {
     source: "api", // Source is 'api' because it's processed from API/database cache.
     data: [], // All-time data typically doesn't include the daily calendar view
     totalContributions: lifetimeContributionEstimate,
     linesAdded: allTimeLinesAdded,
     linesRemoved: allTimeLinesRemoved,
     dataComplete: allTimeOverallDataComplete,
-    allCommitsOlderThanYear: olderThanYearCommitStats,
+    allPriorYearCommits: priorYearCommitStats,
     // No allTimeTotalContributions field here, totalContributions is the source of truth.
   };
 
@@ -265,7 +264,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   await calculateAndStoreAggregatedWeeklyActivity();
 
-  const emptyStoredBase: Omit<StoredGithubActivityRecord, "source" | "error" | "details"> = {
+  const emptyStoredBase: Omit<StoredGithubActivity, "source" | "error" | "details"> = {
     data: [],
     totalContributions: 0,
     linesAdded: 0,
@@ -273,13 +272,13 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     dataComplete: false,
     allTimeTotalContributions: 0,
   };
-  const safeTrailingYearData: StoredGithubActivityRecord = trailingYearData || {
+  const safeTrailingYearData: StoredGithubActivity = trailingYearData || {
     ...emptyStoredBase,
     source: "api",
     error: "Trailing year data generation failed or was incomplete during refresh",
     dataComplete: false,
   };
-  const safeAllTimeData: StoredGithubActivityRecord = allTimeData || {
+  const safeAllTimeData: StoredGithubActivity = allTimeData || {
     ...emptyStoredBase,
     source: "api",
     error: "All-time data generation failed or was incomplete during refresh",

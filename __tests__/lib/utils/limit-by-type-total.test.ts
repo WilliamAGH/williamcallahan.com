@@ -1,5 +1,5 @@
 import { limitByTypeAndTotal } from "@/lib/utils/limit-by-type";
-import type { RelatedContentType } from "@/types/related-content";
+import type { RelatedContentType } from "@/types/schemas/related-content";
 
 type Item = { id: string; type: RelatedContentType; score: number };
 

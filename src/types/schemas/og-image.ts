@@ -67,21 +67,25 @@ export const ogTextParamsSchema = z.object({
 export type OgTextParams = z.infer<typeof ogTextParamsSchema>;
 
 /** Props for layout renderers that receive a fetched cover image */
-export interface OgBookLayoutProps extends OgBookParams {
-  coverDataUrl: string | null;
-}
+export const ogBookLayoutPropsSchema = ogBookParamsSchema.extend({
+  coverDataUrl: z.string().nullable(),
+});
+export type OgBookLayoutProps = z.infer<typeof ogBookLayoutPropsSchema>;
 
 /** Props for layout renderers that receive a fetched screenshot */
-export interface OgBookmarkLayoutProps extends OgBookmarkParams {
-  screenshotDataUrl: string | null;
-}
+export const ogBookmarkLayoutPropsSchema = ogBookmarkParamsSchema.extend({
+  screenshotDataUrl: z.string().nullable(),
+});
+export type OgBookmarkLayoutProps = z.infer<typeof ogBookmarkLayoutPropsSchema>;
 
 /** Props for blog layout with fetched cover */
-export interface OgBlogLayoutProps extends OgBlogParams {
-  coverDataUrl: string | null;
-}
+export const ogBlogLayoutPropsSchema = ogBlogParamsSchema.extend({
+  coverDataUrl: z.string().nullable(),
+});
+export type OgBlogLayoutProps = z.infer<typeof ogBlogLayoutPropsSchema>;
 
 /** Props for project layout with fetched screenshot */
-export interface OgProjectLayoutProps extends OgProjectParams {
-  screenshotDataUrl: string | null;
-}
+export const ogProjectLayoutPropsSchema = ogProjectParamsSchema.extend({
+  screenshotDataUrl: z.string().nullable(),
+});
+export type OgProjectLayoutProps = z.infer<typeof ogProjectLayoutPropsSchema>;

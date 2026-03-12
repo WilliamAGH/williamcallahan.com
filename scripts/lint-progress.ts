@@ -14,6 +14,23 @@ import type { LintStats } from "@/types/lint-progress";
 
 const PROGRESS_FILE = path.join(process.cwd(), ".lint-progress.json");
 
+function extractStdout(error: unknown): string {
+  if (typeof error !== "object" || error === null || !("stdout" in error)) {
+    return "";
+  }
+
+  const { stdout } = error;
+  if (typeof stdout === "string") {
+    return stdout;
+  }
+
+  if (stdout instanceof Buffer) {
+    return stdout.toString();
+  }
+
+  return "";
+}
+
 function runLintCheck(): string {
   try {
     // Run ESLint and capture output
@@ -22,9 +39,9 @@ function runLintCheck(): string {
       stdio: "pipe",
     }).toString();
     return output;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // ESLint exits with non-zero when there are issues, but we still get the output
-    return error.stdout?.toString() || "";
+    return extractStdout(error);
   }
 }
 

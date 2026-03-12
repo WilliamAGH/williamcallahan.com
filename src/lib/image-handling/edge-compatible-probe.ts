@@ -8,6 +8,64 @@
 // Import ProbeResult type from declaration file
 import type { ProbeResult } from "@/types/probe-image-size";
 
+/** HTTP / buffer size constants */
+const HTTP_PARTIAL_CONTENT = 206;
+const RANGE_REQUEST_SIZE = 65536;
+/** PNG: signature + buffer offsets */
+const PNG_MIN_HEADER_SIZE = 24;
+const PNG_SIG_0 = 0x89,
+  PNG_SIG_1 = 0x50,
+  PNG_SIG_2 = 0x4e,
+  PNG_SIG_3 = 0x47;
+const PNG_WIDTH_OFFSET = 16,
+  PNG_HEIGHT_OFFSET = 20;
+/** JPEG: signature + SOF marker ranges */
+const JPEG_MIN_HEADER_SIZE = 2;
+const JPEG_SOI_0 = 0xff,
+  JPEG_SOI_1 = 0xd8,
+  JPEG_MARKER_PREFIX = 0xff;
+const JPEG_SOF0_START = 0xc0,
+  JPEG_SOF0_END = 0xc3;
+const JPEG_SOF1_START = 0xc5,
+  JPEG_SOF1_END = 0xc7;
+const JPEG_SOF2_START = 0xc9,
+  JPEG_SOF2_END = 0xcb;
+const JPEG_SOF3_START = 0xcd,
+  JPEG_SOF3_END = 0xcf;
+const JPEG_SOI_MARKER = 0xd8,
+  JPEG_EOI_MARKER = 0xd9;
+/** GIF: signature + buffer offsets */
+const GIF_MIN_HEADER_SIZE = 10;
+const GIF_SIG_0 = 0x47,
+  GIF_SIG_1 = 0x49,
+  GIF_SIG_2 = 0x46;
+const GIF_WIDTH_OFFSET = 6,
+  GIF_HEIGHT_OFFSET = 8;
+/** WebP: RIFF + VP8 signatures + buffer offsets */
+const WEBP_MIN_HEADER_SIZE = 30;
+const WEBP_RIFF_R = 0x52,
+  WEBP_RIFF_I = 0x49,
+  WEBP_RIFF_F = 0x46;
+const WEBP_W = 0x57,
+  WEBP_E = 0x45,
+  WEBP_B = 0x42,
+  WEBP_P = 0x50;
+const WEBP_W_OFFSET = 8,
+  WEBP_E_OFFSET = 9,
+  WEBP_B_OFFSET = 10,
+  WEBP_P_OFFSET = 11;
+const VP8_LOSSY_SIG_0 = 0x9d,
+  VP8_LOSSY_SIG_1 = 0x01,
+  VP8_LOSSY_SIG_2 = 0x2a;
+/** SVG + regex group indices */
+const SVG_VIEWBOX_PARTS = 4,
+  SVG_VIEWBOX_WIDTH_INDEX = 2,
+  SVG_VIEWBOX_HEIGHT_INDEX = 3;
+const REGEX_UNIT_GROUP = 2;
+/** Byte offset indices */
+const BYTE_OFFSET_2 = 2,
+  BYTE_OFFSET_3 = 3;
+
 /**
  * Probe image size from URL or Buffer
  * Edge-compatible replacement for probe-image-size
@@ -26,7 +84,7 @@ export async function probeImageSize(input: string | Buffer): Promise<ProbeResul
       const buffer = Buffer.from(await response.arrayBuffer());
 
       // If we got a partial response or the full image is small, parse it
-      if (response.status === 206 || buffer.length < 65536) {
+      if (response.status === HTTP_PARTIAL_CONTENT || buffer.length < RANGE_REQUEST_SIZE) {
         return parseImageHeader(buffer);
       }
 
@@ -59,30 +117,39 @@ export async function probeImageSize(input: string | Buffer): Promise<ProbeResul
 function parseImageHeader(buffer: Buffer): ProbeResult {
   // Check for PNG
   if (
-    buffer.length >= 24 &&
-    buffer[0] === 0x89 &&
-    buffer[1] === 0x50 &&
-    buffer[2] === 0x4e &&
-    buffer[3] === 0x47
+    buffer.length >= PNG_MIN_HEADER_SIZE &&
+    buffer[0] === PNG_SIG_0 &&
+    buffer[1] === PNG_SIG_1 &&
+    buffer[BYTE_OFFSET_2] === PNG_SIG_2 &&
+    buffer[BYTE_OFFSET_3] === PNG_SIG_3
   ) {
     return {
-      width: buffer.readUInt32BE(16),
-      height: buffer.readUInt32BE(20),
+      width: buffer.readUInt32BE(PNG_WIDTH_OFFSET),
+      height: buffer.readUInt32BE(PNG_HEIGHT_OFFSET),
       type: "png",
       mime: "image/png",
     };
   }
 
   // Check for JPEG
-  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+  if (
+    buffer.length >= JPEG_MIN_HEADER_SIZE &&
+    buffer[0] === JPEG_SOI_0 &&
+    buffer[1] === JPEG_SOI_1
+  ) {
     return parseJPEG(buffer);
   }
 
   // Check for GIF
-  if (buffer.length >= 10 && buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+  if (
+    buffer.length >= GIF_MIN_HEADER_SIZE &&
+    buffer[0] === GIF_SIG_0 &&
+    buffer[1] === GIF_SIG_1 &&
+    buffer[BYTE_OFFSET_2] === GIF_SIG_2
+  ) {
     return {
-      width: buffer.readUInt16LE(6),
-      height: buffer.readUInt16LE(8),
+      width: buffer.readUInt16LE(GIF_WIDTH_OFFSET),
+      height: buffer.readUInt16LE(GIF_HEIGHT_OFFSET),
       type: "gif",
       mime: "image/gif",
     };
@@ -90,15 +157,15 @@ function parseImageHeader(buffer: Buffer): ProbeResult {
 
   // Check for WebP
   if (
-    buffer.length >= 30 &&
-    buffer[0] === 0x52 &&
-    buffer[1] === 0x49 &&
-    buffer[2] === 0x46 &&
-    buffer[3] === 0x46 &&
-    buffer[8] === 0x57 &&
-    buffer[9] === 0x45 &&
-    buffer[10] === 0x42 &&
-    buffer[11] === 0x50
+    buffer.length >= WEBP_MIN_HEADER_SIZE &&
+    buffer[0] === WEBP_RIFF_R &&
+    buffer[1] === WEBP_RIFF_I &&
+    buffer[BYTE_OFFSET_2] === WEBP_RIFF_F &&
+    buffer[BYTE_OFFSET_3] === WEBP_RIFF_F &&
+    buffer[WEBP_W_OFFSET] === WEBP_W &&
+    buffer[WEBP_E_OFFSET] === WEBP_E &&
+    buffer[WEBP_B_OFFSET] === WEBP_B &&
+    buffer[WEBP_P_OFFSET] === WEBP_P
   ) {
     return parseWebP(buffer);
   }
@@ -120,7 +187,7 @@ function parseJPEG(buffer: Buffer): ProbeResult {
 
   while (offset < buffer.length) {
     // Check for valid marker
-    if (buffer[offset] !== 0xff) {
+    if (buffer[offset] !== JPEG_MARKER_PREFIX) {
       throw new Error("Invalid JPEG marker");
     }
 
@@ -131,17 +198,17 @@ function parseJPEG(buffer: Buffer): ProbeResult {
     offset += 2;
 
     // Skip padding
-    if (marker === 0xff) {
+    if (marker === JPEG_MARKER_PREFIX) {
       offset -= 1;
       continue;
     }
 
     // SOF markers (Start of Frame)
     if (
-      (marker >= 0xc0 && marker <= 0xc3) ||
-      (marker >= 0xc5 && marker <= 0xc7) ||
-      (marker >= 0xc9 && marker <= 0xcb) ||
-      (marker >= 0xcd && marker <= 0xcf)
+      (marker >= JPEG_SOF0_START && marker <= JPEG_SOF0_END) ||
+      (marker >= JPEG_SOF1_START && marker <= JPEG_SOF1_END) ||
+      (marker >= JPEG_SOF2_START && marker <= JPEG_SOF2_END) ||
+      (marker >= JPEG_SOF3_START && marker <= JPEG_SOF3_END)
     ) {
       // Skip length (2) and precision (1)
       offset += 3;
@@ -156,7 +223,7 @@ function parseJPEG(buffer: Buffer): ProbeResult {
     }
 
     // Skip other segments
-    if (marker !== 0xd8 && marker !== 0xd9) {
+    if (marker !== JPEG_SOI_MARKER && marker !== JPEG_EOI_MARKER) {
       const length = buffer.readUInt16BE(offset);
       offset += length;
     }
@@ -180,9 +247,9 @@ function parseWebP(buffer: Buffer): ProbeResult {
     if (chunkType === "VP8 ") {
       // Lossy WebP
       if (
-        buffer[offset + 3] === 0x9d &&
-        buffer[offset + 4] === 0x01 &&
-        buffer[offset + 5] === 0x2a
+        buffer[offset + 3] === VP8_LOSSY_SIG_0 &&
+        buffer[offset + 4] === VP8_LOSSY_SIG_1 &&
+        buffer[offset + 5] === VP8_LOSSY_SIG_2
       ) {
         const width = buffer.readUInt16LE(offset + 6) & 0x3fff;
         const height = buffer.readUInt16LE(offset + 8) & 0x3fff;
@@ -254,9 +321,9 @@ function parseSVG(content: string): ProbeResult {
     const viewBoxMatch = content.match(/viewBox\s*=\s*["']([^"']+)["']/i);
     if (viewBoxMatch?.[1]) {
       const parts = viewBoxMatch[1].split(/\s+/);
-      if (parts.length === 4) {
-        width = width || parseFloat(parts[2] || "0");
-        height = height || parseFloat(parts[3] || "0");
+      if (parts.length === SVG_VIEWBOX_PARTS) {
+        width = width || parseFloat(parts[SVG_VIEWBOX_WIDTH_INDEX] || "0");
+        height = height || parseFloat(parts[SVG_VIEWBOX_HEIGHT_INDEX] || "0");
       }
     }
   }
@@ -279,7 +346,7 @@ function parseUnit(value: string): { value: number; unit: string } {
   if (match?.[1]) {
     return {
       value: parseFloat(match[1]),
-      unit: match[2] || "px",
+      unit: match[REGEX_UNIT_GROUP] || "px",
     };
   }
   return {

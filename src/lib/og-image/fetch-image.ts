@@ -88,9 +88,10 @@ export async function fetchImageAsDataUrl(
   } catch (error) {
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
       console.error(`[OG-Image] Fetch aborted/timeout after ${FETCH_TIMEOUT_MS}ms`);
-      return null;
+    } else {
+      console.error("[OG-Image] Error converting image:", error);
     }
-    console.error("[OG-Image] Error converting image:", error);
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }

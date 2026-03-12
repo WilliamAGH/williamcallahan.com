@@ -9,6 +9,6 @@ export interface CSVParseOptions {
   headers?: boolean;
 }
 
-export interface CSVRow {
+export interface CSVLine {
   [key: string]: string | number;
 }

@@ -5,7 +5,20 @@ excerpt: "Learn how to create a symlink from one file to another in macOS (zsh),
 publishedAt: "2025-06-15"
 updatedAt: "2025-11-01"
 author: "william-callahan"
-tags: ["symlink", "files", "git", "zsh", "bash", "cmd", "powershell", "claude", "agents.md", "agents", "symlinks"]
+tags:
+  [
+    "symlink",
+    "files",
+    "git",
+    "zsh",
+    "bash",
+    "cmd",
+    "powershell",
+    "claude",
+    "agents.md",
+    "agents",
+    "symlinks",
+  ]
 coverImage: "/images/posts/symlink-chain-link-files.png"
 ---
 
@@ -32,11 +45,13 @@ See the [full spec on GitHub](https://github.com/openai/agents.md) for updates.
 The `ln -s` command creates a symbolic link.
 
 **Syntax:**
+
 ```bash
 ln -s /path/to/original /path/to/symlink
 ```
 
 **Key points:**
+
 - First argument is the **target** (what you're pointing to, the _main_ file)
 - Second argument is the **link name** (the _alias_ what you're creating)
 - `-s` flag creates a symbolic link (vs. hard link)
@@ -44,11 +59,13 @@ ln -s /path/to/original /path/to/symlink
 ### Examples
 
 **Link a file in the same directory:**
+
 ```bash
 ln -s AGENTS.md CLAUDE.md
 ```
 
 **Link with relative paths (e.g., for repos):**
+
 ```bash
 ln -s ../data/config.json ./config.json
 ```

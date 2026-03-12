@@ -36,7 +36,9 @@ export async function readImageManifest(manifestType: ImageManifestType): Promis
  * Returns a record keyed by manifest type with the raw JSONB payloads.
  * Missing manifests are omitted from the result.
  */
-export async function readAllImageManifests(): Promise<Record<string, unknown>> {
+export async function readAllImageManifests(): Promise<
+  Partial<Record<ImageManifestType, unknown>>
+> {
   const rows = await db
     .select({
       manifestType: imageManifests.manifestType,
@@ -44,7 +46,7 @@ export async function readAllImageManifests(): Promise<Record<string, unknown>> 
     })
     .from(imageManifests);
 
-  const result: Record<string, unknown> = {};
+  const result: Partial<Record<ImageManifestType, unknown>> = {};
   for (const row of rows) {
     if (IMAGE_MANIFEST_TYPES.includes(row.manifestType)) {
       result[row.manifestType] = row.payload;

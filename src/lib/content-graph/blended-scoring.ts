@@ -11,8 +11,6 @@ import { rankEmbeddingCandidates } from "@/lib/db/queries/embedding-similarity";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 import type { SimilarityCandidate, ScoredCandidate } from "@/types/related-content";
 
-export type { ScoredCandidate } from "@/types/related-content";
-
 export function applyBlendedScoring(
   candidates: SimilarityCandidate[],
   options: {

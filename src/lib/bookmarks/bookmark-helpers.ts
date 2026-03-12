@@ -7,8 +7,8 @@
  * @module lib/bookmarks/bookmark-helpers
  */
 
-import type { UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
-import type { KarakeepImageFallback } from "@/types/opengraph";
+import type { UnifiedBookmark, BookmarkContent } from "@/types/schemas/bookmark";
+import type { ValidatedKarakeepImageFallback } from "@/types/seo/opengraph";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
@@ -133,13 +133,13 @@ export function selectBestImage(
  * @param content The bookmark content object
  * @param baseUrl The Karakeep API base URL
  * @param idempotencyKey Optional unique key for idempotent storage (e.g., bookmark ID)
- * @returns KarakeepImageFallback object for OpenGraph fallback
+ * @returns ValidatedKarakeepImageFallback object for OpenGraph fallback
  */
 export function createKarakeepFallback(
   content: BookmarkContent | undefined,
   baseUrl = "",
   idempotencyKey?: string,
-): KarakeepImageFallback {
+): ValidatedKarakeepImageFallback {
   if (!content) {
     return {
       karakeepBaseUrl: baseUrl,

@@ -1,27 +1,28 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 
-import { mapBookmarkRowToUnifiedBookmark } from "@/lib/db/bookmark-record-mapper";
+import { mapBookmarkSelectToUnifiedBookmark } from "@/lib/db/bookmark-record-mapper";
 import { db } from "@/lib/db/connection";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
 import { loadCanonicalTagMaps } from "@/lib/db/queries/discovery-tag-taxonomy";
 import { findSimilarBookmarkIds } from "@/lib/db/queries/discovery-similarity";
-import { resolvePrimaryTag, type BookmarkForDiscovery } from "@/lib/bookmarks/tag-resolver";
-import { createSerializeWithHref } from "@/lib/bookmarks/discovery-serialization";
+import { resolvePrimaryTag } from "@/lib/bookmarks/tag-resolver";
 import type {
-  DiscoverFeedData,
+  BookmarkForDiscovery,
+  DiscoverFeedContent,
   GroupOptions,
   RecentOptions,
-  ScoredBookmarkRow,
+  ScoredBookmark,
   TopicSection,
 } from "@/types/features/discovery";
+import { createSerializeWithHref } from "@/lib/bookmarks/discovery-serialization";
 import {
   computeBaseRecencyScore,
   computeDiscoveryScore,
   computeEngagementSignal,
 } from "./discovery-scores";
 
-export type { DiscoverFeedData, GroupOptions, RecentOptions, ScoredBookmarkRow, TopicSection };
+export type { DiscoverFeedContent, GroupOptions, RecentOptions, ScoredBookmark, TopicSection };
 
 const MS_PER_DAY = 86_400_000;
 const NINETY_DAYS_MS = 90 * MS_PER_DAY;
@@ -32,11 +33,8 @@ const RECENT_DAYS = 7,
 const DEFAULT_SECTIONS_PER_PAGE = 4,
   MAX_SECTIONS_PER_PAGE = 12;
 
-export function groupByPrimaryTag(
-  rows: ScoredBookmarkRow[],
-  options: GroupOptions,
-): TopicSection[] {
-  const grouped = new Map<string, { tagName: string; rows: ScoredBookmarkRow[] }>();
+export function groupByPrimaryTag(rows: ScoredBookmark[], options: GroupOptions): TopicSection[] {
+  const grouped = new Map<string, { tagName: string; rows: ScoredBookmark[] }>();
   for (const row of rows) {
     if (row.primaryTag === null) continue;
     const existing = grouped.get(row.primaryTag.slug);
@@ -66,9 +64,9 @@ export function groupByPrimaryTag(
 }
 
 export function filterRecentlyAdded(
-  rows: ScoredBookmarkRow[],
+  rows: ScoredBookmark[],
   options: RecentOptions,
-): ScoredBookmarkRow["bookmark"][] {
+): ScoredBookmark["bookmark"][] {
   const cutoff = Date.now() - options.days * MS_PER_DAY;
   return rows
     .filter((row) => {
@@ -78,6 +76,42 @@ export function filterRecentlyAdded(
     .toSorted((a, b) => b.discoveryScore - a.discoveryScore)
     .slice(0, options.limit)
     .map((row) => row.bookmark);
+}
+
+export function dedupeDiscoverSections(
+  recentBookmarks: ReadonlyArray<ScoredBookmark["bookmark"]>,
+  rankedSections: ReadonlyArray<TopicSection>,
+): { recentBookmarks: ScoredBookmark["bookmark"][]; rankedSections: TopicSection[] } {
+  const seenBookmarkIds = new Set<string>();
+  const dedupedRecentBookmarks = recentBookmarks.filter((bookmark) => {
+    if (seenBookmarkIds.has(bookmark.id)) {
+      return false;
+    }
+    seenBookmarkIds.add(bookmark.id);
+    return true;
+  });
+
+  const dedupedRankedSections = rankedSections
+    .map((section) => {
+      const dedupedBookmarks = section.bookmarks.filter((bookmark) => {
+        if (seenBookmarkIds.has(bookmark.id)) {
+          return false;
+        }
+        seenBookmarkIds.add(bookmark.id);
+        return true;
+      });
+      return {
+        ...section,
+        totalCount: dedupedBookmarks.length,
+        bookmarks: dedupedBookmarks,
+      };
+    })
+    .filter((section) => section.bookmarks.length > 0);
+
+  return {
+    recentBookmarks: dedupedRecentBookmarks,
+    rankedSections: dedupedRankedSections,
+  };
 }
 
 async function loadEngagementMap(): Promise<Map<string, number>> {
@@ -149,7 +183,7 @@ async function applySectionBlend(sections: TopicSection[]): Promise<TopicSection
 
 export async function getDiscoveryGroupedBookmarks(
   options: { sectionPage?: number; sectionsPerPage?: number } = {},
-): Promise<DiscoverFeedData> {
+): Promise<DiscoverFeedContent> {
   const sectionPage = Number.isInteger(options.sectionPage)
     ? Math.max(1, options.sectionPage ?? 1)
     : 1;
@@ -193,8 +227,8 @@ export async function getDiscoveryGroupedBookmarks(
   const engagementCoverage =
     bookmarkRows.length === 0 ? 0 : engagementMap.size / bookmarkRows.length;
 
-  const scored: ScoredBookmarkRow[] = bookmarkRows.map((row) => {
-    const mappedBookmark = mapBookmarkRowToUnifiedBookmark(row.bookmark);
+  const scored: ScoredBookmark[] = bookmarkRows.map((row) => {
+    const mappedBookmark = mapBookmarkSelectToUnifiedBookmark(row.bookmark);
     const engagementSignal = engagementMap.get(row.bookmark.id) ?? null;
     return {
       bookmark: mappedBookmark,
@@ -221,9 +255,10 @@ export async function getDiscoveryGroupedBookmarks(
   }
 
   const recentBookmarks = filterRecentlyAdded(scored, { days: RECENT_DAYS, limit: RECENT_LIMIT });
-  const totalSections = rankedSections.length;
+  const dedupedDiscoverData = dedupeDiscoverSections(recentBookmarks, rankedSections);
+  const totalSections = dedupedDiscoverData.rankedSections.length;
   const offset = (sectionPage - 1) * sectionsPerPage;
-  const pagedSections = rankedSections.slice(offset, offset + sectionsPerPage);
+  const pagedSections = dedupedDiscoverData.rankedSections.slice(offset, offset + sectionsPerPage);
   const hasNextSectionPage = offset + sectionsPerPage < totalSections;
 
   const internalHrefs: Record<string, string> = {};
@@ -231,7 +266,9 @@ export async function getDiscoveryGroupedBookmarks(
 
   return {
     recentlyAdded:
-      sectionPage === 1 ? recentBookmarks.map((bookmark) => serializeWithHref(bookmark)) : [],
+      sectionPage === 1
+        ? dedupedDiscoverData.recentBookmarks.map((bookmark) => serializeWithHref(bookmark))
+        : [],
     topicSections: pagedSections.map((section) => ({
       tagSlug: section.tagSlug,
       tagName: section.tagName,

@@ -7,6 +7,11 @@
  * vector embedding.
  */
 
+/** Unicode maximum code point */
+const MAX_UNICODE_CODE_POINT = 0x10ffff;
+/** Minimum chapter text length to include */
+const MIN_CHAPTER_TEXT_LENGTH = 10;
+
 import { writeFile, unlink, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -51,13 +56,13 @@ function htmlToText(html: string): string {
     .replace(/&#(\d+);/g, (_, code: string) => {
       const value = Number(code);
       // Use fromCodePoint to handle non-BMP characters (emoji, etc.) above 0xFFFF
-      return Number.isFinite(value) && value >= 0 && value <= 0x10ffff
+      return Number.isFinite(value) && value >= 0 && value <= MAX_UNICODE_CODE_POINT
         ? String.fromCodePoint(value)
         : "";
     })
     .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => {
       const value = Number.parseInt(code, 16);
-      return Number.isFinite(value) && value >= 0 && value <= 0x10ffff
+      return Number.isFinite(value) && value >= 0 && value <= MAX_UNICODE_CODE_POINT
         ? String.fromCodePoint(value)
         : "";
     });
@@ -296,7 +301,7 @@ export async function parseEpubFromBuffer(
         const textContent = htmlToText(htmlContent);
 
         // Skip empty chapters
-        if (textContent.length < 10) continue;
+        if (textContent.length < MIN_CHAPTER_TEXT_LENGTH) continue;
 
         // Get title: prefer flow title, fallback to TOC title, then generate from ID
         const title =

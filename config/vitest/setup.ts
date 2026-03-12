@@ -81,36 +81,80 @@ if (typeof window !== "undefined") {
   window.scrollTo = vi.fn();
 
   // Mock IntersectionObserver
-  class MockIntersectionObserver {
-    observe = vi.fn();
-    unobserve = vi.fn();
-    disconnect = vi.fn();
+  class MockIntersectionObserver implements IntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "";
+    readonly thresholds = [];
+
+    disconnect(): void {
+      return undefined;
+    }
+
+    observe(_target: Element): void {
+      void _target;
+    }
+
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+
+    unobserve(_target: Element): void {
+      void _target;
+    }
   }
-  window.IntersectionObserver = MockIntersectionObserver as any;
+  Object.defineProperty(window, "IntersectionObserver", {
+    writable: true,
+    value: MockIntersectionObserver,
+  });
 
   // Mock ResizeObserver
-  class MockResizeObserver {
-    observe = vi.fn();
-    unobserve = vi.fn();
-    disconnect = vi.fn();
+  class MockResizeObserver implements ResizeObserver {
+    disconnect(): void {
+      return undefined;
+    }
+
+    observe(_target: Element): void {
+      void _target;
+    }
+
+    unobserve(_target: Element): void {
+      void _target;
+    }
   }
-  window.ResizeObserver = MockResizeObserver as any;
+  Object.defineProperty(window, "ResizeObserver", {
+    writable: true,
+    value: MockResizeObserver,
+  });
 
   // Mock MessageChannel
-  const createMockMessagePort = () => ({
-    postMessage: vi.fn(),
-    onmessage: null,
-    close: vi.fn(),
-    start: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  });
-  class MockMessageChannel {
-    port1 = createMockMessagePort();
-    port2 = createMockMessagePort();
+  class MockMessagePort extends EventTarget implements MessagePort {
+    onmessage: ((this: MessagePort, ev: MessageEvent<unknown>) => void) | null = null;
+    onmessageerror: ((this: MessagePort, ev: MessageEvent<unknown>) => void) | null = null;
+
+    close(): void {
+      return undefined;
+    }
+
+    postMessage(
+      _message: unknown,
+      _transferOrOptions?: StructuredSerializeOptions | Transferable[],
+    ): void {
+      void _message;
+      void _transferOrOptions;
+    }
+
+    start(): void {
+      return undefined;
+    }
   }
-  window.MessageChannel = MockMessageChannel as any;
+  class MockMessageChannel implements MessageChannel {
+    readonly port1 = new MockMessagePort();
+    readonly port2 = new MockMessagePort();
+  }
+  Object.defineProperty(window, "MessageChannel", {
+    writable: true,
+    value: MockMessageChannel,
+  });
 
   // Setup clipboard API mock
   if (typeof navigator !== "undefined") {
@@ -129,7 +173,7 @@ if (typeof window !== "undefined") {
 // ------------------------------------------------------------------
 
 const pristineConsoleError = console.error.bind(console);
-const originalError = (...data: any[]) => {
+const originalError = (...data: unknown[]) => {
   pristineConsoleError(...data);
 };
 
@@ -149,7 +193,7 @@ const SUPPRESSED_PATTERNS = [
   "[DataFetchManager]",
 ];
 
-const suppressedConsoleError = (...data: any[]) => {
+const suppressedConsoleError = (...data: unknown[]) => {
   const message = data
     .map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
     .join(" ");

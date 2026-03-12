@@ -6,7 +6,7 @@ import "server-only"; // Ensure this module is never bundled for the client
 
 import { getLogoCdnData } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
-import type { Certification, Class, Education, EducationLogoData } from "@/types/education";
+import type { Certification, Class, Education, EducationLogo } from "@/types/schemas/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
@@ -23,16 +23,16 @@ function getPlaceholderSvgUrl(): string {
 /**
  * Processes a single education item to add logo data.
  * @param {Education} item - The raw education item.
- * @returns {Promise<Education & { logoData: EducationLogoData }>} The item with added logoData.
+ * @returns {Promise<Education & { logoData: EducationLogo }>} The item with added logoData.
  */
 export async function processEducationItem<T extends Education>(
   item: T,
   options: { isDarkTheme?: boolean } = {},
-): Promise<T & { logoData: EducationLogoData; error?: string }> {
+): Promise<T & { logoData: EducationLogo; error?: string }> {
   assertServerOnly(); // Assert server context
   const { website, institution, logo } = item;
   const { isDarkTheme } = options;
-  let logoData: EducationLogoData;
+  let logoData: EducationLogo;
   let error: string | undefined;
 
   const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
@@ -79,16 +79,16 @@ export async function processEducationItem<T extends Education>(
 /**
  * Processes a single certification or class item to add logo data.
  * @param {Certification | Class} item - The raw certification or class item.
- * @returns {Promise<(Certification | Class) & { logoData: EducationLogoData }>} The item with added logoData.
+ * @returns {Promise<(Certification | Class) & { logoData: EducationLogo }>} The item with added logoData.
  */
 export async function processCertificationItem<T extends Certification | Class>(
   item: T,
   options: { isDarkTheme?: boolean } = {},
-): Promise<T & { logoData: EducationLogoData; error?: string }> {
+): Promise<T & { logoData: EducationLogo; error?: string }> {
   assertServerOnly(); // Assert server context
   const { website, name, logo } = item;
   const { isDarkTheme } = options;
-  let logoData: EducationLogoData;
+  let logoData: EducationLogo;
   let error: string | undefined;
 
   const domain = website ? normalizeDomain(website) : normalizeDomain(name);

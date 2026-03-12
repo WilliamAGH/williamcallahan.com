@@ -363,7 +363,8 @@ export function getDomainVariants(domain: string): string[] {
 
   // If it's a subdomain, also try the root domain
   const parts: string[] = domain.split(".");
-  if (parts.length > 2) {
+  const MIN_SUBDOMAIN_PARTS = 2;
+  if (parts.length > MIN_SUBDOMAIN_PARTS) {
     const rootDomain = getRootDomain(domain);
     if (rootDomain !== domain) {
       variants.push(rootDomain);

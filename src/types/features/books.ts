@@ -6,7 +6,7 @@
  * Following the established pattern from bookmarks feature types.
  */
 
-import type { Book, BookListItem } from "@/types/schemas/book";
+import type { Book, BookBrief } from "@/types/schemas/book";
 import type { WindowStateValue } from "@/types/ui/window";
 import type { CachedAnalysis } from "@/types/ai-analysis";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
@@ -42,7 +42,7 @@ export interface BookPageProps {
  * Used in components/features/books/book-card.client.tsx
  */
 export interface BookCardProps {
-  book: BookListItem | Book;
+  book: BookBrief | Book;
   priority?: boolean;
 }
 
@@ -84,7 +84,7 @@ export interface BooksWindowContentProps {
  * Used in components/features/books/books-grid.client.tsx
  */
 export interface BooksClientGridProps {
-  books: BookListItem[];
+  books: BookBrief[];
   title: string;
   description: string;
   disclaimer?: string;

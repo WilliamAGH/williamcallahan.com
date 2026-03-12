@@ -49,14 +49,15 @@ function parseAndValidateToolArgs(
     typeof parsedRawArguments === "object" &&
     "maxResults" in parsedRawArguments
   ) {
-    const raw = (parsedRawArguments as Record<string, unknown>).maxResults;
+    const parsedObj = parsedRawArguments as { maxResults?: unknown };
+    const raw = parsedObj.maxResults;
     if (typeof raw === "number" && raw > TOOL_MAX_RESULTS_CAP) {
       logger.warn("[AI Chat] Clamped maxResults from model overshoot", {
         tool: toolName,
         requested: raw,
         clamped: TOOL_MAX_RESULTS_CAP,
       });
-      (parsedRawArguments as Record<string, unknown>).maxResults = TOOL_MAX_RESULTS_CAP;
+      parsedObj.maxResults = TOOL_MAX_RESULTS_CAP;
     }
   }
 

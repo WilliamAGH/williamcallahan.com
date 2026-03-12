@@ -32,8 +32,9 @@ async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): P
     return true;
   } catch (error_) {
     console.error(`${LOG_PREFIX} Failed to verify keyLocation (${keyLocationUrl}):`, error_);
-    return false;
+    // RC1a: error logged; false is the documented contract for callers
   }
+  return false;
 }
 
 /**

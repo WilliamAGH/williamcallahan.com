@@ -16,7 +16,7 @@
 
 import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
 import { sanitizeCacheTag } from "@/lib/utils/sanitize";
-import type { AnalysisDomain } from "./types";
+import type { AnalysisDomain } from "@/types/ai-analysis";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Base Path Construction

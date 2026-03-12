@@ -19,8 +19,8 @@ import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
 import { thoughts } from "@/lib/db/schema/thoughts";
 import {
-  mapBookmarkRowToUnifiedBookmark,
-  mapBookmarkRowsToUnifiedBookmarks,
+  mapBookmarkSelectToUnifiedBookmark,
+  mapBookmarkSelectsToUnifiedBookmarks,
 } from "@/lib/db/bookmark-record-mapper";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
@@ -133,7 +133,7 @@ async function hybridSearchWithEmbedding(
   `);
 
   return rows.map((row) => ({
-    bookmark: mapBookmarkRowToUnifiedBookmark(row as never),
+    bookmark: mapBookmarkSelectToUnifiedBookmark(row as never),
     score: Number(row.hybrid_score),
   }));
 }
@@ -159,7 +159,7 @@ async function keywordOnlySearch(
     .limit(limit);
 
   return rows.map((row) => ({
-    bookmark: mapBookmarkRowToUnifiedBookmark(row.bookmark),
+    bookmark: mapBookmarkSelectToUnifiedBookmark(row.bookmark),
     score: Number(row.score),
   }));
 }
@@ -203,7 +203,7 @@ export async function semanticSearchBookmarks(
     .from(bookmarks)
     .where(sql`${bookmarks.id} = ANY(${ids})`);
 
-  return mapBookmarkRowsToUnifiedBookmarks(bookmarkRows)
+  return mapBookmarkSelectsToUnifiedBookmarks(bookmarkRows)
     .map((b) => ({
       bookmark: b,
       score: scoreMap.get(b.id) ?? 0,

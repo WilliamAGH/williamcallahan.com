@@ -1,11 +1,11 @@
 import {
-  mapBookmarkRowToUnifiedBookmark,
+  mapBookmarkSelectToUnifiedBookmark,
   mapUnifiedBookmarkToBookmarkInsert,
 } from "@/lib/db/bookmark-record-mapper";
-import type { BookmarkRow } from "@/types/db/bookmarks";
+import type { BookmarkSelect } from "@/types/db/bookmarks";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
-const BASE_BOOKMARK_ROW: BookmarkRow = {
+const BASE_BOOKMARK_ROW: BookmarkSelect = {
   id: "bookmark-1",
   slug: "bookmark-1",
   url: "https://example.com/bookmark-1",
@@ -41,8 +41,8 @@ const BASE_BOOKMARK_ROW: BookmarkRow = {
 };
 
 describe("bookmark-record-mapper", () => {
-  it("maps a BookmarkRow to a UnifiedBookmark with optional nulls normalized", () => {
-    const unified = mapBookmarkRowToUnifiedBookmark(BASE_BOOKMARK_ROW);
+  it("maps a BookmarkSelect to a UnifiedBookmark with optional nulls normalized", () => {
+    const unified = mapBookmarkSelectToUnifiedBookmark(BASE_BOOKMARK_ROW);
 
     expect(unified.id).toBe("bookmark-1");
     expect(unified.slug).toBe("bookmark-1");
@@ -56,7 +56,7 @@ describe("bookmark-record-mapper", () => {
   });
 
   it("repairs an empty row slug with a deterministic fallback", () => {
-    const unified = mapBookmarkRowToUnifiedBookmark({
+    const unified = mapBookmarkSelectToUnifiedBookmark({
       ...BASE_BOOKMARK_ROW,
       slug: "   ",
       url: "https://example.com/path/to/resource",

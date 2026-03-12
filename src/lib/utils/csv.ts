@@ -6,12 +6,12 @@
  * @module lib/utils/csv
  */
 
-import type { CSVParseOptions, CSVRow } from "@/types/csv";
+import type { CSVParseOptions, CSVLine } from "@/types/csv";
 
 /**
  * Parse CSV string into array of objects or arrays
  */
-export function parseCSV<T = CSVRow>(csvString: string, options: CSVParseOptions = {}): T[] {
+export function parseCSV<T = CSVLine>(csvString: string, options: CSVParseOptions = {}): T[] {
   const { delimiter = ",", skipEmpty = true, maxRows, headers = false } = options;
 
   const lines = csvString
@@ -45,7 +45,9 @@ export function parseCSV<T = CSVRow>(csvString: string, options: CSVParseOptions
       results.push(row as T);
     } else {
       // Return as array
-      results.push(values as unknown as T);
+      // Generic CSV parser: callers are responsible for providing a compatible T
+      const untypedValues: unknown = values;
+      results.push(untypedValues as T);
     }
   }
 
@@ -84,7 +86,7 @@ export function generateCSV<T>(
       // If headers are provided, use them to determine order
       if (headers) {
         const values = headers.map((header) => {
-          const value = (row as Record<string, unknown>)[header];
+          const value = (row as { [k: string]: unknown })[header];
           // Handle null/undefined
           if (value == null) return "";
           // Handle objects and arrays by JSON stringification
@@ -163,6 +165,10 @@ export function validateCSV(
  * Parse GitHub weekly stats CSV format
  * Format: w,a,d,c (week timestamp, additions, deletions, commits)
  */
+/** CSV column indices for GitHub stats (week, additions, deletions, commits) */
+const DELETIONS_INDEX = 2;
+const COMMITS_INDEX = 3;
+
 export function parseGitHubStatsCSV(csvString: string): Array<{
   w: number;
   a: number;
@@ -172,8 +178,8 @@ export function parseGitHubStatsCSV(csvString: string): Array<{
   return parseCSV<string[]>(csvString, { headers: false }).map((row) => ({
     w: Number(row[0]) || 0,
     a: Number(row[1]) || 0,
-    d: Number(row[2]) || 0,
-    c: Number(row[3]) || 0,
+    d: Number(row[DELETIONS_INDEX]) || 0,
+    c: Number(row[COMMITS_INDEX]) || 0,
   }));
 }
 

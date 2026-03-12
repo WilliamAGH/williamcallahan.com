@@ -102,9 +102,9 @@ export function getErrorTimestamp(
     typeof error === "object" &&
     error !== null &&
     property in error &&
-    typeof (error as Record<string, unknown>)[property] === "number"
+    typeof (error as { [k: string]: unknown })[property] === "number"
   ) {
-    return (error as Record<string, number>)[property];
+    return (error as { [k: string]: number })[property];
   }
   return undefined;
 }
@@ -113,7 +113,7 @@ export function getErrorTimestamp(
  * Payload for client-side errors logged to the server.
  * @usage - API endpoint for /api/log-client-error
  */
-export interface ClientErrorPayload {
+export interface ClientErrorReport {
   message?: string;
   resource?: string; // e.g., script URL if it's a script error
   type?: string; // e.g., 'ChunkLoadError', 'TypeError'
@@ -125,16 +125,14 @@ export interface ClientErrorPayload {
 }
 
 // Zod schema moved from app/api/log-client-error/route.ts
-export const ClientErrorSchema = z
-  .object({
-    message: z.string().optional(),
-    resource: z.string().optional(), // e.g., script URL if it's a script error
-    type: z.string().optional(), // e.g., 'ChunkLoadError', 'TypeError'
-    url: z.string().optional(), // The URL where the error occurred
-    stack: z.string().optional(),
-    buildId: z.string().optional(), // Next.js build ID
-  })
-  .passthrough(); // Allows other properties, matching [key: string]: unknown;
+export const ClientErrorSchema = z.object({
+  message: z.string().optional(),
+  resource: z.string().optional(), // e.g., script URL if it's a script error
+  type: z.string().optional(), // e.g., 'ChunkLoadError', 'TypeError'
+  url: z.string().optional(), // The URL where the error occurred
+  stack: z.string().optional(),
+  buildId: z.string().optional(), // Next.js build ID
+});
 
 export interface ErrorWithCode {
   code: string;
@@ -202,12 +200,5 @@ export interface ErrorBoundaryComponentProps {
   /** Function to reset the error boundary */
   reset: () => void;
 }
-
-// Re-export UI boundary types for convenience
-export type {
-  ErrorBoundaryProps,
-  ErrorBoundaryState,
-  LocalErrorBoundaryProps,
-} from "@/types/ui/boundaries";
 
 // Generic error/response interfaces removed - use specific response types from API modules

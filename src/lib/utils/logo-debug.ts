@@ -7,13 +7,13 @@
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { getMonotonicTime } from "@/lib/utils";
-import type { LogoDebugInfo } from "@/types/logo";
+import type { LogoDebugDetail } from "@/types/logo";
 
 // Moved interface to @/types/logo.ts
 
 class LogoDebugger {
   private static instance: LogoDebugger;
-  private debugInfo: Map<string, LogoDebugInfo> = new Map();
+  private debugInfo: Map<string, LogoDebugDetail> = new Map();
   private isDebugEnabled: boolean;
 
   private constructor() {
@@ -43,7 +43,7 @@ class LogoDebugger {
 
   logAttempt(
     domain: string,
-    type: LogoDebugInfo["attempts"][0]["type"],
+    type: LogoDebugDetail["attempts"][0]["type"],
     details: string,
     result: "success" | "failed",
     error?: string,
@@ -157,7 +157,7 @@ class LogoDebugger {
     };
   }
 
-  getDebugInfo(domain: string): LogoDebugInfo | undefined {
+  getDebugInfo(domain: string): LogoDebugDetail | undefined {
     return this.debugInfo.get(domain);
   }
 

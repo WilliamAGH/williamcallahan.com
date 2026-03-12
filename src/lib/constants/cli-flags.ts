@@ -14,9 +14,6 @@
 
 import type { DataUpdaterFlag } from "@/types/lib";
 
-// Re-export type for consumers
-export type { DataUpdaterFlag } from "@/types/lib";
-
 /**
  * CLI flags for data updater operations
  * These flags control which data operations are executed
@@ -101,7 +98,8 @@ export function parseTestLimit(args: readonly string[]): number | undefined {
   if (!limitStr?.trim()) return undefined;
 
   const limit = parseInt(limitStr, 10);
-  if (Number.isNaN(limit) || limit <= 0 || limit > 10000) {
+  const MAX_TEST_LIMIT = 10000;
+  if (Number.isNaN(limit) || limit <= 0 || limit > MAX_TEST_LIMIT) {
     return undefined;
   }
   return limit;

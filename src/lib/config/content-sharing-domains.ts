@@ -134,7 +134,8 @@ export function isContentSharingDomain(domain: string): boolean {
   // If no exact match, try parent domain (eTLD+1) fallback
   // This handles cases like old.reddit.com → reddit.com
   const parts = normalized.split(".");
-  if (parts.length >= 3) {
+  const MIN_SUBDOMAIN_PARTS = 3;
+  if (parts.length >= MIN_SUBDOMAIN_PARTS) {
     // Extract parent domain (last two parts: domain.tld)
     const parentDomain = getRootDomain(normalized);
     if (

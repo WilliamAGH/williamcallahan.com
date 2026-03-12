@@ -188,7 +188,8 @@ export async function rerankScoredResultsWithEmbeddings<T>(options: {
   }
 
   const embeddingConfig = resolveDefaultEndpointCompatibleEmbeddingConfig();
-  if (!embeddingConfig || options.scoredResults.length < 2) {
+  const MIN_RERANK_CANDIDATES = 2;
+  if (!embeddingConfig || options.scoredResults.length < MIN_RERANK_CANDIDATES) {
     return options.scoredResults;
   }
 

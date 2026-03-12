@@ -11,15 +11,21 @@ import fs from "node:fs/promises";
 
 const ROOT_DIR = process.cwd();
 
-// Files that can be safely moved to config/
-const MOVABLE_CONFIGS = [
+// Files already consolidated to config/ (via --config flags in package.json scripts)
+const ALREADY_IN_CONFIG = [
   ".browserslistrc",
   ".hintrc",
-  ".markdownlint.json",
   ".remarkrc.mjs",
   "stylelint.config.js",
-  "postcss.config.js",
   "happydom.ts",
+  "eslint.config.ts",
+  "vitest.config.ts",
+  "biome.json",
+  "sgconfig.yml",
+  "oxlintrc.json",
+  "oxfmtrc.json",
+  "drizzle.config.ts",
+  "tailwind.config.js",
 ];
 
 // Files that MUST stay in root (required by tools)
@@ -27,11 +33,7 @@ const ROOT_REQUIRED = [
   "package.json",
   "tsconfig.json",
   "next.config.ts",
-  "eslint.config.ts",
-  "vitest.config.ts",
-  "biome.json",
-  "tailwind.config.js", // Tailwind requires root or explicit path
-  "bunfig.toml",
+  "postcss.config.js", // Next.js auto-discovers from root
   ".gitignore",
   ".env*",
 ];
@@ -77,11 +79,9 @@ async function createConsolidationPlan() {
 
   console.log("\n📋 CONSOLIDATION PLAN:\n");
 
-  console.log("🟢 CAN MOVE TO config/:");
-  for (const file of MOVABLE_CONFIGS) {
-    if (configs.includes(file)) {
-      console.log(`  ✅ ${file}`);
-    }
+  console.log("🟢 ALREADY IN config/:");
+  for (const file of ALREADY_IN_CONFIG) {
+    console.log(`  ✅ config/${file}`);
   }
 
   console.log("\n🔴 MUST STAY IN ROOT:");

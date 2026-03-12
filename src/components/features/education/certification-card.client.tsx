@@ -27,7 +27,7 @@ import { ExternalLink } from "../../ui/external-link.client";
 
 import type { JSX } from "react";
 
-import type { CertificationCardClientProps } from "@/types/education";
+import type { CertificationCardClientProps } from "@/types/schemas/education";
 
 /**
  * Certification Card Client Component

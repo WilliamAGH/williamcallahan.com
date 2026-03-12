@@ -204,7 +204,10 @@ export function generateDynamicDescription(
       ellipsis: "...",
       contentType: "description",
       // Extract important keywords from variables
-      importantKeywords: Object.values(variables).filter((v) => v.length > 3),
+      importantKeywords: Object.values(variables).filter((v) => {
+        const MIN_KEYWORD_LENGTH = 3;
+        return v.length > MIN_KEYWORD_LENGTH;
+      }),
     };
 
     const truncationResult = gradientTruncate(result, truncationOptions);

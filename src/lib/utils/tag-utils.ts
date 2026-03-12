@@ -7,6 +7,14 @@
  * @module lib/utils/tag-utils
  */
 
+/** Max length for potential acronyms (e.g., "AI", "ML") */
+const MAX_ACRONYM_LENGTH = 2;
+/** Unicode combining diacritical marks range */
+const COMBINING_DIACRITICAL_START = 0x0300;
+const COMBINING_DIACRITICAL_END = 0x036f;
+/** Minimum token length for singularization */
+const MIN_SINGULARIZE_LENGTH = 3;
+
 import type { BookmarkTag } from "@/types/schemas/bookmark";
 import { normalizeString } from "@/lib/utils";
 import { sanitizeControlChars } from "@/lib/utils/sanitize";
@@ -36,7 +44,7 @@ export function formatTagDisplay(tag: string): string {
     .split(/[\s-]+/)
     .map((word) => {
       // Preserve all-caps for short acronyms such as "AI", "ML", "VR", etc.
-      const isPotentialAcronym = word.length <= 2 && word === word.toLowerCase();
+      const isPotentialAcronym = word.length <= MAX_ACRONYM_LENGTH && word === word.toLowerCase();
       if (isPotentialAcronym) {
         return word.toUpperCase();
       }
@@ -125,7 +133,7 @@ export function tagToSlug(tag: string): string {
     .filter((char) => {
       const code = char.charCodeAt(0);
       // Filter out combining diacritical marks (U+0300 to U+036F)
-      return code < 0x0300 || code > 0x036f;
+      return code < COMBINING_DIACRITICAL_START || code > COMBINING_DIACRITICAL_END;
     })
     .join("");
 
@@ -195,7 +203,7 @@ function normalizeCategoryInput(value: string): string {
 }
 
 function singularizeToken(token: string): string {
-  if (token.length <= 3 || !token.endsWith("s")) {
+  if (token.length <= MIN_SINGULARIZE_LENGTH || !token.endsWith("s")) {
     return token;
   }
   return token.slice(0, -1);

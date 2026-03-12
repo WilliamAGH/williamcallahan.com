@@ -183,7 +183,7 @@ export interface InteractiveComponentProps {
 /**
  * Generic component wrapper type for HOCs
  */
-export type ComponentWrapper<P = Record<string, never>> = <T extends Record<string, unknown>>(
+export type ComponentEnhancer<P = Record<string, never>> = <T extends Record<string, unknown>>(
   Component: React.ComponentType<T>,
 ) => React.ComponentType<T & P>;
 
@@ -197,7 +197,7 @@ export type ForwardedComponent<T, P = Record<string, never>> = React.ForwardRefE
 /**
  * Props for components that support custom rendering
  */
-export interface RenderPropComponentProps<T = unknown> {
+export interface RenderPropComponentProps<T> {
   /** Custom render function */
   render?: (props: T) => ReactNode;
   /** Alternative children render function */

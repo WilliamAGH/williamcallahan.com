@@ -46,7 +46,7 @@ function safeExternalHref(url?: string): string | null {
   }
 }
 
-import type { EducationClientProps, EducationTableItem } from "@/types/education";
+import type { EducationClientProps, EducationTableEntry } from "@/types/schemas/education";
 
 // Sort indicator component
 const SortIndicator = ({
@@ -86,7 +86,7 @@ export function EducationClient({
   } = useRegisteredWindowState(EDUCATION_WINDOW_ID, GraduationCap, "Restore Education", "normal");
 
   // Combined table data for filtering
-  const tableData = useMemo<EducationTableItem[]>(
+  const tableData = useMemo<EducationTableEntry[]>(
     () => [...(recentCourses || []), ...(recentCertifications || [])],
     [recentCourses, recentCertifications],
   );

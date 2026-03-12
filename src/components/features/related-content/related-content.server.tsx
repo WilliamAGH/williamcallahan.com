@@ -17,12 +17,9 @@ import { readRelatedContent } from "@/lib/db/queries/content-graph";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
-import type {
-  RelatedContentProps,
-  RelatedContentItem,
-  RelatedContentType,
-} from "@/types/related-content";
+import type { RelatedContentProps, RelatedContentSuggestion } from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
+import type { RelatedContentType } from "@/types/schemas/related-content";
 
 import {
   DEFAULT_MAX_PER_TYPE,
@@ -40,7 +37,10 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 const normalizeTagForComparison = (tag: string): string =>
   tag.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
 
-const stableRelatedContentTieBreak = (a: RelatedContentItem, b: RelatedContentItem): number => {
+const stableRelatedContentTieBreak = (
+  a: RelatedContentSuggestion,
+  b: RelatedContentSuggestion,
+): number => {
   const typeDiff = a.type.localeCompare(b.type);
   if (typeDiff !== 0) return typeDiff;
   return a.id.localeCompare(b.id);
@@ -51,7 +51,7 @@ const stableRelatedContentTieBreak = (a: RelatedContentItem, b: RelatedContentIt
  * Returns a new array (never mutates input).
  */
 function applyFilters(
-  items: RelatedContentItem[],
+  items: RelatedContentSuggestion[],
   options: {
     includeTypes?: readonly string[];
     excludeTypes?: readonly string[];
@@ -60,7 +60,7 @@ function applyFilters(
     sourceType: string;
     sourceId: string;
   },
-): RelatedContentItem[] {
+): RelatedContentSuggestion[] {
   const {
     includeTypes,
     excludeTypes,
@@ -101,7 +101,9 @@ function applyFilters(
  * Try pre-computed related content from the content graph artifacts.
  * Returns hydrated items or null if no pre-computed data exists.
  */
-async function resolveFromPrecomputed(contentKey: string): Promise<RelatedContentItem[] | null> {
+async function resolveFromPrecomputed(
+  contentKey: string,
+): Promise<RelatedContentSuggestion[] | null> {
   const precomputed = await readRelatedContent();
   const entries = precomputed?.[contentKey];
   if (!entries || entries.length === 0) return null;
@@ -125,7 +127,7 @@ async function resolveFromPrecomputed(contentKey: string): Promise<RelatedConten
 async function resolveOnDemand(
   sourceType: RelatedContentType,
   sourceId: string,
-): Promise<RelatedContentItem[]> {
+): Promise<RelatedContentSuggestion[]> {
   const sourceDomain: ContentEmbeddingDomain = sourceType;
 
   const candidates = await findSimilarByEntity({
@@ -229,6 +231,7 @@ export async function RelatedContent({
     );
   } catch (error) {
     console.error("Error fetching related content:", error);
-    return null;
+    // RC1a: error logged; null is the documented contract (component renders nothing)
   }
+  return null;
 }

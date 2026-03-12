@@ -197,8 +197,8 @@ export function useAiAnalysis<TEntity, TAnalysis>(
       try {
         const response = await fetch(`/api/ai/queue/${featureName}`, { signal: controller.signal });
         if (response.ok) {
-          const data: unknown = await response.json();
-          const parseResult = aiQueueStatsSchema.safeParse(data);
+          const queueStatsResponse: unknown = await response.json();
+          const parseResult = aiQueueStatsSchema.safeParse(queueStatsResponse);
           if (parseResult.success && parseResult.data.pending > AUTO_TRIGGER_QUEUE_THRESHOLD) {
             hasTriggered.current = false;
             return;

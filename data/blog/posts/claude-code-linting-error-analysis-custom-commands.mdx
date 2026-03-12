@@ -16,8 +16,9 @@ And while Claude Code has many tools and agentic behaviors of its own built in b
 Below I show how I've been customizing [Claude Code](https://docs.anthropic.com/en/docs/claude-code/quickstart).
 
 <BackgroundInfo title="Intro to Claude Code in Your CLI">
-  Claude Code's built-in **/analyze** plus custom slash
-  commands like **/project:lint** can do things like static analysis, error tracing, and other project-specific helpers directly in an agentic environment.
+  Claude Code's built-in **/analyze** plus custom slash commands like **/project:lint** can do
+  things like static analysis, error tracing, and other project-specific helpers directly in an
+  agentic environment.
 </BackgroundInfo>
 
 ## Installation
@@ -65,11 +66,11 @@ Use this to target sub-packages or language-specific linters without creating mu
 
 A few small commands cover most incidents:
 
-| Command | Purpose |
-| --- | --- |
-| `/logs failing` | Search structured logs under `var/log/` and return the newest matches. |
+| Command          | Purpose                                                                       |
+| ---------------- | ----------------------------------------------------------------------------- |
+| `/logs failing`  | Search structured logs under `var/log/` and return the newest matches.        |
 | `/tests changed` | Run tests for paths changed in the last commit: `bun run test -- $ARGUMENTS`. |
-| `/fmt` | Execute formatters (`bun run biome:format` in this repo). |
+| `/fmt`           | Execute formatters (`bun run biome:format` in this repo).                     |
 
 Keep commands deterministic. Avoid instructions that ask Claude to guess or invent fixes; treat the CLI as a wrapper around the tooling you already trust.
 
@@ -87,11 +88,13 @@ Stash the _minimal_ prompt for each frequent task alongside the command so you c
 
 ```markdown
 <!-- .claude/commands/status.md -->
+
 Run `git status --short`. Explain staged vs unstaged files. Do not run `git add`.
 ```
 
 ```markdown
 <!-- ~/.claude/commands/prune-branches.md -->
+
 Delete all local branches merged into `main`. Show `git branch` output before removing anything.
 ```
 

@@ -47,6 +47,7 @@ export async function buildQueryEmbedding(
       { error: error instanceof Error ? error.message : String(error) },
       { category: "Search" },
     );
-    return undefined;
+    // RC1a: error logged; undefined signals FTS-only fallback
   }
+  return undefined;
 }

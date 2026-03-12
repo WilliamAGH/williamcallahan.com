@@ -89,11 +89,10 @@ The system provides multiple layers of observability and resilience:
 
 2. **`/api/health`**
    - Basic health check endpoint (public)
-   - Returns status, timestamp, environment info
-   - Includes cache statistics
-   - **Issues**: Exposes potentially sensitive information
+   - Returns only a lightweight status/timestamp payload for load balancers and uptime monitors
    - Metrics companion route (`/api/health/metrics`) now requires a bearer token and also reads directly from
      `request.headers`, eliminating the prerender bailout without relying on dynamic segments.
+   - Metrics failures now return `503` with `status: "degraded"` instead of masking probe errors as healthy.
 
 3. **`/api/ip`**
    - Returns client's real IP address (public)
@@ -168,6 +167,8 @@ The system provides multiple layers of observability and resilience:
 - **Normal Operation**: Component calls `logger.warn("Warning")` -> Logger checks `isSilent` is false -> Calls `console.warn`
 - **Test Operation**: Setup calls `logger.setSilent(true)` -> Logger checks fail -> No console output
 - **Error Flow**: Error thrown -> Caught by boundary -> Logged to Sentry -> User sees fallback UI
+- **Health Probe Flow**: system metrics probe succeeds -> `/api/health/metrics` returns `200 healthy`; probe throws ->
+  `/api/health/metrics` returns `503 degraded` and `/status` renders the failure state
 - **Debug Flow**: Debug mode check -> Conditional output -> Development-only logging
 - **Network Retry Flow**: API call fails -> Retry with exponential backoff -> Success or final failure -> Return result or null
 

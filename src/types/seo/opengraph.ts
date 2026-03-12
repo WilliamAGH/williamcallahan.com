@@ -102,27 +102,25 @@ export const ogFetchResultSchema = z.object({
 /**
  * Schema for enhanced OpenGraph results with caching metadata
  */
-export const ogResultSchema = ogFetchResultSchema
-  .extend({
-    url: nonEmptyStringSchema,
-    finalUrl: nullableUrlSchema,
-    title: stringOrNullSchema,
-    description: stringOrNullSchema,
-    siteName: stringOrNullSchema,
-    locale: stringOrNullSchema,
-    timestamp: timestampSchema,
-    source: z.enum(["cache", "s3", "external", "fallback"]),
-    urlHash: z.string().optional(),
-    errorDetails: z.unknown().optional(),
-    imageAssetId: z.string().optional(),
-    screenshotAssetId: z.string().optional(),
-    socialProfiles: socialProfilesSchema.optional(),
-    retryCount: z.number().int().min(0).optional(),
-    actualUrl: nullableUrlSchema,
-    profileImageUrl: z.string().nullable().optional(),
-    ogMetadata: ogMetadataRecordSchema.optional(),
-  })
-  .passthrough();
+export const ogResultSchema = ogFetchResultSchema.extend({
+  url: nonEmptyStringSchema,
+  finalUrl: nullableUrlSchema,
+  title: stringOrNullSchema,
+  description: stringOrNullSchema,
+  siteName: stringOrNullSchema,
+  locale: stringOrNullSchema,
+  timestamp: timestampSchema,
+  source: z.enum(["cache", "s3", "external", "fallback"]),
+  urlHash: z.string().optional(),
+  errorDetails: z.unknown().optional(),
+  imageAssetId: z.string().optional(),
+  screenshotAssetId: z.string().optional(),
+  socialProfiles: socialProfilesSchema.optional(),
+  retryCount: z.number().int().min(0).optional(),
+  actualUrl: nullableUrlSchema,
+  profileImageUrl: z.string().nullable().optional(),
+  ogMetadata: ogMetadataRecordSchema.optional(),
+});
 
 /**
  * Schema for Karakeep image fallback data
@@ -156,6 +154,3 @@ export type ValidatedOgFetchResult = z.infer<typeof ogFetchResultSchema>;
 export type ValidatedOgResult = z.infer<typeof ogResultSchema>;
 export type ValidatedKarakeepImageFallback = z.infer<typeof karakeepImageFallbackSchema>;
 export type ValidatedOgCacheEntry = z.infer<typeof ogCacheEntrySchema>;
-
-// Alias for backward compatibility
-export type KarakeepImageFallback = ValidatedKarakeepImageFallback;

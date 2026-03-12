@@ -4,7 +4,7 @@ import { searchIndexArtifacts } from "@/lib/db/schema/bookmark-taxonomy";
 import {
   searchIndexBuildMetadataSchema,
   serializedIndexSchema,
-  type SearchIndexArtifactPayload,
+  type SearchIndexArtifact,
   type SearchIndexArtifactDomain,
   type SearchIndexBuildMetadata,
   type SerializedSearchIndexArtifactDomain,
@@ -14,7 +14,7 @@ import {
 const parseSearchIndexArtifactPayload = (
   domain: SearchIndexArtifactDomain,
   payload: unknown,
-): SearchIndexArtifactPayload => {
+): SearchIndexArtifact => {
   if (domain === "build-metadata") {
     return searchIndexBuildMetadataSchema.parse(payload);
   }
@@ -24,7 +24,7 @@ const parseSearchIndexArtifactPayload = (
 
 export async function getSearchIndexArtifact(
   domain: SearchIndexArtifactDomain,
-): Promise<SearchIndexArtifactPayload | null> {
+): Promise<SearchIndexArtifact | null> {
   const rows = await db
     .select({ payload: searchIndexArtifacts.payload })
     .from(searchIndexArtifacts)

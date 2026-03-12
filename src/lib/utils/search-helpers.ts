@@ -7,8 +7,8 @@
  * @module utils/search-helpers
  */
 
-import type { SearchResult } from "@/types/search";
-import type { TerminalSearchResult } from "@/types/terminal";
+import type { SearchResult } from "@/types/schemas/search";
+import type { SelectionEntry } from "@/types/terminal";
 
 /**
  * In-flight search request map for request coalescing.
@@ -69,17 +69,17 @@ export async function coalesceSearchRequest<T>(
 }
 
 /**
- * Transforms a SearchResult (API format) to TerminalSearchResult (terminal display format).
+ * Transforms a SearchResult (API format) to SelectionEntry (terminal display format).
  * Centralizes the mapping between API response format and terminal UI format.
  *
  * @param result - The SearchResult from the search API
- * @returns TerminalSearchResult suitable for terminal display
+ * @returns SelectionEntry suitable for terminal display
  *
  * @example
  * const searchResults = await fetch('/api/search/all?q=react').then(r => r.json());
  * const terminalResults = searchResults.map(transformSearchResultToTerminalResult);
  */
-export function transformSearchResultToTerminalResult(result: SearchResult): TerminalSearchResult {
+export function transformSearchResultToTerminalResult(result: SearchResult): SelectionEntry {
   const fallbackPath = result.url || "#";
   const fallbackLabel = result.title || "Untitled";
 
@@ -161,10 +161,13 @@ export function dedupeDocuments<T extends { id?: string | number }>(
   }
 
   if (duplicates.length > 0) {
+    const MAX_DISPLAYED_DUPLICATES = 10;
     console.warn(
       `[Search] ${duplicates.length} duplicate ID(s) detected and skipped:`,
-      duplicates.slice(0, 10).join(", "),
-      duplicates.length > 10 ? `... and ${duplicates.length - 10} more` : "",
+      duplicates.slice(0, MAX_DISPLAYED_DUPLICATES).join(", "),
+      duplicates.length > MAX_DISPLAYED_DUPLICATES
+        ? `... and ${duplicates.length - MAX_DISPLAYED_DUPLICATES} more`
+        : "",
     );
   }
 

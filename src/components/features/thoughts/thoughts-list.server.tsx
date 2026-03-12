@@ -14,6 +14,9 @@ import { ThoughtCard } from "./thought-card";
 import { cn } from "@/lib/utils";
 import type { ThoughtsListProps } from "@/types/features/thoughts";
 
+/** Number of thought cards to priority-preload */
+const PRELOAD_COUNT = 3;
+
 /**
  * ThoughtsList Server Component
  *
@@ -169,7 +172,7 @@ export function ThoughtsListServer({
               className="animate-fade-in-left"
               style={{ animationDelay: `${Math.min(index * 80, 400)}ms` }}
             >
-              <ThoughtCard thought={thought} preload={index < 3} />
+              <ThoughtCard thought={thought} preload={index < PRELOAD_COUNT} />
             </div>
           ))}
         </div>

@@ -5,7 +5,7 @@
  * and is only available in development mode.
  */
 
-import type { MDXPost, AuthorIssue, FrontmatterIssue, ErrorInfo } from "@/types/debug";
+import type { MDXPost, AuthorIssue, FrontmatterIssue, ErrorDetail } from "@/types/debug";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { authors } from "@/data/blog/authors";
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Get all MDX posts with error handling
     let mdxPosts: MDXPost[] = [];
-    const mdxErrors: ErrorInfo[] = [];
+    const mdxErrors: ErrorDetail[] = [];
     try {
       mdxPosts = (await getAllMDXPosts()) as MDXPost[];
     } catch (error) {

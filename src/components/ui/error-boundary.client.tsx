@@ -11,6 +11,9 @@ import * as Sentry from "@sentry/nextjs";
 import { Component, type ReactNode, type ErrorInfo } from "react";
 import type { LocalErrorBoundaryProps, ErrorBoundaryState } from "@/types/ui/boundaries";
 
+/** Breakpoint width for mobile device detection */
+const MOBILE_WIDTH_BREAKPOINT = 768;
+
 /**
  * Generic Error Boundary component to prevent component errors from crashing the entire app
  * Catches all errors in its child component tree and displays a fallback UI
@@ -48,7 +51,8 @@ export class ErrorBoundary extends Component<LocalErrorBoundaryProps, ErrorBound
         // Check if we're on a mobile device (approximate detection)
         const isMobileDevice =
           typeof window !== "undefined" &&
-          ((typeof window.innerWidth !== "undefined" && window.innerWidth <= 768) ||
+          ((typeof window.innerWidth !== "undefined" &&
+            window.innerWidth <= MOBILE_WIDTH_BREAKPOINT) ||
             (typeof navigator !== "undefined" &&
               /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
                 navigator.userAgent,

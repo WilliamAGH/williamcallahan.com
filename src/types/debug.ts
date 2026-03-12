@@ -19,7 +19,7 @@ export interface FrontmatterIssue {
   [filename: string]: string[];
 }
 
-export interface ErrorInfo {
+export interface ErrorDetail {
   message: string;
   stack?: string;
   cause?: unknown;

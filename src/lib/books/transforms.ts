@@ -6,7 +6,7 @@
  * Schemas and types live in types/schemas/book.ts
  */
 
-import type { AbsLibraryItem, AbsTransformOptions, Book, BookListItem } from "@/types/schemas/book";
+import type { AbsLibraryEntry, AbsTransformOptions, Book, BookBrief } from "@/types/schemas/book";
 import { formatBookDescription } from "@/lib/utils/html";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,8 +19,10 @@ import { formatBookDescription } from "@/lib/utils/html";
 function parseIsbn(isbn: string | null | undefined): { isbn10?: string; isbn13?: string } {
   if (!isbn) return {};
   const clean = isbn.replace(/[-\s]/g, "");
-  if (clean.length === 10) return { isbn10: clean };
-  if (clean.length === 13) return { isbn13: clean };
+  const ISBN10_LENGTH = 10;
+  const ISBN13_LENGTH = 13;
+  if (clean.length === ISBN10_LENGTH) return { isbn10: clean };
+  if (clean.length === ISBN13_LENGTH) return { isbn13: clean };
   return {};
 }
 
@@ -117,7 +119,7 @@ function cleanDescription(description: string | null | undefined): string | unde
 /**
  * Transform AudioBookShelf item to Book
  */
-export function absItemToBook(item: AbsLibraryItem, options: AbsTransformOptions): Book {
+export function absItemToBook(item: AbsLibraryEntry, options: AbsTransformOptions): Book {
   const meta = item.media.metadata;
   const isbns = parseIsbn(meta.isbn);
   const formats = determineFormats(item.media.ebookFormat, item.media.duration);
@@ -143,12 +145,12 @@ export function absItemToBook(item: AbsLibraryItem, options: AbsTransformOptions
 }
 
 /**
- * Transform AudioBookShelf item to BookListItem
+ * Transform AudioBookShelf item to BookBrief
  */
 export function absItemToBookListItem(
-  item: AbsLibraryItem,
+  item: AbsLibraryEntry,
   options: AbsTransformOptions,
-): BookListItem {
+): BookBrief {
   const meta = item.media.metadata;
   return {
     id: item.id,
@@ -161,7 +163,7 @@ export function absItemToBookListItem(
 /**
  * Transform array of AudioBookShelf items to Books
  */
-export function absItemsToBooks(items: AbsLibraryItem[], options: AbsTransformOptions): Book[] {
+export function absItemsToBooks(items: AbsLibraryEntry[], options: AbsTransformOptions): Book[] {
   return items.map((item) => absItemToBook(item, options));
 }
 
@@ -169,8 +171,8 @@ export function absItemsToBooks(items: AbsLibraryItem[], options: AbsTransformOp
  * Transform array of AudioBookShelf items to BookListItems
  */
 export function absItemsToBookListItems(
-  items: AbsLibraryItem[],
+  items: AbsLibraryEntry[],
   options: AbsTransformOptions,
-): BookListItem[] {
+): BookBrief[] {
   return items.map((item) => absItemToBookListItem(item, options));
 }

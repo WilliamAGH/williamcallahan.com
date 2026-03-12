@@ -7,6 +7,10 @@
  * @module lib/utils
  */
 
+/** Scientific notation thresholds for number formatting */
+const SCIENTIFIC_NOTATION_UPPER = 1e6;
+const SCIENTIFIC_NOTATION_LOWER = 1e-4;
+
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
@@ -168,7 +172,10 @@ export function formatMultiple(value: number | undefined | null): string {
     return "0x";
   }
   // For very large or very small numbers, use scientific notation
-  if (Math.abs(value) >= 1e6 || (value !== 0 && Math.abs(value) < 1e-4)) {
+  if (
+    Math.abs(value) >= SCIENTIFIC_NOTATION_UPPER ||
+    (value !== 0 && Math.abs(value) < SCIENTIFIC_NOTATION_LOWER)
+  ) {
     let exponential = value.toExponential();
     // Remove .0 before e if present, e.g., 1.0e+20 -> 1e+20
     exponential = exponential.replace(/\.0+(e[+-]\d+)$/, "$1");

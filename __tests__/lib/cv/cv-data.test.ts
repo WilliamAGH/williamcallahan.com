@@ -1,9 +1,9 @@
 /**
- * getCvData unit tests
+ * getCurriculumVitae unit tests
  */
 
 import { experiences } from "@/data/experience";
-import { getCvData } from "@/lib/cv/cv-data";
+import { getCurriculumVitae } from "@/lib/cv/cv-data";
 
 const freezeTime = (isoTimestamp: string): void => {
   // Vitest uses toFake (whitelist) instead of doNotFake (blacklist)
@@ -11,7 +11,7 @@ const freezeTime = (isoTimestamp: string): void => {
   vi.useFakeTimers({ now: new Date(isoTimestamp) });
 };
 
-describe("getCvData", () => {
+describe("getCurriculumVitae", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.resetModules();
@@ -21,7 +21,7 @@ describe("getCvData", () => {
   it("filters featured experiences and derives bullet points", () => {
     freezeTime("2025-11-08T12:34:56Z");
 
-    const data = getCvData();
+    const data = getCurriculumVitae();
     const expectedFeaturedCount = experiences.filter(
       (experienceItem) => experienceItem.cvFeatured,
     ).length;
@@ -38,7 +38,7 @@ describe("getCvData", () => {
   it("formats contact metadata and current date display", () => {
     freezeTime("2025-11-08T12:00:00Z");
 
-    const data = getCvData();
+    const data = getCurriculumVitae();
 
     expect(data.personalSiteHost).toBe("williamcallahan.com");
     expect(data.aventureHost).toBe("aventure.vc");
@@ -49,7 +49,7 @@ describe("getCvData", () => {
   it("limits project tags and groups featured courses by institution", () => {
     freezeTime("2025-11-08T08:00:00Z");
 
-    const data = getCvData();
+    const data = getCurriculumVitae();
 
     const aventureProject = data.projects.find((project) => project.id === "aVenture.vc");
     expect(aventureProject).toBeDefined();
@@ -93,11 +93,11 @@ describe("getCvData", () => {
       },
     }));
 
-    const { getCvData: getCvDataWithMocks } = await import("@/lib/cv/cv-data");
+    const { getCurriculumVitae: getCurriculumVitaeWithMocks } = await import("@/lib/cv/cv-data");
 
     freezeTime("2025-05-01T00:00:00Z");
 
-    const data = getCvDataWithMocks();
+    const data = getCurriculumVitaeWithMocks();
     expect(data.personalSiteHost).toBe("notaurl");
     expect(data.linkedInLabel).toBe("nota-url");
     expect(data.aventureHost).toBe("notaurl");

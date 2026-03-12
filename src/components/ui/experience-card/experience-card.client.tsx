@@ -28,7 +28,7 @@ import type { ExperienceCardExtendedProps } from "@/types/features/experience";
  * @param {string} props.role - Job title or role description
  * @param {string} props.website - Company website URL
  * @param {string} [props.location] - Work location, optional
- * @param {LogoData} props.logoData - Logo image data
+ * @param {Logo} props.logoData - Logo image data
  * @returns {JSX.Element} Rendered experience card with hover effects and external links
  *
  * @example

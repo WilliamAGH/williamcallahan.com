@@ -30,6 +30,22 @@ import { createHash } from "node:crypto";
 import { extractBasicImageMeta } from "./image-metadata";
 import type { BasicImageMeta, ImageSignature } from "@/types/image";
 
+/** Size bucket thresholds (pixels) */
+const SIZE_TINY_THRESHOLD = 32;
+const SIZE_SMALL_THRESHOLD = 64;
+const SIZE_MEDIUM_THRESHOLD = 128;
+
+/** Aspect ratio thresholds */
+const ASPECT_TALL_THRESHOLD = 0.9;
+const ASPECT_WIDE_THRESHOLD = 1.1;
+
+/** Compression ratio thresholds */
+const HIGH_COMPRESSION_THRESHOLD = 0.1;
+const MEDIUM_COMPRESSION_THRESHOLD = 0.5;
+
+/** Byte histogram size */
+const BYTE_RANGE = 256;
+
 /**
  * Custom error class for image comparison errors
  * @class
@@ -67,21 +83,26 @@ export async function generateImageSignature(buffer: Buffer): Promise<ImageSigna
 function generateStructuralHash(meta: BasicImageMeta, buffer: Buffer): string {
   const sizeBucket = !meta.width
     ? "unknown"
-    : meta.width < 32
+    : meta.width < SIZE_TINY_THRESHOLD
       ? "tiny"
-      : meta.width < 64
+      : meta.width < SIZE_SMALL_THRESHOLD
         ? "small"
-        : meta.width < 128
+        : meta.width < SIZE_MEDIUM_THRESHOLD
           ? "medium"
           : "large";
 
   const aspect = meta.width && meta.height ? meta.width / meta.height : 1;
-  const aspectBucket = aspect < 0.9 ? "tall" : aspect > 1.1 ? "wide" : "square";
+  const aspectBucket =
+    aspect < ASPECT_TALL_THRESHOLD ? "tall" : aspect > ASPECT_WIDE_THRESHOLD ? "wide" : "square";
 
   const compressionRatio =
     meta.width && meta.height ? buffer.length / (meta.width * meta.height) : 0;
   const compressionBucket =
-    compressionRatio < 0.1 ? "high" : compressionRatio < 0.5 ? "medium" : "low";
+    compressionRatio < HIGH_COMPRESSION_THRESHOLD
+      ? "high"
+      : compressionRatio < MEDIUM_COMPRESSION_THRESHOLD
+        ? "medium"
+        : "low";
 
   return `${sizeBucket}:${aspectBucket}:${compressionBucket}:${meta.format ?? "unknown"}`;
 }
@@ -116,7 +137,7 @@ function extractColorSignature(buffer: Buffer): number[] {
 function calculateEntropy(data: Buffer): number {
   const counts = Array.from({ length: 256 }, () => 0);
   for (const byte of data) {
-    if (byte >= 0 && byte < 256 && byte < counts.length) {
+    if (byte >= 0 && byte < BYTE_RANGE && byte < counts.length) {
       const count = counts[byte];
       if (count !== undefined) {
         counts[byte] = count + 1;

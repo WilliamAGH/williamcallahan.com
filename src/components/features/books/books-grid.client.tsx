@@ -14,6 +14,9 @@ import type { BooksClientGridProps } from "@/types/features/books";
 import { BooksWindow } from "./books-window.client";
 import { BookCard } from "./book-card.client";
 
+/** Number of book cards to priority-load (2 rows of 4 columns) */
+const PRIORITY_LOAD_COUNT = 8;
+
 export function BooksClientGrid({
   books,
   title,
@@ -108,7 +111,7 @@ export function BooksClientGrid({
           {books.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8">
               {books.map((book, index) => (
-                <BookCard key={book.id} book={book} priority={index < 8} />
+                <BookCard key={book.id} book={book} priority={index < PRIORITY_LOAD_COUNT} />
               ))}
             </div>
           )}

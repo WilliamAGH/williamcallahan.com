@@ -2,12 +2,8 @@
 
 import { BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { envLogger } from "@/lib/utils/env-logger";
-import {
-  type UnifiedBookmark,
-  type BookmarksIndex,
-  type BookmarkLoadOptions,
-  type LightweightBookmark,
-} from "@/types/bookmark";
+import type { UnifiedBookmark, BookmarksIndex } from "@/types/schemas/bookmark";
+import type { BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import {
   normalizeBookmarkTags,
   stripImageData,

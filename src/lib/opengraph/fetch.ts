@@ -8,6 +8,11 @@
  * @module opengraph/fetch
  */
 
+/** HTTP status codes for fetch result classification */
+const HTTP_FORBIDDEN = 403;
+const HTTP_NOT_FOUND = 404;
+const HTTP_GONE = 410;
+
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getMonotonicTime } from "@/lib/utils";
@@ -35,7 +40,7 @@ import {
 import { getDomainType, sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
 import {
   ogMetadataSchema,
-  type KarakeepImageFallback,
+  type ValidatedKarakeepImageFallback,
   type ValidatedOgMetadata,
 } from "@/types/seo/opengraph";
 import { extractOpenGraphTags } from "./parser";
@@ -75,14 +80,13 @@ async function tryPersistImageToS3(
       return s3Url;
     }
     // null means read-only mode - not an error, just skipped
-    return undefined;
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error(
       `[OpenGraph] S3 ${context} persistence failed for ${imageUrl}, keeping original: ${errorMsg}`,
     );
-    return undefined;
   }
+  return undefined;
 }
 
 /**
@@ -94,7 +98,7 @@ async function tryPersistImageToS3(
  */
 export async function fetchExternalOpenGraphWithRetry(
   url: string,
-  fallbackImageData?: KarakeepImageFallback,
+  fallbackImageData?: ValidatedKarakeepImageFallback,
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   // Check if there's already an ongoing request for this URL
   const cacheKey = `${url}:${fallbackImageData?.idempotencyKey || "default"}`;
@@ -123,7 +127,7 @@ export async function fetchExternalOpenGraphWithRetry(
  */
 async function performFetchWithRetry(
   url: string,
-  fallbackImageData?: KarakeepImageFallback,
+  fallbackImageData?: ValidatedKarakeepImageFallback,
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   const originalUrl = new URL(url);
   const isTwitter =
@@ -137,15 +141,13 @@ async function performFetchWithRetry(
       async () => {
         let lastAttemptError: Error | null = null;
 
-        // Try direct fetch first, then proxies
-        const urlsToTry = [
-          url,
-          ...proxies.map((proxy) => {
-            const proxyUrl = new URL(url);
-            proxyUrl.hostname = proxy;
-            return proxyUrl.toString();
-          }),
-        ];
+        // For X/Twitter: try proxy first (direct fetch is always blocked by X)
+        const proxyUrls = proxies.map((proxy) => {
+          const proxyUrl = new URL(url);
+          proxyUrl.hostname = proxy;
+          return proxyUrl.toString();
+        });
+        const urlsToTry = isTwitter ? [...proxyUrls, url] : [url, ...proxyUrls];
 
         for (const effectiveUrl of urlsToTry) {
           const isProxy = effectiveUrl !== url;
@@ -241,8 +243,16 @@ async function performFetchWithRetry(
       errorMessage.includes("timeout") ||
       errorMessage.includes("ECONNREFUSED");
 
+    const isHttpError =
+      errorMessage.includes("HTTP 4") ||
+      errorMessage.includes("HTTP 5") ||
+      errorMessage.includes("retries") ||
+      errorMessage.includes("All OpenGraph fetch attempts failed");
+
     if (isNetworkError) {
       debug(`[DataAccess/OpenGraph] Final network connectivity issue for ${url}: ${errorMessage}`);
+    } else if (isHttpError) {
+      debug(`[DataAccess/OpenGraph] Final HTTP error for ${url}: ${errorMessage}`);
     } else {
       envLogger.log(
         `Final unexpected error for OpenGraph fetch`,
@@ -266,7 +276,7 @@ async function performFetchWithRetry(
  */
 async function fetchExternalOpenGraph(
   url: string,
-  fallbackImageData?: KarakeepImageFallback,
+  fallbackImageData?: ValidatedKarakeepImageFallback,
 ): Promise<
   OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null
 > {
@@ -361,11 +371,11 @@ async function fetchExternalOpenGraph(
         },
       });
 
-      if (response.status === 404 || response.status === 410) {
+      if (response.status === HTTP_NOT_FOUND || response.status === HTTP_GONE) {
         return { permanentFailure: true, status: response.status };
       }
-      if (response.status === 403) {
-        return { blocked: true, status: 403 };
+      if (response.status === HTTP_FORBIDDEN) {
+        return { blocked: true, status: HTTP_FORBIDDEN };
       }
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

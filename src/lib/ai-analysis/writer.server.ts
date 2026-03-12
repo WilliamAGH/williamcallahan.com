@@ -11,7 +11,7 @@ import { cacheContextGuards } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
 import { assertServerOnly } from "@/lib/utils/ensure-server-only";
 import { buildAnalysisCacheTags, buildAnalysisVersionsCacheTags } from "./paths";
-import type { AnalysisDomain, PersistAnalysisOptions } from "./types";
+import type { AnalysisDomain, PersistAnalysisOptions } from "@/types/ai-analysis";
 
 assertServerOnly();
 

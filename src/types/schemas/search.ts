@@ -96,7 +96,7 @@ export const educationItemSchema = z.object({
   path: z.string(),
 });
 
-export type EducationItem = z.infer<typeof educationItemSchema>;
+export type EducationEntry = z.infer<typeof educationItemSchema>;
 
 /** Bookmark index item (processed for MiniSearch) */
 export const bookmarkIndexItemSchema = z.object({
@@ -111,7 +111,7 @@ export const bookmarkIndexItemSchema = z.object({
   slug: z.string(), // REQUIRED for idempotent routing
 });
 
-export type BookmarkIndexItem = z.infer<typeof bookmarkIndexItemSchema>;
+export type BookmarkIndexEntry = z.infer<typeof bookmarkIndexItemSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Serialized Index Types (for S3 persistence)
@@ -170,7 +170,7 @@ export const searchIndexArtifactPayloadSchema = z.union([
   searchIndexBuildMetadataSchema,
 ]);
 
-export type SearchIndexArtifactPayload = z.infer<typeof searchIndexArtifactPayloadSchema>;
+export type SearchIndexArtifact = z.infer<typeof searchIndexArtifactPayloadSchema>;
 
 /** All serialized indexes for S3 storage */
 export const allSerializedIndexesSchema = z.object({
@@ -227,12 +227,6 @@ export type SearchResult = z.infer<typeof searchResultSchema>;
 export const searchResultsSchema = z.array(searchResultSchema);
 
 export type SearchResults = z.infer<typeof searchResultsSchema>;
-
-/**
- * Search result with relevance score wrapper.
- * Generic type cannot be expressed as Zod schema.
- */
-export type ScoredResult<T> = { item: T; score: number };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MiniSearch Internal Types

@@ -163,7 +163,8 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
     });
 
     // Handle 202 Accepted status if requested (GitHub API pattern)
-    if (handle202Retry && response.status === 202) {
+    const HTTP_ACCEPTED = 202;
+    if (handle202Retry && response.status === HTTP_ACCEPTED) {
       clearTimeout(timeoutId);
 
       const retryAfter = response.headers.get("Retry-After");
@@ -224,8 +225,8 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  const data: unknown = await response.json();
-  return data as T;
+  const jsonPayload: unknown = await response.json();
+  return jsonPayload as T;
 }
 
 /**

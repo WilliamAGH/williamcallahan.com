@@ -17,6 +17,10 @@ import type { BookmarkCardClientProps } from "@/types/features/bookmarks";
 
 // Display configuration
 const MAX_TITLE_WORDS = 10;
+/** Minimum parts in a formatted date string for compact display (e.g., "Jan 15, 2025") */
+const MIN_DATE_PARTS = 3;
+/** Index of the year part in a formatted date string */
+const DATE_YEAR_INDEX = 2;
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
   const {
@@ -47,8 +51,8 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   const formattedBookmarkDate = dateBookmarked ? utilFormatDate(dateBookmarked) : "";
   const parts = formattedBookmarkDate.split(" ");
   const compactBookmarkDate =
-    parts.length >= 3
-      ? `${parts[0]?.slice(0, 3)} ${parts[1]?.replace(",", "")}, ${parts[2]}`
+    parts.length >= MIN_DATE_PARTS
+      ? `${parts[0]?.slice(0, 3)} ${parts[1]?.replace(",", "")}, ${parts[DATE_YEAR_INDEX]}`
       : formattedBookmarkDate;
   const hoverDateLabel = formattedBookmarkDate ? `Bookmark saved on ${formattedBookmarkDate}` : "";
 

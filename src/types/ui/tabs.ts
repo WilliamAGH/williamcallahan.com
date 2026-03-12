@@ -6,7 +6,7 @@
 import type { ReactNode } from "react";
 
 // Shell Parent Tabs Component Types
-export interface TabItem {
+export interface TabEntry {
   /** Tab identifier */
   id: string;
   /** Tab label */
@@ -41,7 +41,7 @@ export interface ShellParentTabsContextProps {
 
 export interface ShellParentTabsProps {
   /** Array of tabs */
-  tabs: TabItem[];
+  tabs: TabEntry[];
   /** Currently active tab ID */
   activeTab?: string;
   /** Callback when tab changes */

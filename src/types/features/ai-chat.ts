@@ -20,8 +20,6 @@ export type ToolRegistration = {
   /** Regex that triggers forced tool invocation on turn 0 */
   forcePattern: RegExp;
 };
-/** Server-side stream event — derived from the client-facing schema to prevent drift. */
-export type AiChatModelStreamEvent = AiChatModelStreamUpdate;
 
 /** Validated request context after all checks pass */
 export type ValidatedRequestContext = {
@@ -57,7 +55,7 @@ export type SseStreamConfig = {
   startTime: number;
   logContext: ChatLogContext;
   ragContextStatus: RagContextStatus;
-  runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
+  runUpstream: (onStreamEvent?: (event: AiChatModelStreamUpdate) => void) => Promise<string>;
 };
 
 /** Pipeline result containing everything needed to dispatch an AI chat request */
@@ -66,7 +64,7 @@ export type ChatPipeline = {
   priority: number;
   startTime: number;
   logContext: ChatLogContext;
-  runUpstream: (onStreamEvent?: (event: AiChatModelStreamEvent) => void) => Promise<string>;
+  runUpstream: (onStreamEvent?: (event: AiChatModelStreamUpdate) => void) => Promise<string>;
 };
 
 /** Per-feature model parameter overrides (e.g. temperature, reasoning effort) */
@@ -116,7 +114,7 @@ export type UpstreamTurnParams = {
   reasoningEffort: ReasoningEffort | null;
   maxTokens: number;
   responseFormat?: OpenAiCompatibleResponseFormat;
-  onStreamEvent?: (event: AiChatModelStreamEvent) => void;
+  onStreamEvent?: (event: AiChatModelStreamUpdate) => void;
 };
 
 /** Metadata captured from the streaming transport's onStart callback.

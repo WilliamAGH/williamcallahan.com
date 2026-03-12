@@ -13,7 +13,10 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Sparkles, PenTool, Hash, Quote, Brain, Lightbulb } from "lucide-react";
 import { useState, type JSX } from "react";
-import type { BookmarkTag } from "@/types/bookmark";
+import type { BookmarkTag } from "@/types/schemas/bookmark";
+
+/** Character length threshold for showing expand/collapse control */
+const EXPANDABLE_CONTENT_LENGTH = 200;
 
 export function BookmarkInsights({
   note,
@@ -219,7 +222,8 @@ export function BookmarkInsights({
         )}
 
         {/* Expand/Collapse Button for long content */}
-        {(note && note.length > 200) || (summary && summary.length > 200) ? (
+        {(note && note.length > EXPANDABLE_CONTENT_LENGTH) ||
+        (summary && summary.length > EXPANDABLE_CONTENT_LENGTH) ? (
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}

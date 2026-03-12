@@ -53,8 +53,7 @@ export interface OgResult extends OgFetchResult {
   actualUrl?: string | null;
 }
 
-import type { KarakeepImageFallback, ValidatedOgMetadata } from "./seo/opengraph";
-export type { KarakeepImageFallback };
+import type { ValidatedKarakeepImageFallback } from "./seo/opengraph";
 
 // Type alias with extra fields
 export interface OgCacheEntry {
@@ -63,11 +62,6 @@ export interface OgCacheEntry {
   lastAttemptedAt: number;
   isFailure?: boolean;
 }
-
-// Import the validated type from seo/opengraph to avoid duplication
-
-/** General OpenGraph metadata structure */
-export type OgMetadata = ValidatedOgMetadata;
 
 /**
  * Custom error for OpenGraph operations
@@ -112,7 +106,7 @@ export interface PersistImageResult {
 }
 
 /** Function signature for refreshing OpenGraph data */
-export type RefreshOpenGraphData = (
+export type RefreshOpenGraph = (
   url: string,
   idempotencyKey?: string,
   fallbackImageData?: unknown,
@@ -123,7 +117,7 @@ export type CachedOpenGraphInput = {
   normalizedUrl: string;
   skipExternalFetch: boolean;
   idempotencyKey?: string;
-  validatedFallback?: KarakeepImageFallback | null;
+  validatedFallback?: ValidatedKarakeepImageFallback | null;
   getOgTimestamp: () => number;
-  refreshOpenGraphData: RefreshOpenGraphData;
+  refreshOpenGraphData: RefreshOpenGraph;
 };

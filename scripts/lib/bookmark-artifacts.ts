@@ -6,7 +6,8 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import type { BookmarkS3Record, BookmarkSlugMapping } from "@/types/bookmark";
+import type { BookmarkS3Entry } from "@/types/bookmark";
+import type { BookmarkSlugMapping } from "@/types/schemas/bookmark";
 
 /** Default number of bookmarks per paginated page */
 const DEFAULT_BOOKMARKS_PAGE_SIZE = 24;
@@ -31,9 +32,9 @@ export function saveToLocalS3(key: string, data: unknown): void {
 }
 
 function embedSlug(
-  bookmark: BookmarkS3Record,
+  bookmark: BookmarkS3Entry,
   slugMapping: Partial<BookmarkSlugMapping> | null,
-): BookmarkS3Record {
+): BookmarkS3Entry {
   if (typeof bookmark.slug === "string" && bookmark.slug.trim().length > 0) {
     return bookmark;
   }
@@ -51,10 +52,10 @@ function embedSlug(
 }
 
 /**
- * Compute a checksum from raw BookmarkS3Record data.
+ * Compute a checksum from raw BookmarkS3Entry data.
  * Uses only `id` and modification timestamps — mirrors the algorithm in
  * `src/lib/bookmarks/utils.ts#calculateBookmarksChecksum` but is typed for
- * the looser `BookmarkS3Record` shape used in build scripts.
+ * the looser `BookmarkS3Entry` shape used in build scripts.
  */
 function toStringField(value: unknown): string {
   if (typeof value === "string") return value;
@@ -62,7 +63,7 @@ function toStringField(value: unknown): string {
   return "";
 }
 
-function computeChecksum(bookmarks: BookmarkS3Record[]): string {
+function computeChecksum(bookmarks: BookmarkS3Entry[]): string {
   const records = bookmarks
     .map((bookmark) => {
       if (typeof bookmark.id !== "string" || bookmark.id.length === 0) {
@@ -93,12 +94,12 @@ export function buildPaginationArtifacts(
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
   let pageSize = DEFAULT_BOOKMARKS_PAGE_SIZE;
   if (typeof index === "object" && index !== null && "pageSize" in index) {
-    const rawPageSize = (index as Record<string, unknown>).pageSize;
+    const rawPageSize = (index as { pageSize?: unknown }).pageSize;
     if (typeof rawPageSize === "number" && rawPageSize > 0) {
       pageSize = rawPageSize;
     }
   }
-  const bookmarks = rawBookmarks.map((b) => embedSlug(b as BookmarkS3Record, slugMapping));
+  const bookmarks = rawBookmarks.map((b) => embedSlug(b as BookmarkS3Entry, slugMapping));
   const totalPages = Math.max(1, Math.ceil(bookmarks.length / pageSize));
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
@@ -114,9 +115,9 @@ export function buildTagArtifacts(
   tagIndexPrefix: string,
 ): void {
   if (!Array.isArray(rawBookmarks) || rawBookmarks.length === 0) return;
-  const tagBuckets = new Map<string, BookmarkS3Record[]>();
+  const tagBuckets = new Map<string, BookmarkS3Entry[]>();
   rawBookmarks.forEach((item) => {
-    const bookmark = embedSlug(item as BookmarkS3Record, slugMapping);
+    const bookmark = embedSlug(item as BookmarkS3Entry, slugMapping);
     const rawTags = bookmark.tags;
     if (rawTags !== undefined && !Array.isArray(rawTags)) {
       console.warn("[bookmark-artifacts] Bookmark tags were not an array; skipping invalid tags", {

@@ -160,7 +160,7 @@ export interface ChunkingOptions {
  * Flow item from epub2 spine/reading order
  * The epub2 package has weak types, so we define what we expect
  */
-export interface EpubFlowItem {
+export interface EpubFlowEntry {
   id: string;
   href?: string;
   title?: string;
@@ -169,7 +169,7 @@ export interface EpubFlowItem {
 /**
  * TOC item from epub2 table of contents
  */
-export interface EpubTocItem {
+export interface EpubTocEntry {
   id: string;
   title?: string;
   href?: string;

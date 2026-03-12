@@ -92,7 +92,7 @@ export const processedExperienceItemSchema = experienceBaseSchema.extend({
  * Type exports using z.infer for single source of truth
  */
 export type Experience = z.infer<typeof experienceSchema>;
-export type ProcessedExperienceItem = z.infer<typeof processedExperienceItemSchema>;
+export type ProcessedExperience = z.infer<typeof processedExperienceItemSchema>;
 
 /**
  * Validation functions for external data
@@ -105,6 +105,6 @@ export const validateExperienceArray = (data: unknown): Experience[] => {
   return z.array(experienceSchema).parse(data);
 };
 
-export const validateProcessedExperienceItem = (data: unknown): ProcessedExperienceItem => {
+export const validateProcessedExperience = (data: unknown): ProcessedExperience => {
   return processedExperienceItemSchema.parse(data);
 };

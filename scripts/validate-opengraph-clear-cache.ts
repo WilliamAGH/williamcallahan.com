@@ -85,7 +85,7 @@ async function validateOpenGraph(url: string): Promise<{
     isValid: true,
     errors: [] as string[],
     warnings: [] as string[],
-    ogTags: {} as Record<string, string>,
+    ogTags: {} as { [k: string]: string },
   };
 
   try {

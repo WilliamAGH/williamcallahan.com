@@ -18,7 +18,7 @@ import { LogoValidators } from "./image/logo-validators";
 import { S3Operations } from "./image/s3-operations";
 import { SessionManager } from "./image/session-manager";
 import { LogoFetcher } from "./image/logo-fetcher";
-import { findExistingHashedLogo, findAndMigrateLegacyLogo } from "./image/logo-discovery";
+import { findExistingHashedLogo, findAndMigrateUnhashedLogo } from "./image/logo-discovery";
 import { fetchAndPersistExternalLogo, buildReadOnlyMissingResult } from "./image/logo-persistence";
 import { fetchAndProcessImage } from "./image/image-fetcher";
 
@@ -193,9 +193,9 @@ export class UnifiedImageService {
     }
 
     // Check for legacy logos and optionally migrate (extracted to logo-discovery.ts)
-    const legacyLogo = await findAndMigrateLegacyLogo(domain, this.isReadOnly, buildResult);
-    if (legacyLogo) {
-      return legacyLogo;
+    const unhashedLogo = await findAndMigrateUnhashedLogo(domain, this.isReadOnly, buildResult);
+    if (unhashedLogo) {
+      return unhashedLogo;
     }
 
     // No logo found in CDN - return error in read-only mode
@@ -249,8 +249,9 @@ export class UnifiedImageService {
       return await this.validators.analyzeLogo(buffer, url);
     } catch (error) {
       logger.error("[UnifiedImageService] Failed to analyze logo from URL", error, { url });
-      return null;
+      // RC1a: error logged; null is the documented contract for callers
     }
+    return null;
   }
 
   /** Validate logo buffer, check for globe icon */

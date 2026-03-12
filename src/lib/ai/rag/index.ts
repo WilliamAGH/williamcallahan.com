@@ -95,6 +95,3 @@ export async function buildContextForQuery(
     ...(inventoryPaginationHint && { inventoryPaginationHint }),
   };
 }
-
-// Re-export types for consumers
-export type { StaticContext, DynamicResult, FormattedContext } from "@/types/rag";

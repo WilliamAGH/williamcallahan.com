@@ -14,7 +14,7 @@
 import "server-only";
 
 import type { JSX } from "react";
-import type { BookListItem } from "@/types/schemas/book";
+import type { BookBrief } from "@/types/schemas/book";
 import type { BooksServerProps } from "@/types/features/books";
 import { fetchBookListItemsWithFallback } from "@/lib/books/books-data-access.server";
 import { BooksClientGrid } from "./books-grid.client";
@@ -31,7 +31,7 @@ export async function BooksServer({
   description,
   disclaimer,
 }: BooksServerProps): Promise<JSX.Element> {
-  let books: BookListItem[] = [];
+  let books: BookBrief[] = [];
   let error: string | null = null;
   let isStale = false;
 

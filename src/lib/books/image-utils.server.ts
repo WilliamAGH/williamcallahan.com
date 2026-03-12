@@ -84,8 +84,9 @@ export async function generateBookCoverBlur(coverUrl: string): Promise<string | 
         `[generateBookCoverBlur] Error generating blur for ${sanitizeUrlForLogs(coverUrl)}: ${message}`,
       );
     }
-    return undefined;
+    // RC1a: error logged; undefined is the documented contract (enhancement-only)
   }
+  return undefined;
 }
 
 /**

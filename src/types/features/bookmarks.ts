@@ -10,7 +10,7 @@
 
 import type { ReactNode } from "react";
 
-import type { UnifiedBookmark, BookmarkTag, BookmarkContent } from "../bookmark";
+import type { UnifiedBookmark, BookmarkTag, BookmarkContent } from "../schemas/bookmark";
 import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from "@/types/ui";
 import type { EngagementContentType } from "@/types/schemas/engagement";
 

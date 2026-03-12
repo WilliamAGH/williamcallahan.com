@@ -117,7 +117,7 @@ const buildMdxComponent = (
     const scope = content.scope ?? {};
     const frontmatter = content.frontmatter ?? {};
 
-    const fullScope: Record<string, unknown> = Object.assign(
+    const fullScope: { [key: string]: unknown } = Object.assign(
       {
         opts: {
           ...mdxRuntime,

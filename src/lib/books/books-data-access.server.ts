@@ -19,7 +19,7 @@ import "server-only";
 import { readBooksFromDb } from "@/lib/db/queries/books";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import type { Book, BookListItem } from "@/types/schemas/book";
+import type { Book, BookBrief } from "@/types/schemas/book";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache TTLs
@@ -124,9 +124,9 @@ export async function fetchBookByIdWithFallback(
  */
 export async function fetchBookListItemsWithFallback(
   _options?: Record<string, unknown>,
-): Promise<{ books: BookListItem[]; isFallback: boolean; fetchedAt: number }> {
+): Promise<{ books: BookBrief[]; isFallback: boolean; fetchedAt: number }> {
   const { books, isFallback } = await fetchBooksInternal();
-  const items: BookListItem[] = books.map(({ id, title, authors, coverUrl, coverBlurDataURL }) => ({
+  const items: BookBrief[] = books.map(({ id, title, authors, coverUrl, coverBlurDataURL }) => ({
     id,
     title,
     authors,

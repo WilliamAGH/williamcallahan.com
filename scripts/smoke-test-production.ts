@@ -166,9 +166,9 @@ class ProductionSmokeTests {
             data as { checks?: { datasetOk?: unknown; indexOk?: unknown; slugMapOk?: unknown } }
           ).checks;
           if (!checks || typeof checks !== "object") return false;
-          const datasetOk = (checks as Record<string, unknown>).datasetOk === true;
-          const indexOk = (checks as Record<string, unknown>).indexOk === true;
-          const slugMapOk = (checks as Record<string, unknown>).slugMapOk === true;
+          const datasetOk = (checks as { datasetOk?: unknown }).datasetOk === true;
+          const indexOk = (checks as { indexOk?: unknown }).indexOk === true;
+          const slugMapOk = (checks as { slugMapOk?: unknown }).slugMapOk === true;
           // Check for critical S3 data
           return datasetOk && indexOk && slugMapOk;
         },

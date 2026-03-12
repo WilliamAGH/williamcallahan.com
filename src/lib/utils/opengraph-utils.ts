@@ -11,7 +11,7 @@
 
 import { generateHash, getBufferHash } from "./hash-utils";
 import { stripWwwPrefix } from "./url-utils";
-import type { OgMetadata } from "@/types/opengraph";
+import type { ValidatedOgMetadata } from "@/types/seo/opengraph";
 
 /**
  * Validates a URL for OpenGraph fetching.
@@ -123,7 +123,7 @@ export function getOgImageS3Key(
  * @param metadata - The raw metadata object
  * @returns The sanitized metadata object
  */
-export function sanitizeOgMetadata(metadata: Record<string, unknown>): OgMetadata {
+export function sanitizeOgMetadata(metadata: Record<string, unknown>): ValidatedOgMetadata {
   const sanitized: Record<string, string> = {};
   for (const key in metadata) {
     if (Object.hasOwn(metadata, key)) {

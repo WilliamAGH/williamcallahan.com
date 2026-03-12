@@ -81,7 +81,7 @@ export interface InvestmentsServerProps extends InvestmentsProps {
  */
 export interface InvestmentCardExtendedProps extends Investment {
   /** Pre-fetched logo data from server */
-  logoData: import("../logo").LogoData;
+  logoData: import("../logo").Logo;
   /** Whether dark theme is active */
   isDarkTheme?: boolean;
   /** Rendered financial metrics */

@@ -24,7 +24,7 @@ import type {
   CachedAnalysis,
   FetchAnalysisOptions,
   AnalysisVersion,
-} from "./types";
+} from "@/types/ai-analysis";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
@@ -54,20 +54,20 @@ async function getCachedAnalysisInternal(
   cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 }); // 24 hours
   applyCacheTags(buildAnalysisCacheTags(domain, id));
 
-  const data = await readLatestAnalysis(domain, id);
+  const analysisRecord = await readLatestAnalysis(domain, id);
 
-  if (!data) {
+  if (!analysisRecord) {
     envLogger.debug("No cached analysis found", { domain, id }, { category: "AiAnalysis" });
     return null;
   }
 
   envLogger.debug(
     "Retrieved cached analysis",
-    { domain, id, generatedAt: data.metadata.generatedAt },
+    { domain, id, generatedAt: analysisRecord.metadata.generatedAt },
     { category: "AiAnalysis" },
   );
 
-  return data;
+  return analysisRecord;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

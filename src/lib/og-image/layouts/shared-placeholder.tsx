@@ -2,10 +2,26 @@
  * Shared OG Image Placeholder
  * @module lib/og-image/layouts/shared-placeholder
  * @description
- * Renders placeholder cover/screenshot elements when no image is available.
+ * Renders shared OG image elements and placeholders for ImageResponse layouts.
  */
 
+import { createElement, type CSSProperties } from "react";
 import { OG_COLORS, OG_LAYOUT } from "../design-tokens";
+
+export function renderOgImage({
+  height,
+  src,
+  style,
+  width,
+}: {
+  height: number;
+  src: string;
+  style: CSSProperties;
+  width: number;
+}) {
+  // Next.js ImageResponse / opengraph-image uses Satori, which accepts regular img nodes.
+  return createElement("img", { alt: "", height, src, style, width });
+}
 
 /** Renders a book-shaped placeholder with an SVG book icon */
 export function renderPlaceholderCover() {

@@ -7,7 +7,7 @@
  * @module lib/search/searchers/static-searchers
  */
 
-import type { SearchResult } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
 import { createCachedSearchFunction } from "../search-factory";
 import {
   getExperienceIndex,

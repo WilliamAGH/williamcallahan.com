@@ -23,6 +23,9 @@ import type { AiChatHeaderProps, AiChatInputProps } from "@/types/ui/terminal";
 // Loading Animation - Claude Code inspired
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Maximum dots in the animated ellipsis */
+const MAX_ANIMATED_DOTS = 3;
+
 /** Braille spinner frames for smooth terminal-native animation */
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -62,7 +65,7 @@ export function ThinkingIndicator({ queueMessage }: { queueMessage?: string | nu
   // Animated dots (500ms per dot)
   useEffect(() => {
     const interval = setInterval(() => {
-      setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
+      setDots((prev) => (prev.length >= MAX_ANIMATED_DOTS ? "" : prev + "."));
     }, 500);
     return () => clearInterval(interval);
   }, []);

@@ -5,7 +5,7 @@
  * ReDoS attacks and ensure safe processing.
  */
 
-import { VALID_SCOPES } from "@/types/search";
+import { VALID_SCOPES } from "@/types/schemas/search";
 
 /**
  * Validates and sanitizes a search query to prevent ReDoS attacks
@@ -39,7 +39,8 @@ export function validateSearchQuery(query: unknown): {
     };
   }
 
-  if (trimmed.length > 100) {
+  const MAX_QUERY_LENGTH = 100;
+  if (trimmed.length > MAX_QUERY_LENGTH) {
     return {
       isValid: false,
       sanitized: "",

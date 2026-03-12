@@ -7,7 +7,7 @@
 import "dotenv/config";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { generateSlugMapping, saveSlugMapping } from "@/lib/bookmarks/slug-manager";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 /**
  * Runtime validation helper to ensure bookmark data conforms to expected structure
@@ -23,7 +23,7 @@ function validateBookmarks(data: unknown): UnifiedBookmark[] {
       throw new Error("[SlugRegen] Invalid bookmark item: not an object");
     }
 
-    const bookmark = item as Record<string, unknown>;
+    const bookmark = item as { [k: string]: unknown };
 
     // Check required fields for slug generation
     if (typeof bookmark.id !== "string" || !bookmark.id) {

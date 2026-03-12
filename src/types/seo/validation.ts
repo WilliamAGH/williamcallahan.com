@@ -35,7 +35,15 @@ export function adaptNextOpenGraphToOGMetadata(openGraph: unknown): OGMetadata |
     return null;
   }
 
-  const og = openGraph as Record<string, unknown>;
+  const og = openGraph as {
+    title?: unknown;
+    description?: unknown;
+    url?: unknown;
+    type?: unknown;
+    siteName?: unknown;
+    locale?: unknown;
+    images?: unknown;
+  };
 
   // Extract required fields with type guards
   const title = typeof og.title === "string" ? og.title : "";
@@ -50,7 +58,7 @@ export function adaptNextOpenGraphToOGMetadata(openGraph: unknown): OGMetadata |
   if (Array.isArray(og.images)) {
     for (const img of og.images) {
       if (img && typeof img === "object") {
-        const imgObj = img as Record<string, unknown>;
+        const imgObj = img as { url?: unknown; width?: unknown; height?: unknown; alt?: unknown };
         if (typeof imgObj.url === "string") {
           images.push({
             url: imgObj.url,
