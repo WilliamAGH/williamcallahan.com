@@ -158,21 +158,11 @@ echo "✅ [Entrypoint] Cache directory /app/cache/s3_data ensured."
 # All writable directories are pre-created with proper ownership in Dockerfile.
 
 echo "📊 [Entrypoint] Checking for initial data population..."
-# Check if critical data exists, if not mark for background population
-if ! slug_mapping_output="$(npx tsx scripts/debug-slug-mapping.ts 2>&1)"; then
-    echo "❌ [Entrypoint] Failed to inspect slug mapping state"
-    printf '%s\n' "$slug_mapping_output"
-    exit 1
-fi
-
-if printf '%s\n' "$slug_mapping_output" | grep -q "Slug mapping exists"; then
-    echo "✅ [Entrypoint] Data already exists, skipping initial population"
-else
-    echo "⚠️  [Entrypoint] Slug mapping missing, marking for background population..."
-    # Create a marker file to trigger background population
-    touch /tmp/needs-initial-data-population
-    echo "✅ [Entrypoint] Marker created for background data population"
-fi
+# Always mark for background population; the populator is idempotent and
+# gracefully no-ops when data already exists. The previous debug-slug-mapping.ts
+# script was removed when slug mappings moved to PostgreSQL.
+touch /tmp/needs-initial-data-population
+echo "✅ [Entrypoint] Marked for background data population (idempotent)"
 
 if [ "${ENABLE_BACKGROUND_SERVICES}" = "1" ]; then
     echo "🗺️  [Entrypoint] Submitting sitemap..."
