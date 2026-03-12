@@ -28,8 +28,8 @@
       "enabled": true
     },
     {
-      "description": "[managed] Cache image API routes (/api/cache/images, /api/assets)",
-      "expression": "starts_with(http.request.uri.path, \"/api/cache/images\") or starts_with(http.request.uri.path, \"/api/assets/\")",
+      "description": "[managed] Cache image API routes (/api/cache/images, /api/assets, /api/twitter-image)",
+      "expression": "starts_with(http.request.uri.path, \"/api/cache/images\") or starts_with(http.request.uri.path, \"/api/assets/\") or starts_with(http.request.uri.path, \"/api/twitter-image\")",
       "action": "set_cache_settings",
       "action_parameters": {
         "cache": true,
