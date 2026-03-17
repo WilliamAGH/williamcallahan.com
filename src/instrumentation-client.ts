@@ -54,27 +54,7 @@ export function shouldFilterError(errorMessage: unknown): boolean {
   return false;
 }
 
-/**
- * Derives a deployment-specific Sentry environment name from NEXT_PUBLIC_SITE_URL.
- * Client-side: NEXT_PUBLIC_SITE_URL is inlined at build time by Next.js.
- * See instrumentation-node.ts for full documentation.
- */
-function resolveSentryEnvironment(): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!siteUrl) return process.env.NODE_ENV ?? "production";
-
-  try {
-    const url = new URL(siteUrl);
-    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return "local";
-    if (url.hostname === "williamcallahan.com") return "production";
-    const subdomainMatch = url.hostname.match(/^([^.]+)\.williamcallahan\.com$/);
-    if (subdomainMatch?.[1]) return subdomainMatch[1];
-  } catch {
-    // Unparseable URL — fall through
-  }
-
-  return process.env.NODE_ENV ?? "production";
-}
+import { resolveSentryEnvironment } from "@/lib/sentry/resolve-environment";
 
 // Only initialize Sentry in production to prevent development console noise
 if (process.env.NODE_ENV === "production") {
