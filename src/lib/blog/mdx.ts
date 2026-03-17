@@ -33,8 +33,7 @@ import { serialize } from "next-mdx-remote/serialize";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
-import coverImageManifest from "@/data/blog/cover-image-map.json";
-import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { getBlogPostImageCdnUrl } from "@/lib/utils/cdn-utils";
 import { authors } from "@/data/blog/authors";
 import type { BlogPost } from "../../types/blog";
 
@@ -52,11 +51,63 @@ const logCoverImageInfo = (message: string): void => {
   }
 };
 
+/**
+ * Some blog posts embed code samples inside JSX as
+ * `<code>{`...`}</code>`. `next-mdx-remote` can misparse shell-style snippets in
+ * that form, so convert them to an explicit joined string array before
+ * serialization.
+ */
+function normalizeCodeExpressionBlocks(content: string): string {
+  return content.replaceAll(/<code([^>]*)>\{`([\s\S]*?)`}<\/code>/g, (_match, attributes, code) => {
+    const serializedLines = code
+      .split("\n")
+      .map((line) => JSON.stringify(line))
+      .join(", ");
+    return `<code${attributes}>{[${serializedLines}].join("\\n")}</code>`;
+  });
+}
+
+const legacyParagraphWrapperTags = ["BackgroundInfo", "CollapseDropdown"] as const;
+
+function normalizeParagraphWrappers(content: string): string {
+  return legacyParagraphWrapperTags.reduce((normalizedContent, tagName) => {
+    const blockPattern = new RegExp(`<${tagName}(\\b[^>]*)>([\\s\\S]*?)</${tagName}>`, "g");
+
+    return normalizedContent.replaceAll(blockPattern, (_match, attributes, innerContent) => {
+      const normalizedInnerContent = innerContent
+        .replaceAll(/<p(\s[^>]*)?>/g, "<div$1>")
+        .replaceAll("</p>", "</div>");
+
+      return `<${tagName}${attributes ?? ""}>${normalizedInnerContent}</${tagName}>`;
+    });
+  }, content);
+}
+
+export function normalizeBlogMdxContent(content: string): string {
+  return normalizeParagraphWrappers(normalizeCodeExpressionBlocks(content))
+    .replaceAll(/```cmd\b/g, "```batch")
+    .replaceAll(/```dos\b/g, "```batch")
+    .replaceAll(/```ps\b/g, "```powershell")
+    .replaceAll(/```ps1\b/g, "```powershell");
+}
+
+export async function serializeBlogMdxContent(
+  content: string,
+): Promise<MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>> {
+  return serialize(normalizeBlogMdxContent(content), {
+    mdxOptions: {
+      remarkPlugins: [remarkGfm],
+      rehypePlugins: [rehypePrism, rehypeSlug, rehypeAutolinkHeadings],
+    },
+    scope: {},
+    parseFrontmatter: false,
+  });
+}
+
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 /** Public directory for static assets */
 const PUBLIC_DIRECTORY = path.join(process.cwd(), "public");
-const coverImageMap: Record<string, string> = coverImageManifest;
 
 /**
  * Generates a blur data URL (LQIP - Low Quality Image Placeholder) for a local image.
@@ -139,20 +190,21 @@ function sanitizeCoverImage(
 
     // Check if it's a local blog post image path
     if (trimmedValue.startsWith("/images/posts/")) {
-      // Extract filename without path
-      const filename = trimmedValue.split("/").pop();
-      if (filename) {
-        // Remove extension to create base name for S3 lookup
-        const baseName = filename.replace(/\.[^.]+$/, "");
-        const s3Key = coverImageMap[baseName];
-        if (s3Key) {
-          const cdnConfig = getCdnConfigFromEnv();
-          const cdnUrl = buildCdnUrl(s3Key, cdnConfig);
+      try {
+        const cdnUrl = getBlogPostImageCdnUrl(trimmedValue);
+        if (cdnUrl) {
           logCoverImageInfo(`Mapped ${trimmedValue} to S3 CDN: ${cdnUrl}`);
           return cdnUrl;
         }
         console.warn(`[sanitizeCoverImage] Missing cover image manifest entry for ${trimmedValue}`);
+      } catch (error) {
+        console.warn(
+          `[sanitizeCoverImage] Falling back to local cover image for ${trimmedValue} because CDN resolution failed:`,
+          error,
+        );
       }
+
+      return trimmedValue;
     }
 
     return trimmedValue;
@@ -278,20 +330,7 @@ export async function getMDXPost(
       try {
         // Normalize code block language labels to Prism-compatible names
         // This avoids MDX compile errors from rehype-prism when encountering unknown languages
-        const normalizedContent = content
-          .replaceAll(/```cmd\b/g, "```batch")
-          .replaceAll(/```dos\b/g, "```batch")
-          .replaceAll(/```ps\b/g, "```powershell")
-          .replaceAll(/```ps1\b/g, "```powershell");
-
-        mdxSource = await serialize(normalizedContent, {
-          mdxOptions: {
-            remarkPlugins: [remarkGfm],
-            rehypePlugins: [rehypePrism, rehypeSlug, rehypeAutolinkHeadings],
-          },
-          scope: {},
-          parseFrontmatter: false,
-        });
+        mdxSource = await serializeBlogMdxContent(content);
       } catch (mdxError) {
         console.error(`[getMDXPost] MDX compile error for slug "${frontmatterSlug}":`, mdxError);
         // Fallback minimal content to prevent crash

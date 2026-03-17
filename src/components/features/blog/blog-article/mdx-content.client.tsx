@@ -32,12 +32,10 @@ import { CollapseDropdownProvider } from "@/lib/context/collapse-dropdown-contex
 import { cn } from "@/lib/utils";
 import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
 import {
+  getBlogPostImageCdnUrl,
   getOptimizedImageSrc,
   shouldBypassOptimizer,
-  buildCdnUrl,
-  getCdnConfigFromEnv,
 } from "@/lib/utils/cdn-utils";
-import coverImageManifest from "@/data/blog/cover-image-map.json";
 import { BlogImageResolutionError } from "@/types/features/blog";
 import type {
   ArticleImageProps,
@@ -230,8 +228,6 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
   );
 };
 
-const coverImageMap: Record<string, string> = coverImageManifest;
-
 /**
  * Resolves a blog image path to its optimized source URL.
  * Throws BlogImageResolutionError if optimization fails ([RC1a] - no silent fallbacks).
@@ -252,14 +248,9 @@ function resolveBlogImageSrc(src: string): string {
 
   // Local blog post images: convert to CDN URLs using the cover image map
   if (src.startsWith("/images/posts/")) {
-    const filename = src.split("/").pop();
-    if (filename) {
-      const baseName = filename.replace(/\.[^.]+$/, "");
-      const s3Key = coverImageMap[baseName];
-      if (s3Key) {
-        const cdnConfig = getCdnConfigFromEnv();
-        return buildCdnUrl(s3Key, cdnConfig);
-      }
+    const cdnUrl = getBlogPostImageCdnUrl(src);
+    if (cdnUrl) {
+      return cdnUrl;
     }
     throw new BlogImageResolutionError(
       src,

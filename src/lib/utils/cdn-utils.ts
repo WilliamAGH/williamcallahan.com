@@ -5,10 +5,13 @@
  * Handles both CDN and S3 direct URLs
  */
 
+import coverImageManifest from "@/data/blog/cover-image-map.json";
 import type { CdnConfig } from "@/types/s3-cdn";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
 let loggedMissingPublicCdnUrl = false;
+const BLOG_POST_IMAGE_PREFIX = ["", "images", "posts", ""].join("/");
+const blogCoverImageMap: Record<string, string> = coverImageManifest;
 
 /** Path for the image proxy API route - single source of truth */
 const IMAGE_PROXY_PATH = "/api/cache/images";
@@ -117,6 +120,29 @@ export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
 
   const s3Host = getS3Host(s3ServerUrl);
   return `https://${s3BucketName}.${s3Host}/${s3Key}`;
+}
+
+/**
+ * Resolve a local blog image path to its CDN URL using the generated manifest.
+ * Returns undefined when the path is not a local blog image or no manifest entry exists.
+ */
+export function getBlogPostImageCdnUrl(src: string): string | undefined {
+  if (!src.startsWith(BLOG_POST_IMAGE_PREFIX)) {
+    return undefined;
+  }
+
+  const filename = src.split("/").pop();
+  if (!filename) {
+    return undefined;
+  }
+
+  const baseName = filename.replace(/\.[^.]+$/, "");
+  const s3Key = blogCoverImageMap[baseName];
+  if (!s3Key) {
+    return undefined;
+  }
+
+  return buildCdnUrl(s3Key, getCdnConfigFromEnv());
 }
 
 /**
