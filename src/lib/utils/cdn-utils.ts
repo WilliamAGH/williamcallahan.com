@@ -12,6 +12,7 @@ const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
 let loggedMissingPublicCdnUrl = false;
 const BLOG_POST_IMAGE_PREFIX = ["", "images", "posts", ""].join("/");
 const blogCoverImageMap: Record<string, string> = coverImageManifest;
+const warnedMissingBlogCoverEntries = new Set<string>();
 
 /** Path for the image proxy API route - single source of truth */
 const IMAGE_PROXY_PATH = "/api/cache/images";
@@ -139,6 +140,12 @@ export function getBlogPostImageCdnUrl(src: string): string | undefined {
   const baseName = filename.replace(/\.[^.]+$/, "");
   const s3Key = blogCoverImageMap[baseName];
   if (!s3Key) {
+    if (!warnedMissingBlogCoverEntries.has(baseName)) {
+      console.warn(
+        `[cdn-utils] Missing blog cover manifest entry for "${src}". Run "bun scripts/sync-blog-cover-images.ts".`,
+      );
+      warnedMissingBlogCoverEntries.add(baseName);
+    }
     return undefined;
   }
 
