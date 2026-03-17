@@ -1,7 +1,7 @@
+import * as Sentry from "@sentry/nextjs";
 import { envLogger } from "@/lib/utils/env-logger";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
 import type { RefreshBookmarksCallback } from "@/types/lib";
-import type { BookmarkSlugMapping } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
@@ -214,6 +214,7 @@ export async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBook
     logBookmarkDataAccessEvent("Changes detected, persisting bookmarks (selective)");
     return persistBookmarksWithSlugs(allIncomingBookmarks, "selective-change");
   } catch (error: unknown) {
+    Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
     console.error(`${LOG_PREFIX} Error during selective refresh:`, String(error));
     throw error;
   }
@@ -271,6 +272,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
       const { loadDatabaseFallback } = await loadRefreshHelperModule();
       return loadDatabaseFallback();
     } catch (error: unknown) {
+      Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
       console.error(`${LOG_PREFIX} Failed to refresh bookmarks:`, String(error));
       throw error;
     } finally {

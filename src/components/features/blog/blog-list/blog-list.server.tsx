@@ -16,6 +16,9 @@ import type { JSX } from "react";
 
 import type { BlogListServerProps } from "@/types/features/blog";
 
+/** Number of blog cards to priority-preload */
+const PRELOAD_COUNT = 2;
+
 /**
  * Server component that renders a grid of blog post cards
  * This component pre-renders on the server for fast initial loading
@@ -33,7 +36,7 @@ export function BlogListServer({ posts }: BlogListServerProps): JSX.Element {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {posts.map((post, index) => (
-          <BlogCard key={post.id} post={post} preload={index < 2} />
+          <BlogCard key={post.id} post={post} preload={index < PRELOAD_COUNT} />
         ))}
       </div>
     </div>

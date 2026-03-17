@@ -34,7 +34,8 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Preload search when user types more than 2 characters
+  // Preload search when user types enough characters
+  const MIN_PRELOAD_LENGTH = 2;
   const hasPreloaded = useRef(false);
 
   const handleChange = useCallback(
@@ -42,7 +43,7 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
       onChange(newValue);
 
       // Preload search functionality after typing 2+ characters
-      if (!hasPreloaded.current && newValue.length >= 2) {
+      if (!hasPreloaded.current && newValue.length >= MIN_PRELOAD_LENGTH) {
         hasPreloaded.current = true;
         // Preload in the background without blocking
         if (typeof requestIdleCallback !== "undefined") {

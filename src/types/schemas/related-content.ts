@@ -5,10 +5,7 @@
 
 import { z } from "zod/v4";
 
-/**
- * Content types that can be related/recommended.
- * Matches RelatedContentType from types/related-content.ts
- */
+/** Content types that can be related/recommended. */
 export const relatedContentTypeSchema = z.enum([
   "bookmark",
   "blog",
@@ -18,7 +15,38 @@ export const relatedContentTypeSchema = z.enum([
   "book",
 ]);
 
-export type RelatedContentTypeFromSchema = z.infer<typeof relatedContentTypeSchema>;
+export type RelatedContentType = z.infer<typeof relatedContentTypeSchema>;
+
+export const relatedContentMetadataSchema = z.object({
+  tags: z.array(z.string()).optional(),
+  domain: z.string().optional(),
+  date: z.string().optional(),
+  imageUrl: z.string().optional(),
+  readingTime: z.number().optional(),
+  stage: z.string().optional(),
+  category: z.string().optional(),
+  aventureUrl: z.string().optional(),
+  author: z
+    .object({
+      name: z.string(),
+      avatar: z.string().optional(),
+    })
+    .optional(),
+  authors: z.array(z.string()).optional(),
+  formats: z.array(z.string()).optional(),
+});
+
+export type RelatedContentMetadata = z.infer<typeof relatedContentMetadataSchema>;
+
+export const relatedContentEntrySchema = z.object({
+  type: relatedContentTypeSchema,
+  id: z.string(),
+  score: z.number(),
+  title: z.string(),
+  metadata: relatedContentMetadataSchema.optional(),
+});
+
+export type RelatedContentEntry = z.infer<typeof relatedContentEntrySchema>;
 
 /**
  * Configuration for similarity scoring weights.
@@ -35,7 +63,7 @@ export const similarityWeightsSchema = z.object({
   recency: z.number().min(0).max(1).optional(),
 });
 
-export type SimilarityWeightsFromSchema = z.infer<typeof similarityWeightsSchema>;
+export type SimilarityWeights = z.infer<typeof similarityWeightsSchema>;
 
 export const contentGraphMetadataSchema = z.object({
   version: z.string(),
@@ -51,7 +79,7 @@ export const contentGraphMetadataSchema = z.object({
   environment: z.string(),
 });
 
-export type ContentGraphMetadataFromSchema = z.infer<typeof contentGraphMetadataSchema>;
+export type ContentGraphMetadata = z.infer<typeof contentGraphMetadataSchema>;
 
 /**
  * Build metadata written by content-graph/build.ts.
@@ -96,19 +124,4 @@ export const tagGraphSchema = z.object({
     .optional(),
 });
 
-export type TagGraphFromSchema = z.infer<typeof tagGraphSchema>;
-
-export const createRelatedContentDebugParamsSchema = ({
-  maxLimit,
-  defaultLimit,
-  isEnabledType,
-}: {
-  maxLimit: number;
-  defaultLimit: number;
-  isEnabledType: (value: string) => boolean;
-}) =>
-  z.object({
-    type: z.string().refine(isEnabledType, { message: "Unsupported type" }),
-    id: z.string().min(1),
-    limit: z.coerce.number().int().min(1).max(maxLimit).optional().default(defaultLimit),
-  });
+export type TagGraph = z.infer<typeof tagGraphSchema>;

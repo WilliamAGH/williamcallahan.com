@@ -237,11 +237,10 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
     }
     return mapping;
   } catch (error) {
-    if (isSlugManagerLoggingEnabled) {
-      logger.error("[SlugManager] Failed to load slug mapping from PostgreSQL:", error);
-    }
-    return null;
+    logger.error("[SlugManager] Failed to load slug mapping from PostgreSQL:", error);
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }
 
 /**

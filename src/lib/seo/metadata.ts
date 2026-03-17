@@ -277,9 +277,10 @@ export function getStaticPageMetadata(
   // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
   // image paths defined in data/metadata.ts. If the path exists, we can rely on
   // Next.js-provided width/height for perfect accuracy.
-  const maybeLocal = (LOCAL_OG_ASSETS as Record<string, { width: number; height: number }>)[
-    ogImagePath
-  ];
+  const maybeLocal =
+    ogImagePath in LOCAL_OG_ASSETS
+      ? LOCAL_OG_ASSETS[ogImagePath as keyof typeof LOCAL_OG_ASSETS]
+      : undefined;
   if (maybeLocal?.width && maybeLocal.height) {
     ogWidth = maybeLocal.width;
     ogHeight = maybeLocal.height;

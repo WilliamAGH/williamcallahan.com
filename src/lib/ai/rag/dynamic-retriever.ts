@@ -150,8 +150,9 @@ export async function retrieveRelevantContent(
     } catch (error) {
       logger.warn(`[RAG] Search failed for scope "${scope}":`, { error, scope });
       failedScopes.push(scope);
-      return [];
+      // RC1a: error logged; empty array is per-scope graceful degradation
     }
+    return [];
   });
 
   // Each scope catches its own errors/timeouts, so Promise.all always resolves

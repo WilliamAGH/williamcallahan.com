@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
-import { ClientErrorSchema, type ClientErrorPayload } from "@/types/error";
+import { ClientErrorSchema, type ClientErrorReport } from "@/types/error";
 import { getClientIp } from "@/lib/utils/request-utils";
 
 /**
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const headerStore = request.headers;
 
     // Add server timestamp and request details
-    const enrichedErrorData: ClientErrorPayload & {
+    const enrichedErrorData: ClientErrorReport & {
       server_timestamp: string;
       ip: string;
       user_agent: string;

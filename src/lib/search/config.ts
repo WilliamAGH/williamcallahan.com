@@ -7,11 +7,12 @@
  * @module lib/search/config
  */
 
-import type { IndexFieldConfig, EducationItem, BookmarkIndexItem } from "@/types/search";
+import type { IndexFieldConfig } from "@/types/search";
+import type { EducationEntry, BookmarkIndexEntry } from "@/types/schemas/search";
 import type { Investment } from "@/types/investment";
-import type { Experience } from "@/types/experience";
+import type { Experience } from "@/types/schemas/experience";
 import type { Project } from "@/types/project";
-import type { BookListItem } from "@/types/schemas/book";
+import type { BookBrief } from "@/types/schemas/book";
 import type { BlogPost } from "@/types/blog";
 
 /**
@@ -49,10 +50,10 @@ export const EXPERIENCE_INDEX_CONFIG: IndexFieldConfig<Experience> = {
 
 /**
  * Education index configuration
- * Uses EducationItem (transformed from raw education/certification data)
+ * Uses EducationEntry (transformed from raw education/certification data)
  * @see {@link @/data/education} for source data
  */
-export const EDUCATION_INDEX_CONFIG: IndexFieldConfig<EducationItem> = {
+export const EDUCATION_INDEX_CONFIG: IndexFieldConfig<EducationEntry> = {
   fields: ["label", "description"],
   storeFields: ["id", "label", "description", "path"],
   idField: "id",
@@ -77,7 +78,7 @@ export const PROJECTS_INDEX_CONFIG: IndexFieldConfig<Project> = {
  * Bookmarks index configuration
  * @see {@link @/lib/bookmarks/service.server} for source data
  */
-export const BOOKMARKS_INDEX_CONFIG: IndexFieldConfig<BookmarkIndexItem> = {
+export const BOOKMARKS_INDEX_CONFIG: IndexFieldConfig<BookmarkIndexEntry> = {
   fields: ["title", "description", "summary", "tags", "author", "publisher", "url", "slug"],
   storeFields: ["id", "title", "description", "url", "slug"],
   idField: "id",
@@ -88,16 +89,16 @@ export const BOOKMARKS_INDEX_CONFIG: IndexFieldConfig<BookmarkIndexItem> = {
 /**
  * Books index configuration
  * Note: Has custom extractField for handling authors array
- * Uses BookListItem (minimal type) since index-builder fetches list items
+ * Uses BookBrief (minimal type) since index-builder fetches list items
  * @see {@link @/lib/books/audiobookshelf.server} for source data
  */
-export const BOOKS_INDEX_CONFIG: IndexFieldConfig<BookListItem> = {
+export const BOOKS_INDEX_CONFIG: IndexFieldConfig<BookBrief> = {
   fields: ["title", "authors"],
   storeFields: ["id", "title", "authors", "coverUrl"],
   idField: "id",
   boost: { title: 2 },
   fuzzy: 0.2,
-  extractField: (document: BookListItem, fieldName: string): string => {
+  extractField: (document: BookBrief, fieldName: string): string => {
     // CRITICAL: MiniSearch uses extractField for ALL fields including the ID field.
     // We must return the actual ID, not an empty string, or all docs get duplicate ID "".
     if (fieldName === "id") {

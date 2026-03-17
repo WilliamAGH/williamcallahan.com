@@ -1,0 +1,63 @@
+{
+  "$schema": "./cache-rules.schema.json",
+  "description": "williamcallahan.com CDN cache rules — deployed via scripts/deploy-cf-cache-rules.node.mjs",
+  "rules": [
+    {
+      "description": "Exempt ACME for HTTPS",
+      "expression": "(http.request.full_uri wildcard \"https://*.williamcallahan.com/.well-known/acme-challenge/*\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": false
+      },
+      "enabled": true
+    },
+    {
+      "description": "[managed] Cache Next.js optimized images (/_next/image)",
+      "expression": "starts_with(http.request.uri.path, \"/_next/image\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "override_origin",
+          "default": 31536000
+        },
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
+      },
+      "enabled": true
+    },
+    {
+      "description": "[managed] Cache image API routes (/api/cache/images, /api/assets, /api/twitter-image)",
+      "expression": "starts_with(http.request.uri.path, \"/api/cache/images\") or starts_with(http.request.uri.path, \"/api/assets/\") or starts_with(http.request.uri.path, \"/api/twitter-image\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "override_origin",
+          "default": 604800
+        },
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
+      },
+      "enabled": true
+    },
+    {
+      "description": "[managed] Cache OpenGraph image redirects (/api/og-image)",
+      "expression": "starts_with(http.request.uri.path, \"/api/og-image\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "override_origin",
+          "default": 86400
+        },
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
+      },
+      "enabled": true
+    }
+  ]
+}

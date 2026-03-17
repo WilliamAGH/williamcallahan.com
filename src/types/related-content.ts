@@ -7,6 +7,7 @@
  */
 
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
+import type { RelatedContentMetadata, RelatedContentType } from "@/types/schemas/related-content";
 
 // ─── pgvector Pipeline Types ─────────────────────────────────────────────────
 
@@ -43,20 +44,9 @@ export interface HydrationEntry {
 // ─── Domain Types ────────────────────────────────────────────────────────────
 
 /**
- * Content types that can be related/recommended.
- */
-export type RelatedContentType =
-  | "bookmark"
-  | "blog"
-  | "investment"
-  | "project"
-  | "thought"
-  | "book";
-
-/**
  * UI-ready related content item with rich metadata.
  */
-export interface RelatedContentItem {
+export interface RelatedContentSuggestion {
   /** Type of content */
   readonly type: RelatedContentType;
   /** Unique identifier */
@@ -71,69 +61,6 @@ export interface RelatedContentItem {
   readonly score: number;
   /** Additional metadata for display */
   readonly metadata: RelatedContentMetadata;
-}
-
-/**
- * Metadata for related content display.
- */
-export interface RelatedContentMetadata {
-  /** Associated tags */
-  readonly tags?: readonly string[];
-  /** Domain for bookmarks */
-  readonly domain?: string;
-  /** Publication or creation date */
-  readonly date?: string;
-  /** Preview image URL */
-  readonly imageUrl?: string;
-  /** Reading time in minutes (for blog posts) */
-  readonly readingTime?: number;
-  /** Company stage (for investments) */
-  readonly stage?: string;
-  /** Business category */
-  readonly category?: string;
-  /** aVenture external research URL (for investments) */
-  readonly aventureUrl?: string;
-  /** Author information (for blog posts) */
-  readonly author?: {
-    readonly name: string;
-    readonly avatar?: string;
-  };
-  /** Authors list (for books) */
-  readonly authors?: readonly string[];
-  /** Book formats (ebook, audio, print) */
-  readonly formats?: readonly string[];
-}
-
-// ─── Pre-computed Content Graph Types ────────────────────────────────────────
-
-/**
- * Pre-computed related content entry (from content_graph_artifacts).
- */
-export interface RelatedContentEntry {
-  /** Content type */
-  type: RelatedContentType;
-  /** Content ID */
-  id: string;
-  /** Similarity score */
-  score: number;
-  /** Display title */
-  title: string;
-  /** Optional metadata */
-  metadata?: RelatedContentMetadata;
-}
-
-/**
- * Structure of the books related content JSON stored in content_graph_artifacts.
- */
-export interface BooksRelatedContentData {
-  /** Data format version */
-  version: string;
-  /** ISO timestamp when generated */
-  generated: string;
-  /** Total number of books processed */
-  booksCount: number;
-  /** Map of book keys to their related content entries */
-  entries: Record<string, RelatedContentEntry[]>;
 }
 
 // ─── Options & Component Props ───────────────────────────────────────────────
@@ -179,7 +106,7 @@ export interface RelatedContentProps {
  */
 export interface RelatedContentCardProps {
   /** The related content item */
-  item: RelatedContentItem;
+  item: RelatedContentSuggestion;
   /** Optional click handler */
   onClick?: () => void;
   /** Optional CSS classes */
@@ -195,7 +122,7 @@ export interface RelatedContentSectionProps {
   /** Section title */
   title: string;
   /** Related content items to display */
-  items: RelatedContentItem[];
+  items: RelatedContentSuggestion[];
   /** Optional CSS classes */
   className?: string;
   /** Show similarity scores on cards */

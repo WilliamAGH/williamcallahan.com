@@ -2,7 +2,7 @@
  * Accelerator Badge Component
  */
 
-import type { Accelerator } from "@/types/accelerator";
+import type { Accelerator } from "@/types/schemas/accelerator";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import Image from "next/image";
 

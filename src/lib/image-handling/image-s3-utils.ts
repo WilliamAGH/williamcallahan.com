@@ -7,6 +7,11 @@
  * @module utils/image-s3-utils
  */
 
+/** HTTP status code for not found */
+const HTTP_NOT_FOUND = 404;
+/** Minimum valid image buffer size (bytes) */
+const MIN_IMAGE_BUFFER_SIZE = 100;
+
 import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { getOgImageS3Key, hashImageContent } from "@/lib/utils/opengraph-utils";
@@ -83,7 +88,7 @@ export async function persistImageToS3(
       if (isDebug) debug(`[${logContext}] ${fetchErrorMsg} from URL: ${imageUrl}`);
 
       // Handle 404 errors specifically - trigger automatic OpenGraph recrawl
-      if (response.status === 404 && pageUrl && logContext === "OpenGraph") {
+      if (response.status === HTTP_NOT_FOUND && pageUrl && logContext === "OpenGraph") {
         await handleStaleImageUrl(imageUrl, pageUrl, logContext);
       }
 
@@ -94,7 +99,7 @@ export async function persistImageToS3(
     const rawBuffer = Buffer.from(await response.arrayBuffer());
 
     // Validate minimum image size
-    if (rawBuffer.length < 100) {
+    if (rawBuffer.length < MIN_IMAGE_BUFFER_SIZE) {
       const sizeErrorMsg = `Image too small: ${rawBuffer.length} bytes, from URL: ${imageUrl}`;
       if (isDebug) debug(`[${logContext}] ${sizeErrorMsg}`);
       throw new Error(sizeErrorMsg);
@@ -165,9 +170,9 @@ export async function persistImageToS3(
     } else if (errorMessage.includes("S3")) {
       console.error(`[${logContext}] ❌ S3 error: Failed to upload to S3`);
     }
-
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }
 
 /**
@@ -348,6 +353,7 @@ export async function serveImageFromS3(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[${logContext}] Failed to serve image from S3: ${s3Key}`, errorMessage);
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }

@@ -6,11 +6,8 @@
 import { BatchProcessor } from "@/lib/batch-processing";
 import { categorizeRepository, createEmptyCategoryStats } from "./github-processing";
 import { processSingleRepository } from "./github-repo-processor";
-import type {
-  CommitsOlderThanYearSummary,
-  GithubRepoNode,
-  GitHubActivitySummary,
-} from "@/types/github";
+import type { GraphQLRepoNode } from "@/types/github";
+import type { GitHubActivitySummary, PriorYearCommitSummary } from "@/types/schemas/github-storage";
 import type {
   RepoProcessingInput,
   RepoProcessingResult,
@@ -20,7 +17,7 @@ import type {
 
 const CONCURRENT_REPO_LIMIT = 5;
 
-function initializeOlderThanYearStats(): CommitsOlderThanYearSummary {
+function initializePriorYearStats(): PriorYearCommitSummary {
   return {
     totalCommits: 0,
     totalLinesAdded: 0,
@@ -31,9 +28,9 @@ function initializeOlderThanYearStats(): CommitsOlderThanYearSummary {
   };
 }
 
-function accumulateOlderThanYearStats(
-  stats: CommitsOlderThanYearSummary,
-  repo: GithubRepoNode,
+function accumulatePriorYearStats(
+  stats: PriorYearCommitSummary,
+  repo: GraphQLRepoNode,
   result: SingleRepoProcessingResult,
 ): void {
   if (
@@ -66,7 +63,7 @@ function accumulateOlderThanYearStats(
 function accumulateCategoryStats(
   yearStats: GitHubActivitySummary["linesOfCodeByCategory"],
   allTimeStats: GitHubActivitySummary["linesOfCodeByCategory"],
-  repo: GithubRepoNode,
+  repo: GraphQLRepoNode,
   result: SingleRepoProcessingResult,
 ): void {
   const categoryKey = categorizeRepository(repo.name);
@@ -97,7 +94,7 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
 
   const yearCategoryStats = createEmptyCategoryStats();
   const allTimeCategoryStats = createEmptyCategoryStats();
-  const olderThanYearCommitStats = initializeOlderThanYearStats();
+  const priorYearCommitStats = initializePriorYearStats();
 
   for (const { repo, result } of repoResults) {
     yearLinesAdded += result.yearLinesAdded;
@@ -109,7 +106,7 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
       allTimeOverallDataComplete = false;
     }
 
-    accumulateOlderThanYearStats(olderThanYearCommitStats, repo, result);
+    accumulatePriorYearStats(priorYearCommitStats, repo, result);
     accumulateCategoryStats(yearCategoryStats, allTimeCategoryStats, repo, result);
   }
 
@@ -117,7 +114,7 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
     yearLinesAdded,
     yearLinesRemoved,
     yearCategoryStats,
-    olderThanYearCommitStats,
+    priorYearCommitStats,
     allTimeLinesAdded,
     allTimeLinesRemoved,
     allTimeOverallDataComplete,
@@ -134,7 +131,7 @@ export async function processRepositoryStats({
 }: RepoProcessingInput): Promise<RepoProcessingResult> {
   const successfulResults: RepoWithResult[] = [];
 
-  const repoProcessor = new BatchProcessor<GithubRepoNode, SingleRepoProcessingResult>(
+  const repoProcessor = new BatchProcessor<GraphQLRepoNode, SingleRepoProcessingResult>(
     "github-repo-stats",
     async (repo) =>
       processSingleRepository({

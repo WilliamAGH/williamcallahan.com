@@ -16,10 +16,9 @@ import {
   type UnifiedBookmark,
   type RawApiBookmark,
   type BookmarksApiResponse as ApiResponse,
-  type BookmarksApiContext,
-  type ChecksumResult,
   bookmarksApiResponseSchema,
-} from "@/types/bookmark";
+} from "@/types/schemas/bookmark";
+import type { BookmarksApiContext, ChecksumResult } from "@/types/bookmark";
 
 // Re-export types for backward compatibility
 export type { BookmarksApiContext, ChecksumResult };
@@ -131,12 +130,12 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
       throw new Error("Invalid bookmarks API response shape");
     }
 
-    const data: ApiResponse = parsed.data;
+    const apiResponse: ApiResponse = parsed.data;
     console.log(
-      `[refreshBookmarksData] Retrieved ${data.bookmarks.length} bookmarks from page ${pageCount}.`,
+      `[refreshBookmarksData] Retrieved ${apiResponse.bookmarks.length} bookmarks from page ${pageCount}.`,
     );
-    allRawBookmarks.push(...data.bookmarks);
-    cursor = data.nextCursor;
+    allRawBookmarks.push(...apiResponse.bookmarks);
+    cursor = apiResponse.nextCursor;
   } while (cursor);
 
   console.log(

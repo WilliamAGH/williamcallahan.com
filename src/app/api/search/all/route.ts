@@ -30,7 +30,7 @@ import {
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { validateSearchQuery } from "@/lib/validators/search";
-import { VALID_SCOPES, type SearchResult, type SearchScope } from "@/types/search";
+import { VALID_SCOPES, type SearchResult, type SearchScope } from "@/types/schemas/search";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.

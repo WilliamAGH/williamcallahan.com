@@ -21,21 +21,19 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import {
-  HeadObjectCommand,
-  GetObjectCommand,
-  type GetObjectCommandOutput,
-} from "@aws-sdk/client-s3";
-import { Readable } from "node:stream";
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Client } from "@/lib/s3/client";
 import { getS3Config } from "@/lib/s3/config";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
-import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { createMonitoredStream, streamToBufferWithLimits } from "@/lib/utils/stream-utils";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
+const CDN_FETCH_TIMEOUT_MS = 15_000; // 15s — shorter than Karakeep's 30s
 const DEFAULT_BOOKMARKS_API_URL = "https://bookmark.iocloudhost.net/api/v1";
 
 const getS3Context = () => {
@@ -104,8 +102,12 @@ async function findAssetInS3(
         key,
         contentType: response.ContentType || `image/${ext.substring(1)}`,
       };
-    } catch {
-      // S3 object not found at UUID path - expected during key resolution
+    } catch (error) {
+      if (!isS3NotFound(error)) {
+        // Auth, network, rate-limit — propagate so caller sees the real failure
+        throw error;
+      }
+      // S3 object not found at UUID path — expected during key resolution
       console.debug(`[Assets API] S3 object not found: ${key}`);
     }
   }
@@ -114,94 +116,37 @@ async function findAssetInS3(
 }
 
 /**
- * Stream an asset from S3
+ * Stream an asset via the CDN URL instead of fetching directly from S3 origin.
+ * This routes bandwidth through DigitalOcean Spaces CDN (and eventually Cloudflare)
+ * rather than hitting the S3 API directly with GetObjectCommand.
+ *
+ * @throws {Error} on CDN failure (timeout, non-2xx, missing body) — callers
+ *   must catch and return an appropriate HTTP status (502/504).
  */
-async function streamFromS3(key: string, contentType: string): Promise<NextResponse> {
-  const { bucket, s3Client } = getS3Context();
+async function streamFromCdn(key: string, contentType: string): Promise<NextResponse> {
+  const cdnUrl = buildCdnUrl(key, getCdnConfigFromEnv());
 
-  const command = new GetObjectCommand({
-    Bucket: bucket,
-    Key: key,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CDN_FETCH_TIMEOUT_MS);
 
-  const response = await s3Client.send(command);
-
-  if (!response.Body) {
-    throw new Error("No body in S3 response");
+  let upstream: Response;
+  try {
+    upstream = await fetch(cdnUrl, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
   }
 
-  const stream = convertS3BodyToWebStream(response.Body);
+  if (!upstream.ok || !upstream.body) {
+    throw new Error(`CDN fetch failed for ${cdnUrl}: ${upstream.status}`);
+  }
 
-  return new NextResponse(stream, {
+  return new NextResponse(upstream.body, {
     status: 200,
     headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
+      "Content-Type": upstream.headers.get("content-type") ?? contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      ...IMAGE_CDN_CACHE_HEADERS,
       ...IMAGE_SECURITY_HEADERS,
-    },
-  });
-}
-
-function hasTransformToWebStream(
-  body: unknown,
-): body is { transformToWebStream: () => ReadableStream<Uint8Array> } {
-  return typeof (body as { transformToWebStream?: unknown }).transformToWebStream === "function";
-}
-
-function isReadableStream(body: unknown): body is ReadableStream<Uint8Array> {
-  return typeof ReadableStream !== "undefined" && body instanceof ReadableStream;
-}
-
-function isBlob(body: unknown): body is Blob {
-  return typeof Blob !== "undefined" && body instanceof Blob;
-}
-
-function convertS3BodyToWebStream(
-  body: NonNullable<GetObjectCommandOutput["Body"]>,
-): ReadableStream<Uint8Array> {
-  const candidateBody: unknown = body;
-
-  if (hasTransformToWebStream(candidateBody)) {
-    return candidateBody.transformToWebStream() as unknown as ReadableStream<Uint8Array>;
-  }
-
-  if (isReadableStream(candidateBody)) {
-    return candidateBody;
-  }
-
-  if (candidateBody instanceof Readable) {
-    return Readable.toWeb(candidateBody) as unknown as ReadableStream<Uint8Array>;
-  }
-
-  if (isBlob(candidateBody)) {
-    return candidateBody.stream() as unknown as ReadableStream<Uint8Array>;
-  }
-
-  if (candidateBody instanceof Uint8Array) {
-    return createSingleChunkStream(candidateBody);
-  }
-
-  if (typeof candidateBody === "string") {
-    return createSingleChunkStream(new TextEncoder().encode(candidateBody));
-  }
-
-  if (candidateBody instanceof ArrayBuffer) {
-    return createSingleChunkStream(new Uint8Array(candidateBody));
-  }
-
-  if (ArrayBuffer.isView(candidateBody as ArrayBufferView)) {
-    const view = candidateBody as ArrayBufferView;
-    return createSingleChunkStream(new Uint8Array(view.buffer));
-  }
-
-  throw new Error("Unsupported S3 body type for streaming");
-}
-
-function createSingleChunkStream(chunk: Uint8Array): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(chunk);
-      controller.close();
     },
   });
 }
@@ -239,8 +184,12 @@ async function saveAssetToS3(
     await s3Client.send(headCommand);
     console.log(`[Assets API] Asset already exists in S3, skipping write: ${key}`);
     return key;
-  } catch {
-    // S3 object not found - this is expected, proceed with upload
+  } catch (error) {
+    if (!isS3NotFound(error)) {
+      // Auth, network, rate-limit on HEAD check — propagate
+      throw error;
+    }
+    // S3 object not found — expected, proceed with upload
     console.debug(`[Assets API] S3 object not found (will upload): ${key}`);
   }
 
@@ -268,13 +217,6 @@ async function saveAssetToS3(
     ongoingS3Writes.delete(key);
   }
 }
-
-// NOTE: Atomic S3 writes implementation removed.
-// To implement atomic writes using S3 conditional puts (IfNoneMatch: "*"):
-// 1. Add IfNoneMatch: "*" to PutObjectCommand for atomic write-once semantics
-// 2. Handle 412 Precondition Failed as success (object already exists)
-// 3. This approach works across multiple server instances without in-memory locks
-// See git history for the complete implementation if needed.
 
 /**
  * GET /api/assets/[assetId] - Proxy endpoint for Karakeep/Hoarder assets.
@@ -316,11 +258,21 @@ export async function GET(
   }
 
   try {
-    // STEP 1: Check if asset exists in S3
+    // STEP 1: Check if asset exists in S3 → stream via CDN
     const s3Asset = await findAssetInS3(assetId);
     if (s3Asset) {
-      console.log(`[Assets API] Serving from S3 storage: ${s3Asset.key}`);
-      return streamFromS3(s3Asset.key, s3Asset.contentType);
+      console.log(`[Assets API] Serving from CDN: ${s3Asset.key}`);
+      try {
+        return await streamFromCdn(s3Asset.key, s3Asset.contentType);
+      } catch (cdnError) {
+        const isTimeout = cdnError instanceof Error && cdnError.name === "AbortError";
+        const status = isTimeout ? 504 : 502;
+        console.error(
+          `[Assets API] CDN ${isTimeout ? "timeout" : "error"} for ${s3Asset.key}:`,
+          cdnError instanceof Error ? cdnError.message : String(cdnError),
+        );
+        return NextResponse.json({ error: "CDN fetch failed", assetId }, { status });
+      }
     }
 
     // STEP 2: Asset not in S3, fetch from Karakeep/Hoarder
@@ -477,7 +429,8 @@ export async function GET(
         status: 200,
         headers: {
           "Content-Type": contentType,
-          "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
+          "Cache-Control": "public, max-age=31536000, immutable",
+          ...IMAGE_CDN_CACHE_HEADERS,
           ...IMAGE_SECURITY_HEADERS,
         },
       });
@@ -499,7 +452,8 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400", // 7 days + 1 day stale
+        "Cache-Control": "public, max-age=31536000, immutable",
+        ...IMAGE_CDN_CACHE_HEADERS,
         ...IMAGE_SECURITY_HEADERS,
       },
     });

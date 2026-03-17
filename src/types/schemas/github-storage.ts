@@ -13,31 +13,27 @@ export const contributionDaySchema = z.object({
   level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
 });
 
-export type ContributionDayFromSchema = z.infer<typeof contributionDaySchema>;
+export type ContributionDay = z.infer<typeof contributionDaySchema>;
 
-export const commitsOlderThanYearRepoStatsSchema = z.object({
+export const priorYearCommitRepoStatsSchema = z.object({
   commits: z.number(),
   linesAdded: z.number(),
   linesRemoved: z.number(),
   isPrivate: z.boolean(),
 });
 
-export type CommitsOlderThanYearRepoStatsFromSchema = z.infer<
-  typeof commitsOlderThanYearRepoStatsSchema
->;
+export type PriorYearCommitRepoStats = z.infer<typeof priorYearCommitRepoStatsSchema>;
 
-export const commitsOlderThanYearSummarySchema = z.object({
+export const priorYearCommitSummarySchema = z.object({
   totalCommits: z.number(),
   totalLinesAdded: z.number(),
   totalLinesRemoved: z.number(),
   publicCommits: z.number(),
   privateCommits: z.number(),
-  perRepo: z.record(z.string(), commitsOlderThanYearRepoStatsSchema),
+  perRepo: z.record(z.string(), priorYearCommitRepoStatsSchema),
 });
 
-export type CommitsOlderThanYearSummaryFromSchema = z.infer<
-  typeof commitsOlderThanYearSummarySchema
->;
+export type PriorYearCommitSummary = z.infer<typeof priorYearCommitSummarySchema>;
 
 export const githubActivitySegmentSchema = z.object({
   source: z.enum(["scraping", "api", "api_multi_file_cache"]),
@@ -48,10 +44,10 @@ export const githubActivitySegmentSchema = z.object({
   dataComplete: z.boolean().optional(),
   error: z.string().optional(),
   details: z.string().optional(),
-  allCommitsOlderThanYear: commitsOlderThanYearSummarySchema.optional(),
+  allPriorYearCommits: priorYearCommitSummarySchema.optional(),
 });
 
-export type GitHubActivitySegmentFromSchema = z.infer<typeof githubActivitySegmentSchema>;
+export type GitHubActivitySegment = z.infer<typeof githubActivitySegmentSchema>;
 
 export const gitHubActivityApiResponseSchema = z.object({
   trailingYearData: githubActivitySegmentSchema,
@@ -60,7 +56,7 @@ export const gitHubActivityApiResponseSchema = z.object({
   details: z.string().optional(),
 });
 
-export type GitHubActivityApiResponseFromSchema = z.infer<typeof gitHubActivityApiResponseSchema>;
+export type GitHubActivityApiResponse = z.infer<typeof gitHubActivityApiResponseSchema>;
 
 const locCategorySchema = z.object({
   linesAdded: z.number(),
@@ -85,7 +81,7 @@ export const gitHubActivitySummarySchema = z.object({
   }),
 });
 
-export type GitHubActivitySummaryFromSchema = z.infer<typeof gitHubActivitySummarySchema>;
+export type GitHubActivitySummary = z.infer<typeof gitHubActivitySummarySchema>;
 
 export const repoRawWeeklyStatSchema = z.object({
   w: z.number(),
@@ -94,7 +90,7 @@ export const repoRawWeeklyStatSchema = z.object({
   c: z.number(),
 });
 
-export type RepoRawWeeklyStatFromSchema = z.infer<typeof repoRawWeeklyStatSchema>;
+export type RepoRawWeeklyStat = z.infer<typeof repoRawWeeklyStatSchema>;
 
 export const repoWeeklyStatCacheSchema = z.object({
   repoOwnerLogin: z.string(),
@@ -110,7 +106,7 @@ export const repoWeeklyStatCacheSchema = z.object({
   stats: z.array(repoRawWeeklyStatSchema),
 });
 
-export type RepoWeeklyStatCacheFromSchema = z.infer<typeof repoWeeklyStatCacheSchema>;
+export type RepoWeeklyStatCache = z.infer<typeof repoWeeklyStatCacheSchema>;
 
 export const aggregatedWeeklyActivitySchema = z.object({
   weekStartDate: z.string(),
@@ -118,6 +114,6 @@ export const aggregatedWeeklyActivitySchema = z.object({
   linesRemoved: z.number(),
 });
 
-export type AggregatedWeeklyActivityFromSchema = z.infer<typeof aggregatedWeeklyActivitySchema>;
+export type AggregatedWeeklyActivity = z.infer<typeof aggregatedWeeklyActivitySchema>;
 
 export const aggregatedWeeklyActivityArraySchema = z.array(aggregatedWeeklyActivitySchema);

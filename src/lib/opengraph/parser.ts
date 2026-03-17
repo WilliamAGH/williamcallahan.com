@@ -17,7 +17,7 @@ import {
 } from "@/lib/utils/opengraph-utils";
 import { OPENGRAPH_FETCH_CONFIG } from "@/lib/constants";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
-import type { KarakeepImageFallback } from "@/types/seo/opengraph";
+import type { ValidatedKarakeepImageFallback } from "@/types/seo/opengraph";
 import { SOCIAL_PLATFORMS } from "@/types/social";
 // OgMetadata type not needed in parser - only returns raw Record<string, string | null>
 
@@ -32,7 +32,7 @@ import { SOCIAL_PLATFORMS } from "@/types/social";
 export function extractOpenGraphTags(
   html: string,
   url: string,
-  fallbackImageData?: KarakeepImageFallback,
+  fallbackImageData?: ValidatedKarakeepImageFallback,
 ): Record<string, string | null> {
   const htmlSizeBytes = Buffer.byteLength(html, "utf8");
 
@@ -282,7 +282,8 @@ export function extractLinkedInImages($: cheerio.CheerioAPI): {
       const match = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/);
       if (match?.[2]) {
         // Check if match and match[2] are not null/undefined
-        banner = match[2];
+        const REGEX_URL_GROUP = 2;
+        banner = match[REGEX_URL_GROUP];
       }
     }
   }

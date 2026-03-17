@@ -13,8 +13,6 @@ import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 import type { SimilarityCandidate } from "@/types/related-content";
 
-export type { SimilarityCandidate } from "@/types/related-content";
-
 const DEFAULT_SIMILARITY_LIMIT = 30;
 
 function computeTagOverlap(
@@ -47,6 +45,11 @@ async function readCanonicalBookmarkTags(
     return new Map();
   }
 
+  const idList = sql.join(
+    bookmarkIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
+
   const rows = await db.execute<{ bookmark_id: string; canonical_tag_slug: string }>(sql`
     SELECT
       tag_link.bookmark_id,
@@ -55,7 +58,7 @@ async function readCanonicalBookmarkTags(
     LEFT JOIN bookmarks_tags_links AS alias_link
       ON alias_link.source_tag_slug = tag_link.tag_slug
       AND alias_link.link_type = 'alias'
-    WHERE tag_link.bookmark_id = ANY(${bookmarkIds})
+    WHERE tag_link.bookmark_id IN (${idList})
   `);
 
   const tagsByBookmarkId = new Map<string, Set<string>>();
@@ -136,7 +139,14 @@ export async function findSimilarByEntity(options: {
       AND e1.entity_id = ${sourceId}
       AND NOT (e2.domain = e1.domain AND e2.entity_id = e1.entity_id)
       AND e2.qwen_4b_fp16_embedding IS NOT NULL
-      ${excludeDomains && excludeDomains.length > 0 ? sql`AND e2.domain != ALL(${excludeDomains})` : sql``}
+      ${
+        excludeDomains && excludeDomains.length > 0
+          ? sql`AND e2.domain NOT IN (${sql.join(
+              excludeDomains.map((d) => sql`${d}`),
+              sql`, `,
+            )})`
+          : sql``
+      }
     ORDER BY e2.qwen_4b_fp16_embedding <=> e1.qwen_4b_fp16_embedding
     LIMIT ${limit}
   `);

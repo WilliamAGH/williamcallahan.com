@@ -20,8 +20,6 @@ import {
 } from "./hybrid-search-config";
 import type { InvestmentSearchResult, ProjectSearchResult } from "@/types/db/hybrid-search";
 
-export type { InvestmentSearchResult, ProjectSearchResult } from "@/types/db/hybrid-search";
-
 // ─── Investments ────────────────────────────────
 
 export async function hybridSearchInvestments(options: {

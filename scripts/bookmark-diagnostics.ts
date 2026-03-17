@@ -26,7 +26,7 @@ import {
   getSlugForBookmark,
   loadSlugMapping,
 } from "@/lib/bookmarks/slug-manager";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const VALID_COMMANDS = ["counts", "integrity", "structure", "prod", "all"] as const;
 const commandInput = process.argv[2]?.trim() || "counts";
@@ -95,8 +95,9 @@ async function checkBookmarkCounts(): Promise<boolean> {
     );
   } catch (error) {
     console.error("Counts check failed:", error);
-    return false;
+    // RC1a: error logged; false signals check failure to caller
   }
+  return false;
 }
 
 async function checkBookmarkIntegrity(): Promise<boolean> {
@@ -206,8 +207,9 @@ async function checkBookmarkIntegrity(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("Integrity check failed:", error);
-    return false;
+    // RC1a: error logged; false signals check failure to caller
   }
+  return false;
 }
 
 async function checkBookmarkStructure(): Promise<boolean> {
@@ -227,7 +229,7 @@ async function checkBookmarkStructure(): Promise<boolean> {
       for (const key of Object.keys(bookmark)) {
         fieldPresence.set(key, (fieldPresence.get(key) ?? 0) + 1);
         const currentTypes = fieldTypes.get(key) ?? new Set<string>();
-        const value = (bookmark as Record<string, unknown>)[key];
+        const value = (bookmark as { [k: string]: unknown })[key];
         currentTypes.add(value === null ? "null" : typeof value);
         fieldTypes.set(key, currentTypes);
       }
@@ -257,8 +259,9 @@ async function checkBookmarkStructure(): Promise<boolean> {
     return !criticalFieldMissing;
   } catch (error) {
     console.error("Structure check failed:", error);
-    return false;
+    // RC1a: error logged; false signals check failure to caller
   }
+  return false;
 }
 
 async function checkProductionBookmarks(): Promise<boolean> {
@@ -289,8 +292,9 @@ async function checkProductionBookmarks(): Promise<boolean> {
     return bookmarks.length === index.count;
   } catch (error) {
     console.error("Production check failed:", error);
-    return false;
+    // RC1a: error logged; false signals check failure to caller
   }
+  return false;
 }
 
 async function main(): Promise<void> {

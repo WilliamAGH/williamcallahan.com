@@ -19,7 +19,8 @@
 
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 import { SITE_DESCRIPTION, SITE_TITLE, metadata } from "@/data/metadata";
-import type { ArticleOpenGraph, ArticleParams } from "../../types/seo";
+import type { ArticleOpenGraph } from "@/types/seo/opengraph";
+import type { ArticleParams } from "@/types/seo";
 import { ensureAbsoluteUrl, getImageTypeFromUrl } from "./url-utils";
 import { formatSeoDate } from "./utils";
 import { prepareOGImageUrl, validateOpenGraphMetadata } from "./og-validation";

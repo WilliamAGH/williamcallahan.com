@@ -32,12 +32,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 function getProjectsCdnConfig(): CdnConfig | null {
+  let config: CdnConfig | null = null;
   try {
-    return getCdnConfigFromEnv();
+    config = getCdnConfigFromEnv();
   } catch (error) {
     console.warn("[ProjectsPage] Unable to resolve CDN config. Skipping screenshot URLs.", error);
-    return null;
   }
+  return config;
 }
 
 function getProjectScreenshotUrl(
@@ -45,15 +46,16 @@ function getProjectScreenshotUrl(
   cdnConfig: CdnConfig | null,
 ): string | undefined {
   if (!cdnConfig) return undefined;
+  let url: string | undefined;
   try {
-    return buildCdnUrl(imageKey, cdnConfig);
+    url = buildCdnUrl(imageKey, cdnConfig);
   } catch (error) {
     console.warn(
       `[ProjectsPage] Unable to build screenshot URL for image key "${imageKey}".`,
       error,
     );
-    return undefined;
   }
+  return url;
 }
 
 export default async function ProjectsPage() {

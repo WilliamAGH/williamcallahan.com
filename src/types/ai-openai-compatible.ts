@@ -18,8 +18,6 @@ export type AiUpstreamQueuePosition = AiUpstreamQueueSnapshot & {
 
 import type { AiGateTokenPayloadV1 } from "@/types/schemas/ai-chat";
 
-export { aiGateTokenPayloadV1Schema, type AiGateTokenPayloadV1 } from "@/types/schemas/ai-chat";
-
 export type AiGateTokenVerificationResult =
   | { ok: true; payload: AiGateTokenPayloadV1 }
   | { ok: false; reason: "invalid_format" | "invalid_signature" | "expired" | "mismatch" };

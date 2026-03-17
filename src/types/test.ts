@@ -37,8 +37,6 @@ export type UmamiMock = Mock & {
   track: Mock;
 };
 
-export type PlausibleMock = Mock;
-
 export type MockScriptProps = {
   id: string;
   onLoad?: () => void;

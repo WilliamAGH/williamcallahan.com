@@ -30,8 +30,9 @@ export function isS3Error(error: unknown): error is S3Error {
 export function isS3NotFound(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
   const s3Error = error as S3Error;
+  const HTTP_NOT_FOUND = 404;
   return (
-    s3Error.$metadata?.httpStatusCode === 404 ||
+    s3Error.$metadata?.httpStatusCode === HTTP_NOT_FOUND ||
     s3Error.name === "NotFound" ||
     s3Error.name === "NoSuchKey" ||
     s3Error.code === "NoSuchKey"

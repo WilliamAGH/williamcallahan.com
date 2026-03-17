@@ -60,7 +60,8 @@ function ExternalLinkButton({
     try {
       const url = new URL(href);
       return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
-    } catch {
+    } catch (error: unknown) {
+      console.error("[BookDetail] Failed to parse external link URL:", href, error);
       return null;
     }
   })();

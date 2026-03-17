@@ -9,12 +9,12 @@
 
 import { parseGitHubStatsCSV, generateGitHubStatsCSV } from "@/lib/utils/csv";
 import { formatISODate, unixToDate, isDateInRange } from "@/lib/utils/date-format";
+import type { GithubContributorStatsEntry } from "@/types/github";
 import type {
-  RepoRawWeeklyStat,
   AggregatedWeeklyActivity,
-  GithubContributorStatsEntry,
   GitHubActivitySummary,
-} from "@/types/github";
+  RepoRawWeeklyStat,
+} from "@/types/schemas/github-storage";
 import { debug } from "@/lib/utils/debug";
 import {
   listRepoStatsFiles,

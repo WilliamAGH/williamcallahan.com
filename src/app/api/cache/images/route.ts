@@ -9,30 +9,36 @@
  * Uses UnifiedImageService for consistent image handling across the application.
  */
 
+/** HTTP status indicating a technically OK response but semantically bad */
+const HTTP_OK = 200;
+const HTTP_BAD_GATEWAY = 502;
+
 import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { openGraphUrlSchema } from "@/types/schemas/url";
-import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 import type { CdnConfig } from "@/types/s3-cdn";
 
 // Configure cache duration (1 year in seconds)
 const CACHE_DURATION = 60 * 60 * 24 * 365;
+const CDN_FETCH_TIMEOUT_MS = 15_000; // 15s — matches asset proxy timeout
 
 // Valid image formats for conversion (SVG is passthrough-only, not a conversion target)
 const VALID_IMAGE_FORMATS = new Set(["jpeg", "jpg", "png", "webp", "avif", "gif"]);
 
 function getOptionalCdnConfig(): CdnConfig | null {
+  let config: CdnConfig | null = null;
   try {
-    return getCdnConfigFromEnv();
+    config = getCdnConfigFromEnv();
   } catch (error) {
     console.warn(
       "[ImageCache] CDN config unavailable. Falling back to external image flow.",
       error,
     );
-    return null;
   }
+  return config;
 }
 
 /**
@@ -71,16 +77,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     if (cdnConfig && isOurCdnUrl(url, cdnConfig)) {
-      const upstream = await fetch(url);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CDN_FETCH_TIMEOUT_MS);
+      let upstream: Response;
+      try {
+        upstream = await fetch(url, { signal: controller.signal });
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError instanceof Error && fetchError.name === "AbortError";
+        console.error(
+          `[ImageCache] CDN ${isTimeout ? "timeout" : "error"} for ${url}:`,
+          fetchError,
+        );
+        return new NextResponse(null, { status: isTimeout ? 504 : 502 });
+      }
+      clearTimeout(timeoutId);
       if (!upstream.ok || !upstream.body) {
         return new NextResponse(null, {
-          status: upstream.status === 200 ? 502 : upstream.status,
+          status: upstream.status === HTTP_OK ? HTTP_BAD_GATEWAY : upstream.status,
         });
       }
 
       const passthroughHeaders = new Headers({
         "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream",
         "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
+        ...IMAGE_CDN_CACHE_HEADERS,
         ...IMAGE_SECURITY_HEADERS,
       });
 
@@ -103,12 +124,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // If we got a CDN URL, stream bytes directly so Next.js optimizer receives a 200 response
     if (result.cdnUrl && bufferLength === 0) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CDN_FETCH_TIMEOUT_MS);
       try {
-        const upstream = await fetch(result.cdnUrl);
+        const upstream = await fetch(result.cdnUrl, { signal: controller.signal });
         if (!upstream.ok || !upstream.body) {
           return NextResponse.json(
             { error: "Failed to fetch cached image", status: upstream.status },
-            { status: upstream.status === 200 ? 502 : upstream.status || 502 },
+            {
+              status:
+                upstream.status === HTTP_OK
+                  ? HTTP_BAD_GATEWAY
+                  : upstream.status || HTTP_BAD_GATEWAY,
+            },
           );
         }
 
@@ -120,6 +148,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           "Cache-Control":
             upstream.headers.get("cache-control") ?? `public, max-age=${CACHE_DURATION}, immutable`,
           "X-Source": "cdn",
+          ...IMAGE_CDN_CACHE_HEADERS,
           ...IMAGE_SECURITY_HEADERS,
         });
 
@@ -128,8 +157,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           headers: passthroughHeaders,
         });
       } catch (cdnError) {
-        console.error("Image cache CDN fetch error:", cdnError);
-        return NextResponse.json({ error: "Failed to fetch cached image" }, { status: 502 });
+        const isTimeout = cdnError instanceof Error && cdnError.name === "AbortError";
+        console.error(
+          `[ImageCache] CDN ${isTimeout ? "timeout" : "error"} for ${result.cdnUrl}:`,
+          cdnError,
+        );
+        return new NextResponse(null, { status: isTimeout ? 504 : 502 });
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -142,6 +177,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
           "X-Cache": cacheHitSources.has(result.source) ? "HIT" : "MISS",
           "X-Source": result.source,
+          ...IMAGE_CDN_CACHE_HEADERS,
           ...IMAGE_SECURITY_HEADERS,
         },
       });

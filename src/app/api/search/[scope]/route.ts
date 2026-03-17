@@ -23,7 +23,7 @@ import {
 } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { SearchScopeValidator, validateSearchQuery } from "@/lib/validators/search";
-import { type SearchResult } from "@/types/search";
+import { type SearchResult } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
 

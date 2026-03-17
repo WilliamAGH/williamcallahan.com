@@ -333,7 +333,9 @@ function detectUnmarkedList(text: string): boolean {
   const verbCount = verbMatches?.length ?? 0;
   const wordCount = text.split(/\s+/).length;
   const verbDensity = verbCount / wordCount;
-  const highVerbDensity = verbCount >= 4 && verbDensity > 0.05;
+  const MIN_ACTION_VERB_COUNT = 4;
+  const MIN_VERB_DENSITY = 0.05;
+  const highVerbDensity = verbCount >= MIN_ACTION_VERB_COUNT && verbDensity > MIN_VERB_DENSITY;
 
   // Require structural signal + at least one confirming signal
   return explicitIntro || knownListSection || highVerbDensity;

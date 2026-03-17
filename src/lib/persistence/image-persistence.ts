@@ -306,6 +306,7 @@ export async function persistImageBufferToS3(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[OpenGraph S3] ❌ Failed to persist Karakeep asset ${assetId}: ${errorMessage}`);
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }

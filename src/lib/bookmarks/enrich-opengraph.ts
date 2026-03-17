@@ -6,11 +6,14 @@
  * @module lib/bookmarks/enrich-opengraph
  */
 
+/** Minimum image size in KB to avoid favicons/logos */
+const MIN_IMAGE_SIZE_KB = 5;
+
 import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { getOpenGraphDataBatch } from "@/lib/data-access/opengraph-batch";
 import { selectBestImage } from "./bookmark-helpers";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { getMonotonicTime } from "@/lib/utils";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 
@@ -231,7 +234,7 @@ export async function processBookmarksInBatches(
               const bufferSizeKB = imageBuffer.length / 1024;
 
               // Check if this is a favicon (< 5KB)
-              if (bufferSizeKB < 5) {
+              if (bufferSizeKB < MIN_IMAGE_SIZE_KB) {
                 console.warn(
                   `${LOG_PREFIX} ⚠️ REJECTED: Karakeep asset ${assetId} is only ${imageBuffer.length} bytes (${bufferSizeKB.toFixed(1)}KB) - likely a favicon/logo`,
                 );
@@ -242,7 +245,7 @@ export async function processBookmarksInBatches(
                   console.log(`${LOG_PREFIX} 📸 Trying screenshot fallback: ${screenshotId}`);
                   const screenshotBuffer = await fetchKarakeepImage(screenshotId);
 
-                  if (screenshotBuffer && screenshotBuffer.length / 1024 >= 5) {
+                  if (screenshotBuffer && screenshotBuffer.length / 1024 >= MIN_IMAGE_SIZE_KB) {
                     // Screenshot is valid, use it
                     const { persistImageBufferToS3 } =
                       await import("@/lib/persistence/image-persistence");
@@ -528,6 +531,7 @@ export async function fetchKarakeepImage(assetId: string): Promise<Buffer | null
     return buffer;
   } catch (error) {
     console.error(`[fetchKarakeepImage] Error fetching asset ${assetId}:`, error);
-    return null;
+    // RC1a: error logged; null is the documented contract for callers
   }
+  return null;
 }

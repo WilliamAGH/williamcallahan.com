@@ -14,7 +14,7 @@
  * @see types/ui.ts for generic UI component props
  */
 
-import type { Experience } from "../experience";
+import type { Experience } from "../schemas/experience";
 
 /**
  * Experience collection component props
@@ -72,7 +72,7 @@ export interface ExperienceCardClientProps extends ExperienceCardProps {
  */
 export interface ExperienceCardExtendedProps extends Experience {
   /** Logo data containing URL and source information */
-  logoData: import("../logo").LogoData;
+  logoData: import("../logo").Logo;
 }
 
 // --- END: Experience Card Component Props ---

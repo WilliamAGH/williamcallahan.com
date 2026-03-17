@@ -13,7 +13,7 @@ import { logoDebugger } from "@/lib/utils/logo-debug";
 import type { LogoFetchResult } from "@/types/cache";
 import type {
   LogoPersistenceConfig,
-  ExternalLogoData,
+  ExternalLogoFetch,
   LogoPersistenceOptions,
 } from "@/types/image";
 
@@ -23,7 +23,7 @@ import type {
  */
 export async function persistStreamingLogo(
   domain: string,
-  logoData: ExternalLogoData,
+  logoData: ExternalLogoFetch,
   config: LogoPersistenceConfig,
 ): Promise<LogoFetchResult> {
   const { isReadOnly, s3Ops, logoFetcher } = config;
@@ -57,7 +57,7 @@ export async function persistStreamingLogo(
  */
 export async function validateAndPersistLogo(
   domain: string,
-  logoData: ExternalLogoData,
+  logoData: ExternalLogoFetch,
   options: LogoPersistenceOptions,
   config: LogoPersistenceConfig,
 ): Promise<LogoFetchResult> {

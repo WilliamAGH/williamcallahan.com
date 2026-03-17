@@ -8,7 +8,7 @@
  */
 
 import "dotenv/config"; // Make sure all environment variables are loaded
-import { unifiedBookmarksArraySchema, type UnifiedBookmark } from "@/types/bookmark";
+import { unifiedBookmarksArraySchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { isValidImageUrl } from "@/lib/utils/opengraph-utils";

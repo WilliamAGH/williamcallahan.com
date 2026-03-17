@@ -43,6 +43,10 @@ import type {
 
 const DEFAULT_UPLOAD_WINDOW_ID = "upload-window";
 
+/** HTTP status code range for successful responses */
+const HTTP_SUCCESS_MIN = 200;
+const HTTP_SUCCESS_MAX = 300;
+
 // =============================================================================
 // FILE TYPE SELECTOR
 // =============================================================================
@@ -450,7 +454,7 @@ function UploadWindowContentInner({
         });
 
         xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
+          if (xhr.status >= HTTP_SUCCESS_MIN && xhr.status < HTTP_SUCCESS_MAX) {
             try {
               const parsed: unknown = JSON.parse(xhr.responseText);
               const result = UploadResponseSchema.safeParse(parsed);

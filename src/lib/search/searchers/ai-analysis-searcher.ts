@@ -10,7 +10,8 @@
  * @module lib/search/searchers/ai-analysis-searcher
  */
 
-import type { SearchResult, AnyAnalysisResponse, AnalysisDomainConfig } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
+import type { AnyAnalysisResponse, AnalysisDomainConfig } from "@/types/search";
 import type { AnalysisDomain } from "@/types/ai-analysis";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
@@ -196,7 +197,8 @@ function extractIdFromUrl(url: string): string | null {
     const slug = bookMatch[1];
     const parts = slug.split("-");
     // ID is typically the second-to-last part before author
-    if (parts.length >= 2) {
+    const MIN_SLUG_PARTS = 2;
+    if (parts.length >= MIN_SLUG_PARTS) {
       // Find the part that looks like an ID (alphanumeric, specific length)
       for (let i = parts.length - 2; i > 0; i--) {
         const part = parts[i];

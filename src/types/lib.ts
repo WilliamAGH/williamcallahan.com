@@ -65,9 +65,6 @@ export type Serializable<T> = T extends Date
 /** Add className to any type */
 export type WithClassName<T = object> = T & { className?: string };
 
-/** Standard operation status for any async operation */
-export type OperationStatus = AsyncStatus;
-
 /** EventEmitter static interface to avoid direct node:events reference in Edge runtime */
 export interface EventEmitterStatic {
   defaultMaxListeners: number;
@@ -156,7 +153,7 @@ export interface S3Error {
  */
 export type RefreshBookmarksCallback = (
   force?: boolean,
-) => Promise<import("./bookmark").UnifiedBookmark[] | null>;
+) => Promise<import("./schemas/bookmark").UnifiedBookmark[] | null>;
 
 export type AsyncJobType = "opengraph" | "image" | "data-fetch" | "cache-cleanup";
 
@@ -177,7 +174,7 @@ export interface AsyncJob {
 /** Real-time tracking of async operations */
 export interface AsyncOperation {
   id: string;
-  status: OperationStatus;
+  status: AsyncStatus;
   startTime: number;
   endTime?: number;
   error?: string;
@@ -200,7 +197,7 @@ export interface MonitoredAsyncOperation {
 // =============================================================================
 
 /** Cache entry wrapper with metadata */
-export interface CacheEntry<T = unknown> {
+export interface CacheEntry<T> {
   data: T;
   expiresAt: number;
   createdAt: number;
@@ -233,14 +230,8 @@ export interface RateLimiterConfig {
   skipFailedRequests?: boolean;
 }
 
-/** Rate limit tracking record for internal store */
-export interface RateLimitRecord {
-  count: number;
-  resetAt: number;
-}
-
 /** Current rate limit status */
-export interface RateLimitInfo {
+export interface RateLimitStatus {
   totalHits: number;
   remainingPoints: number;
   msBeforeNext: number;
@@ -268,14 +259,11 @@ export interface CircuitBreakerConfig {
 // SEARCH SYSTEM - Re-export from schemas + infrastructure types
 // =============================================================================
 
-// Core search types from Zod schemas (source of truth)
-export type { SearchScope, SearchResultType, SearchResult, ScoredResult } from "./schemas/search";
-
 // Import for use in local interfaces
 import type { SearchScope, SearchResult } from "./schemas/search";
 
 /** Search query specification */
-export interface SearchQuery {
+export interface SearchSpec {
   query: string;
   scope?: SearchScope;
   limit?: number;
@@ -288,7 +276,7 @@ export interface SearchResponse {
   results: SearchResult[];
   total: number;
   duration: number;
-  query: SearchQuery;
+  query: SearchSpec;
 }
 
 // =============================================================================
@@ -296,7 +284,7 @@ export interface SearchResponse {
 // =============================================================================
 
 /** Single validation rule definition */
-export interface ValidationRule<T = unknown> {
+export interface ValidationRule<T> {
   name: string;
   validate: (value: T) => boolean | Promise<boolean>;
   message: string;
@@ -307,9 +295,9 @@ export interface ValidationRule<T = unknown> {
 export const PageNumberSchema = z.coerce.number().int().min(1);
 
 /** Complete validation schema */
-export interface ValidationSchema<T = Record<string, unknown>> {
+export interface ValidationRuleset<T = Record<string, unknown>> {
   name: string;
-  rules: Record<keyof T, ValidationRule[]>;
+  rules: Record<keyof T, ValidationRule<unknown>[]>;
   customValidation?: (data: T) => ValidationResult;
 }
 
@@ -340,7 +328,7 @@ export interface WindowState {
 }
 
 /** Window management interface */
-export interface WindowStateManager {
+export interface WindowStateController {
   getState: (windowId: string) => WindowState | undefined;
   setState: (windowId: string, state: Partial<WindowState>) => void;
   registerWindow: (window: WindowState) => void;
@@ -424,7 +412,7 @@ export interface DataFetchResult<T> extends OperationResult<T> {
 /**
  * Result of attempting to read and parse a JSON object by key.
  */
-export interface ReadJsonResult<T = unknown> {
+export interface ReadJsonResult<T> {
   key: string;
   /** Whether the key exists in the backing store */
   exists: boolean;
@@ -438,8 +426,8 @@ export interface ReadJsonResult<T = unknown> {
   parsed?: T | null;
 }
 
-/** Data fetch manager interface */
-export interface DataFetchManager {
+/** Data fetch controller interface */
+export interface DataFetchController {
   fetch: <T>(
     key: string,
     fetcher: () => Promise<T>,

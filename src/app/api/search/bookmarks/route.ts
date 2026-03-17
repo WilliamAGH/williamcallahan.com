@@ -16,9 +16,9 @@ import {
   withNoStoreHeaders,
 } from "@/lib/search/api-guards";
 import { validateSearchQuery } from "@/lib/validators/search";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarkFtsSearchHit, BookmarkFtsSearchPageResult } from "@/types/db/bookmarks";
-import type { SearchResult } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
 import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
@@ -113,7 +113,8 @@ async function tryHybridSearch(query: string): Promise<BookmarkFtsSearchHit[] | 
     }
 
     return hybridSearchBookmarks({ query, embedding, limit: HYBRID_CANDIDATE_LIMIT });
-  } catch {
+  } catch (error: unknown) {
+    console.error("[BookmarksSearchRoute] Hybrid search module load or execution failed:", error);
     return null;
   }
 }

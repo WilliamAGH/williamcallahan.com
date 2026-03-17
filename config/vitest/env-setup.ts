@@ -1,4 +1,8 @@
 import { vi } from "vitest";
+import { config as loadDotenv } from "dotenv";
+import { resolve } from "node:path";
+
+loadDotenv({ path: resolve(import.meta.dirname, "../../.env"), quiet: true });
 
 // Storage API mock (not available in JSDOM/Node)
 const createMockFn = () => vi.fn(() => undefined);

@@ -9,7 +9,8 @@
 import { readBooksRelatedContent } from "@/lib/db/queries/content-graph";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import type { BooksRelatedContentData, RelatedContentEntry } from "@/types/related-content";
+import type { BooksRelatedContent } from "@/types/schemas/book";
+import type { RelatedContentEntry } from "@/types/schemas/related-content";
 
 const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours - matches generation frequency
 
@@ -17,7 +18,7 @@ const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours - matches generation frequen
  * Load related content dataset from PostgreSQL.
  * Returns null when not available and logs infrastructure failures.
  */
-async function loadRelatedContentDirect(): Promise<BooksRelatedContentData | null> {
+async function loadRelatedContentDirect(): Promise<BooksRelatedContent | null> {
   try {
     return await readBooksRelatedContent();
   } catch (error) {
@@ -30,14 +31,14 @@ async function loadRelatedContentDirect(): Promise<BooksRelatedContentData | nul
   return null;
 }
 
-async function loadRelatedContentCached(): Promise<BooksRelatedContentData | null> {
+async function loadRelatedContentCached(): Promise<BooksRelatedContent | null> {
   "use cache";
   cacheContextGuards.cacheLife("BooksRelatedContent", { revalidate: CACHE_TTL_SECONDS });
   cacheContextGuards.cacheTag("BooksRelatedContent", "books-related-content");
   return loadRelatedContentDirect();
 }
 
-async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
+async function ensureCacheLoaded(): Promise<BooksRelatedContent | null> {
   if (!USE_NEXTJS_CACHE) {
     return loadRelatedContentDirect();
   }
@@ -53,8 +54,8 @@ async function ensureCacheLoaded(): Promise<BooksRelatedContentData | null> {
  * @returns Array of related content entries, or empty array if not found
  */
 export async function getRelatedContentForBook(bookId: string): Promise<RelatedContentEntry[]> {
-  const data = await ensureCacheLoaded();
-  return data?.entries[`book:${bookId}`] ?? [];
+  const relatedContentCache = await ensureCacheLoaded();
+  return relatedContentCache?.entries[`book:${bookId}`] ?? [];
 }
 
 /**
@@ -62,9 +63,9 @@ export async function getRelatedContentForBook(bookId: string): Promise<RelatedC
  * @returns Array of book IDs
  */
 export async function getBookIdsWithRelatedContent(): Promise<string[]> {
-  const data = await ensureCacheLoaded();
-  if (!data) return [];
-  return Object.keys(data.entries).map((key) => key.replace("book:", ""));
+  const relatedContentCache = await ensureCacheLoaded();
+  if (!relatedContentCache) return [];
+  return Object.keys(relatedContentCache.entries).map((key) => key.replace("book:", ""));
 }
 
 /**
@@ -76,12 +77,12 @@ export async function getBooksRelatedContentMetadata(): Promise<{
   generated: string;
   booksCount: number;
 } | null> {
-  const data = await ensureCacheLoaded();
-  if (!data) return null;
+  const relatedContentCache = await ensureCacheLoaded();
+  if (!relatedContentCache) return null;
   return {
-    version: data.version,
-    generated: data.generated,
-    booksCount: data.booksCount,
+    version: relatedContentCache.version,
+    generated: relatedContentCache.generated,
+    booksCount: relatedContentCache.booksCount,
   };
 }
 

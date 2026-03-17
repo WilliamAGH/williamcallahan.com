@@ -23,17 +23,17 @@ import type {
   CvCertificationEntry,
   CvCourseGroup,
   CvCourseSummary,
-  CvData,
+  CurriculumVitae,
   CvDegreeEntry,
   CvExperienceEntry,
   CvProjectEntry,
 } from "@/types/cv";
-import { validateExperienceArray } from "@/types/experience";
+import { validateExperienceArray } from "@/types/schemas/experience";
 import {
   validateCertificationArray,
   validateClassArray,
   validateEducationArray,
-} from "@/types/education";
+} from "@/types/schemas/education";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
 
 const validatedExperiences = validateExperienceArray(experiences);
@@ -166,7 +166,7 @@ const buildCourseGroups = (): readonly CvCourseGroup[] => {
   );
 };
 
-export const getCvData = (): CvData => {
+export const getCurriculumVitae = (): CurriculumVitae => {
   const siteUrl = siteMetadata.site?.url ?? "https://williamcallahan.com";
   const personalSiteHost = toDisplayHost(siteUrl) ?? "williamcallahan.com";
   const aventureHost = toDisplayHost(CV_CONTACT_LINKS.aventureUrl) ?? "aventure.vc";
@@ -199,7 +199,5 @@ export const getCvData = (): CvData => {
     linkedInUrl: CV_CONTACT_LINKS.linkedInUrl,
     linkedInLabel,
     lastUpdatedDisplay,
-  } satisfies CvData;
+  } satisfies CurriculumVitae;
 };
-
-export type { CvContent, CvData } from "@/types/cv";

@@ -7,23 +7,19 @@ export const aiTokenResponseSchema = z.object({
 
 export type AiTokenResponse = z.infer<typeof aiTokenResponseSchema>;
 
-export const aiChatResponseSchema = z
-  .object({
-    message: z.string(),
-  })
-  .passthrough();
+export const aiChatResponseSchema = z.object({
+  message: z.string(),
+});
 
 export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
 
-export const aiChatQueuePositionSchema = z
-  .object({
-    position: z.number().int().nullable().optional(),
-    running: z.number().int().nonnegative(),
-    pending: z.number().int().nonnegative(),
-    maxParallel: z.number().int().positive(),
-    queueWaitMs: z.number().int().nonnegative().optional(),
-  })
-  .passthrough();
+export const aiChatQueuePositionSchema = z.object({
+  position: z.number().int().nullable().optional(),
+  running: z.number().int().nonnegative(),
+  pending: z.number().int().nonnegative(),
+  maxParallel: z.number().int().positive(),
+  queueWaitMs: z.number().int().nonnegative().optional(),
+});
 
 export type AiChatQueuePosition = z.infer<typeof aiChatQueuePositionSchema>;
 
@@ -37,38 +33,30 @@ export const aiChatStreamErrorKindSchema = z.enum([
 
 export type AiChatStreamErrorKind = z.infer<typeof aiChatStreamErrorKindSchema>;
 
-export const aiChatStreamErrorSchema = z
-  .object({
-    error: z.string().min(1),
-    kind: aiChatStreamErrorKindSchema.optional(),
-  })
-  .passthrough();
+export const aiChatStreamErrorSchema = z.object({
+  error: z.string().min(1),
+  kind: aiChatStreamErrorKindSchema.optional(),
+});
 
 export type AiChatStreamError = z.infer<typeof aiChatStreamErrorSchema>;
 
-export const aiChatModelStreamStartSchema = z
-  .object({
-    id: z.string().min(1),
-    model: z.string().min(1),
-    apiMode: z.enum(["chat_completions", "responses"]),
-  })
-  .passthrough();
+export const aiChatModelStreamStartSchema = z.object({
+  id: z.string().min(1),
+  model: z.string().min(1),
+  apiMode: z.enum(["chat_completions", "responses"]),
+});
 
 export type AiChatModelStreamStart = z.infer<typeof aiChatModelStreamStartSchema>;
 
-export const aiChatModelStreamDeltaSchema = z
-  .object({
-    delta: z.string(),
-  })
-  .passthrough();
+export const aiChatModelStreamDeltaSchema = z.object({
+  delta: z.string(),
+});
 
 export type AiChatModelStreamDelta = z.infer<typeof aiChatModelStreamDeltaSchema>;
 
-export const aiChatModelStreamDoneSchema = z
-  .object({
-    message: z.string(),
-  })
-  .passthrough();
+export const aiChatModelStreamDoneSchema = z.object({
+  message: z.string(),
+});
 
 export type AiChatModelStreamDone = z.infer<typeof aiChatModelStreamDoneSchema>;
 
@@ -91,20 +79,16 @@ export const aiChatQueueUpdateSchema = z.union([
 
 export type AiChatQueueUpdate = z.infer<typeof aiChatQueueUpdateSchema>;
 
-export const aiChatThinkingDeltaSchema = z
-  .object({
-    delta: z.string(),
-  })
-  .passthrough();
+export const aiChatThinkingDeltaSchema = z.object({
+  delta: z.string(),
+});
 
 export type AiChatThinkingDelta = z.infer<typeof aiChatThinkingDeltaSchema>;
 
-export const aiChatThinkingDoneSchema = z
-  .object({
-    text: z.string(),
-    tokenCount: z.number().int().nonnegative(),
-  })
-  .passthrough();
+export const aiChatThinkingDoneSchema = z.object({
+  text: z.string(),
+  tokenCount: z.number().int().nonnegative(),
+});
 
 export type AiChatThinkingDone = z.infer<typeof aiChatThinkingDoneSchema>;
 

@@ -245,9 +245,9 @@ const isLogoSource = (value: unknown): value is LogoSource => {
   );
 };
 const getLogoSourceSafe = (value: unknown): LogoSource => (isLogoSource(value) ? value : "unknown");
-const LEGACY_LOGO_SOURCES = ["direct", "google", "ddg", "duckduckgo", "clearbit", "unknown"];
+const UNHASHED_LOGO_SOURCES = ["direct", "google", "ddg", "duckduckgo", "clearbit", "unknown"];
 
-function getLegacyLogoCandidates(domain: string): string[] {
+function getUnhashedLogoCandidates(domain: string): string[] {
   const { name, tld } = extractTld(domain);
   if (!tld) return [];
   const domainName = name.replace(/\./g, "_");
@@ -257,7 +257,7 @@ function getLegacyLogoCandidates(domain: string): string[] {
   for (const extension of IMAGE_EXTENSIONS) {
     candidates.push(`${IMAGE_S3_PATHS.LOGOS_DIR}/${domainName}_${tldName}.${extension}`);
   }
-  for (const source of LEGACY_LOGO_SOURCES) {
+  for (const source of UNHASHED_LOGO_SOURCES) {
     for (const extension of IMAGE_EXTENSIONS) {
       candidates.push(
         `${IMAGE_S3_PATHS.LOGOS_DIR}/${domainName}_${tldName}_${source}.${extension}`,
@@ -267,14 +267,14 @@ function getLegacyLogoCandidates(domain: string): string[] {
   return candidates;
 }
 
-export async function findLegacyLogoKey(
+export async function findUnhashedLogoKey(
   domain: string,
   listS3Objects: (prefix: string) => Promise<string[]>,
   checkIfS3ObjectExists?: (key: string) => Promise<boolean>,
   allowListFallback = true,
 ): Promise<string | null> {
   if (checkIfS3ObjectExists) {
-    const candidates = getLegacyLogoCandidates(domain);
+    const candidates = getUnhashedLogoCandidates(domain);
     for (const candidate of candidates) {
       if (await checkIfS3ObjectExists(candidate)) {
         return candidate;
@@ -305,14 +305,14 @@ export async function hashAndArchiveManualLogo(
     writeBinaryS3: (key: string, data: Buffer, contentType: string) => Promise<void>;
     deleteFromS3: (key: string) => Promise<void>;
     checkIfS3ObjectExists?: (key: string) => Promise<boolean>;
-    legacyKey?: string;
+    unhashedKey?: string;
     allowListFallback: boolean;
   },
 ): Promise<string | null> {
   try {
     const candidateKey =
-      s3Utils.legacyKey ??
-      (await findLegacyLogoKey(
+      s3Utils.unhashedKey ??
+      (await findUnhashedLogoKey(
         domain,
         s3Utils.listS3Objects,
         s3Utils.checkIfS3ObjectExists,

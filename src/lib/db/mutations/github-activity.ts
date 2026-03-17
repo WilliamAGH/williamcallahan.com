@@ -8,10 +8,10 @@ import {
 import { readGitHubActivityFromDb } from "@/lib/db/queries/github-activity";
 import { debugLog } from "@/lib/utils/debug";
 import type {
-  AggregatedWeeklyActivityFromSchema,
-  GitHubActivityApiResponseFromSchema,
-  GitHubActivitySummaryFromSchema,
-  RepoWeeklyStatCacheFromSchema,
+  AggregatedWeeklyActivity,
+  GitHubActivityApiResponse,
+  GitHubActivitySummary,
+  RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 
 /**
@@ -38,7 +38,7 @@ async function upsertDocument(
 // ---------------------------------------------------------------------------
 
 /** Classify dataset quality to protect against overwriting healthy data with empty/incomplete results. */
-const classifyDataset = (d: GitHubActivityApiResponseFromSchema | null | undefined) => {
+const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
   if (!d) {
     return {
       hasData: false,
@@ -67,9 +67,7 @@ const classifyDataset = (d: GitHubActivityApiResponseFromSchema | null | undefin
  * Write GitHub activity data to PostgreSQL with non-degrading write protection.
  * Avoids overwriting a healthy dataset with empty/incomplete results.
  */
-export async function writeGitHubActivityToDb(
-  data: GitHubActivityApiResponseFromSchema,
-): Promise<boolean> {
+export async function writeGitHubActivityToDb(data: GitHubActivityApiResponse): Promise<boolean> {
   assertDatabaseWriteAllowed("writeGitHubActivityToDb");
 
   const newQ = classifyDataset(data);
@@ -105,9 +103,7 @@ export async function writeGitHubActivityToDb(
 /**
  * Write GitHub activity summary to PostgreSQL.
  */
-export async function writeGitHubSummaryToDb(
-  summary: GitHubActivitySummaryFromSchema,
-): Promise<boolean> {
+export async function writeGitHubSummaryToDb(summary: GitHubActivitySummary): Promise<boolean> {
   assertDatabaseWriteAllowed("writeGitHubSummaryToDb");
 
   await upsertDocument("summary", GITHUB_ACTIVITY_GLOBAL_QUALIFIER, summary);
@@ -121,7 +117,7 @@ export async function writeGitHubSummaryToDb(
 export async function writeRepoWeeklyStatsToDb(
   owner: string,
   repo: string,
-  cache: RepoWeeklyStatCacheFromSchema,
+  cache: RepoWeeklyStatCache,
 ): Promise<boolean> {
   assertDatabaseWriteAllowed("writeRepoWeeklyStatsToDb");
 
@@ -135,7 +131,7 @@ export async function writeRepoWeeklyStatsToDb(
  * Write aggregated weekly activity to PostgreSQL.
  */
 export async function writeAggregatedWeeklyActivityToDb(
-  data: AggregatedWeeklyActivityFromSchema[],
+  data: AggregatedWeeklyActivity[],
 ): Promise<boolean> {
   assertDatabaseWriteAllowed("writeAggregatedWeeklyActivityToDb");
 

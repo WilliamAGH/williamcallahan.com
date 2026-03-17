@@ -3,13 +3,13 @@
  * @module data-access/github-contributions
  */
 
+/** Maximum contribution level on GitHub's 5-point scale (0-4) */
+const MAX_CONTRIBUTION_LEVEL = 4;
+
 import { isDateInRange } from "@/lib/utils/date-format";
 import { createCategorizedError } from "@/lib/utils/error-utils";
-import type {
-  ContributionDay,
-  GraphQLContributionDay,
-  GraphQLContributionCalendar,
-} from "@/types/github";
+import type { GraphQLContributionDay, GraphQLContributionCalendar } from "@/types/github";
+import type { ContributionDay } from "@/types/schemas/github-storage";
 import { fetchContributionCalendar } from "./github-api";
 
 // Contribution level mapping
@@ -65,7 +65,7 @@ export function validateContributionData(data: ContributionDay[]): boolean {
       typeof day.count === "number" &&
       typeof day.level === "number" &&
       day.level >= 0 &&
-      day.level <= 4,
+      day.level <= MAX_CONTRIBUTION_LEVEL,
   );
 }
 

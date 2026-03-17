@@ -1,8 +1,8 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "$schema": "../node_modules/oxlint/configuration_schema.json",
   "jsPlugins": [
     {
-      "specifier": "./config/oxlint/js-plugins/s3-no-hardcoded-images.mjs",
+      "specifier": "./oxlint/js-plugins/s3-no-hardcoded-images.mjs",
       "name": "s3"
     }
   ],
@@ -130,6 +130,7 @@
       }
     ],
     "no-with": "error",
+    "oxc/no-barrel-file": "error",
     "oxc/no-map-spread": "off",
     "prefer-const": "error",
     "prefer-rest-params": "error",
@@ -165,6 +166,7 @@
     "react/require-render-return": "error",
     "react/rules-of-hooks": "error",
     "s3/no-hardcoded-images": "warn",
+    "typescript/no-deprecated": "error",
     "typescript/no-base-to-string": "off",
     "typescript/no-confusing-non-null-assertion": "warn",
     "typescript/no-duplicate-enum-values": "error",
@@ -309,7 +311,7 @@
       }
     },
     {
-      "files": ["eslint.config.ts", "*.config.ts", "config/**/*.ts", "src/instrumentation*.ts"],
+      "files": ["*.config.ts", "config/**/*.ts", "src/instrumentation*.ts"],
       "rules": {
         "no-use-before-define": "off",
         "s3/no-hardcoded-images": "off",

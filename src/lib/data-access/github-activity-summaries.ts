@@ -8,11 +8,8 @@ import { formatPacificDateTime } from "@/lib/utils/date-format";
 import { createCategorizedError } from "@/lib/utils/error-utils";
 import { createEmptyCategoryStats } from "./github-processing";
 import { writeGitHubSummaryRecord } from "./github-storage";
-import type {
-  GitHubActivitySummary,
-  GitHubSummaryInput,
-  GitHubSummaryWriteResult,
-} from "@/types/github";
+import type { GitHubSummaryInput, GitHubSummaryWriteResult } from "@/types/github";
+import type { GitHubActivitySummary } from "@/types/schemas/github-storage";
 
 export async function writeGitHubActivitySummaries({
   trailingYearData,

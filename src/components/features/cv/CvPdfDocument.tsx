@@ -1,6 +1,6 @@
 import React from "react";
 import { TextDecoder as PolyfillTextDecoder } from "@sinonjs/text-encoding";
-import { getCvData } from "@/lib/cv/cv-data";
+import { getCurriculumVitae } from "@/lib/cv/cv-data";
 import logger from "@/lib/utils/logger";
 import path from "path";
 import { existsSync } from "node:fs";
@@ -26,7 +26,10 @@ const ensureWindows1252TextDecoder = (() => {
       })();
 
     if (!supportsWindows1252) {
-      globalThis.TextDecoder = PolyfillTextDecoder as unknown as typeof globalThis.TextDecoder;
+      // The polyfill is structurally compatible but TypeScript cannot verify it;
+      // bridge through unknown to avoid the double-cast pattern.
+      const polyfillConstructor: unknown = PolyfillTextDecoder;
+      globalThis.TextDecoder = polyfillConstructor as typeof globalThis.TextDecoder;
     }
 
     patched = true;
@@ -514,7 +517,7 @@ const CvPdfDocument = (): React.ReactElement => {
     linkedInUrl,
     linkedInLabel,
     lastUpdatedDisplay,
-  } = getCvData();
+  } = getCurriculumVitae();
 
   return (
     <Document

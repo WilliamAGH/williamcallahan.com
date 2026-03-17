@@ -136,7 +136,7 @@ export class GraphQLClient {
 export class GraphQLError extends Error {
   constructor(
     message: string,
-    public errors: NonNullable<GraphQLResponse["errors"]>,
+    public errors: NonNullable<GraphQLResponse<never>["errors"]>,
   ) {
     super(message);
     this.name = "GraphQLError";

@@ -88,7 +88,7 @@ export interface ImageWindowProps extends ImageProps {
 
 export type WindowStateValue = "normal" | "minimized" | "maximized" | "closed";
 
-export interface WindowInstanceInfo {
+export interface WindowInstance {
   id: string;
   state: WindowStateValue;
   icon: LucideIcon;
@@ -96,7 +96,7 @@ export interface WindowInstanceInfo {
 }
 
 export interface GlobalWindowRegistryContextType {
-  windows: Record<string, WindowInstanceInfo>;
+  windows: Record<string, WindowInstance>;
   registerWindow: (
     id: string,
     icon: LucideIcon,
@@ -109,7 +109,7 @@ export interface GlobalWindowRegistryContextType {
   maximizeWindow: (id: string) => void;
   closeWindow: (id: string) => void;
   restoreWindow: (id: string) => void;
-  getWindowState: (id: string) => WindowInstanceInfo | undefined;
+  getWindowState: (id: string) => WindowInstance | undefined;
 }
 
 export interface GlobalWindowRegistryProviderProps {

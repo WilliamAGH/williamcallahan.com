@@ -1,8 +1,8 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import {
-  mapBookmarkRowToUnifiedBookmark,
-  mapBookmarkRowsToUnifiedBookmarks,
+  mapBookmarkSelectToUnifiedBookmark,
+  mapBookmarkSelectsToUnifiedBookmarks,
 } from "@/lib/db/bookmark-record-mapper";
 import { db } from "@/lib/db/connection";
 import {
@@ -16,7 +16,7 @@ import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import type {
   BookmarkFtsSearchPageResult,
-  BookmarkRow,
+  BookmarkSelect,
   BookmarkTagResolution,
 } from "@/types/db/bookmarks";
 import type { BookmarksIndex, UnifiedBookmark } from "@/types/schemas/bookmark";
@@ -139,16 +139,16 @@ export async function resolveCanonicalTagSlug(tagSlug: string): Promise<Bookmark
   return resolveCanonicalTagSlugInternal(tagSlug);
 }
 
-export async function getAllBookmarkRows(): Promise<BookmarkRow[]> {
+export async function getAllBookmarkSelects(): Promise<BookmarkSelect[]> {
   return db.select().from(bookmarks).orderBy(desc(bookmarks.dateBookmarked), desc(bookmarks.id));
 }
 
 export async function getAllBookmarks(): Promise<UnifiedBookmark[]> {
-  const rows = await getAllBookmarkRows();
-  return mapBookmarkRowsToUnifiedBookmarks(rows);
+  const rows = await getAllBookmarkSelects();
+  return mapBookmarkSelectsToUnifiedBookmarks(rows);
 }
 
-export async function getBookmarkRowById(bookmarkId: string): Promise<BookmarkRow | null> {
+export async function getBookmarkSelectById(bookmarkId: string): Promise<BookmarkSelect | null> {
   const rows = await db.select().from(bookmarks).where(eq(bookmarks.id, bookmarkId)).limit(1);
   const firstRow = rows[0];
   if (!firstRow) {
@@ -158,14 +158,14 @@ export async function getBookmarkRowById(bookmarkId: string): Promise<BookmarkRo
 }
 
 export async function getBookmarkById(bookmarkId: string): Promise<UnifiedBookmark | null> {
-  const row = await getBookmarkRowById(bookmarkId);
+  const row = await getBookmarkSelectById(bookmarkId);
   if (!row) {
     return null;
   }
-  return mapBookmarkRowToUnifiedBookmark(row);
+  return mapBookmarkSelectToUnifiedBookmark(row);
 }
 
-export async function getBookmarkRowBySlug(slug: string): Promise<BookmarkRow | null> {
+export async function getBookmarkSelectBySlug(slug: string): Promise<BookmarkSelect | null> {
   assertNonEmptyString(slug, "slug");
   const rows = await db.select().from(bookmarks).where(eq(bookmarks.slug, slug)).limit(1);
   const firstRow = rows[0];
@@ -176,11 +176,11 @@ export async function getBookmarkRowBySlug(slug: string): Promise<BookmarkRow | 
 }
 
 export async function getBookmarkBySlugFromDatabase(slug: string): Promise<UnifiedBookmark | null> {
-  const row = await getBookmarkRowBySlug(slug);
+  const row = await getBookmarkSelectBySlug(slug);
   if (!row) {
     return null;
   }
-  return mapBookmarkRowToUnifiedBookmark(row);
+  return mapBookmarkSelectToUnifiedBookmark(row);
 }
 
 export async function getBookmarkIdBySlug(slug: string): Promise<string | null> {
@@ -221,7 +221,7 @@ export async function getBookmarksPage(
     .orderBy(desc(bookmarks.dateBookmarked), desc(bookmarks.id))
     .limit(pageSize)
     .offset(offset);
-  return mapBookmarkRowsToUnifiedBookmarks(rows);
+  return mapBookmarkSelectsToUnifiedBookmarks(rows);
 }
 
 export async function getBookmarksPageByTag(
@@ -247,7 +247,7 @@ export async function getBookmarksPageByTag(
     .limit(pageSize)
     .offset(offset);
 
-  return mapBookmarkRowsToUnifiedBookmarks(rows.map((row) => row.bookmark));
+  return mapBookmarkSelectsToUnifiedBookmarks(rows.map((row) => row.bookmark));
 }
 
 export async function getBookmarksCount(): Promise<number> {
@@ -360,7 +360,7 @@ export async function searchBookmarksFtsPage(
     .offset(offset);
 
   const items = rows.map((row) => ({
-    bookmark: mapBookmarkRowToUnifiedBookmark(row.bookmark),
+    bookmark: mapBookmarkSelectToUnifiedBookmark(row.bookmark),
     score: Number(row.score),
   }));
 

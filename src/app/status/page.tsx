@@ -1,6 +1,6 @@
 import { type NextPage } from "next";
 import { headers } from "next/headers";
-import { type HealthMetrics, HealthMetricsResponseSchema } from "@/types/health";
+import { type HealthMetrics } from "@/types/health";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 
 function renderValue(value: unknown) {
@@ -36,19 +36,16 @@ function renderSection(title: string, sectionData: object) {
 
 async function getStatusData(): Promise<HealthMetrics> {
   await headers();
-  const systemMetrics = await getSystemMetrics();
-  const status = "error" in systemMetrics ? "degraded" : "healthy";
-  const data: unknown = {
-    status,
+  return {
+    status: "healthy",
     timestamp: new Date().toISOString(),
-    system: systemMetrics,
+    system: await getSystemMetrics(),
   };
-  return HealthMetricsResponseSchema.parse(data);
 }
 
 const StatusPage: NextPage = async () => {
   try {
-    const data: HealthMetrics = await getStatusData();
+    const healthMetrics: HealthMetrics = await getStatusData();
 
     return (
       <div className="min-h-screen bg-gray-950 text-gray-200 p-4 sm:p-6 lg:p-8">
@@ -56,10 +53,12 @@ const StatusPage: NextPage = async () => {
           <h1 className="text-4xl font-extrabold text-white">Application Status</h1>
           <p className="text-gray-400 mt-2">
             Live system metrics from the server. Last updated:{" "}
-            <span className="text-cyan-400">{new Date(data.timestamp).toLocaleString()}</span>
+            <span className="text-cyan-400">
+              {new Date(healthMetrics.timestamp).toLocaleString()}
+            </span>
           </p>
         </header>
-        <main>{renderSection("System", data.system)}</main>
+        <main>{renderSection("System", healthMetrics.system)}</main>
       </div>
     );
   } catch (error: unknown) {

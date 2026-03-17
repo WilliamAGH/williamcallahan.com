@@ -2,7 +2,7 @@ import { z } from "zod/v4";
 
 /**
  * Zod Schema for Terminal Search API Validation
- * Terminal search returns SelectionItem format, not the general SearchResult format
+ * Terminal search returns SelectionEntry format, not the general SearchResult format
  */
 export const terminalSearchResultSchema = z.object({
   id: z.string().min(1),

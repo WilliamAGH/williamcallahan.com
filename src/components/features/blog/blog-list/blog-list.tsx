@@ -13,6 +13,9 @@ import { BlogCard } from "./blog-card";
 
 import type { BlogListProps } from "@/types/features/blog";
 
+/** Number of blog cards to priority-preload */
+const PRELOAD_COUNT = 2;
+
 export function BlogList({ posts }: BlogListProps) {
   return (
     <div className="space-y-6">
@@ -23,7 +26,7 @@ export function BlogList({ posts }: BlogListProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {posts.map((post, index) => (
-          <BlogCard key={post.id} post={post} preload={index < 2} />
+          <BlogCard key={post.id} post={post} preload={index < PRELOAD_COUNT} />
         ))}
       </div>
     </div>

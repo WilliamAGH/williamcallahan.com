@@ -55,7 +55,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       // Client-side: try loading from sessionStorage
       const saved = sessionStorage.getItem(HISTORY_STORAGE_KEY);
       if (saved) {
-        const parsedData = JSON.parse(saved) as unknown; // Explicitly type as unknown
+        const parsedData: unknown = JSON.parse(saved);
 
         if (isTerminalCommandArray(parsedData)) {
           // Check if welcome message exists, add if not

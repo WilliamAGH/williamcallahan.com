@@ -5,9 +5,6 @@ import { debugLog } from "@/lib/utils/debug";
 import { getMonotonicTime } from "@/lib/utils";
 import type { BatchProcessorOptions, BatchResult, LogLevel } from "@/types/batch-processing";
 
-// Re-export types for backward compatibility
-export type { BatchProcessorOptions, BatchResult, LogLevel } from "@/types/batch-processing";
-
 /**
  * Generic batch processor that handles rate limiting and retries
  */

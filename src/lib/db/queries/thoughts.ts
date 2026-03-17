@@ -1,7 +1,7 @@
 import { desc, eq, sql, and } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
 import { thoughts } from "@/lib/db/schema/thoughts";
-import type { Thought, ThoughtListItem, ThoughtCategory } from "@/types/schemas/thought";
+import type { Thought, ThoughtBrief, ThoughtCategory } from "@/types/schemas/thought";
 
 const EXCERPT_MAX_LENGTH = 160;
 
@@ -60,9 +60,9 @@ function generateExcerpt(content: string, maxLength: number = EXCERPT_MAX_LENGTH
 }
 
 /**
- * Map a raw database row to a ThoughtListItem (no content, with excerpt).
+ * Map a raw database row to a ThoughtBrief (no content, with excerpt).
  */
-function mapRowToListItem(row: typeof thoughts.$inferSelect): ThoughtListItem {
+function mapRowToListItem(row: typeof thoughts.$inferSelect): ThoughtBrief {
   return {
     id: row.id,
     slug: row.slug,
@@ -144,7 +144,7 @@ export async function readThoughtCategories(): Promise<ThoughtCategory[]> {
 /**
  * Read all non-draft thoughts as list items (excerpt instead of full content).
  */
-export async function readThoughtListItems(): Promise<ThoughtListItem[]> {
+export async function readThoughtListItems(): Promise<ThoughtBrief[]> {
   const rows = await db
     .select()
     .from(thoughts)

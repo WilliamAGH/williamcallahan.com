@@ -9,13 +9,13 @@
 import type { ZodSchema } from "zod/v4";
 import { debugLog } from "./debug";
 import { getMonotonicTime } from "@/lib/utils";
-import type { FailedItem, FailureTrackerConfig } from "@/types/s3-cdn";
+import type { FailedEntry, FailureTrackerConfig } from "@/types/s3-cdn";
 
 /**
  * Generic in-memory failure tracker
  */
 export class FailureTracker<T> {
-  private failures = new Map<string, FailedItem<T>>();
+  private failures = new Map<string, FailedEntry<T>>();
   private loaded = false;
 
   private readonly config: Required<FailureTrackerConfig>;
@@ -86,7 +86,7 @@ export class FailureTracker<T> {
     const key = this.getKey(item);
     const existing = this.failures.get(key);
 
-    const failure: FailedItem<T> = existing
+    const failure: FailedEntry<T> = existing
       ? {
           ...existing,
           attempts: existing.attempts + 1,

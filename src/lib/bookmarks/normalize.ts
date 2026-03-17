@@ -6,7 +6,7 @@
  * @module lib/bookmarks/normalize
  */
 
-import type { RawApiBookmark, UnifiedBookmark, BookmarkContent } from "@/types/bookmark";
+import type { RawApiBookmark, UnifiedBookmark, BookmarkContent } from "@/types/schemas/bookmark";
 import { envLogger } from "@/lib/utils/env-logger";
 import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
 import { extractDomainWithoutWww } from "@/lib/utils/url-utils";
@@ -137,8 +137,9 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       },
       { category: "BookmarksNormalize" },
     );
-    return null;
+    // RC1a: error logged; null is the documented contract (callers filter nulls)
   }
+  return null;
 }
 
 /**

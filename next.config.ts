@@ -333,9 +333,9 @@ const nextConfig = {
       ],
     },
     // /_next/image cache headers are set by the image optimizer itself based on
-    // minimumCacheTTL (7 days) and upstream Cache-Control. Custom overrides here
-    // previously reduced browser cache from 7 days to 60 seconds, causing
-    // unnecessary re-fetches and visible image flickering on navigation.
+    // minimumCacheTTL (30 days) and upstream Cache-Control. Custom overrides here
+    // previously reduced browser cache to 60 seconds, causing unnecessary
+    // re-fetches and visible image flickering on navigation.
     // NOTE: CSP is now primarily handled in src/proxy.ts.
   ],
   poweredByHeader: false,
@@ -422,10 +422,10 @@ const nextConfig = {
     qualities: [75, 80, 85, 90, 100], // Support common quality settings (include 85 to silence warnings)
     /**
      * The minimum time (in seconds) an optimized image will be cached by the browser and CDNs
-     * This is 7 days
+     * 30 days — images are near-immutable (persisted once, replaced only on corrections)
      * @see https://nextjs.org/docs/app/api-reference/components/image#minimumcachettl
      */
-    minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days cache
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days cache
     /**
      * The base path for Nextjs optimized images Defaults to '/_next/image'
      * @see https://nextjs.org/docs/app/api-reference/components/image#path

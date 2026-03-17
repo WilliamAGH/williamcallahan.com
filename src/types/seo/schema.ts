@@ -19,7 +19,7 @@ interface SchemaBase {
 /**
  * Person entity representing the website owner
  */
-export interface PersonSchema extends SchemaBase {
+export interface PersonEntity extends SchemaBase {
   "@type": "Person";
   name: string;
   description: string;
@@ -31,7 +31,7 @@ export interface PersonSchema extends SchemaBase {
 /**
  * Website entity representing the entire website
  */
-export interface WebSiteSchema extends SchemaBase {
+export interface WebSiteEntity extends SchemaBase {
   "@type": "WebSite";
   url: string;
   name: string;
@@ -42,7 +42,7 @@ export interface WebSiteSchema extends SchemaBase {
 /**
  * Image entity for profile pictures and article images
  */
-export interface ImageObjectSchema extends SchemaBase {
+export interface ImageObjectEntity extends SchemaBase {
   "@type": "ImageObject";
   url: string;
   contentUrl: string;
@@ -70,7 +70,7 @@ export interface WebPageBase extends SchemaBase {
 /**
  * Article entity for blog posts
  */
-export interface ArticleSchema extends SchemaBase {
+export interface ArticleEntity extends SchemaBase {
   "@type": "Article";
   isPartOf: { "@id": string };
   author: { "@id": string };
@@ -89,7 +89,7 @@ export interface ArticleSchema extends SchemaBase {
 /**
  * Dataset entity for investment data
  */
-export interface DatasetSchema extends SchemaBase {
+export interface DatasetEntity extends SchemaBase {
   "@type": "Dataset";
   name: string;
   description: string;
@@ -107,7 +107,7 @@ export interface DatasetSchema extends SchemaBase {
 /**
  * Collection page entity for blog listings and bookmarks
  */
-export interface CollectionPageSchema extends SchemaBase {
+export interface CollectionPageEntity extends SchemaBase {
   "@type": "CollectionPage";
   isPartOf: { "@id": string };
   name: string;
@@ -128,7 +128,7 @@ export interface CollectionPageSchema extends SchemaBase {
 /**
  * Breadcrumb navigation entity
  */
-export interface BreadcrumbListSchema extends SchemaBase {
+export interface BreadcrumbListEntity extends SchemaBase {
   "@type": "BreadcrumbList";
   itemListElement: Array<{
     "@type": "ListItem";
@@ -143,7 +143,7 @@ export interface BreadcrumbListSchema extends SchemaBase {
 /**
  * ProfilePage entity for personal profile pages
  */
-export interface ProfilePageSchema extends SchemaBase {
+export interface ProfilePageEntity extends SchemaBase {
   "@type": "ProfilePage";
   name?: string;
   description?: string;
@@ -174,7 +174,7 @@ export interface ProfilePageSchema extends SchemaBase {
 /**
  * NewsArticle entity for news-style blog posts
  */
-export interface NewsArticleSchema extends SchemaBase {
+export interface NewsArticleEntity extends SchemaBase {
   "@type": "NewsArticle";
   headline: string;
   image: string[];
@@ -193,7 +193,7 @@ export interface NewsArticleSchema extends SchemaBase {
 /**
  * SoftwareApplication entity for software and extensions
  */
-export interface SoftwareApplicationSchema extends SchemaBase {
+export interface SoftwareApplicationEntity extends SchemaBase {
   "@type": "SoftwareApplication";
   name: string;
   description?: string;
@@ -238,16 +238,16 @@ export interface SchemaGraph {
   "@context": "https://schema.org";
   "@graph": Array<
     | WebPageBase
-    | ArticleSchema
-    | PersonSchema
-    | ImageObjectSchema
-    | WebSiteSchema
-    | BreadcrumbListSchema
-    | DatasetSchema
-    | CollectionPageSchema
-    | ProfilePageSchema
-    | NewsArticleSchema
-    | SoftwareApplicationSchema
+    | ArticleEntity
+    | PersonEntity
+    | ImageObjectEntity
+    | WebSiteEntity
+    | BreadcrumbListEntity
+    | DatasetEntity
+    | CollectionPageEntity
+    | ProfilePageEntity
+    | NewsArticleEntity
+    | SoftwareApplicationEntity
   >;
 }
 

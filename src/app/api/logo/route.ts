@@ -14,6 +14,7 @@ import logger from "@/lib/utils/logger";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { parseS3Key } from "@/lib/utils/hash-utils";
@@ -107,7 +108,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Redirect to CDN if available
     if (logoMeta.cdnUrl) {
       logger.debug(`[Logo API] Redirecting logo for ${domain} to CDN: ${logoMeta.cdnUrl}`);
-      return NextResponse.redirect(logoMeta.cdnUrl, 301);
+      return NextResponse.redirect(logoMeta.cdnUrl, {
+        status: 301,
+        headers: {
+          "Cache-Control": "public, max-age=31536000, immutable",
+          ...IMAGE_CDN_CACHE_HEADERS,
+        },
+      });
     }
 
     // If a valid S3 key exists but cdnUrl is missing, construct a URL directly.
@@ -115,7 +122,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       try {
         const cdnUrl = buildCdnUrl(logoMeta.s3Key, getCdnConfigFromEnv());
         logger.debug(`[Logo API] Reconstructing CDN/S3 URL for ${domain}: ${cdnUrl}`);
-        return NextResponse.redirect(cdnUrl, 301);
+        return NextResponse.redirect(cdnUrl, {
+          status: 301,
+          headers: {
+            "Cache-Control": "public, max-age=31536000, immutable",
+            ...IMAGE_CDN_CACHE_HEADERS,
+          },
+        });
       } catch (e) {
         logger.warn(`[Logo API] Failed to build CDN URL for ${domain}:`, e);
       }

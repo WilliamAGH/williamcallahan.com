@@ -10,10 +10,10 @@ import {
   gitHubActivityApiResponseSchema,
   gitHubActivitySummarySchema,
   repoWeeklyStatCacheSchema,
-  type AggregatedWeeklyActivityFromSchema,
-  type GitHubActivityApiResponseFromSchema,
-  type GitHubActivitySummaryFromSchema,
-  type RepoWeeklyStatCacheFromSchema,
+  type AggregatedWeeklyActivity,
+  type GitHubActivityApiResponse,
+  type GitHubActivitySummary,
+  type RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 
 /**
@@ -61,7 +61,7 @@ export async function readGitHubActivityUpdatedAt(
 /**
  * Read GitHub activity data (trailing year + cumulative all-time) from PostgreSQL.
  */
-export async function readGitHubActivityFromDb(): Promise<GitHubActivityApiResponseFromSchema | null> {
+export async function readGitHubActivityFromDb(): Promise<GitHubActivityApiResponse | null> {
   const payload = await readPayload("activity");
   if (payload === null) {
     return null;
@@ -73,7 +73,7 @@ export async function readGitHubActivityFromDb(): Promise<GitHubActivityApiRespo
 /**
  * Read GitHub activity summary from PostgreSQL.
  */
-export async function readGitHubSummaryFromDb(): Promise<GitHubActivitySummaryFromSchema | null> {
+export async function readGitHubSummaryFromDb(): Promise<GitHubActivitySummary | null> {
   const payload = await readPayload("summary");
   if (payload === null) {
     return null;
@@ -88,7 +88,7 @@ export async function readGitHubSummaryFromDb(): Promise<GitHubActivitySummaryFr
 export async function readRepoWeeklyStatsFromDb(
   owner: string,
   repo: string,
-): Promise<RepoWeeklyStatCacheFromSchema | null> {
+): Promise<RepoWeeklyStatCache | null> {
   const qualifier = `${owner}/${repo}`;
   const payload = await readPayload("repo-weekly-stats", qualifier);
   if (payload === null) {
@@ -102,7 +102,7 @@ export async function readRepoWeeklyStatsFromDb(
  * Read aggregated weekly activity array from PostgreSQL.
  */
 export async function readAggregatedWeeklyActivityFromDb(): Promise<
-  AggregatedWeeklyActivityFromSchema[] | null
+  AggregatedWeeklyActivity[] | null
 > {
   const payload = await readPayload("aggregated-weekly");
   if (payload === null) {

@@ -37,7 +37,7 @@ export type ImageSource =
  * Base interface for all image data
  * This is the foundation for image-related types across the system
  */
-export interface BaseImageData {
+export interface BaseImage {
   /** MIME content type (e.g., 'image/png', 'image/svg+xml') */
   contentType: string;
   /** Where the image was retrieved from */
@@ -53,7 +53,7 @@ export interface BaseImageData {
 /**
  * Image data with buffer
  */
-export interface ImageDataWithBuffer extends BaseImageData {
+export interface ImageDataWithBuffer extends BaseImage {
   /** Image data buffer */
   buffer: Buffer;
 }
@@ -61,7 +61,7 @@ export interface ImageDataWithBuffer extends BaseImageData {
 /**
  * Image data without buffer (used for metadata)
  */
-export interface ImageDataMetadata extends BaseImageData {
+export interface ImageDataMetadata extends BaseImage {
   /** S3 storage key */
   s3Key?: string;
   /** Size in bytes (when buffer is stored separately) */
@@ -171,7 +171,7 @@ export interface LogoPersistenceConfig {
 }
 
 /** Logo data from external fetch */
-export interface ExternalLogoData {
+export interface ExternalLogoFetch {
   buffer: Buffer;
   contentType: string | null;
   source: import("./logo").LogoSource;
@@ -182,28 +182,6 @@ export interface ExternalLogoData {
 export interface LogoPersistenceOptions {
   invertColors?: boolean;
 }
-
-/**
- * Logo manifest entry with CDN URL and original source
- */
-export interface LogoManifestEntry {
-  /** CDN URL where the logo is stored */
-  cdnUrl: string;
-  /** Original source service (google, duckduckgo, clearbit, etc.) */
-  originalSource: string;
-  /** CDN URL pointing to pre-inverted (dark-theme) version of the logo, when available */
-  invertedCdnUrl?: string;
-}
-
-/**
- * Logo manifest mapping domains to logo info
- */
-export type LogoManifest = Record<string, LogoManifestEntry>;
-
-/**
- * Generic image manifest as array of CDN URLs
- */
-export type ImageManifest = string[];
 
 /**
  * Mapping of static image local paths to CDN URLs

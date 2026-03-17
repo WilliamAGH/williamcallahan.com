@@ -20,7 +20,7 @@ import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/constants";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { metadata } from "@/data/metadata";
 import { openGraphUrlSchema } from "@/types/schemas/url";
-import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { isS3Error } from "@/lib/utils/s3-error-guards";
 
@@ -127,7 +127,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(s3Url, {
           status: 302,
           headers: {
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+            ...IMAGE_CDN_CACHE_HEADERS,
           },
         });
       } catch (s3Error) {
@@ -222,7 +223,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(url, {
         status: 302,
         headers: {
-          "Cache-Control": "public, max-age=86400",
+          "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+          ...IMAGE_CDN_CACHE_HEADERS,
         },
       });
     }
@@ -252,7 +254,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(s3ImageUrl, {
         status: 302,
         headers: {
-          "Cache-Control": "public, max-age=86400",
+          "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+          ...IMAGE_CDN_CACHE_HEADERS,
         },
       });
     } catch (s3Error) {

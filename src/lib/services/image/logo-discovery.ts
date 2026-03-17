@@ -11,7 +11,7 @@ import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
 import {
   generateS3Key,
   parseS3Key,
-  findLegacyLogoKey,
+  findUnhashedLogoKey,
   hashAndArchiveManualLogo,
 } from "@/lib/utils/hash-utils";
 import { getContentTypeFromExtension, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
@@ -67,26 +67,31 @@ export async function findExistingHashedLogo(
  * @param buildResult - Callback to build the LogoFetchResult
  * @returns LogoFetchResult if found, null otherwise
  */
-export async function findAndMigrateLegacyLogo(
+export async function findAndMigrateUnhashedLogo(
   domain: string,
   isReadOnly: boolean,
   buildResult: LogoResultBuilder,
 ): Promise<LogoFetchResult | null> {
-  const legacyKey = await findLegacyLogoKey(domain, listS3Objects, checkIfS3ObjectExists, false);
+  const unhashedKey = await findUnhashedLogoKey(
+    domain,
+    listS3Objects,
+    checkIfS3ObjectExists,
+    false,
+  );
 
-  if (!legacyKey) {
+  if (!unhashedKey) {
     return null;
   }
 
-  logger.info(`[LogoDiscovery] Found existing legacy logo: ${legacyKey}`);
+  logger.info(`[LogoDiscovery] Found existing legacy logo: ${unhashedKey}`);
 
   // Extract metadata from key
-  const parsed = parseS3Key(legacyKey);
+  const parsed = parseS3Key(unhashedKey);
   const source = parsed.source as LogoSource;
   const ext = parsed.extension || "png";
   const contentType = getContentTypeFromExtension(ext);
 
-  let finalKey = legacyKey;
+  let finalKey = unhashedKey;
 
   // Migrate legacy logo to hashed format if not read-only
   if (!parsed.hash && !isReadOnly) {
@@ -96,7 +101,7 @@ export async function findAndMigrateLegacyLogo(
       writeBinaryS3,
       deleteFromS3,
       checkIfS3ObjectExists,
-      legacyKey,
+      unhashedKey,
       allowListFallback: false,
     });
     if (migrated) {

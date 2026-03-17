@@ -28,7 +28,7 @@ Vitest does not support rendering async Server Components. Unit tests may cover 
 
 ## Configuration Files (Source of Truth)
 
-- `vitest.config.ts` defines plugins, jsdom environment, and aliasing for Next.js internals.
+- `config/vitest.config.ts` defines plugins, jsdom environment, and aliasing for Next.js internals.
 - `config/vitest/setup.ts` registers `@testing-library/jest-dom/vitest`, core DOM mocks, and console suppression.
 - `config/vitest/env-setup.ts` provides targeted environment mocks only when required by tests.
 - `config/vitest/global-mocks.ts` provides global cache API stubs.
@@ -67,7 +67,7 @@ Use `act` or `waitFor` when state updates are async. If `React.act` is missing i
 
 `ReferenceError: vi is not defined` means you ran `bun test` directly. Use `bun run test` so Vitest config loads.
 
-`document is not defined` means the jsdom environment or setup files did not load. Confirm `vitest.config.ts` and `config/vitest/setup.ts` are referenced correctly.
+`document is not defined` means the jsdom environment or setup files did not load. Confirm `config/vitest.config.ts` and `config/vitest/setup.ts` are referenced correctly.
 
 ## Official Docs
 

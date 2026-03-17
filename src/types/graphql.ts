@@ -14,7 +14,7 @@ export interface GraphQLRequest {
   operationName?: string;
 }
 
-export interface GraphQLResponse<T = unknown> {
+export interface GraphQLResponse<T> {
   data?: T;
   errors?: Array<{
     message: string;

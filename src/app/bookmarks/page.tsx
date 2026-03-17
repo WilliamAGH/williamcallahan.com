@@ -19,7 +19,7 @@ import { getDiscoveryGroupedBookmarks } from "@/lib/db/queries/discovery-grouped
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-import type { DiscoverFeedData } from "@/types/features/discovery";
+import type { DiscoverFeedContent } from "@/types/features/discovery";
 
 /**
  * Generate metadata for the Bookmarks page
@@ -70,7 +70,7 @@ export default async function BookmarksPage({
   const jsonLdData = generateSchemaGraph(schemaParams);
 
   if (feedMode === "discover" && !hasTagFilter) {
-    let discoverData: DiscoverFeedData;
+    let discoverData: DiscoverFeedContent;
     try {
       discoverData = await getDiscoveryGroupedBookmarks({ sectionPage: 1, sectionsPerPage: 4 });
     } catch (error) {

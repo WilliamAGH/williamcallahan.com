@@ -5,7 +5,7 @@
  * Covers scoring, grouping, and component props for the discover layout.
  */
 
-import type { UnifiedBookmark } from "../bookmark";
+import type { UnifiedBookmark } from "../schemas/bookmark";
 import type { SerializableBookmark } from "./bookmarks";
 import type { EngagementContentType } from "../schemas/engagement";
 
@@ -28,7 +28,7 @@ export type BookmarkForDiscovery = Pick<
 // Scoring & Grouping
 // ---------------------------------------------------------------------------
 
-export type ScoredBookmarkRow = {
+export type ScoredBookmark = {
   bookmark: Pick<
     UnifiedBookmark,
     "id" | "url" | "title" | "description" | "slug" | "tags" | "dateBookmarked"
@@ -46,7 +46,7 @@ export type TopicSection = {
   tagName: string;
   topScore: number;
   totalCount: number;
-  bookmarks: ScoredBookmarkRow["bookmark"][];
+  bookmarks: ScoredBookmark["bookmark"][];
 };
 
 type GroupOptions = {
@@ -65,7 +65,7 @@ export type { GroupOptions, RecentOptions };
 // Server → Client Data Transfer
 // ---------------------------------------------------------------------------
 
-export type DiscoverFeedData = {
+export type DiscoverFeedContent = {
   recentlyAdded: SerializableBookmark[];
   topicSections: Array<{
     tagSlug: string;
@@ -93,7 +93,7 @@ export type DiscoverFeedData = {
 // ---------------------------------------------------------------------------
 
 export type DiscoverFeedProps = {
-  data: DiscoverFeedData;
+  data: DiscoverFeedContent;
 };
 
 export type TopicSectionProps = {

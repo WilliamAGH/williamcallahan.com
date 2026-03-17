@@ -36,6 +36,15 @@ import { CopyButton } from "./copy-button.client";
 
 import type { CodeBlockProps } from "@/types/ui/code-block";
 
+/** Tailwind sm breakpoint for responsive control sizing */
+const SM_BREAKPOINT = 640;
+/** Tailwind xl breakpoint for responsive control sizing */
+const XL_BREAKPOINT = 1280;
+
+/** Regex capture group indices for SVG transform parsing */
+const TRANSFORM_NAME_GROUP = 1;
+const TRANSFORM_VALUE_GROUP = 2;
+
 /**
  * Extract language from className (e.g., "language-typescript" -> "typescript")
  * @param className - The CSS class string to parse
@@ -81,7 +90,7 @@ const getTextContent = (node: ReactNode): string => {
     if (
       typeof props === "object" &&
       props !== null &&
-      "children" in (props as Record<string, unknown>)
+      "children" in (props as { children?: unknown })
     ) {
       return getTextContent((props as { children?: ReactNode }).children);
     }
@@ -128,9 +137,9 @@ export const CodeBlock = ({
 
   // Determine the appropriate control size based on screen width
   const controlSize =
-    windowSize.width && windowSize.width < 640
+    windowSize.width && windowSize.width < SM_BREAKPOINT
       ? "sm"
-      : windowSize.width && windowSize.width > 1280
+      : windowSize.width && windowSize.width > XL_BREAKPOINT
         ? "lg"
         : "md";
 
@@ -195,7 +204,10 @@ export const CodeBlock = ({
         if (transform && !transform.includes("(") && !transform.includes(")")) {
           const match = transform.match(/^(\w+)(.+)$/);
           if (match) {
-            svg.setAttribute("transform", `${match[1]}(${match[2]})`);
+            svg.setAttribute(
+              "transform",
+              `${match[TRANSFORM_NAME_GROUP]}(${match[TRANSFORM_VALUE_GROUP]})`,
+            );
           }
         }
       }

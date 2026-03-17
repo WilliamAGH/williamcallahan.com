@@ -11,14 +11,11 @@ import { debug } from "@/lib/utils/debug";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
 import { formatPacificDateTime } from "@/lib/utils/date-format";
-import type {
-  GitHubActivityApiResponse,
-  StoredGithubActivityRecord,
-  UserActivityView,
-} from "@/types/github";
+import type { StoredGithubActivity, UserActivityView } from "@/types/github";
+import type { GitHubActivityApiResponse } from "@/types/schemas/github-storage";
 import {
   readGitHubActivityRecord,
-  isOldFlatStoredGithubActivityFormat,
+  isFlatStoredGithubActivityFormat,
   getGitHubActivityMetadata,
 } from "./github-storage";
 
@@ -75,7 +72,7 @@ function formatActivityView(
   };
 
   const allTimeData = activityRecord.cumulativeAllTimeData || trailingYearData;
-  const commitsOlderThanYear = allTimeData.allCommitsOlderThanYear;
+  const priorYearCommits = allTimeData.allPriorYearCommits;
 
   return {
     source,
@@ -92,7 +89,7 @@ function formatActivityView(
       linesAdded: allTimeData.linesAdded || 0,
       linesRemoved: allTimeData.linesRemoved || 0,
     },
-    commitsOlderThanYear,
+    priorYearCommits,
     lastRefreshed,
   };
 }
@@ -118,9 +115,9 @@ export async function getGithubActivity(): Promise<UserActivityView> {
     : undefined;
 
   // Handle old flat format (backward compatibility)
-  if (isOldFlatStoredGithubActivityFormat(activityData)) {
+  if (isFlatStoredGithubActivityFormat(activityData)) {
     debug("[DataAccess/GitHub:getGithubActivity] Converting old flat format to new nested format");
-    const oldFormatData = activityData as StoredGithubActivityRecord;
+    const oldFormatData = activityData as StoredGithubActivity;
     activityData = {
       trailingYearData: oldFormatData,
       cumulativeAllTimeData: oldFormatData,
@@ -162,6 +159,3 @@ export async function getGithubActivityCached(): Promise<UserActivityView> {
 
   return withCacheFallback(getCachedGithubActivity, getGithubActivityDirect);
 }
-
-// Re-export centralized invalidator for consumers
-export { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";

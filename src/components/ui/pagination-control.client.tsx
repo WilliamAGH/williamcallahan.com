@@ -4,6 +4,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
 import type { PaginationControlProps } from "@/types/ui/pagination";
 
+/** Page number threshold for showing leading ellipsis (gap between page 1 and visible range) */
+const ELLIPSIS_GAP_THRESHOLD = 2;
+
 export const PaginationControl: React.FC<PaginationControlProps> = ({
   currentPage = 1,
   totalPages = 10,
@@ -170,9 +173,11 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
               >
                 1
               </button>
-              {visiblePages.length > 0 && visiblePages[0] && visiblePages[0] > 2 && (
-                <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
-              )}
+              {visiblePages.length > 0 &&
+                visiblePages[0] &&
+                visiblePages[0] > ELLIPSIS_GAP_THRESHOLD && (
+                  <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
+                )}
             </>
           )}
 

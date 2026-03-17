@@ -11,15 +11,15 @@ export const logoManifestEntrySchema = z.object({
   invertedCdnUrl: z.string().min(1).optional(),
 });
 
-export type LogoManifestEntryFromSchema = z.infer<typeof logoManifestEntrySchema>;
+export type LogoManifestEntry = z.infer<typeof logoManifestEntrySchema>;
 
 export const logoManifestSchema = z.record(z.string(), logoManifestEntrySchema);
 
-export type LogoManifestFromSchema = z.infer<typeof logoManifestSchema>;
+export type LogoManifest = z.infer<typeof logoManifestSchema>;
 
 export const imageManifestSchema = z.array(z.string().min(1));
 
-export type ImageManifestFromSchema = z.infer<typeof imageManifestSchema>;
+export type ImageManifest = z.infer<typeof imageManifestSchema>;
 
 /** Discriminated manifest type keys for the `image_manifests` DB table. */
 export const IMAGE_MANIFEST_TYPES = ["logos", "opengraph", "blog"] as const;

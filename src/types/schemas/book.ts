@@ -7,7 +7,7 @@
  */
 
 import { z } from "zod/v4";
-import { relatedContentTypeSchema } from "./related-content";
+import { relatedContentEntrySchema } from "./related-content";
 
 const absoluteOrRootRelativeUrlSchema = z.union([
   z.url(),
@@ -125,7 +125,7 @@ export const bookListItemSchema = z.object({
   coverBlurDataURL: z.string().optional(),
 });
 
-export type BookListItem = z.infer<typeof bookListItemSchema>;
+export type BookBrief = z.infer<typeof bookListItemSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AudioBookShelf API Response Schemas
@@ -163,7 +163,7 @@ export const absLibraryItemSchema = z.object({
   }),
 });
 
-export type AbsLibraryItem = z.infer<typeof absLibraryItemSchema>;
+export type AbsLibraryEntry = z.infer<typeof absLibraryItemSchema>;
 
 /**
  * AudioBookShelf library items list response
@@ -183,9 +183,9 @@ export type AbsLibraryItemsResponse = z.infer<typeof absLibraryItemsResponseSche
 
 export const validateBook = (data: unknown): Book => bookSchema.parse(data);
 
-export const validateBookListItem = (data: unknown): BookListItem => bookListItemSchema.parse(data);
+export const validateBookBrief = (data: unknown): BookBrief => bookListItemSchema.parse(data);
 
-export const validateAbsLibraryItem = (data: unknown): AbsLibraryItem =>
+export const validateAbsLibraryEntry = (data: unknown): AbsLibraryEntry =>
   absLibraryItemSchema.parse(data);
 
 export const validateAbsLibraryItemsResponse = (data: unknown): AbsLibraryItemsResponse =>
@@ -195,77 +195,43 @@ export const validateAbsLibraryItemsResponse = (data: unknown): AbsLibraryItemsR
 // API Options Interfaces
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface AbsTransformOptions {
-  baseUrl: string;
-  apiKey: string;
-}
+export const absTransformOptionsSchema = z.object({
+  baseUrl: z.string(),
+  apiKey: z.string(),
+});
+export type AbsTransformOptions = z.infer<typeof absTransformOptionsSchema>;
 
 /**
  * Supported sort fields for AudioBookShelf library items.
  * Uses JavaScript object notation as documented in the ABS API.
  * @see https://api.audiobookshelf.org/ - GET /api/libraries/{id}/items
  */
-export type AbsSortField =
-  | "addedAt"
-  | "updatedAt"
-  | "media.metadata.title"
-  | "media.metadata.authorName"
-  | "media.metadata.publishedYear"
-  | "media.duration"
-  | "size";
+export const absSortFieldSchema = z.enum([
+  "addedAt",
+  "updatedAt",
+  "media.metadata.title",
+  "media.metadata.authorName",
+  "media.metadata.publishedYear",
+  "media.duration",
+  "size",
+]);
+export type AbsSortField = z.infer<typeof absSortFieldSchema>;
 
-export interface FetchAbsLibraryItemsOptions {
+export const fetchAbsLibraryItemsOptionsSchema = z.object({
   /** Field to sort by (default: "addedAt") */
-  sort?: AbsSortField;
+  sort: absSortFieldSchema.optional(),
   /** Sort in descending order - newest/largest first (default: true) */
-  desc?: boolean;
-}
+  desc: z.boolean().optional(),
+});
+export type FetchAbsLibraryItemsOptions = z.infer<typeof fetchAbsLibraryItemsOptionsSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Books Related Content S3 Data Schemas
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Metadata for related content display (optional fields)
- */
-export const relatedContentMetadataSchema = z
-  .object({
-    tags: z.array(z.string()).optional(),
-    domain: z.string().optional(),
-    date: z.string().optional(),
-    imageUrl: z.string().optional(),
-    readingTime: z.number().optional(),
-    stage: z.string().optional(),
-    category: z.string().optional(),
-    aventureUrl: z.string().optional(),
-    author: z
-      .object({
-        name: z.string(),
-        avatar: z.string().optional(),
-      })
-      .optional(),
-    authors: z.array(z.string()).optional(),
-    formats: z.array(z.string()).optional(),
-  })
-  .optional();
-
-/**
- * Pre-computed related content entry schema.
- * Validates data fetched from S3 for the books related content graph.
- */
-export const relatedContentEntrySchema = z.object({
-  type: relatedContentTypeSchema,
-  id: z.string(),
-  score: z.number(),
-  title: z.string(),
-  metadata: relatedContentMetadataSchema,
-});
-
-export type RelatedContentEntryFromSchema = z.infer<typeof relatedContentEntrySchema>;
-
 export const relatedContentGraphSchema = z.record(z.string(), z.array(relatedContentEntrySchema));
 
-export type RelatedContentGraphFromSchema = z.infer<typeof relatedContentGraphSchema>;
+export type RelatedContentGraph = z.infer<typeof relatedContentGraphSchema>;
 
 /**
  * Books related content data schema.
@@ -278,7 +244,7 @@ export const booksRelatedContentDataSchema = z.object({
   entries: z.record(z.string(), z.array(relatedContentEntrySchema)),
 });
 
-export type BooksRelatedContentDataFromSchema = z.infer<typeof booksRelatedContentDataSchema>;
+export type BooksRelatedContent = z.infer<typeof booksRelatedContentDataSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Book Enrichment & Consolidated Dataset Schemas

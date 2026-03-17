@@ -19,6 +19,7 @@ import { CSP_DIRECTIVES } from "@/config/csp";
 import { NextResponse, type NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
 import { getClientIp } from "@/lib/utils/request-utils";
+import { IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
 import type { ProxyFunction } from "@/types/middleware";
 
@@ -157,6 +158,7 @@ function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): v
 
   if (url.includes("/_next/image")) {
     response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    for (const [h, v] of Object.entries(IMAGE_CDN_CACHE_HEADERS)) response.headers.set(h, v);
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
     return;
@@ -165,6 +167,7 @@ function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): v
   const hasStaticExtension = STATIC_EXTENSIONS.has(url.slice(url.lastIndexOf(".")));
   if (url.includes("/_next/static") || hasStaticExtension) {
     response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    for (const [h, v] of Object.entries(IMAGE_CDN_CACHE_HEADERS)) response.headers.set(h, v);
     response.headers.set("X-Content-Type-Options", "nosniff");
 
     if (/\.(jpe?g|png|webp|avif)$/.test(url)) {

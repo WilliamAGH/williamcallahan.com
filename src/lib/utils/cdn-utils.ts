@@ -39,12 +39,13 @@ export function getS3CdnUrl(): string {
  */
 function parseAbsoluteUrl(value?: string): URL | null {
   if (!value) return null;
+  let parsed: URL | null = null;
   try {
-    return new URL(value);
+    parsed = new URL(value);
   } catch (err) {
     console.debug("[cdn-utils] parseAbsoluteUrl: invalid URL:", value, err);
-    return null;
   }
+  return parsed;
 }
 
 function normalizeBasePath(pathname: string): string {
@@ -155,9 +156,9 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
         }
         return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
       }
-    } catch {
-      // Malformed S3 server URL — treat as non-match (consistent with string|null contract)
-      return null;
+    } catch (err) {
+      console.debug("[cdn-utils] extractS3KeyFromUrl: malformed S3 server URL:", s3ServerUrl, err);
+      // Malformed S3 server URL — fall through to null return below
     }
   }
 

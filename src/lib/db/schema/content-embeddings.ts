@@ -8,7 +8,6 @@
 
 import { bigint, halfvec, index, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
-export { CONTENT_EMBEDDING_DOMAINS, type ContentEmbeddingDomain } from "@/types/db/embeddings";
 
 /** Qwen3-Embedding-4B — the single authorized embedding model. */
 export const CONTENT_EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-4B" as const;

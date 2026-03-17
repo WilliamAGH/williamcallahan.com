@@ -8,7 +8,11 @@
  */
 
 import type MiniSearch from "minisearch";
-import type { SerializedIndex, BookmarkIndexItem, MiniSearchStoredFields } from "@/types/search";
+import type {
+  SerializedIndex,
+  BookmarkIndexEntry,
+  MiniSearchStoredFields,
+} from "@/types/schemas/search";
 
 /**
  * Type guard to check if value is a non-null object (record).
@@ -63,7 +67,8 @@ export function parseSerializedIndexObject(
         return parsed;
       }
       return null;
-    } catch {
+    } catch (error: unknown) {
+      console.error("[serialization] Failed to JSON.parse serialized index string:", error);
       return null;
     }
   }
@@ -79,7 +84,7 @@ export function parseSerializedIndexObject(
  */
 export function extractBookmarksFromSerializedIndex(
   serializedIndex: SerializedIndex,
-): Array<BookmarkIndexItem & { slug: string }> {
+): Array<BookmarkIndexEntry & { slug: string }> {
   const indexObject = parseSerializedIndexObject(serializedIndex);
   if (!indexObject) {
     return [];
@@ -92,7 +97,7 @@ export function extractBookmarksFromSerializedIndex(
     return [];
   }
 
-  const bookmarks: Array<BookmarkIndexItem & { slug: string }> = [];
+  const bookmarks: Array<BookmarkIndexEntry & { slug: string }> = [];
   for (const [shortId, docId] of Object.entries(documentIdsRaw)) {
     const stored = storedFieldsRaw[shortId];
     if (!isRecord(stored)) continue;

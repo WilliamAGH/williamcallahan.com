@@ -18,25 +18,28 @@ import { debugLog } from "./debug";
 export function safeJsonParse<T>(text: string, schema: ZodSchema<T>): T | null;
 export function safeJsonParse(text: string): unknown;
 export function safeJsonParse<T>(text: string, schema?: ZodSchema<T>): T | unknown | null {
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(text);
-    if (schema) {
-      const result = schema.safeParse(parsed);
-      if (result.success) {
-        return result.data;
-      }
-      debugLog(`JSON validation failed: ${result.error.message}`, "error", {
-        preview: text.substring(0, 100),
-      });
-      return null;
-    }
-    return parsed;
+    parsed = JSON.parse(text);
   } catch (error) {
     debugLog(`Failed to parse JSON: ${(error as Error).message ?? "Unknown error"}`, "error", {
       preview: text.substring(0, 100),
     });
+    // RC1a: parse failure is semantic null (not a silent fallback)
+    parsed = undefined;
+  }
+  if (parsed === undefined) return null;
+  if (schema) {
+    const result = schema.safeParse(parsed);
+    if (result.success) {
+      return result.data;
+    }
+    debugLog(`JSON validation failed: ${result.error.message}`, "error", {
+      preview: text.substring(0, 100),
+    });
     return null;
   }
+  return parsed;
 }
 
 /**
@@ -47,6 +50,7 @@ export function safeJsonStringify(
   space?: string | number,
   replacer?: (key: string, value: unknown) => unknown,
 ): string | null {
+  let result: string | null = null;
   try {
     const stack: unknown[] = [];
 
@@ -71,14 +75,14 @@ export function safeJsonStringify(
       return val;
     }
 
-    return JSON.stringify(value, internalReplacer, space);
+    result = JSON.stringify(value, internalReplacer, space);
   } catch (error) {
     debugLog(
       `Failed to stringify JSON: ${error instanceof Error ? error.message : "Unknown error"}`,
       "error",
     );
-    return null;
   }
+  return result;
 }
 
 /**
@@ -188,8 +192,8 @@ export function mergeJson<T extends Record<string, unknown>>(target: T, source: 
     ) {
       // Recursively merge objects
       result[key] = mergeJson(
-        targetValue as Record<string, unknown>,
-        sourceValue as Record<string, unknown>,
+        targetValue as { [k: string]: unknown },
+        sourceValue as { [k: string]: unknown },
       ) as T[Extract<keyof T, string>];
     } else if (sourceValue !== undefined) {
       // Replace primitive values and arrays
@@ -254,11 +258,11 @@ export function sortJsonKeys<T>(obj: T): T {
     return obj;
   }
 
-  const sorted: Record<string, unknown> = {};
+  const sorted: { [key: string]: unknown } = {};
   const keys = Object.keys(obj).toSorted();
 
   for (const key of keys) {
-    sorted[key] = sortJsonKeys((obj as Record<string, unknown>)[key]);
+    sorted[key] = sortJsonKeys(obj[key]);
   }
 
   return sorted as T;

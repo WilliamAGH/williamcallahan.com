@@ -65,8 +65,9 @@ export class LogoValidators {
       );
     } catch (error) {
       logger.error("[LogoValidators] Logo validation failed", error, { url });
-      return false;
+      // RC1a: error logged; false signals validation failure
     }
+    return false;
   }
 
   /**

@@ -11,6 +11,7 @@
 import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 loadEnvironmentWithMultilineSupport();
 
+import * as Sentry from "@sentry/nextjs";
 import logger from "@/lib/utils/logger";
 import { getMonotonicTime } from "@/lib/utils";
 import { stripWwwPrefix } from "@/lib/utils/url-utils";
@@ -24,12 +25,12 @@ import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
 import { upsertAllSearchIndexArtifacts } from "@/lib/db/mutations/search-index-artifacts";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import { writeAllImageManifests } from "@/lib/db/mutations/image-manifests";
 import { listS3Objects } from "@/lib/s3/objects";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
-import type { LogoManifest } from "@/types/image";
+import type { LogoManifest } from "@/types/schemas/image-manifest";
 
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { calculateAndStoreAggregatedWeeklyActivity } from "@/lib/data-access/github-processing";
@@ -158,6 +159,7 @@ export class DataFetchManager {
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
+      Sentry.captureException(error);
       logger.error("[DataFetchManager] Bookmarks fetch failed:", error);
       return {
         success: false,
@@ -210,6 +212,7 @@ export class DataFetchManager {
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
+      Sentry.captureException(error);
       logger.error("[DataFetchManager] GitHub activity fetch failed:", error);
       return {
         success: false,
@@ -291,6 +294,7 @@ export class DataFetchManager {
       }
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
+      Sentry.captureException(error);
       logger.error("[DataFetchManager] Logos fetch failed:", error);
       return {
         success: false,
@@ -507,6 +511,7 @@ export class DataFetchManager {
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
+      Sentry.captureException(error);
       logger.error("[DataFetchManager] Search index build failed:", error);
       return {
         success: false,
@@ -587,6 +592,7 @@ export class DataFetchManager {
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
+      Sentry.captureException(error);
       logger.error("[DataFetchManager] Image manifest build failed:", error);
       return {
         success: false,
@@ -639,7 +645,8 @@ export class DataFetchManager {
       const parts = beforeHash.split("_");
       const source = parts.pop() || "unknown";
       const domainParts = parts;
-      if (domainParts.length < 2) continue;
+      const MIN_DOMAIN_PARTS = 2;
+      if (domainParts.length < MIN_DOMAIN_PARTS) continue;
 
       const tld = domainParts[domainParts.length - 1];
       const name = domainParts.slice(0, -1).join(".");

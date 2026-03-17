@@ -195,7 +195,7 @@ function normalizeDetailFields(
   const detailValue = root[detailKey];
   const normalizedDetails =
     typeof detailValue === "object" && detailValue !== null && !Array.isArray(detailValue)
-      ? { ...(detailValue as Record<string, unknown>) }
+      ? { ...(detailValue as { [k: string]: unknown }) }
       : {};
   for (const field of fields) {
     const entryValue = normalizedDetails[field];
@@ -217,7 +217,7 @@ function normalizeDetailFields(
 function normalizeAnalysisPayload(feature: AnalysisFeatureId, value: unknown): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
   const config = ANALYSIS_FIELD_CONFIG[feature];
-  const root = { ...(value as Record<string, unknown>) };
+  const root = { ...(value as { [k: string]: unknown }) };
 
   normalizeStringFields(root, config.requiredStringFields);
   normalizeAudienceField(root, feature, config.audienceField);
@@ -238,7 +238,7 @@ function findSuspiciousAnalysisContent(feature: AnalysisFeatureId, value: unknow
   if (typeof value !== "object" || value === null || Array.isArray(value))
     return "Response is not a JSON object.";
   const config = ANALYSIS_FIELD_CONFIG[feature];
-  const root = value as Record<string, unknown>;
+  const root = value as { [k: string]: unknown };
 
   for (const field of config.requiredStringFields) {
     const fieldValue = root[field];
@@ -264,7 +264,7 @@ function findSuspiciousAnalysisContent(feature: AnalysisFeatureId, value: unknow
 
   const detailValue = root[config.detailKey];
   if (typeof detailValue !== "object" || detailValue === null) return null;
-  const detailRecord = detailValue as Record<string, unknown>;
+  const detailRecord = detailValue as { [k: string]: unknown };
   for (const field of config.nullableDetailFields) {
     const item = detailRecord[field];
     if (typeof item !== "string") continue;
@@ -329,7 +329,7 @@ export function validateAnalysisOutput(
       path: issue.path.join("."),
       value: issue.path.reduce<unknown>((obj, key) => {
         if (typeof obj !== "object" || obj === null || typeof key === "symbol") return undefined;
-        return (obj as Record<string, unknown>)[String(key)];
+        return (obj as { [k: string]: unknown })[String(key)];
       }, normalized),
     })),
   });

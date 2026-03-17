@@ -7,7 +7,8 @@
  * @module lib/search/tag-aggregator
  */
 
-import type { AggregatedTag, TagSource } from "@/types/search";
+import type { AggregatedTag } from "@/types/schemas/search";
+import type { TagSource } from "@/types/search";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 
 /**

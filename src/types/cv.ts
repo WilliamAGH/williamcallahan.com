@@ -74,7 +74,7 @@ export interface CvContactLinks {
   linkedInUrl: string;
 }
 
-export interface CvData {
+export interface CurriculumVitae {
   professionalSummary: string;
   qualifications: readonly CvQualification[];
   technicalFocus: readonly CvTechnicalFocusSection[];
@@ -93,5 +93,3 @@ export interface CvData {
   linkedInLabel: string;
   lastUpdatedDisplay: string;
 }
-
-export type CvContent = CvData;

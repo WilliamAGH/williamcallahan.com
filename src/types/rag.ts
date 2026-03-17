@@ -80,7 +80,7 @@ export interface InventoryPaginationMeta {
 /**
  * Per-section pagination data stored in conversation state.
  */
-export interface SectionPaginationData {
+export interface SectionPagination {
   currentPage: number;
   totalPages: number;
   totalItems: number;
@@ -91,7 +91,7 @@ export interface SectionPaginationData {
  */
 export interface InventoryPaginationState {
   /** Per-section pagination positions */
-  sections: Partial<Record<InventorySectionName, SectionPaginationData>>;
+  sections: Partial<Record<InventorySectionName, SectionPagination>>;
   /** Last section the user interacted with (for "next" command) */
   lastRequestedSection?: InventorySectionName;
   /** Timestamp for cache expiration */

@@ -83,13 +83,14 @@ function loadExistingMap(): Record<string, string> {
   if (!fs.existsSync(COVER_IMAGE_MAP_PATH)) {
     return {};
   }
+  let result: Record<string, string> = {};
   try {
     const raw = fs.readFileSync(COVER_IMAGE_MAP_PATH, "utf8");
-    return JSON.parse(raw) as Record<string, string>;
+    result = JSON.parse(raw) as { [slug: string]: string };
   } catch (error) {
     logger.error("Failed to read existing cover image map:", error);
-    return {};
   }
+  return result;
 }
 
 function writeMap(map: Record<string, string>): void {

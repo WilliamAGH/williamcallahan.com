@@ -7,6 +7,10 @@
  * @module image-handling/shared-image-processing
  */
 
+/** JPEG magic number bytes */
+const JPEG_SOI_0 = 0xff;
+const JPEG_SOI_1 = 0xd8;
+
 import { isDebug } from "../utils/debug";
 import type { ProcessedImageResult, SvgProcessingResult } from "@/types/image";
 import { extractBasicImageMeta } from "./image-metadata";
@@ -26,7 +30,7 @@ const detectContentTypeFromMagicNumbers = (buffer: Buffer, logContext: string): 
   const magicNumbers = {
     gif: buffer.slice(0, 3).toString() === "GIF",
     png: buffer.slice(1, 4).toString() === "PNG",
-    jpeg: buffer[0] === 0xff && buffer[1] === 0xd8,
+    jpeg: buffer[0] === JPEG_SOI_0 && buffer[1] === JPEG_SOI_1,
     webp: buffer.slice(0, 4).toString() === "RIFF" && buffer.slice(8, 12).toString() === "WEBP",
   };
 

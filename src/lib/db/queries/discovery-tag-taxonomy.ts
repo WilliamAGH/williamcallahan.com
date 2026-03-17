@@ -4,8 +4,6 @@ import { db } from "@/lib/db/connection";
 import { bookmarkTagAliasLinks, bookmarkTags } from "@/lib/db/schema/bookmark-taxonomy";
 import type { TagTaxonomyMaps } from "@/types/features/discovery";
 
-export type { TagTaxonomyMaps } from "@/types/features/discovery";
-
 export async function loadCanonicalTagMaps(): Promise<TagTaxonomyMaps> {
   const [primaryRows, aliasRows] = await Promise.all([
     db

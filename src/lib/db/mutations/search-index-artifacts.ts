@@ -8,13 +8,13 @@ import {
   serializedIndexSchema,
   type AllSerializedIndexes,
   type SearchIndexArtifactDomain,
-  type SearchIndexArtifactPayload,
+  type SearchIndexArtifact,
 } from "@/types/schemas/search";
 
 const normalizeArtifactPayload = (
   domain: SearchIndexArtifactDomain,
-  payload: SearchIndexArtifactPayload,
-): SearchIndexArtifactPayload => {
+  payload: SearchIndexArtifact,
+): SearchIndexArtifact => {
   if (domain === "build-metadata") {
     return searchIndexBuildMetadataSchema.parse(payload);
   }
@@ -24,7 +24,7 @@ const normalizeArtifactPayload = (
 
 const resolveArtifactMetadata = (
   domain: SearchIndexArtifactDomain,
-  payload: SearchIndexArtifactPayload,
+  payload: SearchIndexArtifact,
 ): { generatedAt: string; itemCount: number } => {
   if (domain === "build-metadata") {
     const metadata = searchIndexBuildMetadataSchema.parse(payload);
@@ -41,12 +41,12 @@ const resolveArtifactMetadata = (
   };
 };
 
-const computeArtifactChecksum = (payload: SearchIndexArtifactPayload): string =>
+const computeArtifactChecksum = (payload: SearchIndexArtifact): string =>
   createHash("md5").update(JSON.stringify(payload)).digest("hex");
 
 export async function upsertSearchIndexArtifact(
   domain: SearchIndexArtifactDomain,
-  payload: SearchIndexArtifactPayload,
+  payload: SearchIndexArtifact,
 ): Promise<void> {
   assertDatabaseWriteAllowed(`upsertSearchIndexArtifact:${domain}`);
 
@@ -82,7 +82,7 @@ export async function upsertAllSearchIndexArtifacts(indexes: AllSerializedIndexe
 
   const artifactEntries: Array<{
     domain: SearchIndexArtifactDomain;
-    payload: SearchIndexArtifactPayload;
+    payload: SearchIndexArtifact;
   }> = [
     { domain: "posts", payload: validatedIndexes.posts },
     { domain: "investments", payload: validatedIndexes.investments },

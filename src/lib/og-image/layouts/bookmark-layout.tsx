@@ -10,7 +10,7 @@ import { truncateText } from "@/lib/utils";
 import { OG_COLORS, OG_LAYOUT, OG_TYPOGRAPHY } from "../design-tokens";
 import type { OgBookmarkLayoutProps } from "@/types/schemas/og-image";
 import { renderBranding } from "./shared-branding";
-import { renderPlaceholderScreenshot } from "./shared-placeholder";
+import { renderOgImage, renderPlaceholderScreenshot } from "./shared-placeholder";
 
 export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBookmarkLayoutProps) {
   const displayTitle = truncateText(title, 34);
@@ -47,24 +47,21 @@ export function renderBookmarkLayout({ title, domain, screenshotDataUrl }: OgBoo
             flexShrink: 0,
           }}
         >
-          {screenshotDataUrl ? (
-            <img
-              src={screenshotDataUrl}
-              alt=""
-              width={OG_LAYOUT.screenshotImageWidth}
-              height={OG_LAYOUT.screenshotImageHeight}
-              style={{
+          {screenshotDataUrl
+            ? renderOgImage({
+                src: screenshotDataUrl,
                 width: OG_LAYOUT.screenshotImageWidth,
                 height: OG_LAYOUT.screenshotImageHeight,
-                objectFit: "cover",
-                borderRadius: OG_LAYOUT.borderRadius,
-                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-              }}
-            />
-          ) : (
-            renderPlaceholderScreenshot()
-          )}
+                style: {
+                  width: OG_LAYOUT.screenshotImageWidth,
+                  height: OG_LAYOUT.screenshotImageHeight,
+                  objectFit: "cover",
+                  borderRadius: OG_LAYOUT.borderRadius,
+                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                },
+              })
+            : renderPlaceholderScreenshot()}
         </div>
 
         {/* Text content */}

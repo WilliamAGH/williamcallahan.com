@@ -31,7 +31,7 @@ function isNodeReadableStream(value: unknown): value is NodeReadableStream {
     typeof value === "object" &&
     value !== null &&
     "getReader" in value &&
-    typeof (value as Record<string, unknown>)["getReader"] === "function"
+    typeof (value as NodeReadableStream).getReader === "function"
   );
 }
 
@@ -119,15 +119,17 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
 
   // If no hashed files found, check for legacy files (without hashes) - same logic as runtime process
   try {
-    const { findLegacyLogoKey, parseS3Key } = await import("@/lib/utils/hash-utils");
+    const { findUnhashedLogoKey, parseS3Key } = await import("@/lib/utils/hash-utils");
 
-    const legacyKey = await findLegacyLogoKey(normalizedDomain, listS3Objects);
+    const unhashedKey = await findUnhashedLogoKey(normalizedDomain, listS3Objects);
 
-    if (legacyKey) {
-      console.log(`[Logo Batch] Found existing legacy logo for ${normalizedDomain}: ${legacyKey}`);
+    if (unhashedKey) {
+      console.log(
+        `[Logo Batch] Found existing legacy logo for ${normalizedDomain}: ${unhashedKey}`,
+      );
 
       // Extract metadata from legacy key
-      const parsed = parseS3Key(legacyKey);
+      const parsed = parseS3Key(unhashedKey);
       const source = (parsed.source || "unknown") as LogoSource;
       const ext = parsed.extension || "png";
       const contentType =
@@ -136,7 +138,7 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
       // For batch operations, we return the legacy key as-is without migration
       // Migration will happen during runtime requests if needed
       return {
-        url: `${cdnUrl}/${legacyKey}`,
+        url: `${cdnUrl}/${unhashedKey}`,
         source,
         error: undefined,
         contentType,

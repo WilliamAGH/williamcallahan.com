@@ -10,18 +10,17 @@
 import { cn } from "@/lib/utils";
 import React, { Children, isValidElement, useMemo, type JSX, type ReactNode } from "react";
 import type {
-  TableCell,
-  TableRow,
-  TableData,
+  TableRowCells,
+  TableContent,
   ResponsiveTableContainerProps as ResponsiveTableProps,
 } from "@/types/ui/table";
 
 /**
  * Parses the children of a <table> element to extract headers and rows.
  */
-function parseTableChildren(children: ReactNode): TableData {
-  const headers: TableCell[] = [];
-  const rows: TableRow[] = [];
+function parseTableChildren(children: ReactNode): TableContent {
+  const headers: ReactNode[] = [];
+  const rows: TableRowCells[] = [];
   let headerProcessed = false;
 
   Children.forEach(children, (child) => {
@@ -49,7 +48,7 @@ function parseTableChildren(children: ReactNode): TableData {
       Children.forEach(childProps.children, (tr) => {
         if (isValidElement(tr) && tr.type === "tr") {
           const trProps = tr.props as { children?: ReactNode }; // Type assertion
-          const currentRow: TableCell[] = [];
+          const currentRow: ReactNode[] = [];
           Children.forEach(trProps.children, (td) => {
             if (isValidElement(td) && td.type === "td") {
               const tdProps = td.props as { children?: ReactNode }; // Type assertion
@@ -82,7 +81,7 @@ export function ResponsiveTable({
   const hasValidData = headers.length > 0 && rows.length > 0;
 
   // Helper function to create a stable key from row content
-  const createRowKey = (row: TableRow, index: number): string => {
+  const createRowKey = (row: TableRowCells, index: number): string => {
     // Try to create a key from the first few cells' content
     const keyParts = row.slice(0, 3).map((cell, cellIndex) => {
       if (cell === null || cell === undefined) return `cell-${cellIndex}-empty`;

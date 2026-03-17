@@ -6,7 +6,7 @@
  * Uses direct logo fetching to work during build time.
  */
 
-import type { Certification } from "@/types/education";
+import type { Certification } from "@/types/schemas/education";
 import type { JSX } from "react";
 import { CertificationCardClient } from "./certification-card.client";
 

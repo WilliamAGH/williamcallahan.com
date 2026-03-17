@@ -2,13 +2,15 @@
 ##
 ## Multi-stage build for Next.js application with Bun
 ## Note: Requires BuildKit (DOCKER_BUILDKIT=1) for secret mount support
-## Base registry defaults to AWS ECR Public mirror but can be overridden
-## Some alternatives:
-##   - docker.io/library
-##   - ghcr.io/debian
+## Base registry can be overridden via --build-arg BASE_REGISTRY=<your-registry>
+## The value must include any publisher/namespace prefix so that
+## ${BASE_REGISTRY}/debian:bookworm-slim resolves to a valid image.
+## Examples:
+##   - public.ecr.aws/debian  (ECR Public — publisher namespace required)
+##   - docker.io/library       (Docker Hub official)
+##   - your.mirror.example     (private mirror — flat namespace)
 ##
 ARG BASE_REGISTRY=public.ecr.aws/debian
-##
 
 # Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
 # which requires glibc (Alpine uses musl libc which is incompatible).
@@ -56,7 +58,6 @@ ENV HUSKY=0
 #    Copying lock file separately ensures Docker caches the layer correctly
 COPY package.json ./
 COPY bun.lock* ./
-COPY .husky ./.husky
 
 # 2. Copy the init-csp-hashes script and config directory needed by postinstall
 #    This is required because postinstall runs during bun install

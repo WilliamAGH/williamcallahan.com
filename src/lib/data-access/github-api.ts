@@ -7,6 +7,10 @@
  * @module data-access/github-api
  */
 
+/** GitHub API status codes */
+const HTTP_ACCEPTED = 202;
+const HTTP_FORBIDDEN = 403;
+
 import { createGitHubGraphQLClient } from "@/lib/utils/graphql-client";
 import { createRetryingFetch } from "@/lib/utils/http-client";
 import { waitForPermit } from "@/lib/rate-limiter";
@@ -17,7 +21,7 @@ import {
   GraphQLUserContributionsResponseSchema,
   GraphQLCommitHistoryResponseSchema,
   ContributorStatsResponseSchema,
-  type GithubRepoNode,
+  type GraphQLRepoNode,
   type GraphQLUserContributionsResponse,
   type GithubContributorStatsEntry,
 } from "@/types/github";
@@ -75,7 +79,7 @@ export class GitHubContributorStatsRateLimitError extends Error {
  */
 export async function fetchContributedRepositories(username: string): Promise<{
   userId: string;
-  repositories: GithubRepoNode[];
+  repositories: GraphQLRepoNode[];
 }> {
   await waitForPermit("github-graphql", "contributed-repos", GITHUB_API_RATE_LIMIT_CONFIG);
 
@@ -107,7 +111,7 @@ export async function fetchContributedRepositories(username: string): Promise<{
   }
 
   const repositories = (user.repositoriesContributedTo?.nodes || []).filter(
-    (repo): repo is GithubRepoNode => !!(repo && !repo.isFork),
+    (repo): repo is GraphQLRepoNode => !!(repo && !repo.isFork),
   );
 
   return { userId: user.id, repositories };
@@ -207,7 +211,7 @@ export async function fetchContributorStats(
     });
 
     // Explicitly detect HTTP 202 – GitHub is preparing the statistics.
-    if (response.status === 202) {
+    if (response.status === HTTP_ACCEPTED) {
       // If we have more attempts remaining, wait and retry; otherwise propagate pending error.
       if (attempt < maxAttempts) {
         debugLog(
@@ -223,7 +227,7 @@ export async function fetchContributorStats(
       );
     }
 
-    if (response.status === 403) {
+    if (response.status === HTTP_FORBIDDEN) {
       // Immediately throw rate limit error so caller can mark pending_rate_limit
       throw new GitHubContributorStatsRateLimitError(
         `GitHub rate limit encountered fetching contributor stats for ${owner}/${name}.`,

@@ -10,8 +10,8 @@ import { cacheContextGuards } from "@/lib/cache";
 import {
   imageManifestSchema,
   logoManifestSchema,
-  type ImageManifestFromSchema,
-  type LogoManifestFromSchema,
+  type ImageManifest,
+  type LogoManifest,
 } from "@/types/schemas/image-manifest";
 
 // Runtime-safe wrappers for experimental cache APIs
@@ -48,16 +48,16 @@ export async function loadManifestsWithCache() {
   ]);
 
   return {
-    logos: logoManifestSchema.parse(rawLogos ?? {}) as LogoManifestFromSchema,
-    opengraph: imageManifestSchema.parse(rawOpengraph ?? []) as ImageManifestFromSchema,
-    blog: imageManifestSchema.parse(rawBlog ?? []) as ImageManifestFromSchema,
+    logos: logoManifestSchema.parse(rawLogos ?? {}) as LogoManifest,
+    opengraph: imageManifestSchema.parse(rawOpengraph ?? []) as ImageManifest,
+    blog: imageManifestSchema.parse(rawBlog ?? []) as ImageManifest,
   };
 }
 
 /**
  * Load logo manifest with caching
  */
-export async function loadLogoManifestWithCache(): Promise<LogoManifestFromSchema> {
+export async function loadLogoManifestWithCache(): Promise<LogoManifest> {
   "use cache";
 
   safeCacheLife("days");

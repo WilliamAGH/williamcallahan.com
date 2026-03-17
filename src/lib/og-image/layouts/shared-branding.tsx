@@ -6,6 +6,7 @@
  */
 
 import { OG_COLORS, OG_LAYOUT, OG_TYPOGRAPHY } from "../design-tokens";
+import { renderOgImage } from "./shared-placeholder";
 
 /**
  * Site favicon as a base64-encoded 16×16 PNG data URL.
@@ -27,15 +28,16 @@ export function renderBranding() {
         marginTop: 16,
       }}
     >
-      <img
-        src={SITE_FAVICON_DATA_URL}
-        alt=""
-        style={{
+      {renderOgImage({
+        src: SITE_FAVICON_DATA_URL,
+        width: OG_LAYOUT.faviconSize,
+        height: OG_LAYOUT.faviconSize,
+        style: {
           width: OG_LAYOUT.faviconSize,
           height: OG_LAYOUT.faviconSize,
           borderRadius: OG_LAYOUT.faviconBorderRadius,
-        }}
-      />
+        },
+      })}
       <span
         style={{
           fontSize: OG_TYPOGRAPHY.branding.size,

@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { BookText, User, Headphones } from "lucide-react";
-import type { BookListItem, Book } from "@/types/schemas/book";
+import type { BookBrief, Book } from "@/types/schemas/book";
 import type { BookCardProps } from "@/types/features/books";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 export function BookCard({ book, priority = false }: BookCardProps): React.JSX.Element {
   // Type guard to check if we have full Book data (for ISBN access)
-  const isFullBook = (b: BookListItem | Book): b is Book => "formats" in b;
+  const isFullBook = (b: BookBrief | Book): b is Book => "formats" in b;
   const fullBook = isFullBook(book) ? book : null;
 
   const slug = generateBookSlug(

@@ -24,6 +24,34 @@
 import { extractBasicImageMeta } from "./image-metadata";
 import type { LogoInversion, LogoBrightnessAnalysis } from "@/types/logo";
 
+/** Entropy thresholds for brightness estimation */
+const LOW_ENTROPY_THRESHOLD = 0.2;
+const MEDIUM_ENTROPY_THRESHOLD = 0.4;
+const LOW_ENTROPY_BRIGHTNESS = 240;
+const MEDIUM_ENTROPY_BRIGHTNESS = 200;
+const HIGH_ENTROPY_BRIGHTNESS = 128;
+
+/** Brightness thresholds */
+const BRIGHT_THRESHOLD = 200;
+const DARK_THRESHOLD = 100;
+
+/** Blank/pattern detection thresholds */
+const BLANK_ENTROPY_THRESHOLD = 0.1;
+const BLANK_UNIFORMITY_THRESHOLD = 0.9;
+
+/** Byte histogram size */
+const BYTE_RANGE = 256;
+
+/** Globe detection thresholds */
+const GLOBE_BLUE_MIN = 100;
+const GLOBE_BLUE_MAX = 150;
+const GLOBE_COMPRESSION_THRESHOLD = 0.7;
+const GLOBE_SIZE_TOLERANCE = 512;
+
+/** Placeholder detection thresholds */
+const MIN_BYTES_PER_PIXEL = 0.1;
+const MAX_PLACEHOLDER_SIZE = 32;
+
 /**
  * Custom error class for image analysis errors
  * @class
@@ -44,9 +72,14 @@ export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysi
 
   // Use entropy and compression to estimate brightness
   // Low entropy often indicates solid colors (likely white/light)
-  const estimatedBrightness = analysis.entropy < 0.2 ? 240 : analysis.entropy < 0.4 ? 200 : 128;
+  const estimatedBrightness =
+    analysis.entropy < LOW_ENTROPY_THRESHOLD
+      ? LOW_ENTROPY_BRIGHTNESS
+      : analysis.entropy < MEDIUM_ENTROPY_THRESHOLD
+        ? MEDIUM_ENTROPY_BRIGHTNESS
+        : HIGH_ENTROPY_BRIGHTNESS;
 
-  const isLightColored = estimatedBrightness > 200;
+  const isLightColored = estimatedBrightness > BRIGHT_THRESHOLD;
 
   return {
     averageBrightness: estimatedBrightness,
@@ -76,7 +109,8 @@ export function analyzeImagePatterns(buffer: Buffer): {
   const patterns = analyzeBytePatterns(buffer);
 
   // Very low entropy suggests solid color
-  const isLikelyBlank = entropy < 0.1 || patterns.uniformity > 0.9;
+  const isLikelyBlank =
+    entropy < BLANK_ENTROPY_THRESHOLD || patterns.uniformity > BLANK_UNIFORMITY_THRESHOLD;
 
   // Globe icons tend to have specific patterns
   const isLikelyGlobe = detectGlobePattern(buffer, patterns);
@@ -96,7 +130,7 @@ export function analyzeImagePatterns(buffer: Buffer): {
 function calculateEntropy(data: Buffer): number {
   const counts = Array.from({ length: 256 }, () => 0);
   for (const byte of data) {
-    if (byte >= 0 && byte < 256 && byte < counts.length) {
+    if (byte >= 0 && byte < BYTE_RANGE && byte < counts.length) {
       const count = counts[byte];
       if (count !== undefined) {
         counts[byte] = count + 1;
@@ -128,7 +162,7 @@ function analyzeBytePatterns(buffer: Buffer): {
   const byteCounts: number[] = Array.from({ length: 256 }, () => 0);
 
   for (const byte of sample) {
-    if (byte !== undefined && byte >= 0 && byte < 256) {
+    if (byte !== undefined && byte >= 0 && byte < BYTE_RANGE) {
       const currentCount = byteCounts[byte] ?? 0;
       byteCounts[byte] = currentCount + 1;
     }
@@ -137,7 +171,7 @@ function analyzeBytePatterns(buffer: Buffer): {
   // Find dominant byte
   let maxCount = 0;
   let dominantByte = 0;
-  for (let i = 0; i < 256; i++) {
+  for (let i = 0; i < BYTE_RANGE; i++) {
     const count = byteCounts[i];
     if (count !== undefined && count > maxCount) {
       maxCount = count;
@@ -170,12 +204,13 @@ function detectGlobePattern(
   // 2. Circular patterns (hard to detect without decoding)
   // 3. Small size with good compression
 
-  const likelyBlue = patterns.dominantByte > 100 && patterns.dominantByte < 150;
-  const goodCompression = patterns.compressionEstimate > 0.7;
+  const likelyBlue =
+    patterns.dominantByte > GLOBE_BLUE_MIN && patterns.dominantByte < GLOBE_BLUE_MAX;
+  const goodCompression = patterns.compressionEstimate > GLOBE_COMPRESSION_THRESHOLD;
 
   // Check for common globe icon file sizes
   const typicalGlobeSizes = [1024, 2048, 3072, 4096].some(
-    (size) => Math.abs(buffer.length - size) < 512,
+    (size) => Math.abs(buffer.length - size) < GLOBE_SIZE_TOLERANCE,
   );
 
   return (likelyBlue || goodCompression) && typicalGlobeSizes;
@@ -208,11 +243,11 @@ export async function doesLogoNeedInversion(
     // In dark theme, invert logos that are predominantly dark
     if (isDarkTheme) {
       // If average brightness is low (dark logo), it needs inversion
-      return analysis.averageBrightness < 100;
+      return analysis.averageBrightness < DARK_THRESHOLD;
     } else {
       // In light theme, invert logos that are predominantly light
       // This is less common but handles white logos on transparent backgrounds
-      return analysis.averageBrightness > 200;
+      return analysis.averageBrightness > BRIGHT_THRESHOLD;
     }
   } catch (error) {
     console.error("[doesLogoNeedInversion] Analysis failed:", error);
@@ -228,8 +263,8 @@ export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
 
     return {
       brightness: analysis.averageBrightness / 255, // Normalize to 0-1
-      needsDarkInversion: analysis.averageBrightness < 100, // Dark logos need inversion in dark theme
-      needsLightInversion: analysis.averageBrightness > 200, // Light logos need inversion in light theme
+      needsDarkInversion: analysis.averageBrightness < DARK_THRESHOLD, // Dark logos need inversion in dark theme
+      needsLightInversion: analysis.averageBrightness > BRIGHT_THRESHOLD, // Light logos need inversion in light theme
       hasTransparency: analysis.hasTransparency,
       format: analysis.format,
       dimensions: analysis.dimensions,
@@ -287,7 +322,7 @@ export async function isBlankOrPlaceholder(buffer: Buffer): Promise<{
     const pixelCount = meta.width * meta.height;
     const bytesPerPixel = buffer.length / pixelCount;
 
-    if (bytesPerPixel < 0.1) {
+    if (bytesPerPixel < MIN_BYTES_PER_PIXEL) {
       return {
         isBlank: true,
         isGlobe: false,
@@ -298,7 +333,7 @@ export async function isBlankOrPlaceholder(buffer: Buffer): Promise<{
   }
 
   // Small square images are often placeholders
-  if (meta.width === meta.height && meta.width && meta.width <= 32) {
+  if (meta.width === meta.height && meta.width && meta.width <= MAX_PLACEHOLDER_SIZE) {
     return {
       isBlank: false,
       isGlobe: true,

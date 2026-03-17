@@ -161,7 +161,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const similarity = compareSignatures(bufferSig, globeSig);
 
         // Consider it a globe icon if similarity > 0.7
-        if (similarity > 0.7) {
+        const GLOBE_SIMILARITY_THRESHOLD = 0.7;
+        if (similarity > GLOBE_SIMILARITY_THRESHOLD) {
           setLogoValidation(bufferHash, true);
           return NextResponse.json(
             {

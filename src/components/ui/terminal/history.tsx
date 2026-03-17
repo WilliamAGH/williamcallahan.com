@@ -41,6 +41,10 @@ function isExternalUrl(value: string): boolean {
   return SAFE_EXTERNAL_URL_PATTERN.test(value);
 }
 
+/** Regex capture group indices for link pattern matching */
+const URL_CAPTURE_GROUP = 2;
+const SUFFIX_CAPTURE_GROUP = 3;
+
 /**
  * Structural extractors only — no URL validation here.
  * Validation is centralized in renderChatLine.
@@ -56,9 +60,9 @@ const CHAT_LINK_PATTERNS: Array<{
     regex: /^- *\[([^\]]+)\]\(([^)]+)\)(.*)$/,
     extract: (m) => {
       const text = m[1]?.trim();
-      const url = m[2]?.trim();
+      const url = m[URL_CAPTURE_GROUP]?.trim();
       if (!text || !url) return null;
-      return { prefix: "- ", text, url, suffix: m[3] ?? "" };
+      return { prefix: "- ", text, url, suffix: m[SUFFIX_CAPTURE_GROUP] ?? "" };
     },
   },
   {
@@ -66,7 +70,7 @@ const CHAT_LINK_PATTERNS: Array<{
     regex: /^- *(.+?):\s*(\/\S+)\s*$/,
     extract: (m) => {
       const text = m[1]?.trim();
-      const url = m[2]?.trim();
+      const url = m[URL_CAPTURE_GROUP]?.trim();
       if (!text || !url) return null;
       return { prefix: "- ", text, url, suffix: "" };
     },

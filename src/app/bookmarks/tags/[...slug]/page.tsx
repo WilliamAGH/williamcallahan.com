@@ -184,17 +184,17 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
   const activeTagSlug = tagState.canonicalSlug;
 
   // Canonicalize legacy numeric-only page segment to /page/[n]
-  const isLegacyNumeric = page && /^\d+$/.test(page);
+  const isNumericPageSegment = page && /^\d+$/.test(page);
   if (
     tagState.sanitizedSlug !== rawTagSlug ||
-    (page && page !== "page" && !isLegacyNumeric) ||
+    (page && page !== "page" && !isNumericPageSegment) ||
     tagState.isAlias
   ) {
     redirect(buildCanonicalTagPath(activeTagSlug, currentPage));
   }
 
   // Redirect legacy numeric form /bookmarks/tags/[slug]/[n] to canonical /bookmarks/tags/[slug]/page/[n]
-  if (isLegacyNumeric) {
+  if (isNumericPageSegment) {
     redirect(buildCanonicalTagPath(activeTagSlug, currentPage));
   }
 
