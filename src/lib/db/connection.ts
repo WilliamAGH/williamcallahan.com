@@ -13,7 +13,7 @@ import postgres, { type Sql } from "postgres";
 
 const DEFAULT_DATABASE_POOL_MAX = 5;
 const PRODUCTION_ENVIRONMENT = "production";
-const PRODUCTION_SITE_URL = "https://williamcallahan.com";
+const PRODUCTION_HOSTNAME = "williamcallahan.com";
 const EXTERNAL_PRODUCTION_DB_HOST = "167.234.219.57";
 const EXTERNAL_PRODUCTION_DB_PORT = "5438";
 const DEFAULT_INTERNAL_PRODUCTION_DB_HOST = "q0kks8ww044c0o4w4o4ok408";
@@ -32,7 +32,11 @@ const getRedactedDatabaseUrlTarget = (rawUrl: string): string => {
 
 const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string | undefined => {
   if (!rawUrl) return rawUrl;
-  if (process.env.NEXT_PUBLIC_SITE_URL?.trim() !== PRODUCTION_SITE_URL) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!siteUrl) return rawUrl;
+  try {
+    if (new URL(siteUrl).hostname !== PRODUCTION_HOSTNAME) return rawUrl;
+  } catch {
     return rawUrl;
   }
 
@@ -92,7 +96,17 @@ const resolveEnvironmentFromSiteUrl = (): { environment: string; source: string 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (!siteUrl) return null;
 
-  if (siteUrl === PRODUCTION_SITE_URL) {
+  let parsed: URL;
+  try {
+    parsed = new URL(siteUrl);
+  } catch {
+    console.warn(
+      `[db/connection] NEXT_PUBLIC_SITE_URL is not a valid URL: "${siteUrl}"; skipping site-URL resolution.`,
+    );
+    return null;
+  }
+
+  if (parsed.hostname === "williamcallahan.com") {
     // Guard: only resolve to production when NODE_ENV also confirms production runtime.
     // This prevents local dev with NEXT_PUBLIC_SITE_URL=production from writing.
     if (process.env.NODE_ENV?.trim() === PRODUCTION_ENVIRONMENT) {
@@ -101,15 +115,14 @@ const resolveEnvironmentFromSiteUrl = (): { environment: string; source: string 
     return null;
   }
 
-  if (siteUrl.includes("localhost") || siteUrl.includes("127.0.0.1")) {
+  if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
     return { environment: "development", source: "NEXT_PUBLIC_SITE_URL" };
   }
 
-  const devSubdomainPrefixes = ["alpha.", "dev.", "sandbox."];
-  for (const prefix of devSubdomainPrefixes) {
-    if (siteUrl.includes(`${prefix}williamcallahan.com`)) {
-      return { environment: "development", source: "NEXT_PUBLIC_SITE_URL" };
-    }
+  const DEV_SUBDOMAIN_PREFIXES = ["alpha", "dev", "sandbox"];
+  const subdomainMatch = parsed.hostname.match(/^([^.]+)\.williamcallahan\.com$/);
+  if (subdomainMatch?.[1] && DEV_SUBDOMAIN_PREFIXES.includes(subdomainMatch[1])) {
+    return { environment: "development", source: "NEXT_PUBLIC_SITE_URL" };
   }
 
   return null;
