@@ -158,11 +158,19 @@ _Note: The `authClient` for Google requires proper setup with credentials and sc
 #### 2. Set Up Submission Script Logic
 
 <BackgroundInfo>
-A submission script might export primary functions such as:
-
-- **`submitSitemapFilesToSearchEngines()`**: Submits a generated `/sitemap.xml` file to both Google Search Console and Bing (IndexNow), respecting production environment checks.
-- **`submitIndividualUrlsToGoogle()`**: Iterates sitemap entries (e.g., from a Next.js sitemap), selects recently updated pages (e.g., last 14 days), checks Google's last crawl date for each URL, and resubmits only URLs needing an update.
-  </BackgroundInfo>
+  <div>A submission script might export primary functions such as:</div>
+  <ul>
+    <li>
+      <code>submitSitemapFilesToSearchEngines()</code>: Submits a generated <code>/sitemap.xml</code> file to both
+      Google Search Console and Bing (IndexNow), respecting production environment checks.
+    </li>
+    <li>
+      <code>submitIndividualUrlsToGoogle()</code>: Iterates sitemap entries (for example, from a Next.js sitemap),
+      selects recently updated pages (for example, last 14 days), checks Google's last crawl date for each URL, and
+      resubmits only URLs needing an update.
+    </li>
+  </ul>
+</BackgroundInfo>
 
 Once a submission script (e.g., `path/to/your/submit-sitemap.ts`) is prepared with the necessary functions, it can be invoked. The following illustrates a simple runner script:
 

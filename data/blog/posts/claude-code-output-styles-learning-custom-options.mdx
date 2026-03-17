@@ -34,11 +34,21 @@ coverImage: "/images/posts/claude-code-on-stage.jpg"
 /output-style explanatory
 /output-style learning
 
-````
+```
 
-- Per‑project default: Your selection persists for this repo in `.claude/settings.local.json` and is used next time you open it.
-- No global default key (as of 2025-08-24): There's no documented settings key to set a global default output style in `settings.json`; pick per repo.
-- Reuse across repos: Store custom styles in `~/.claude/output-styles`, then select them once per repo.
+<ul>
+  <li>
+    Per-project default: Your selection persists for this repo in <code>.claude/settings.local.json</code> and is used
+    next time you open it.
+  </li>
+  <li>
+    No global default key (as of 2025-08-24): There's no documented settings key to set a global default output style
+    in <code>settings.json</code>; pick per repo.
+  </li>
+  <li>
+    Reuse across repos: Store custom styles in <code>~/.claude/output-styles</code>, then select them once per repo.
+  </li>
+</ul>
 
 **Assign an existing custom style directly**
 
@@ -46,33 +56,56 @@ coverImage: "/images/posts/claude-code-on-stage.jpg"
 # Assuming a custom style named "investigative" exists in
 # ~/.claude/output-styles or .claude/output-styles
 /output-style investigative
-````
+```
 
-- This selection will persist for the current project via `.claude/settings.local.json`.
-- Note (as of 2025-08-24): Claude Code suggested `/output-style:set`, but the working command is
-  `/output-style <styleName>` or use the `/output-style` menu.
-  </CollapseDropdown>
+<ul>
+  <li>
+    This selection will persist for the current project via <code>.claude/settings.local.json</code>.
+  </li>
+  <li>
+    Note (as of 2025-08-24): Claude Code suggested <code>/output-style:set</code>, but the working command is
+    <code>/output-style &lt;styleName&gt;</code> or use the <code>/output-style</code> menu.
+  </li>
+</ul>
+</CollapseDropdown>
 
 <CollapseDropdown summary="Compare: Output Styles vs CLAUDE.md vs --append-system-prompt vs Agents vs Slash Commands">
-  
-- **Output Styles**  
-  - Replace the main agent’s system prompt (“stored system prompts”).  
-  - Affect the main loop and keep all tools available.
-
-- **CLAUDE.md**
-  - Adds content as a user message after the default system prompt.
-  - Does not change the default system prompt itself.
-
-- **`--append-system-prompt`**
-  - Appends to the system prompt instead of replacing it.
-
-- **Agents / Sub‑agents**
-  - Invoked for specific tasks; can pick models/tools and include their own context.
-  - Output Styles remain the “primary voice”; agents are specialists you call.
-
-- **Custom Slash Commands**
-  - "Stored prompts," not system prompts. Good for repeatable actions/macros.
-    </CollapseDropdown>
+  <ul>
+    <li>
+      <strong>Output Styles</strong>
+      <ul>
+        <li>Replace the main agent’s system prompt (“stored system prompts”).</li>
+        <li>Affect the main loop and keep all tools available.</li>
+      </ul>
+    </li>
+    <li>
+      <strong>CLAUDE.md</strong>
+      <ul>
+        <li>Adds content as a user message after the default system prompt.</li>
+        <li>Does not change the default system prompt itself.</li>
+      </ul>
+    </li>
+    <li>
+      <strong><code>--append-system-prompt</code></strong>
+      <ul>
+        <li>Appends to the system prompt instead of replacing it.</li>
+      </ul>
+    </li>
+    <li>
+      <strong>Agents / Sub-agents</strong>
+      <ul>
+        <li>Invoked for specific tasks; can pick models/tools and include their own context.</li>
+        <li>Output Styles remain the “primary voice”; agents are specialists you call.</li>
+      </ul>
+    </li>
+    <li>
+      <strong>Custom Slash Commands</strong>
+      <ul>
+        <li>"Stored prompts," not system prompts. Good for repeatable actions/macros.</li>
+      </ul>
+    </li>
+  </ul>
+</CollapseDropdown>
 
 ## 2) Create and share custom styles
 
@@ -83,10 +116,20 @@ coverImage: "/images/posts/claude-code-on-stage.jpg"
 /output-style:new I want an output style that acts as a UX research specialist
 ```
 
-- Result is saved as a Markdown file:
-  - **User‑level** (reusable everywhere): `~/.claude/output-styles`
-  - **Project‑level** (repo‑scoped): `.claude/output-styles`
-    </CollapseDropdown>
+<ul>
+  <li>
+    Result is saved as a Markdown file:
+    <ul>
+      <li>
+        <strong>User-level</strong> (reusable everywhere): <code>~/.claude/output-styles</code>
+      </li>
+      <li>
+        <strong>Project-level</strong> (repo-scoped): <code>.claude/output-styles</code>
+      </li>
+    </ul>
+  </li>
+</ul>
+</CollapseDropdown>
 
 <CollapseDropdown summary="Method B: Author the Markdown directly (portable & reviewable)">
   

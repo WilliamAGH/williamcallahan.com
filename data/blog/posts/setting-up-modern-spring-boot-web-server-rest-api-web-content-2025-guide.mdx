@@ -20,29 +20,48 @@ coverImage: "/images/posts/spring-for-java.png"
 ---
 
 <BackgroundInfo title="Related Java Setup Guides">
-  -{" "}
-  <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">
-    Core Guide: Java, Maven & Gradle Setup & Usage
-  </ExternalLink>
-  -{" "}
-  <ExternalLink href="/blog/how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows">
-    Specifics: Setting up JavaFX
-  </ExternalLink>
-  - **This Article: Specifics for Setting up a Spring Boot Server**
+  <ul>
+    <li>
+      <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">
+        Core Guide: Java, Maven &amp; Gradle Setup &amp; Usage
+      </ExternalLink>
+    </li>
+    <li>
+      <ExternalLink href="/blog/how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows">
+        Specifics: Setting up JavaFX
+      </ExternalLink>
+    </li>
+    <li>
+      <strong>This Article:</strong> Specifics for Setting up a Spring Boot Server
+    </li>
+  </ul>
 </BackgroundInfo>
 
 <BackgroundInfo title="Overview">
-  This guide covers creating a Spring Boot application. Key aspects: - **Build Tool Setup
-  (Maven/Gradle)**: JDK, Maven, and Gradle setup (including `JAVA_HOME`/`M2_HOME`) are covered in
-  the{" "}
-  <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-1-os-level-tool-installation-the-foundation">
-    Core Java & Build Tools Setup Guide
-  </ExternalLink>
-  . While this article primarily demonstrates a Maven-based Spring Boot project, Gradle is a
-  well-supported alternative, and the linked guide provides details for both. - **IntelliJ IDEA
-  Spring Initializr**: For easy project generation. - **REST API Endpoint**: A simple "Hello World"
-  example. - **Static Web Content**: Serving HTML/CSS/JS. - **Application Configuration**: Using
-  `application.properties` and environment variables.
+  <div>This guide covers creating a Spring Boot application. Key aspects include:</div>
+  <ul>
+    <li>
+      <strong>Build Tool Setup (Maven/Gradle)</strong>: JDK, Maven, and Gradle setup (including <code>JAVA_HOME</code>
+      / <code>M2_HOME</code>) are covered in the{" "}
+      <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-1-os-level-tool-installation-the-foundation">
+        Core Java &amp; Build Tools Setup Guide
+      </ExternalLink>
+      . While this article primarily demonstrates a Maven-based Spring Boot project, Gradle is a well-supported
+      alternative, and the linked guide provides details for both.
+    </li>
+    <li>
+      <strong>IntelliJ IDEA Spring Initializr</strong>: For easy project generation.
+    </li>
+    <li>
+      <strong>REST API Endpoint</strong>: A simple "Hello World" example.
+    </li>
+    <li>
+      <strong>Static Web Content</strong>: Serving HTML/CSS/JS.
+    </li>
+    <li>
+      <strong>Application Configuration</strong>: Using <code>application.properties</code> and environment variables.
+    </li>
+  </ul>
 </BackgroundInfo>
 
 ## Part 1: Create a Spring Boot Project
@@ -83,10 +102,20 @@ curl https://start.spring.io/starter.zip \
 </div>
 
 <CollapseDropdown summary="Project structure">
-  - `src/main/java`: Application code (`MySpringBootAppApplication.java`). -
-  `src/main/resources/static`: Static assets (HTML, CSS, JS). -
-  `src/main/resources/application.properties`: Configuration for the application. - `pom.xml`: Maven
-  configuration and dependency management.
+  <ul>
+    <li>
+      <code>src/main/java</code>: Application code (<code>MySpringBootAppApplication.java</code>).
+    </li>
+    <li>
+      <code>src/main/resources/static</code>: Static assets (HTML, CSS, JS).
+    </li>
+    <li>
+      <code>src/main/resources/application.properties</code>: Configuration for the application.
+    </li>
+    <li>
+      <code>pom.xml</code>: Maven configuration and dependency management.
+    </li>
+  </ul>
 </CollapseDropdown>
 
 ## Part 2: Application Configuration
@@ -109,9 +138,11 @@ spring.devtools.restart.enabled=true
 
 For different environments, create profile-specific properties:
 
-- `application-dev.properties`
-- `application-prod.properties`
-  </CollapseDropdown>
+<ul>
+  <li><code>application-dev.properties</code></li>
+  <li><code>application-prod.properties</code></li>
+</ul>
+</CollapseDropdown>
 
 <CollapseDropdown summary="Environment variables with .env">
 For sensitive data like API keys, use environment variables.

@@ -47,11 +47,9 @@ This section assumes your JDK is installed and `JAVA_HOME` is configured as per 
 
 <CollapseDropdown summary="1.1: VS Code with Java Extension Pack">
   <div>
-    Ensure you have the{" "}
-    <ExternalLink href="https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack">
-      Extension Pack for Java
-    </ExternalLink>{" "}
-    installed in VS Code.
+    <a href="https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack">
+      Install the Extension Pack for Java in VS Code.
+    </a>
   </div>
 </CollapseDropdown>
 
@@ -60,10 +58,22 @@ This section assumes your JDK is installed and `JAVA_HOME` is configured as per 
 </CollapseDropdown>
 
 <BackgroundInfo title="Version Compatibility for JavaFX">
-  Use the latest Long-Term Support (LTS) versions consistently. For example: - **JDK 21** - **JavaFX
-  21** (or a version compatible with your JDK, e.g., JavaFX 22+ for JDK 21+) - **Scene Builder 23**
-  (or latest corresponding LTS) Ensure your `pom.xml` or `build.gradle` reflects these versions. See{" "}
-  <a href="#javafx-jdk-compatibility">Part 5.1</a> for a `pom.xml` example.
+  <div>Use the latest Long-Term Support (LTS) versions consistently. For example:</div>
+  <ul>
+    <li>
+      <strong>JDK 21</strong>
+    </li>
+    <li>
+      <strong>JavaFX 21</strong> (or a version compatible with your JDK, such as JavaFX 22+ for JDK 21+)
+    </li>
+    <li>
+      <strong>Scene Builder 23</strong> (or the latest corresponding LTS)
+    </li>
+  </ul>
+  <div>
+    Ensure your <code>pom.xml</code> or <code>build.gradle</code> reflects these versions. See{" "}
+    <a href="#javafx-jdk-compatibility">Part 5.1</a> for a <code>pom.xml</code> example.
+  </div>
 </BackgroundInfo>
 
 ---
@@ -73,11 +83,10 @@ This section assumes your JDK is installed and `JAVA_HOME` is configured as per 
 Scene Builder is a visual layout tool for designing JavaFX UIs (.fxml files).
 
 <CollapseDropdown summary="2.1: Download and Install Scene Builder">
-  Visit the{" "}
-  <ExternalLink href="https://gluonhq.com/products/scene-builder/">
-    Gluon Scene Builder website
-  </ExternalLink>{" "}
-  to download the latest version (LTS recommended, e.g., 23). Install it.
+  <div>
+    Visit the <a href="https://gluonhq.com/products/scene-builder/">Gluon Scene Builder website</a> to download the
+    latest version (LTS recommended, e.g., 23). Install it.
+  </div>
 </CollapseDropdown>
 
 <CollapseDropdown summary="2.2: Configure Path in IntelliJ IDEA">
@@ -291,9 +300,20 @@ Once your project is open and Scene Builder path is configured (Part 2), edit FX
     </build>
     ```
 
-- **Verify JDK in IDE**: Confirm IDE's project SDK matches your JavaFX dependencies and build config.
-- For general JDK, `JAVA_HOME`, multiple Java versions, and build system (Maven/Gradle) setup, refer to the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Java, Maven & Gradle Setup Guide</ExternalLink>.
-  </CollapseDropdown>
+<ul>
+  <li>
+    <strong>Verify JDK in IDE</strong>: Confirm IDE's project SDK matches your JavaFX dependencies and build config.
+  </li>
+  <li>
+    For general JDK, <code>JAVA_HOME</code>, multiple Java versions, and build system (Maven/Gradle) setup, refer to
+    the{" "}
+    <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">
+      Core Java, Maven &amp; Gradle Setup Guide
+    </ExternalLink>
+    .
+  </li>
+</ul>
+</CollapseDropdown>
 
 <a id="scene-builder-integration-issues"></a>
 <CollapseDropdown summary="5.2: Scene Builder Integration Issues">
@@ -328,9 +348,18 @@ Once your project is open and Scene Builder path is configured (Part 2), edit FX
 </CollapseDropdown>
 
 <BackgroundInfo title="General Troubleshooting">
-  - **Clean and Rebuild**: `./mvnw clean install` or `./gradlew clean build`. - **Check Logs**: Full
-  error stack trace in IDE console. - **Simplify**: Create minimal reproducible example to isolate
-  issues.
+  <ul>
+    <li>
+      <strong>Clean and Rebuild</strong>: <code>./mvnw clean install</code> or{" "}
+      <code>./gradlew clean build</code>.
+    </li>
+    <li>
+      <strong>Check Logs</strong>: Review the full error stack trace in the IDE console.
+    </li>
+    <li>
+      <strong>Simplify</strong>: Create a minimal reproducible example to isolate the issue.
+    </li>
+  </ul>
 </BackgroundInfo>
 
 <a id="intellij-maven-menu"></a>
@@ -344,11 +373,40 @@ Once your project is open and Scene Builder path is configured (Part 2), edit FX
   size="medium"
 />
 
-- **Sync Project**: Reads your `pom.xml` file and updates IntelliJ IDEA's project structure, dependencies, and settings to match. Use this after making changes to the `pom.xml` or if you suspect the IDE is out of sync.
-- **Generate Sources and Update Folders**: Runs Maven phases that might generate source code (e.g., from annotation processors or build plugins) and tells IDEA to recognize these generated sources/folders correctly.
-- **Ignore Projects**: Temporarily tells IntelliJ IDEA to stop treating the selected module as a Maven project. This can be useful for troubleshooting or excluding a module without removing it.
-- **Unlink Maven Projects**: Completely removes the Maven integration from the project within IntelliJ IDEA. The `pom.xml` file remains, but IDEA will no longer manage dependencies or build configurations through Maven for this project until you re-import it.
-- **Create 'settings.xml'**: Creates a Maven `settings.xml` file in your user's `.m2` directory (`~/.m2/settings.xml`) if one doesn't exist. This file allows you to configure user-specific Maven settings like custom repository locations, proxy settings, or server credentials.
-- **Download Sources / Documentation**: Fetches the source code (`.java` files) or Javadoc documentation for your project's dependencies from the Maven repositories. This allows you to navigate into library code or view documentation directly within the IDE. "Download Sources and Documentation" does both.
-- **Show Effective POM**: Calculates and displays the complete Project Object Model (POM) that Maven uses for the build. This includes configurations inherited from parent POMs, profiles, and settings, giving you the final, consolidated view of the build configuration.
+<ul>
+  <li>
+    <strong>Sync Project</strong>: Reads your <code>pom.xml</code> file and updates IntelliJ
+    IDEA&apos;s project structure, dependencies, and settings to match. Use this after changing{" "}
+    <code>pom.xml</code> or when the IDE appears out of sync.
+  </li>
+  <li>
+    <strong>Generate Sources and Update Folders</strong>: Runs Maven phases that might generate
+    source code, such as annotation processors or build plugins, and tells IDEA to recognize those
+    generated sources and folders correctly.
+  </li>
+  <li>
+    <strong>Ignore Projects</strong>: Temporarily tells IntelliJ IDEA to stop treating the selected
+    module as a Maven project. This can help when troubleshooting or excluding a module without
+    removing it.
+  </li>
+  <li>
+    <strong>Unlink Maven Projects</strong>: Removes Maven integration from the project within
+    IntelliJ IDEA. The <code>pom.xml</code> file remains, but IDEA will no longer manage
+    dependencies or build settings through Maven until you re-import the project.
+  </li>
+  <li>
+    <strong>Create &apos;settings.xml&apos;</strong>: Creates a Maven <code>settings.xml</code> in
+    <code>~/.m2/settings.xml</code> if one does not already exist. Use it for user-specific Maven
+    settings such as custom repositories, proxy settings, or server credentials.
+  </li>
+  <li>
+    <strong>Download Sources / Documentation</strong>: Fetches dependency source code and Javadoc
+    from Maven repositories so you can navigate library code and read docs directly in the IDE.
+    “Download Sources and Documentation” performs both actions together.
+  </li>
+  <li>
+    <strong>Show Effective POM</strong>: Calculates and displays the final Project Object Model
+    Maven uses, including inherited parent settings, active profiles, and merged configuration.
+  </li>
+</ul>
   </CollapseDropdown>
