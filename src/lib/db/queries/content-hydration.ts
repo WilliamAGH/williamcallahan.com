@@ -24,6 +24,7 @@ import {
   isOurCdnUrl,
 } from "@/lib/utils/cdn-utils";
 import { resolveInvestmentLogo } from "./investment-logo-resolver";
+import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type {
   ScoredCandidate,
   HydrationEntry,
@@ -53,6 +54,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       tags: bookmarks.tags,
       domain: bookmarks.domain,
       ogImage: bookmarks.ogImage,
+      content: bookmarks.content,
       dateBookmarked: bookmarks.dateBookmarked,
     })
     .from(bookmarks)
@@ -62,9 +64,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
   const cdnConfig = getCdnConfigFromEnv();
 
   return rows.map((r) => {
-    // Related-content cards should only trust persisted CDN OG URLs.
-    // External OG URLs are intentionally excluded to avoid nondeterministic/hallucinated previews.
-    // Asset IDs in bookmark.content remain the canonical fallback chain.
+    // Only trust CDN OG URLs; pass undefined for external to let selectBestImage use asset fallbacks.
     let trustedOgImage: string | undefined;
     if (r.ogImage && isOurCdnUrl(r.ogImage, cdnConfig)) {
       trustedOgImage = r.ogImage;
@@ -89,7 +89,12 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
         tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
         domain: r.domain ?? undefined,
         date: r.dateBookmarked ?? undefined,
-        imageUrl: resolveImageUrl(trustedOgImage),
+        imageUrl: resolveImageUrl(
+          selectBestImage(
+            { ogImage: trustedOgImage, content: r.content ?? undefined, id: r.id, url: r.url },
+            { includeImageAssets: false, includeScreenshots: true, preferScreenshots: true },
+          ) ?? undefined,
+        ),
       } satisfies RelatedContentMetadata,
     };
   });
