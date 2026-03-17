@@ -23,10 +23,7 @@ import {
   getCdnConfigFromEnv,
   isOurCdnUrl,
 } from "@/lib/utils/cdn-utils";
-import { normalizeDomain } from "@/lib/utils/domain-utils";
-import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
-import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
-import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
+import { resolveInvestmentLogo } from "./investment-logo-resolver";
 import type {
   ScoredCandidate,
   HydrationEntry,
@@ -40,32 +37,6 @@ import type { RelatedContentMetadata } from "@/types/schemas/related-content";
 function extractTagNames(tags: Array<BookmarkTag | string> | null | undefined): string[] {
   if (!tags) return [];
   return tags.map((t) => (typeof t === "string" ? t : t.name)).filter(Boolean);
-}
-
-/** Resolve investment logo URL through manifest → runtime → placeholder chain. */
-async function resolveInvestmentLogo(row: {
-  logo: string | null;
-  logoOnlyDomain: string | null;
-  website: string | null;
-  name: string;
-}): Promise<string | undefined> {
-  if (row.logo) return resolveImageUrl(row.logo);
-
-  const effectiveDomain = row.logoOnlyDomain
-    ? normalizeDomain(row.logoOnlyDomain)
-    : row.website
-      ? normalizeDomain(row.website)
-      : normalizeDomain(row.name);
-
-  if (effectiveDomain) {
-    const manifest = await getLogoFromManifestAsync(effectiveDomain);
-    if (manifest?.cdnUrl) return resolveImageUrl(manifest.cdnUrl);
-
-    const runtime = getRuntimeLogoUrl(effectiveDomain, { company: row.name });
-    if (runtime) return resolveImageUrl(runtime);
-  }
-
-  return resolveImageUrl(getCompanyPlaceholder());
 }
 
 // ─── Per-domain batch fetchers ───────────────────────────────────────────────
