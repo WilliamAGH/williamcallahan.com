@@ -113,6 +113,10 @@ describe("Bookmarks Root Feed", () => {
     expect(container).toBeTruthy();
     expect(container?.querySelector('[data-testid="discover-feed"]')).not.toBeNull();
     expect(mockGetDiscoveryGroupedBookmarks).toHaveBeenCalledTimes(1);
+    expect(mockGetDiscoveryGroupedBookmarks).toHaveBeenCalledWith({
+      sectionPage: 1,
+      sectionsPerPage: 2,
+    });
   });
 
   it("renders latest feed via BookmarksServer when feed=latest", async () => {

@@ -21,6 +21,8 @@ import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import type { DiscoverFeedContent } from "@/types/features/discovery";
 
+const INITIAL_DISCOVER_SECTIONS_PER_PAGE = 2;
+
 /**
  * Generate metadata for the Bookmarks page
  */
@@ -72,7 +74,10 @@ export default async function BookmarksPage({
   if (feedMode === "discover" && !hasTagFilter) {
     let discoverData: DiscoverFeedContent;
     try {
-      discoverData = await getDiscoveryGroupedBookmarks({ sectionPage: 1, sectionsPerPage: 4 });
+      discoverData = await getDiscoveryGroupedBookmarks({
+        sectionPage: 1,
+        sectionsPerPage: INITIAL_DISCOVER_SECTIONS_PER_PAGE,
+      });
     } catch (error) {
       console.error(
         "[BookmarksPage] Discover feed failed. Rendering explicit degraded mode.",

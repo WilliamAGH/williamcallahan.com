@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TopicSection } from "./topic-section.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
 import type { DiscoverFeedContent, DiscoverFeedProps } from "@/types/features/discovery";
 
-const OBSERVER_ROOT_MARGIN = "280px 0px";
+const DISCOVER_PRIORITY_ROW_IMAGE_COUNT = 4;
+const OBSERVER_ROOT_MARGIN = "960px 0px";
+const OPTIMISTIC_EXPAND_DELAY_MS = 150;
 
 function mergeTopicSections(
   currentSections: ReadonlyArray<DiscoverFeedContent["topicSections"][number]>,
@@ -51,6 +53,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   const { trackImpression } = useEngagementTracker();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadMoreInFlightRef = useRef(false);
+  const optimisticLoadStartedRef = useRef(false);
   const [topicSections, setTopicSections] = useState<DiscoverFeedContent["topicSections"]>(
     () => data.topicSections,
   );
@@ -83,7 +86,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
         sectionPage: String(nextSectionPage),
         sectionsPerPage: String(nextSectionsPerPage),
       });
-      const response = await fetch(`/api/bookmarks?${params.toString()}`, { cache: "no-store" });
+      const response = await fetch(`/api/bookmarks?${params.toString()}`);
       if (!response.ok) {
         throw new Error(`Failed to load more sections (${response.status})`);
       }
@@ -110,13 +113,15 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
         pagination.nextSectionPage,
         pagination.sectionsPerPage,
       );
-      setTopicSections((current) => mergeTopicSections(current, nextData.topicSections));
-      setInternalHrefs((current) => ({ ...current, ...nextData.internalHrefs }));
-      setPagination(nextData.pagination);
-      setDegradation((current) => ({
-        isDegraded: current.isDegraded || nextData.degradation.isDegraded,
-        reasons: [...current.reasons, ...nextData.degradation.reasons],
-      }));
+      startTransition(() => {
+        setTopicSections((current) => mergeTopicSections(current, nextData.topicSections));
+        setInternalHrefs((current) => ({ ...current, ...nextData.internalHrefs }));
+        setPagination(nextData.pagination);
+        setDegradation((current) => ({
+          isDegraded: current.isDegraded || nextData.degradation.isDegraded,
+          reasons: [...current.reasons, ...nextData.degradation.reasons],
+        }));
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to load more sections";
       setLoadMoreError(errorMessage);
@@ -129,6 +134,26 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
       setIsLoadingMore(false);
     }
   }, [fetchGroupedDiscoverPage, pagination]);
+
+  useEffect(() => {
+    if (
+      !canAutoLoadMore ||
+      optimisticLoadStartedRef.current ||
+      pagination.sectionPage !== 1 ||
+      topicSections.length === 0
+    ) {
+      return;
+    }
+
+    optimisticLoadStartedRef.current = true;
+    const timeoutId = window.setTimeout(() => {
+      void loadMoreTopicSections();
+    }, OPTIMISTIC_EXPAND_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [canAutoLoadMore, loadMoreTopicSections, pagination.sectionPage, topicSections.length]);
 
   const scrollToSection = useCallback((sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -260,13 +285,14 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
             bookmarks={data.recentlyAdded}
             internalHrefs={data.internalHrefs}
             onImpression={trackImpression}
+            priorityImageCount={DISCOVER_PRIORITY_ROW_IMAGE_COUNT}
             showSeeAll={false}
           />
         </div>
       )}
 
       <div className="space-y-12">
-        {topicSections.map((section) => (
+        {topicSections.map((section, index) => (
           <TopicSection
             key={section.tagSlug}
             id={section.tagSlug}
@@ -276,6 +302,9 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
             bookmarks={section.bookmarks}
             internalHrefs={internalHrefs}
             onImpression={trackImpression}
+            priorityImageCount={
+              data.recentlyAdded.length === 0 && index === 0 ? DISCOVER_PRIORITY_ROW_IMAGE_COUNT : 0
+            }
           />
         ))}
       </div>

@@ -7,8 +7,6 @@ import { ImpressionTracker } from "./impression-tracker.client";
 import { TopicGrid } from "./topic-grid.client";
 import type { TopicSectionProps } from "@/types/features/discovery";
 
-const IMAGE_PRELOAD_COUNT = 2;
-
 export function TopicSection({
   id,
   tagSlug,
@@ -17,6 +15,7 @@ export function TopicSection({
   bookmarks,
   internalHrefs,
   onImpression,
+  priorityImageCount = 0,
   showSeeAll = true,
 }: Readonly<TopicSectionProps>) {
   if (bookmarks.length === 0) return null;
@@ -68,7 +67,7 @@ export function TopicSection({
               slug={bookmark.slug}
               variant="compact"
               internalHref={internalHrefs[bookmark.id]}
-              preload={index < IMAGE_PRELOAD_COUNT}
+              preload={index < priorityImageCount}
             />
           </ImpressionTracker>
         ))}

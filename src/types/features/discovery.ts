@@ -104,5 +104,6 @@ export type TopicSectionProps = {
   bookmarks: SerializableBookmark[];
   internalHrefs: Readonly<Record<string, string>>;
   onImpression: (contentType: EngagementContentType, contentId: string) => void;
+  priorityImageCount?: number;
   showSeeAll?: boolean;
 };

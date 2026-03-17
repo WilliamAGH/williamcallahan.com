@@ -27,7 +27,7 @@ export interface OptimizedCardImageProps {
   className?: string;
   /** Object-fit mode for card images */
   fit?: "cover" | "contain";
-  /** Preload the image in the document head (Next.js 16+) */
+  /** Prioritize loading for above-the-fold cards via eager fetch + high fetch priority */
   preload?: boolean;
   /** Base64 blur data URL for placeholder */
   blurDataURL?: string;
