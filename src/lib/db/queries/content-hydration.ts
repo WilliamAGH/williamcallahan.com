@@ -17,7 +17,12 @@ import { projects } from "@/lib/db/schema/projects";
 import { booksIndividual } from "@/lib/db/schema/books-individual";
 import { thoughts } from "@/lib/db/schema/thoughts";
 import { resolveImageUrl } from "@/lib/seo/url-utils";
-import { buildCdnUrl, getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
+import {
+  buildCdnUrl,
+  getBlogPostImageCdnUrl,
+  getCdnConfigFromEnv,
+  isOurCdnUrl,
+} from "@/lib/utils/cdn-utils";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
@@ -138,10 +143,14 @@ async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedConte
   const scoreMap = new Map(entries.map((e) => [e.entityId, e.score]));
 
   return rows.map((r) => {
+    const imageUrl =
+      typeof r.coverImage === "string"
+        ? (getBlogPostImageCdnUrl(r.coverImage) ?? r.coverImage)
+        : undefined;
     const metadata: RelatedContentMetadata = {
       tags: (r.tags as string[]) ?? [],
       date: r.publishedAt ?? undefined,
-      imageUrl: resolveImageUrl(r.coverImage ?? undefined),
+      imageUrl: resolveImageUrl(imageUrl),
       author: r.authorName ? { name: r.authorName } : undefined,
     };
     return {
