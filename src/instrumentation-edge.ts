@@ -14,26 +14,7 @@ const EDGE_TRACES_SAMPLE_RATE = 0.25;
 
 let sentryInitialized = false;
 
-/**
- * Derives a deployment-specific Sentry environment name from NEXT_PUBLIC_SITE_URL.
- * Edge-compatible (no Node APIs). See instrumentation-node.ts for full documentation.
- */
-function resolveSentryEnvironment(): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!siteUrl) return process.env.NODE_ENV ?? "production";
-
-  try {
-    const url = new URL(siteUrl);
-    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return "local";
-    if (url.hostname === "williamcallahan.com") return "production";
-    const subdomainMatch = url.hostname.match(/^([^.]+)\.williamcallahan\.com$/);
-    if (subdomainMatch?.[1]) return subdomainMatch[1];
-  } catch {
-    // Unparseable URL — fall through
-  }
-
-  return process.env.NODE_ENV ?? "production";
-}
+import { resolveSentryEnvironment } from "@/lib/sentry/resolve-environment";
 
 const SENSITIVE_HEADER_NAMES = new Set([
   "authorization",
