@@ -2,30 +2,39 @@
  * @vitest-environment node
  */
 
-const { mockWhere, mockSelect, mockValues, mockInsert, mockExecute, mockTransaction } = vi.hoisted(
-  () => {
-    const where = vi.fn();
-    const from = vi.fn(() => ({ where }));
-    const select = vi.fn(() => ({ from }));
-    const values = vi.fn();
-    const insert = vi.fn(() => ({ values }));
-    const execute = vi.fn();
-    const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
-      callback({ select, insert, execute }),
-    );
+const {
+  mockWhere,
+  mockSelect,
+  mockValues,
+  mockInsert,
+  mockExecute,
+  mockTransaction,
+  mockAssertDatabaseWriteAllowed,
+} = vi.hoisted(() => {
+  const where = vi.fn();
+  const from = vi.fn(() => ({ where }));
+  const select = vi.fn(() => ({ from }));
+  const values = vi.fn();
+  const insert = vi.fn(() => ({ values }));
+  const execute = vi.fn();
+  const assertDatabaseWriteAllowed = vi.fn();
+  const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
+    callback({ select, insert, execute }),
+  );
 
-    return {
-      mockWhere: where,
-      mockSelect: select,
-      mockValues: values,
-      mockInsert: insert,
-      mockExecute: execute,
-      mockTransaction: transaction,
-    };
-  },
-);
+  return {
+    mockWhere: where,
+    mockSelect: select,
+    mockValues: values,
+    mockInsert: insert,
+    mockExecute: execute,
+    mockTransaction: transaction,
+    mockAssertDatabaseWriteAllowed: assertDatabaseWriteAllowed,
+  };
+});
 
 vi.mock("@/lib/db/connection", () => ({
+  assertDatabaseWriteAllowed: mockAssertDatabaseWriteAllowed,
   db: {
     transaction: mockTransaction,
   },
@@ -57,6 +66,7 @@ describe("POST /api/engagement", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(mockAssertDatabaseWriteAllowed).not.toHaveBeenCalled();
     expect(mockInsert).not.toHaveBeenCalled();
   });
 
@@ -75,6 +85,7 @@ describe("POST /api/engagement", () => {
     );
 
     expect(response.status).toBe(204);
+    expect(mockAssertDatabaseWriteAllowed).not.toHaveBeenCalled();
     expect(mockSelect).not.toHaveBeenCalled();
     expect(mockInsert).not.toHaveBeenCalled();
   });
@@ -98,6 +109,7 @@ describe("POST /api/engagement", () => {
     );
 
     expect(response.status).toBe(204);
+    expect(mockAssertDatabaseWriteAllowed).toHaveBeenCalledWith("recordContentEngagement");
     expect(mockSelect).toHaveBeenCalledTimes(1);
     expect(mockInsert).toHaveBeenCalledTimes(1);
     expect(mockValues).toHaveBeenCalledWith(

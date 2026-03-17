@@ -265,5 +265,39 @@ describe("Environment Variable Configuration", () => {
         'Blocked PostgreSQL write "test-operation"',
       );
     });
+
+    it("allows writes for canonical production runtime when DEPLOYMENT_ENV is stale", async () => {
+      process.env.NODE_ENV = "production";
+      process.env.DEPLOYMENT_ENV = "development";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+
+      const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
+        await import("@/lib/db/connection");
+
+      expect(resolveDatabaseAccessMode()).toEqual({
+        allowWrites: true,
+        environment: "production",
+        source: "NODE_ENV+NEXT_PUBLIC_SITE_URL",
+      });
+      expect(() => assertDatabaseWriteAllowed("test-operation")).not.toThrow();
+    });
+
+    it("keeps development runtimes read-only even when the public site URL is production", async () => {
+      process.env.NODE_ENV = "development";
+      process.env.DEPLOYMENT_ENV = "development";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+
+      const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
+        await import("@/lib/db/connection");
+
+      expect(resolveDatabaseAccessMode()).toEqual({
+        allowWrites: false,
+        environment: "development",
+        source: "DEPLOYMENT_ENV",
+      });
+      expect(() => assertDatabaseWriteAllowed("test-operation")).toThrow(
+        'Blocked PostgreSQL write "test-operation"',
+      );
+    });
   });
 });

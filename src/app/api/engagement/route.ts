@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { db } from "@/lib/db/connection";
+import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
 import { engagementBatchSchema } from "@/types/schemas/engagement";
 
@@ -67,6 +67,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const visitorHash = buildVisitorHash(request.headers);
   const events = parsed.data.events;
+  assertDatabaseWriteAllowed("recordContentEngagement");
 
   const rateLimited = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${visitorHash}))`);

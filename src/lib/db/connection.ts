@@ -102,14 +102,36 @@ const resolveWriteEnvironment = (): { environment: string; source: string } => {
   };
 };
 
+const isCanonicalProductionSiteRuntime = (): boolean =>
+  process.env.NODE_ENV?.trim() === PRODUCTION_ENVIRONMENT &&
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() === PRODUCTION_SITE_URL;
+
 export const resolveDatabaseAccessMode = (): {
   allowWrites: boolean;
   environment: string;
   source: string;
 } => {
   const resolvedEnvironment = resolveWriteEnvironment();
+  if (resolvedEnvironment.environment === PRODUCTION_ENVIRONMENT) {
+    return {
+      allowWrites: true,
+      ...resolvedEnvironment,
+    };
+  }
+
+  if (isCanonicalProductionSiteRuntime()) {
+    console.warn(
+      `[db/connection] Allowing PostgreSQL writes because NODE_ENV=production and NEXT_PUBLIC_SITE_URL=${PRODUCTION_SITE_URL}, overriding ${resolvedEnvironment.source}="${resolvedEnvironment.environment}".`,
+    );
+    return {
+      allowWrites: true,
+      environment: PRODUCTION_ENVIRONMENT,
+      source: "NODE_ENV+NEXT_PUBLIC_SITE_URL",
+    };
+  }
+
   return {
-    allowWrites: resolvedEnvironment.environment === PRODUCTION_ENVIRONMENT,
+    allowWrites: false,
     ...resolvedEnvironment,
   };
 };
