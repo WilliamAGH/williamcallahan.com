@@ -224,6 +224,8 @@ describe("Environment Variable Configuration", () => {
     it("keeps test sessions read-only by default", async () => {
       process.env.NODE_ENV = "test";
       Reflect.deleteProperty(process.env, "DEPLOYMENT_ENV");
+      // Clear site URL so NODE_ENV fallback is exercised
+      Reflect.deleteProperty(process.env, "NEXT_PUBLIC_SITE_URL");
 
       const { resolveDatabaseAccessMode } = await import("@/lib/db/connection");
 
@@ -237,6 +239,8 @@ describe("Environment Variable Configuration", () => {
     it("allows writes only when deployment environment resolves to production", async () => {
       process.env.NODE_ENV = "test";
       process.env.DEPLOYMENT_ENV = "production";
+      // Clear site URL so DEPLOYMENT_ENV fallback is exercised
+      Reflect.deleteProperty(process.env, "NEXT_PUBLIC_SITE_URL");
 
       const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
         await import("@/lib/db/connection");
@@ -252,6 +256,8 @@ describe("Environment Variable Configuration", () => {
     it("blocks writes when deployment environment is not production", async () => {
       process.env.NODE_ENV = "development";
       process.env.DEPLOYMENT_ENV = "testing";
+      // Clear site URL so DEPLOYMENT_ENV fallback is exercised
+      Reflect.deleteProperty(process.env, "NEXT_PUBLIC_SITE_URL");
 
       const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
         await import("@/lib/db/connection");
@@ -274,10 +280,11 @@ describe("Environment Variable Configuration", () => {
       const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
         await import("@/lib/db/connection");
 
+      // NEXT_PUBLIC_SITE_URL now takes priority over stale DEPLOYMENT_ENV
       expect(resolveDatabaseAccessMode()).toEqual({
         allowWrites: true,
         environment: "production",
-        source: "NODE_ENV+NEXT_PUBLIC_SITE_URL",
+        source: "NEXT_PUBLIC_SITE_URL",
       });
       expect(() => assertDatabaseWriteAllowed("test-operation")).not.toThrow();
     });
@@ -290,6 +297,9 @@ describe("Environment Variable Configuration", () => {
       const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
         await import("@/lib/db/connection");
 
+      // NEXT_PUBLIC_SITE_URL=production is ignored when NODE_ENV is not production,
+      // preventing local dev from accidentally writing to the shared database.
+      // Falls through to DEPLOYMENT_ENV.
       expect(resolveDatabaseAccessMode()).toEqual({
         allowWrites: false,
         environment: "development",

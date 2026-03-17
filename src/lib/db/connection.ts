@@ -79,7 +79,48 @@ const normalizeEnvironmentName = (value: string | undefined): string => {
   return normalized;
 };
 
+/**
+ * Derives the deployment environment from NEXT_PUBLIC_SITE_URL.
+ * This is the most reliable signal because it reflects the actual deployment target,
+ * not a separately-managed env var that can drift out of sync.
+ *
+ * For the production URL, NODE_ENV must also be "production" to prevent local
+ * development (NODE_ENV=development) from accidentally writing to the shared database
+ * when NEXT_PUBLIC_SITE_URL happens to point at the production domain.
+ */
+const resolveEnvironmentFromSiteUrl = (): { environment: string; source: string } | null => {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!siteUrl) return null;
+
+  if (siteUrl === PRODUCTION_SITE_URL) {
+    // Guard: only resolve to production when NODE_ENV also confirms production runtime.
+    // This prevents local dev with NEXT_PUBLIC_SITE_URL=production from writing.
+    if (process.env.NODE_ENV?.trim() === PRODUCTION_ENVIRONMENT) {
+      return { environment: PRODUCTION_ENVIRONMENT, source: "NEXT_PUBLIC_SITE_URL" };
+    }
+    return null;
+  }
+
+  if (siteUrl.includes("localhost") || siteUrl.includes("127.0.0.1")) {
+    return { environment: "development", source: "NEXT_PUBLIC_SITE_URL" };
+  }
+
+  const devSubdomainPrefixes = ["alpha.", "dev.", "sandbox."];
+  for (const prefix of devSubdomainPrefixes) {
+    if (siteUrl.includes(`${prefix}williamcallahan.com`)) {
+      return { environment: "development", source: "NEXT_PUBLIC_SITE_URL" };
+    }
+  }
+
+  return null;
+};
+
 const resolveWriteEnvironment = (): { environment: string; source: string } => {
+  // NEXT_PUBLIC_SITE_URL is the most reliable signal — it reflects the actual
+  // deployment target and cannot drift like DEPLOYMENT_ENV.
+  const fromSiteUrl = resolveEnvironmentFromSiteUrl();
+  if (fromSiteUrl) return fromSiteUrl;
+
   const deploymentEnvironment = process.env.DEPLOYMENT_ENV?.trim();
   if (deploymentEnvironment && deploymentEnvironment.length > 0) {
     return {
@@ -102,36 +143,14 @@ const resolveWriteEnvironment = (): { environment: string; source: string } => {
   };
 };
 
-const isCanonicalProductionSiteRuntime = (): boolean =>
-  process.env.NODE_ENV?.trim() === PRODUCTION_ENVIRONMENT &&
-  process.env.NEXT_PUBLIC_SITE_URL?.trim() === PRODUCTION_SITE_URL;
-
 export const resolveDatabaseAccessMode = (): {
   allowWrites: boolean;
   environment: string;
   source: string;
 } => {
   const resolvedEnvironment = resolveWriteEnvironment();
-  if (resolvedEnvironment.environment === PRODUCTION_ENVIRONMENT) {
-    return {
-      allowWrites: true,
-      ...resolvedEnvironment,
-    };
-  }
-
-  if (isCanonicalProductionSiteRuntime()) {
-    console.warn(
-      `[db/connection] Allowing PostgreSQL writes because NODE_ENV=production and NEXT_PUBLIC_SITE_URL=${PRODUCTION_SITE_URL}, overriding ${resolvedEnvironment.source}="${resolvedEnvironment.environment}".`,
-    );
-    return {
-      allowWrites: true,
-      environment: PRODUCTION_ENVIRONMENT,
-      source: "NODE_ENV+NEXT_PUBLIC_SITE_URL",
-    };
-  }
-
   return {
-    allowWrites: false,
+    allowWrites: resolvedEnvironment.environment === PRODUCTION_ENVIRONMENT,
     ...resolvedEnvironment,
   };
 };
@@ -144,6 +163,9 @@ export function assertDatabaseWriteAllowed(operation: string): void {
 
   throw new Error(
     `[db/write-guard] Blocked PostgreSQL write "${operation}" because ${source} resolved to "${environment}". ` +
+      `NEXT_PUBLIC_SITE_URL="${process.env.NEXT_PUBLIC_SITE_URL ?? "(unset)"}"; ` +
+      `DEPLOYMENT_ENV="${process.env.DEPLOYMENT_ENV ?? "(unset)"}"; ` +
+      `NODE_ENV="${process.env.NODE_ENV ?? "(unset)"}". ` +
       "This project uses one shared database; only production runtime may write to PostgreSQL.",
   );
 }
