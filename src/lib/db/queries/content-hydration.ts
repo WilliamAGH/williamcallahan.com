@@ -117,12 +117,24 @@ async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedConte
     .where(and(inArray(blogPosts.id, ids), eq(blogPosts.draft, false)));
 
   const scoreMap = new Map(entries.map((e) => [e.entityId, e.score]));
+  const cdnConfig = getCdnConfigFromEnv();
 
   return rows.map((r) => {
-    const imageUrl =
-      typeof r.coverImage === "string"
-        ? (getBlogPostImageCdnUrl(r.coverImage) ?? r.coverImage)
-        : undefined;
+    let imageUrl: string | undefined;
+    if (typeof r.coverImage === "string") {
+      const cdnUrl = getBlogPostImageCdnUrl(r.coverImage);
+      if (cdnUrl) {
+        imageUrl = cdnUrl;
+      } else if (isOurCdnUrl(r.coverImage, cdnConfig)) {
+        imageUrl = r.coverImage;
+      } else if (r.coverImage.startsWith("/")) {
+        // Local path without manifest entry — data integrity gap, not a runtime fallback
+        console.warn(
+          `[content-hydration] Blog cover "${r.coverImage}" missing from CDN manifest for post ${r.id}. Run "bun scripts/sync-blog-cover-images.ts".`,
+        );
+        imageUrl = r.coverImage;
+      } // External non-CDN URLs are excluded (same policy as bookmarks)
+    }
     const metadata: RelatedContentMetadata = {
       tags: (r.tags as string[]) ?? [],
       date: r.publishedAt ?? undefined,
