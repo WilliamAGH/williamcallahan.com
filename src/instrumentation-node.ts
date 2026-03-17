@@ -13,34 +13,9 @@ declare global {
 // Cache the Sentry module during register() so onRequestError can use it synchronously
 let SentryModule: typeof import("@sentry/nextjs") | null = null;
 
-/**
- * Derives a deployment-specific Sentry environment name from NEXT_PUBLIC_SITE_URL.
- *
- * The @sentry/nextjs SDK defaults environment to NODE_ENV ("production") which
- * provides no deployment discrimination. This function extracts a meaningful name:
- *   - "https://williamcallahan.com"       → "production"
- *   - "https://alpha.williamcallahan.com"  → "alpha"
- *   - "http://localhost:3000"              → "local"
- *   - unset / unrecognized                 → falls back to NODE_ENV
- */
-function resolveSentryEnvironment(): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!siteUrl) return process.env.NODE_ENV ?? "production";
-
-  try {
-    const url = new URL(siteUrl);
-    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return "local";
-    if (url.hostname === "williamcallahan.com") return "production";
-
-    // Extract subdomain: "alpha.williamcallahan.com" → "alpha"
-    const subdomainMatch = url.hostname.match(/^([^.]+)\.williamcallahan\.com$/);
-    if (subdomainMatch?.[1]) return subdomainMatch[1];
-  } catch {
-    // Unparseable URL — fall through
-  }
-
-  return process.env.NODE_ENV ?? "production";
-}
+// Canonical Sentry environment resolver — shared across Node, Edge, and Client.
+// See src/lib/sentry/resolve-environment.ts for documentation.
+// Dynamic import is used in register() to keep this module side-effect-free.
 
 export async function register(): Promise<void> {
   const releaseVersion =
@@ -85,6 +60,7 @@ export async function register(): Promise<void> {
     // SENTRY_ENVIRONMENT || VERCEL_ENV || NODE_ENV. We override with a deployment-
     // specific name derived from NEXT_PUBLIC_SITE_URL so Sentry issues distinguish
     // alpha/dev/production deployments instead of showing a generic "production".
+    const { resolveSentryEnvironment } = await import("@/lib/sentry/resolve-environment");
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       release: releaseVersion,
