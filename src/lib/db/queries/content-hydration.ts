@@ -1,12 +1,4 @@
-/**
- * Content Hydration: batch-fetch rich metadata for similarity results.
- *
- * Given lean ScoredCandidate[] from pgvector ANN search, fetches full
- * display data from each domain table in batched queries (one per domain).
- * Produces RelatedContentSuggestion[] ready for UI rendering.
- *
- * @module db/queries/content-hydration
- */
+/** Content Hydration: batch-fetch rich metadata for pgvector similarity results. */
 
 import { db } from "@/lib/db/connection";
 import { inArray, eq, and } from "drizzle-orm";
@@ -39,8 +31,6 @@ function extractTagNames(tags: Array<BookmarkTag | string> | null | undefined): 
   if (!tags) return [];
   return tags.map((t) => (typeof t === "string" ? t : t.name)).filter(Boolean);
 }
-
-// ─── Per-domain batch fetchers ───────────────────────────────────────────────
 
 async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
   const ids = entries.map((e) => e.entityId);
@@ -300,8 +290,6 @@ async function hydrateThoughts(entries: HydrationEntry[]): Promise<RelatedConten
     };
   });
 }
-
-// ─── Public API ──────────────────────────────────────────────────────────────
 
 const DOMAIN_HYDRATORS: Record<
   ContentEmbeddingDomain,
