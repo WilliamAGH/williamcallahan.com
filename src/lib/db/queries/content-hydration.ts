@@ -319,7 +319,6 @@ const DOMAIN_HYDRATORS: Record<
 export async function hydrateRelatedContent(
   candidates: ScoredCandidate[],
 ): Promise<RelatedContentSuggestion[]> {
-  // Group by domain
   const byDomain = new Map<ContentEmbeddingDomain, HydrationEntry[]>();
   for (const c of candidates) {
     const entries = byDomain.get(c.domain) ?? [];
@@ -327,7 +326,6 @@ export async function hydrateRelatedContent(
     byDomain.set(c.domain, entries);
   }
 
-  // Batch-fetch all domains in parallel
   const hydrationPromises: Promise<RelatedContentSuggestion[]>[] = [];
   for (const [domain, entries] of byDomain) {
     const hydrator = DOMAIN_HYDRATORS[domain];
