@@ -22,8 +22,14 @@ const PRODUCTION_HOSTNAME = "williamcallahan.com";
 const SUBDOMAIN_PATTERN = /^([^.]+)\.williamcallahan\.com$/;
 
 export function resolveSentryEnvironment(): string {
+  const nodeEnv = process.env.NODE_ENV ?? "production";
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!siteUrl) return process.env.NODE_ENV ?? "production";
+  if (!siteUrl) {
+    console.warn(
+      "[sentry/resolve-environment] NEXT_PUBLIC_SITE_URL is unset; falling back to NODE_ENV.",
+    );
+    return nodeEnv;
+  }
 
   try {
     const url = new URL(siteUrl);
@@ -32,9 +38,14 @@ export function resolveSentryEnvironment(): string {
 
     const subdomainMatch = url.hostname.match(SUBDOMAIN_PATTERN);
     if (subdomainMatch?.[1]) return subdomainMatch[1];
+    console.warn(
+      `[sentry/resolve-environment] Unrecognized hostname "${url.hostname}"; falling back to NODE_ENV.`,
+    );
   } catch {
-    // Unparseable URL — fall through
+    console.warn(
+      `[sentry/resolve-environment] Invalid NEXT_PUBLIC_SITE_URL "${siteUrl}"; falling back to NODE_ENV.`,
+    );
   }
 
-  return process.env.NODE_ENV ?? "production";
+  return nodeEnv;
 }
