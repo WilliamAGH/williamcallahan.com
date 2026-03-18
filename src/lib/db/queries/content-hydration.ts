@@ -123,7 +123,11 @@ async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedConte
           `[content-hydration] Blog cover "${r.coverImage}" missing from CDN manifest for post ${r.id}. Run "bun scripts/sync-blog-cover-images.ts".`,
         );
         imageUrl = r.coverImage;
-      } // External non-CDN URLs are excluded (same policy as bookmarks)
+      } else {
+        console.warn(
+          `[content-hydration] Ignoring non-CDN coverImage for blog post ${r.id}: ${r.coverImage}`,
+        );
+      }
     }
     const metadata: RelatedContentMetadata = {
       tags: (r.tags as string[]) ?? [],
