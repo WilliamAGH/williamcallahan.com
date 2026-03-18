@@ -13,6 +13,8 @@ import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-lo
 import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 
+const warnedPlaceholderFallbacks = new Set<string>();
+
 /** Resolve investment logo URL through manifest → runtime → placeholder chain. */
 export async function resolveInvestmentLogo(row: {
   logo: string | null;
@@ -36,5 +38,12 @@ export async function resolveInvestmentLogo(row: {
     if (runtime) return resolveImageUrl(runtime);
   }
 
+  const fallbackKey = effectiveDomain || row.name;
+  if (!warnedPlaceholderFallbacks.has(fallbackKey)) {
+    console.warn(
+      `[investment-logo-resolver] Falling back to placeholder for "${row.name}" (domain: "${effectiveDomain || "n/a"}").`,
+    );
+    warnedPlaceholderFallbacks.add(fallbackKey);
+  }
   return resolveImageUrl(getCompanyPlaceholder());
 }
