@@ -22,7 +22,11 @@ const PRODUCTION_HOSTNAME = "williamcallahan.com";
 const SUBDOMAIN_PATTERN = /^([^.]+)\.williamcallahan\.com$/;
 
 export function resolveSentryEnvironment(): string {
-  const nodeEnv = process.env.NODE_ENV ?? "production";
+  const rawNodeEnv = process.env.NODE_ENV?.trim();
+  if (!rawNodeEnv) {
+    console.warn('[sentry/resolve-environment] NODE_ENV is unset; defaulting to "production".');
+  }
+  const nodeEnv = rawNodeEnv || "production";
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (!siteUrl) {
     console.warn(
