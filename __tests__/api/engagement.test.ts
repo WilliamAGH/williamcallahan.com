@@ -2,30 +2,43 @@
  * @vitest-environment node
  */
 
-const { mockWhere, mockSelect, mockValues, mockInsert, mockExecute, mockTransaction } = vi.hoisted(
-  () => {
-    const where = vi.fn();
-    const from = vi.fn(() => ({ where }));
-    const select = vi.fn(() => ({ from }));
-    const values = vi.fn();
-    const insert = vi.fn(() => ({ values }));
-    const execute = vi.fn();
-    const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
-      callback({ select, insert, execute }),
-    );
+const {
+  mockWhere,
+  mockSelect,
+  mockValues,
+  mockInsert,
+  mockExecute,
+  mockTransaction,
+  mockResolveDatabaseAccessMode,
+} = vi.hoisted(() => {
+  const where = vi.fn();
+  const from = vi.fn(() => ({ where }));
+  const select = vi.fn(() => ({ from }));
+  const values = vi.fn();
+  const insert = vi.fn(() => ({ values }));
+  const execute = vi.fn();
+  const resolveDatabaseAccessMode = vi.fn(() => ({
+    allowWrites: true,
+    environment: "production",
+    source: "test",
+  }));
+  const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
+    callback({ select, insert, execute }),
+  );
 
-    return {
-      mockWhere: where,
-      mockSelect: select,
-      mockValues: values,
-      mockInsert: insert,
-      mockExecute: execute,
-      mockTransaction: transaction,
-    };
-  },
-);
+  return {
+    mockWhere: where,
+    mockSelect: select,
+    mockValues: values,
+    mockInsert: insert,
+    mockExecute: execute,
+    mockTransaction: transaction,
+    mockResolveDatabaseAccessMode: resolveDatabaseAccessMode,
+  };
+});
 
 vi.mock("@/lib/db/connection", () => ({
+  resolveDatabaseAccessMode: mockResolveDatabaseAccessMode,
   db: {
     transaction: mockTransaction,
   },
@@ -57,6 +70,7 @@ describe("POST /api/engagement", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(mockResolveDatabaseAccessMode).not.toHaveBeenCalled();
     expect(mockInsert).not.toHaveBeenCalled();
   });
 
@@ -75,6 +89,7 @@ describe("POST /api/engagement", () => {
     );
 
     expect(response.status).toBe(204);
+    expect(mockResolveDatabaseAccessMode).not.toHaveBeenCalled();
     expect(mockSelect).not.toHaveBeenCalled();
     expect(mockInsert).not.toHaveBeenCalled();
   });
@@ -98,6 +113,7 @@ describe("POST /api/engagement", () => {
     );
 
     expect(response.status).toBe(204);
+    expect(mockResolveDatabaseAccessMode).toHaveBeenCalled();
     expect(mockSelect).toHaveBeenCalledTimes(1);
     expect(mockInsert).toHaveBeenCalledTimes(1);
     expect(mockValues).toHaveBeenCalledWith(
@@ -117,5 +133,30 @@ describe("POST /api/engagement", () => {
         }),
       ]),
     );
+  });
+
+  it("returns 503 when database writes are not allowed", async () => {
+    mockResolveDatabaseAccessMode.mockReturnValueOnce({
+      allowWrites: false,
+      environment: "development",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/engagement", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": "198.51.100.10",
+          "user-agent": "vitest-agent",
+        },
+        body: JSON.stringify({
+          events: [{ contentType: "bookmark", contentId: "abc", eventType: "impression" }],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(mockTransaction).not.toHaveBeenCalled();
   });
 });

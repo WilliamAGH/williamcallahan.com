@@ -279,4 +279,13 @@ describe("OptimizedCardImage", () => {
     expect(src).toContain("opengraph-placeholder");
     expect(image).toHaveAttribute("data-placeholder", "empty");
   });
+
+  it("eager-loads prioritized card images with thumbnail compression", () => {
+    render(<OptimizedCardImage src={cardSrc} alt="Project screenshot" preload />);
+    const image = screen.getByTestId("next-image-mock");
+
+    expect(image).toHaveAttribute("loading", "eager");
+    expect(image.getAttribute("fetchpriority") ?? image.getAttribute("fetchPriority")).toBe("high");
+    expect(image).toHaveAttribute("quality", "75");
+  });
 });

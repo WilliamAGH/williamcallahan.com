@@ -23,12 +23,22 @@ coverImage: "/images/posts/digitalocean-spaces-s3-object-storage-policy-config.p
 ---
 
 <BackgroundInfo title="What This Post Covers">
-This guide covers:
-
-- Why [limited (per-bucket) access keys](https://docs.digitalocean.com/products/spaces/how-to/manage-access/) cause `403 Forbidden` on bucket-level operations.
-- Two ways to make objects public by default: `--acl-public` via [`s3cmd`](https://docs.digitalocean.com/products/spaces/reference/s3cmd/) and a JSON [bucket policy](https://docs.digitalocean.com/products/spaces/how-to/manage-access/#bucket-policies).
-- How to enable [Spaces access logs](https://docs.digitalocean.com/products/spaces/how-to/configure-access-logs/) through the S3-compatible API.
-  </BackgroundInfo>
+  <div>This guide covers:</div>
+  <ul>
+    <li>
+      Why <a href="https://docs.digitalocean.com/products/spaces/how-to/manage-access/">limited (per-bucket) access keys</a> cause{" "}
+      <code>403 Forbidden</code> on bucket-level operations.
+    </li>
+    <li>
+      Two ways to make objects public by default: <code>--acl-public</code> via{" "}
+      <a href="https://docs.digitalocean.com/products/spaces/reference/s3cmd/">s3cmd</a> and a JSON{" "}
+      <a href="https://docs.digitalocean.com/products/spaces/how-to/manage-access/#bucket-policies">bucket policy</a>.
+    </li>
+    <li>
+      How to enable <a href="https://docs.digitalocean.com/products/spaces/how-to/configure-access-logs/">Spaces access logs</a> through the S3-compatible API.
+    </li>
+  </ul>
+</BackgroundInfo>
 
 DigitalOcean Spaces is S3-compatible, but not every S3 operation works with every kind of Spaces access key.
 

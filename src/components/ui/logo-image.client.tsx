@@ -276,7 +276,7 @@ export function OptimizedCardImage({
       alt={alt}
       fill
       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
-      quality={80}
+      quality={75}
       placeholder="blur"
       blurDataURL={resolvedBlurDataURL}
       className={`${objectFitClass} ${className}`}

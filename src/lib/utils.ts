@@ -118,11 +118,11 @@ export function formatPercentage(value: number | undefined | null, decimalPlaces
 }
 
 /**
- * Formats a date string or Date object into a human-readable date in the "America/Los_Angeles" timezone
+ * Formats a date string or Date object into a human-readable date in UTC.
  *
  * @param dateString - The date string or Date object to format
  * @returns The formatted date string (e.g., "March 14, 2024"), or "Invalid Date" if invalid
- * @remark Date-only strings are interpreted as UTC midnight and may display as previous day in PT
+ * @remark Date-only strings (YYYY-MM-DD) are interpreted as UTC midnight and displayed in UTC.
  */
 export function formatDate(dateString: string | Date | undefined | number): string {
   if (typeof dateString !== "string" && !(dateString instanceof Date)) {
@@ -136,19 +136,14 @@ export function formatDate(dateString: string | Date | undefined | number): stri
     return "Invalid Date";
   }
 
-  // If the input is a date-only string (YYYY-MM-DD), it's interpreted as UTC midnight.
-  // To avoid off-by-one day errors due to timezone conversion from UTC midnight
-  // to local time, we can adjust it if needed or simply format it as is.
-  // The tests imply that '2024-03-14' (UTC midnight) should show as 'March 13, 2024' in PT.
-  // This is the standard behavior of new Date() when given a date-only string.
-  // For more robust handling, ensuring input strings include timezone information is best.
-
+  // Dates from DB are UTC (ISO strings or date-only YYYY-MM-DD interpreted as UTC midnight).
+  // Format in UTC to prevent timezone-dependent off-by-one errors and ensure
+  // deterministic output across server (Node.js) and client (browser).
   return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
-    timeZone: "America/Los_Angeles", // To match test case behavior (PST/PDT)
-    // Or make timezone configurable or use user's local
+    timeZone: "UTC",
   });
 }
 

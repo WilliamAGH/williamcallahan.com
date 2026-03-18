@@ -54,11 +54,14 @@ export function shouldFilterError(errorMessage: unknown): boolean {
   return false;
 }
 
+import { resolveSentryEnvironment } from "@/lib/sentry/resolve-environment";
+
 // Only initialize Sentry in production to prevent development console noise
 if (process.env.NODE_ENV === "production") {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     tunnel: "/api/tunnel",
+    environment: resolveSentryEnvironment(),
 
     // Associate errors with the correct source map
     release: process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION,

@@ -14,6 +14,8 @@ const EDGE_TRACES_SAMPLE_RATE = 0.25;
 
 let sentryInitialized = false;
 
+import { resolveSentryEnvironment } from "@/lib/sentry/resolve-environment";
+
 const SENSITIVE_HEADER_NAMES = new Set([
   "authorization",
   "cookie",
@@ -128,6 +130,7 @@ export async function register(): Promise<void> {
   Sentry.init({
     dsn,
     release: resolveReleaseVersion(),
+    environment: resolveSentryEnvironment(),
     tracesSampleRate: EDGE_TRACES_SAMPLE_RATE,
   });
 

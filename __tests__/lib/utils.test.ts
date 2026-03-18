@@ -75,10 +75,10 @@ describe("formatDate", () => {
     expect(formatDate("2024-07-14T00:00:00-07:00")).toBe("July 14, 2024");
   });
 
-  // This test case demonstrates the old behavior when passing date-only strings
-  // It's kept here for clarity but shows why date-only strings are problematic
-  it("should show previous day for date-only string (interpreted as UTC midnight)", () => {
-    expect(formatDate("2024-03-14")).toBe("March 13, 2024");
+  // Date-only strings (YYYY-MM-DD) are interpreted as UTC midnight.
+  // formatDate uses UTC, so "2024-03-14" at UTC midnight displays as March 14.
+  it("should display correct day for date-only string (UTC midnight)", () => {
+    expect(formatDate("2024-03-14")).toBe("March 14, 2024");
   });
 
   it("should handle invalid date string", () => {

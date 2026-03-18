@@ -13,6 +13,10 @@ declare global {
 // Cache the Sentry module during register() so onRequestError can use it synchronously
 let SentryModule: typeof import("@sentry/nextjs") | null = null;
 
+// Canonical Sentry environment resolver — shared across Node, Edge, and Client.
+// See src/lib/sentry/resolve-environment.ts for documentation.
+// Dynamic import is used in register() to keep this module side-effect-free.
+
 export async function register(): Promise<void> {
   const releaseVersion =
     process.env.SENTRY_RELEASE ||
@@ -52,9 +56,15 @@ export async function register(): Promise<void> {
   if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
     const Sentry = await import("@sentry/nextjs");
     SentryModule = Sentry; // Cache for synchronous use in onRequestError
+    // Ref: @sentry/nextjs 10.27.0 server/index.js:111 — SDK defaults environment to
+    // SENTRY_ENVIRONMENT || VERCEL_ENV || NODE_ENV. We override with a deployment-
+    // specific name derived from NEXT_PUBLIC_SITE_URL so Sentry issues distinguish
+    // alpha/dev/production deployments instead of showing a generic "production".
+    const { resolveSentryEnvironment } = await import("@/lib/sentry/resolve-environment");
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       release: releaseVersion,
+      environment: resolveSentryEnvironment(),
       // Next.js 16 cache components can throw `next-prerender-crypto` when
       // OpenTelemetry detectors call random UUID APIs during static route rendering.
       // Keep Sentry error reporting enabled while disabling OTel auto-setup.

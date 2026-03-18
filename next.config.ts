@@ -445,6 +445,10 @@ const nextConfig = {
      */
     localPatterns: [
       {
+        pathname: "/images/**",
+        // search omitted to allow cache-busters on local article images
+      },
+      {
         pathname: "/api/assets/**",
         // search omitted to allow cache-buster and context query params
       },

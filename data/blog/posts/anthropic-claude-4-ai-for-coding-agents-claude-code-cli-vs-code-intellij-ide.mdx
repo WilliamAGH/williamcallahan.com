@@ -97,14 +97,18 @@ GitHub reports that Claude Sonnet 4 "soars in agentic scenarios" and will serve 
 Claude Code also supports git worktrees, so you can run multiple Claude Code sessions in parallel across different branches of the same repository.
 
 <CollapseDropdown summary="Using Git Worktrees with Claude Code">
-  Git worktrees let you check out multiple branches of a repository simultaneously in different directories. With Claude Code, this enables:
+  <div>
+    Git worktrees let you check out multiple branches of a repository simultaneously in different
+    directories. With Claude Code, this enables:
+  </div>
+  <ul>
+    <li>Working on multiple features or bug fixes concurrently</li>
+    <li>Running separate Claude Code sessions for each worktree</li>
+    <li>Maintaining context isolation between different tasks</li>
+    <li>Comparing approaches across branches without context switching</li>
+  </ul>
 
-- Working on multiple features or bug fixes concurrently
-- Running separate Claude Code sessions for each worktree
-- Maintaining context isolation between different tasks
-- Comparing approaches across branches without context switching
-
-To set up a git worktree workflow with Claude Code:
+  <div>To set up a git worktree workflow with Claude Code:</div>
 
 ```bash
 # Create a new worktree for a feature branch

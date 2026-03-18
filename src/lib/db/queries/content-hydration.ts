@@ -1,12 +1,4 @@
-/**
- * Content Hydration: batch-fetch rich metadata for similarity results.
- *
- * Given lean ScoredCandidate[] from pgvector ANN search, fetches full
- * display data from each domain table in batched queries (one per domain).
- * Produces RelatedContentSuggestion[] ready for UI rendering.
- *
- * @module db/queries/content-hydration
- */
+/** Content Hydration: batch-fetch rich metadata for pgvector similarity results. */
 
 import { db } from "@/lib/db/connection";
 import { inArray, eq, and } from "drizzle-orm";
@@ -17,11 +9,14 @@ import { projects } from "@/lib/db/schema/projects";
 import { booksIndividual } from "@/lib/db/schema/books-individual";
 import { thoughts } from "@/lib/db/schema/thoughts";
 import { resolveImageUrl } from "@/lib/seo/url-utils";
-import { buildCdnUrl, getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
-import { normalizeDomain } from "@/lib/utils/domain-utils";
-import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
-import { getRuntimeLogoUrl } from "@/lib/data-access/logos";
-import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
+import {
+  buildCdnUrl,
+  getBlogPostImageCdnUrl,
+  getCdnConfigFromEnv,
+  isOurCdnUrl,
+} from "@/lib/utils/cdn-utils";
+import { resolveInvestmentLogo } from "./investment-logo-resolver";
+import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type {
   ScoredCandidate,
   HydrationEntry,
@@ -37,34 +32,6 @@ function extractTagNames(tags: Array<BookmarkTag | string> | null | undefined): 
   return tags.map((t) => (typeof t === "string" ? t : t.name)).filter(Boolean);
 }
 
-/** Resolve investment logo URL through manifest → runtime → placeholder chain. */
-async function resolveInvestmentLogo(row: {
-  logo: string | null;
-  logoOnlyDomain: string | null;
-  website: string | null;
-  name: string;
-}): Promise<string | undefined> {
-  if (row.logo) return resolveImageUrl(row.logo);
-
-  const effectiveDomain = row.logoOnlyDomain
-    ? normalizeDomain(row.logoOnlyDomain)
-    : row.website
-      ? normalizeDomain(row.website)
-      : normalizeDomain(row.name);
-
-  if (effectiveDomain) {
-    const manifest = await getLogoFromManifestAsync(effectiveDomain);
-    if (manifest?.cdnUrl) return resolveImageUrl(manifest.cdnUrl);
-
-    const runtime = getRuntimeLogoUrl(effectiveDomain, { company: row.name });
-    if (runtime) return resolveImageUrl(runtime);
-  }
-
-  return resolveImageUrl(getCompanyPlaceholder());
-}
-
-// ─── Per-domain batch fetchers ───────────────────────────────────────────────
-
 async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
   const ids = entries.map((e) => e.entityId);
   const rows = await db
@@ -77,6 +44,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       tags: bookmarks.tags,
       domain: bookmarks.domain,
       ogImage: bookmarks.ogImage,
+      content: bookmarks.content,
       dateBookmarked: bookmarks.dateBookmarked,
     })
     .from(bookmarks)
@@ -86,9 +54,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
   const cdnConfig = getCdnConfigFromEnv();
 
   return rows.map((r) => {
-    // Related-content cards should only trust persisted CDN OG URLs.
-    // External OG URLs are intentionally excluded to avoid nondeterministic/hallucinated previews.
-    // Asset IDs in bookmark.content remain the canonical fallback chain.
+    // Only trust CDN OG URLs; pass undefined for external to let selectBestImage use asset fallbacks.
     let trustedOgImage: string | undefined;
     if (r.ogImage && isOurCdnUrl(r.ogImage, cdnConfig)) {
       trustedOgImage = r.ogImage;
@@ -113,7 +79,12 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
         tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
         domain: r.domain ?? undefined,
         date: r.dateBookmarked ?? undefined,
-        imageUrl: resolveImageUrl(trustedOgImage),
+        imageUrl: resolveImageUrl(
+          selectBestImage(
+            { ogImage: trustedOgImage, content: r.content ?? undefined, id: r.id, url: r.url },
+            { includeImageAssets: false, includeScreenshots: true, preferScreenshots: true },
+          ) ?? undefined,
+        ),
       } satisfies RelatedContentMetadata,
     };
   });
@@ -136,12 +107,32 @@ async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedConte
     .where(and(inArray(blogPosts.id, ids), eq(blogPosts.draft, false)));
 
   const scoreMap = new Map(entries.map((e) => [e.entityId, e.score]));
+  const cdnConfig = getCdnConfigFromEnv();
 
   return rows.map((r) => {
+    let imageUrl: string | undefined;
+    if (typeof r.coverImage === "string") {
+      const cdnUrl = getBlogPostImageCdnUrl(r.coverImage);
+      if (cdnUrl) {
+        imageUrl = cdnUrl;
+      } else if (isOurCdnUrl(r.coverImage, cdnConfig)) {
+        imageUrl = r.coverImage;
+      } else if (r.coverImage.startsWith("/")) {
+        // Local path without manifest entry — data integrity gap, not a runtime fallback
+        console.warn(
+          `[content-hydration] Blog cover "${r.coverImage}" missing from CDN manifest for post ${r.id}. Run "bun scripts/sync-blog-cover-images.ts".`,
+        );
+        imageUrl = r.coverImage;
+      } else {
+        console.warn(
+          `[content-hydration] Ignoring non-CDN coverImage for blog post ${r.id}: ${r.coverImage}`,
+        );
+      }
+    }
     const metadata: RelatedContentMetadata = {
       tags: (r.tags as string[]) ?? [],
       date: r.publishedAt ?? undefined,
-      imageUrl: resolveImageUrl(r.coverImage ?? undefined),
+      imageUrl: resolveImageUrl(imageUrl),
       author: r.authorName ? { name: r.authorName } : undefined,
     };
     return {
@@ -303,8 +294,6 @@ async function hydrateThoughts(entries: HydrationEntry[]): Promise<RelatedConten
     };
   });
 }
-
-// ─── Public API ──────────────────────────────────────────────────────────────
 
 const DOMAIN_HYDRATORS: Record<
   ContentEmbeddingDomain,
