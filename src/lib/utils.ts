@@ -118,11 +118,11 @@ export function formatPercentage(value: number | undefined | null, decimalPlaces
 }
 
 /**
- * Formats a date string or Date object into a human-readable date in the "America/Los_Angeles" timezone
+ * Formats a date string or Date object into a human-readable date in UTC.
  *
  * @param dateString - The date string or Date object to format
  * @returns The formatted date string (e.g., "March 14, 2024"), or "Invalid Date" if invalid
- * @remark Date-only strings are interpreted as UTC midnight and may display as previous day in PT
+ * @remark Date-only strings (YYYY-MM-DD) are interpreted as UTC midnight and displayed in UTC.
  */
 export function formatDate(dateString: string | Date | undefined | number): string {
   if (typeof dateString !== "string" && !(dateString instanceof Date)) {
