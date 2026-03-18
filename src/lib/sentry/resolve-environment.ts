@@ -18,8 +18,7 @@
  * @module sentry/resolve-environment
  */
 
-const PRODUCTION_HOSTNAME = "williamcallahan.com";
-const SUBDOMAIN_PATTERN = /^([^.]+)\.williamcallahan\.com$/;
+import { PRODUCTION_HOSTNAME, SUBDOMAIN_PATTERN } from "@/lib/config/site-identity";
 
 export function resolveSentryEnvironment(): string {
   const rawNodeEnv = process.env.NODE_ENV?.trim();
