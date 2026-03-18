@@ -36,7 +36,11 @@ const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string
   if (!siteUrl) return rawUrl;
   try {
     if (new URL(siteUrl).hostname !== PRODUCTION_HOSTNAME) return rawUrl;
-  } catch {
+  } catch (error) {
+    console.warn(
+      `[db/connection] Invalid NEXT_PUBLIC_SITE_URL "${siteUrl}" during DATABASE_URL rewrite; skipping rewrite.`,
+      error instanceof Error ? error.message : String(error),
+    );
     return rawUrl;
   }
 
@@ -121,7 +125,15 @@ const resolveEnvironmentFromSiteUrl = (): { environment: string; source: string 
 
   const DEV_SUBDOMAIN_PREFIXES = ["alpha", "dev", "sandbox"];
   const subdomainMatch = parsed.hostname.match(/^([^.]+)\.williamcallahan\.com$/);
-  if (subdomainMatch?.[1] && DEV_SUBDOMAIN_PREFIXES.includes(subdomainMatch[1])) {
+  if (subdomainMatch?.[1]) {
+    if (DEV_SUBDOMAIN_PREFIXES.includes(subdomainMatch[1])) {
+      return { environment: "development", source: "NEXT_PUBLIC_SITE_URL" };
+    }
+    // Unknown subdomain of production host — treat as non-production to prevent
+    // accidental writes from new/unrecognized deployments (e.g. beta.williamcallahan.com).
+    console.warn(
+      `[db/connection] Unrecognized subdomain "${subdomainMatch[1]}.williamcallahan.com"; resolving as development.`,
+    );
     return { environment: "development", source: "NEXT_PUBLIC_SITE_URL" };
   }
 
