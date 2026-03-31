@@ -22,6 +22,11 @@ export const contentEngagement = pgTable(
   (table) => [
     index("idx_engagement_content").on(table.contentType, table.contentId),
     index("idx_engagement_scoring").on(table.contentType, table.eventType, table.createdAt),
+    index("idx_engagement_scoring_composite").on(
+      table.contentType,
+      table.createdAt,
+      table.contentId,
+    ),
     index("idx_engagement_visitor").on(table.visitorHash, table.createdAt),
   ],
 );
