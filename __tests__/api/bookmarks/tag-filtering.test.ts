@@ -2,7 +2,7 @@
  * Tests for bookmark API tag filtering functionality
  */
 
-import { GET } from "../../../src/app/api/bookmarks/route";
+import { GET } from "@/app/api/bookmarks/route";
 import {
   getBookmarks,
   getBookmarksByTag,
