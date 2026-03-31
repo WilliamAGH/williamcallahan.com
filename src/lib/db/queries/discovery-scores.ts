@@ -4,8 +4,11 @@ import { mapBookmarkSelectToUnifiedBookmark } from "@/lib/db/bookmark-record-map
 import { db } from "@/lib/db/connection";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
+import { lightweightBookmarkColumns } from "@/lib/db/queries/bookmarks";
+import type { BookmarkLightweightSelect } from "@/types/db/bookmarks";
 
 const MS_PER_DAY = 86_400_000;
+
 const NINETY_DAYS_MS = 90 * MS_PER_DAY;
 const DWELL_TARGET_MS = 120_000;
 const RECENCY_PRIMARY_WEIGHT = 0.82;
@@ -89,6 +92,7 @@ export function computeDiscoveryScore(input: {
 export async function getDiscoveryRankedBookmarks(
   page: number,
   limit: number,
+  options: { recencyDays?: number } = {},
 ): Promise<
   Array<{
     bookmark: ReturnType<typeof mapBookmarkSelectToUnifiedBookmark>;
@@ -102,6 +106,8 @@ export async function getDiscoveryRankedBookmarks(
   if (!Number.isInteger(limit) || limit < 1) {
     throw new Error(`limit must be a positive integer. Received: ${limit}`);
   }
+
+  const recencyDays = options.recencyDays;
 
   let engagementRows: Array<{
     contentId: string;
@@ -151,29 +157,36 @@ export async function getDiscoveryRankedBookmarks(
     }),
   );
 
-  const bookmarkRows = await db
-    .select({ bookmark: bookmarks })
-    .from(bookmarks)
-    .orderBy(desc(bookmarks.dateBookmarked));
+  const bookmarkQuery = db.select(lightweightBookmarkColumns).from(bookmarks);
+
+  if (recencyDays && recencyDays > 0) {
+    const cutoffDate = new Date(Date.now() - recencyDays * MS_PER_DAY).toISOString();
+    bookmarkQuery.where(gte(bookmarks.dateBookmarked, cutoffDate));
+  }
+
+  const bookmarkRows = (await bookmarkQuery.orderBy(
+    desc(bookmarks.dateBookmarked),
+  )) as BookmarkLightweightSelect[];
 
   const engagementCoverage =
     bookmarkRows.length === 0 ? 0 : engagementByBookmarkId.size / bookmarkRows.length;
 
   const ranked = bookmarkRows
     .map((row) => {
-      const engagementSignal = engagementByBookmarkId.get(row.bookmark.id) ?? null;
-      const baseRecencyScore = computeBaseRecencyScore(row.bookmark.dateBookmarked);
+      const engagementSignal = engagementByBookmarkId.get(row.id) ?? null;
+      const baseRecencyScore = computeBaseRecencyScore(row.dateBookmarked);
       const score = computeDiscoveryScore({
         baseRecencyScore,
         engagementSignal,
         engagementCoverage,
       });
       return {
-        bookmark: mapBookmarkSelectToUnifiedBookmark(row.bookmark),
+        bookmark: mapBookmarkSelectToUnifiedBookmark(row),
         discoveryScore: score,
         hasEngagement: engagementSignal !== null,
       };
     })
+
     .toSorted((a, b) => {
       if (b.discoveryScore !== a.discoveryScore) {
         return b.discoveryScore - a.discoveryScore;

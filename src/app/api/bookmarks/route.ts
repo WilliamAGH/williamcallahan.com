@@ -60,6 +60,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     ? 4
     : Math.min(12, Math.max(1, rawSectionsPerPage));
 
+  const rawRecencyDays = Number.parseInt(searchParams.get("recencyDays") || "0", 10);
+  const recencyDays = Number.isNaN(rawRecencyDays) ? 0 : Math.max(0, rawRecencyDays);
+
   try {
     const indexData = await getBookmarksIndex();
 
@@ -68,6 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const groupedDiscoverData = await getDiscoveryGroupedBookmarks({
           sectionPage,
           sectionsPerPage,
+          recencyDays,
         });
         return NextResponse.json(
           {
@@ -77,6 +81,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               view: "grouped",
               pagination: groupedDiscoverData.pagination,
               degraded: groupedDiscoverData.degradation,
+              recencyDays,
             },
           },
           { headers: CACHE_HEADERS },
@@ -84,7 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       // Discover ranking is a required feature - propagate errors explicitly [RC1]
-      const rankedBookmarks = await getDiscoveryRankedBookmarks(page, limit);
+      const rankedBookmarks = await getDiscoveryRankedBookmarks(page, limit, { recencyDays });
 
       const bookmarkData = rankedBookmarks.map((entry) => entry.bookmark);
       const slugMapping = await loadSlugMapping();
