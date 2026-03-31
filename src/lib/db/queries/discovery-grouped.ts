@@ -194,36 +194,14 @@ export async function getDiscoveryGroupedBookmarks(
       )
     : DEFAULT_SECTIONS_PER_PAGE;
 
-  const degradationReasons: string[] = [];
+  // Parallelize initial metadata and data fetches to eliminate waterfall
+  // Signals are required for the Discover feed - failure propagates to the caller [RC1]
+  const [engagementMap, taxonomyMaps, bookmarkRows] = await Promise.all([
+    loadEngagementMap(),
+    loadCanonicalTagMaps(),
+    db.select({ bookmark: bookmarks }).from(bookmarks).orderBy(desc(bookmarks.dateBookmarked)),
+  ]);
 
-  let engagementMap = new Map<string, number>();
-  try {
-    engagementMap = await loadEngagementMap();
-  } catch (error: unknown) {
-    degradationReasons.push(
-      "Engagement telemetry unavailable. Discover used recency-only scoring.",
-    );
-    console.warn(
-      "[DiscoverGrouped] Failed to load engagement events. Using recency-only fallback.",
-      error,
-    );
-  }
-
-  let taxonomyMaps: Awaited<ReturnType<typeof loadCanonicalTagMaps>> | null = null;
-  try {
-    taxonomyMaps = await loadCanonicalTagMaps();
-  } catch (error: unknown) {
-    degradationReasons.push("Tag taxonomy unavailable. Discover used inline bookmark tags.");
-    console.warn(
-      "[DiscoverGrouped] Failed to load tag taxonomy. Using inline tag fallback.",
-      error,
-    );
-  }
-
-  const bookmarkRows = await db
-    .select({ bookmark: bookmarks })
-    .from(bookmarks)
-    .orderBy(desc(bookmarks.dateBookmarked));
   const engagementCoverage =
     bookmarkRows.length === 0 ? 0 : engagementMap.size / bookmarkRows.length;
 
@@ -241,24 +219,26 @@ export async function getDiscoveryGroupedBookmarks(
     };
   });
 
-  let rankedSections = groupByPrimaryTag(scored, {
+  const rankedSections = groupByPrimaryTag(scored, {
     perSection: PER_SECTION,
     minPerSection: MIN_PER_SECTION,
   });
-  try {
-    rankedSections = await applySectionBlend(rankedSections);
-  } catch (error: unknown) {
-    degradationReasons.push(
-      "Embedding similarity boost unavailable. Discover used popularity-only tag ranking.",
-    );
-    console.warn("[DiscoverGrouped] Failed to apply embedding similarity section boost.", error);
-  }
 
   const recentBookmarks = filterRecentlyAdded(scored, { days: RECENT_DAYS, limit: RECENT_LIMIT });
   const dedupedDiscoverData = dedupeDiscoverSections(recentBookmarks, rankedSections);
   const totalSections = dedupedDiscoverData.rankedSections.length;
   const offset = (sectionPage - 1) * sectionsPerPage;
-  const pagedSections = dedupedDiscoverData.rankedSections.slice(offset, offset + sectionsPerPage);
+
+  // CRITICAL: Slicing sections BEFORE applying expensive similarity blend/scoring.
+  // This eliminates the vector search waterfall for pages that are not being rendered.
+  const pagedSectionsRaw = dedupedDiscoverData.rankedSections.slice(
+    offset,
+    offset + sectionsPerPage,
+  );
+
+  // applySectionBlend is now a mandatory part of the pipeline - no catch block [RC1]
+  const pagedSections = await applySectionBlend(pagedSectionsRaw);
+
   const hasNextSectionPage = offset + sectionsPerPage < totalSections;
 
   const internalHrefs: Record<string, string> = {};
@@ -285,8 +265,8 @@ export async function getDiscoveryGroupedBookmarks(
       nextSectionPage: hasNextSectionPage ? sectionPage + 1 : null,
     },
     degradation: {
-      isDegraded: degradationReasons.length > 0,
-      reasons: degradationReasons,
+      isDegraded: false,
+      reasons: [],
     },
   };
 }

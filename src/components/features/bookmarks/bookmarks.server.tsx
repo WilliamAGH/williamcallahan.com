@@ -12,10 +12,6 @@
 import "server-only"; // Ensure this component remains server-only
 
 // Defer heavy imports to reduce initial bundle size
-const getBookmarks = async () => {
-  const mod = await import("@/lib/bookmarks/service.server");
-  return mod.getBookmarks;
-};
 const getBookmarksPage = async () => {
   const mod = await import("@/lib/bookmarks/service.server");
   return mod.getBookmarksPage;
@@ -124,7 +120,7 @@ export async function BookmarksServer({
     totalPages = propsTotalPages || 1;
     totalCount = propsTotalCount || propsBookmarks.length;
     await assignInternalHrefs(bookmarks);
-  } else if (initialPage && initialPage > 1) {
+  } else if (initialPage && initialPage >= 1) {
     const getBookmarksPageFunc = await getBookmarksPage();
     const getBookmarksIndexFunc = await getBookmarksIndex();
     const [pageData, indexData] = await Promise.all([
@@ -139,12 +135,17 @@ export async function BookmarksServer({
     }
   } else {
     // Default to fetching all bookmarks for the main page or if no specific page is set
-    const allBookmarks = (await (await getBookmarks())({ includeImageData })) as UnifiedBookmark[];
-    if (Array.isArray(allBookmarks) && allBookmarks.length > 0) {
-      bookmarks = allBookmarks;
-      const index = await (await getBookmarksIndex())();
-      totalPages = index?.totalPages ?? 1;
-      totalCount = index?.count ?? 0;
+    // Fallback if initialPage is somehow missing but we need data
+    const getBookmarksPageFunc = await getBookmarksPage();
+    const getBookmarksIndexFunc = await getBookmarksIndex();
+    const [pageData, indexData] = await Promise.all([
+      getBookmarksPageFunc(1),
+      getBookmarksIndexFunc(),
+    ]);
+    bookmarks = pageData ?? [];
+    totalPages = indexData?.totalPages ?? 1;
+    totalCount = indexData?.count ?? 0;
+    if (bookmarks.length > 0) {
       await assignInternalHrefs(bookmarks);
     }
   }
