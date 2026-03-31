@@ -40,6 +40,7 @@ export default defineConfig({
       "server-only": resolve(rootDir, "__tests__/__mocks__/empty.ts"),
       "next/font/google": resolve(rootDir, "__tests__/__mocks__/next/font.ts"),
       "next/font/local": resolve(rootDir, "__tests__/__mocks__/next/font.ts"),
+      "@": resolve(rootDir, "src"),
     },
   },
   test: {
