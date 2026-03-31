@@ -120,29 +120,18 @@ describe("Bookmark feed modes", () => {
       "a3",
       "b1",
     ]);
-    expect(mockGetDiscoveryRankedBookmarks).toHaveBeenCalledWith(1, 4);
+    expect(mockGetDiscoveryRankedBookmarks).toHaveBeenCalledWith(1, 4, { recencyDays: 0 });
   });
 
-  it("falls back to latest ordering when discover ranking throws", async () => {
-    const latestBookmarks = [
-      createBookmark("fallback-newest", "2026-02-27T11:00:00.000Z"),
-      createBookmark("fallback-older", "2026-02-20T11:00:00.000Z"),
-    ];
-
+  it("returns 500 error when discover ranking fails (no silent fallbacks)", async () => {
     mockGetDiscoveryRankedBookmarks.mockRejectedValueOnce(new Error("relation missing"));
-    mockGetBookmarksPage.mockResolvedValue(latestBookmarks);
-    mockLoadSlugMapping.mockResolvedValue(createSlugMapping(latestBookmarks));
 
     const response = await GET(
       new Request("http://localhost/api/bookmarks?feed=discover&page=1&limit=20"),
     );
-    const payload = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(payload.meta.feed).toBe("latest");
-    expect(payload.data.map((bookmark: UnifiedBookmark) => bookmark.id)).toEqual([
-      "fallback-newest",
-      "fallback-older",
-    ]);
+    expect(response.status).toBe(500);
+    const payload = await response.json();
+    expect(payload.error).toBe("Failed to fetch bookmarks");
   });
 });

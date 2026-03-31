@@ -1,5 +1,5 @@
 import { GET } from "@/app/api/bookmarks/route";
-import { getBookmarks, getBookmarksIndex } from "@/lib/bookmarks/service.server";
+import { getBookmarks, getBookmarksIndex, getBookmarksPage } from "@/lib/bookmarks/service.server";
 // Import BOOKMARKS_PER_PAGE lazily within isolated module to avoid global cache interfering with env-config tests
 // Placeholder variable – will be set in beforeAll
 let BOOKMARKS_PER_PAGE: number;
@@ -15,6 +15,7 @@ import * as slugManagerModule from "@/lib/bookmarks/slug-manager";
 
 const mockGetBookmarks = vi.mocked(getBookmarks);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
+const mockGetBookmarksPage = vi.mocked(getBookmarksPage);
 const slugManager = vi.mocked(slugManagerModule);
 const loadSlugMapping = vi.mocked(slugManager.loadSlugMapping);
 
@@ -38,11 +39,12 @@ describe("Bookmark API – large limit behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetBookmarks.mockResolvedValue(mockBookmarks);
-    mockGetBookmarksIndex.mockResolvedValue({
+    mockGetBookmarksIndex.mockImplementation(async (limit) => ({
       count: mockBookmarks.length,
-      totalPages: Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE),
+      totalPages: Math.ceil(mockBookmarks.length / (limit || BOOKMARKS_PER_PAGE)),
       lastFetchedAt: Date.now(),
-    });
+    }));
+    mockGetBookmarksPage.mockResolvedValue(mockBookmarks);
 
     // Mock slug mapping for bookmarks with correct typing and reverse map
     const slugs: BookmarkSlugMapping["slugs"] = Object.fromEntries(
