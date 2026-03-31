@@ -4,6 +4,7 @@ import {
   getBookmarksIndex,
   getBookmarksPage,
   resolveBookmarkTagSlug,
+  getBookmarkById,
 } from "@/lib/bookmarks/service.server";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
@@ -12,6 +13,8 @@ import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 import { getMonotonicTime } from "@/lib/utils";
 import { getDiscoveryRankedBookmarks } from "@/lib/db/queries/discovery-scores";
 import { getDiscoveryGroupedBookmarks } from "@/lib/db/queries/discovery-grouped";
+import { findRelatedBookmarkIdsForSeeds } from "@/lib/db/queries/embedding-similarity";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
 
@@ -135,13 +138,37 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         totalPages,
       } = await getBookmarksByTag(canonicalTagSlug, page);
 
+      let finalBookmarks: UnifiedBookmark[] = [...tagBookmarks];
+      let relatedCount = 0;
+
+      if (page === 1 && tagBookmarks.length < limit) {
+        try {
+          const relatedIds = await findRelatedBookmarkIdsForSeeds({
+            seedBookmarkIds: tagBookmarks.slice(0, 3).map((bookmark) => bookmark.id),
+            excludeIds: tagBookmarks.map((bookmark) => bookmark.id),
+            limit: limit - tagBookmarks.length,
+          });
+
+          if (relatedIds.length > 0) {
+            const relatedBookmarks = await Promise.all(relatedIds.map((id) => getBookmarkById(id)));
+            const validRelated = relatedBookmarks.filter(
+              (b): b is UnifiedBookmark => b !== null && !("isLightweight" in b),
+            );
+            finalBookmarks = [...tagBookmarks, ...validRelated];
+            relatedCount = validRelated.length;
+          }
+        } catch (error) {
+          console.warn("[API Bookmarks] Semantic expansion unavailable for tag filter.", error);
+        }
+      }
+
       const slugMapping = await loadSlugMapping();
-      const internalHrefs = buildInternalHrefs(tagBookmarks, slugMapping);
+      const internalHrefs = buildInternalHrefs(finalBookmarks, slugMapping);
       const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 
       return NextResponse.json(
         {
-          data: tagBookmarks,
+          data: finalBookmarks,
           internalHrefs,
           meta: {
             pagination: {
@@ -156,7 +183,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             filter: {
               tag: tagFilter,
               resolvedTag: resolved.canonicalTagName,
-              mode: "exact",
+              exactCount: tagBookmarks.length,
+              relatedCount,
+              mode: relatedCount > 0 ? "exact_plus_related" : "exact",
             },
             dataVersion: lastFetchedAt,
             lastRefreshed: new Date(lastFetchedAt).toISOString(),
