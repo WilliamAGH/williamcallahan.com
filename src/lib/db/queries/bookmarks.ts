@@ -14,10 +14,11 @@ import {
 } from "@/lib/db/schema/bookmark-taxonomy";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import type {
+import {
   BookmarkFtsSearchPageResult,
   BookmarkSelect,
   BookmarkTagResolution,
+  BookmarkLightweightSelect,
 } from "@/types/db/bookmarks";
 import type { BookmarksIndex, UnifiedBookmark } from "@/types/schemas/bookmark";
 
@@ -135,6 +136,43 @@ async function resolveCanonicalTagSlugInternal(tagSlug: string): Promise<Bookmar
   };
 }
 
+/**
+ * Essential columns for list views and ranking.
+ * Excludes heavy fields: scrapedContentText, searchVector, assets.
+ * Content is included as it contains screenshotAssetId needed for fallback rendering.
+ */
+export const lightweightBookmarkColumns = {
+  id: bookmarks.id,
+  slug: bookmarks.slug,
+  url: bookmarks.url,
+  title: bookmarks.title,
+  description: bookmarks.description,
+  note: bookmarks.note,
+  summary: bookmarks.summary,
+  tags: bookmarks.tags,
+  content: bookmarks.content,
+  logoData: bookmarks.logoData,
+  ogImage: bookmarks.ogImage,
+  ogTitle: bookmarks.ogTitle,
+  ogDescription: bookmarks.ogDescription,
+  ogUrl: bookmarks.ogUrl,
+  ogImageExternal: bookmarks.ogImageExternal,
+  ogImageLastFetchedAt: bookmarks.ogImageLastFetchedAt,
+  ogImageEtag: bookmarks.ogImageEtag,
+  readingTime: bookmarks.readingTime,
+  wordCount: bookmarks.wordCount,
+  taggingStatus: bookmarks.taggingStatus,
+  domain: bookmarks.domain,
+  dateBookmarked: bookmarks.dateBookmarked,
+  datePublished: bookmarks.datePublished,
+  dateCreated: bookmarks.dateCreated,
+  modifiedAt: bookmarks.modifiedAt,
+  sourceUpdatedAt: bookmarks.sourceUpdatedAt,
+  archived: bookmarks.archived,
+  isPrivate: bookmarks.isPrivate,
+  isFavorite: bookmarks.isFavorite,
+} as const;
+
 export async function resolveCanonicalTagSlug(tagSlug: string): Promise<BookmarkTagResolution> {
   return resolveCanonicalTagSlugInternal(tagSlug);
 }
@@ -215,12 +253,12 @@ export async function getBookmarksPage(
   assertPositiveInteger(pageSize, "pageSize");
 
   const offset = (pageNumber - 1) * pageSize;
-  const rows = await db
-    .select()
+  const rows = (await db
+    .select(lightweightBookmarkColumns)
     .from(bookmarks)
     .orderBy(desc(bookmarks.dateBookmarked), desc(bookmarks.id))
     .limit(pageSize)
-    .offset(offset);
+    .offset(offset)) as BookmarkLightweightSelect[];
   return mapBookmarkSelectsToUnifiedBookmarks(rows);
 }
 
@@ -238,16 +276,16 @@ export async function getBookmarksPageByTag(
   }
 
   const offset = (pageNumber - 1) * pageSize;
-  const rows = await db
-    .select({ bookmark: bookmarks })
+  const rows = (await db
+    .select(lightweightBookmarkColumns)
     .from(bookmarkTagLinks)
     .innerJoin(bookmarks, eq(bookmarkTagLinks.bookmarkId, bookmarks.id))
     .where(eq(bookmarkTagLinks.tagSlug, resolution.canonicalSlug))
     .orderBy(desc(bookmarkTagLinks.dateBookmarked), desc(bookmarkTagLinks.bookmarkId))
     .limit(pageSize)
-    .offset(offset);
+    .offset(offset)) as BookmarkLightweightSelect[];
 
-  return mapBookmarkSelectsToUnifiedBookmarks(rows.map((row) => row.bookmark));
+  return mapBookmarkSelectsToUnifiedBookmarks(rows);
 }
 
 export async function getBookmarksCount(): Promise<number> {
