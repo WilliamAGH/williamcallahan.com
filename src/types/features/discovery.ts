@@ -96,6 +96,12 @@ export type DiscoverFeedProps = {
   data: DiscoverFeedContent;
 };
 
+export type DiscoverFeedWrapperProps = {
+  sectionPage: number;
+  sectionsPerPage: number;
+  recencyDays?: number;
+};
+
 export type TopicSectionProps = {
   id: string;
   tagSlug: string;

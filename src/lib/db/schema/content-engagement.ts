@@ -22,11 +22,11 @@ export const contentEngagement = pgTable(
   (table) => [
     index("idx_engagement_content").on(table.contentType, table.contentId),
     index("idx_engagement_scoring").on(table.contentType, table.eventType, table.createdAt),
-    index("idx_engagement_scoring_composite").on(
-      table.contentType,
-      table.createdAt,
-      table.contentId,
-    ),
+    // Covering index for Index Only Scans (see drizzle/0023_engagement-covering-index.sql)
+    // INCLUDE clause adds non-key columns for index-only scans without bloating the index key
+    index("idx_engagement_covering")
+      .on(table.contentType, table.createdAt, table.contentId)
+      .include(table.eventType, table.durationMs),
     index("idx_engagement_visitor").on(table.visitorHash, table.createdAt),
   ],
 );
