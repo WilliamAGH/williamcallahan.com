@@ -1,4 +1,3 @@
-import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import {
   getBookmarksByTag,
   getBookmarksIndex,
