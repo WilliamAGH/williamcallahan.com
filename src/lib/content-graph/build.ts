@@ -124,7 +124,7 @@ export async function buildContentGraph(
   try {
     const { db } = await import("@/lib/db/connection");
     const { sql } = await import("drizzle-orm");
-    const { getAllPosts } = await import("@/lib/blog");
+    const { getAllPostsMeta } = await import("@/lib/blog");
     const { projects } = await import("@/data/projects");
     const bookmarkQualityRows = await db.execute<{
       id: string;
@@ -251,7 +251,7 @@ export async function buildContentGraph(
       `[ContentGraph] Computed ${Object.keys(relatedContentMappings).length} related content mappings`,
     );
 
-    const blogPosts = await getAllPosts();
+    const blogPosts = await getAllPostsMeta();
     const metadata = {
       version: "2.0.0",
       generated: new Date().toISOString(),

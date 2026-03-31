@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
 import { Blog } from "@/components/features/blog/blog.client";
 import { BlogListServer } from "@/components/features/blog/blog-list/blog-list.server";
-import { getAllPosts } from "@/lib/blog";
+import { getAllPostsMeta } from "@/lib/blog";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -36,7 +36,7 @@ export default async function BlogPage() {
 
   let posts: BlogPost[] = [];
   try {
-    posts = await getAllPosts();
+    posts = await getAllPostsMeta();
   } catch (error) {
     console.error("Failed to fetch blog posts:", error);
     // Could also set an error state to display to the user

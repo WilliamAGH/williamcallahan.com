@@ -12,7 +12,7 @@ import {
   formatTagDisplay,
 } from "@/lib/seo/dynamic-metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
-import { getAllPosts, getAllTags } from "@/lib/blog";
+import { getAllPostsMeta, getAllTags } from "@/lib/blog";
 import type { Metadata } from "next";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
@@ -103,7 +103,7 @@ export default async function TagPage({
   if (tagSlug === BLOG_TAG_STATIC_PARAM_PLACEHOLDER) {
     notFound();
   }
-  const allPosts = await getAllPosts();
+  const allPosts = await getAllPostsMeta();
 
   const filteredPosts = allPosts.filter((post) =>
     post.tags.some((tag) => kebabCase(tag) === tagSlug),
