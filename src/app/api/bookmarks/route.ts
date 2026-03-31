@@ -67,7 +67,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const recencyDays = Number.isNaN(rawRecencyDays) ? 0 : Math.max(0, rawRecencyDays);
 
   try {
-    const indexData = await getBookmarksIndex();
+    const indexData = await getBookmarksIndex(limit);
 
     if (feedMode === "discover" && !tagFilter) {
       if (discoverView === "grouped") {
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const slugMapping = await loadSlugMapping();
       const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
       const total = indexData?.count ?? bookmarkData.length;
-      const totalPages = Math.ceil(total / limit);
+      const totalPages = indexData?.totalPages ?? Math.ceil(total / limit);
       const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 
       return NextResponse.json(
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         bookmarks: tagBookmarks,
         totalCount: total,
         totalPages,
-      } = await getBookmarksByTag(canonicalTagSlug, page);
+      } = await getBookmarksByTag(canonicalTagSlug, page, limit);
 
       let finalBookmarks: UnifiedBookmark[] = [...tagBookmarks];
       let relatedCount = 0;
@@ -173,7 +173,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           meta: {
             pagination: {
               page,
-              limit: BOOKMARKS_PER_PAGE,
+              limit,
               total,
               totalPages,
               hasNext: page < totalPages,
@@ -206,7 +206,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       lastFetchedAt: getMonotonicTime(),
     };
 
-    const paginatedBookmarks = await getBookmarksPage(page);
+    const paginatedBookmarks = await getBookmarksPage(page, limit);
     const slugMapping = await loadSlugMapping();
     const internalHrefs = buildInternalHrefs(paginatedBookmarks, slugMapping);
 

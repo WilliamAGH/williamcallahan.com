@@ -69,38 +69,46 @@ export async function refreshBookmarks(force = false): Promise<UnifiedBookmark[]
 /**
  * Get bookmarks by tag with transparent caching
  */
-export async function getBookmarksByTag(tagSlug: string, pageNumber: number = 1) {
+export async function getBookmarksByTag(
+  tagSlug: string,
+  pageNumber: number = 1,
+  pageSize?: number,
+) {
   initializeBookmarksDataAccess();
-  return getBookmarksByTagInternal(tagSlug, pageNumber);
+  return getBookmarksByTagInternal(tagSlug, pageNumber, pageSize);
 }
 
 /**
  * Get a single page of bookmarks from cache or PostgreSQL
  */
-export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
+export async function getBookmarksPage(
+  pageNumber: number,
+  pageSize?: number,
+): Promise<UnifiedBookmark[]> {
   initializeBookmarksDataAccess();
-  return getBookmarksPageInternal(pageNumber);
+  return getBookmarksPageInternal(pageNumber, pageSize);
 }
 
 /**
  * Get the main bookmarks index from cache or PostgreSQL
  */
-export async function getBookmarksIndex() {
+export async function getBookmarksIndex(pageSize?: number) {
   initializeBookmarksDataAccess();
-  return getBookmarksIndexInternal();
+  return getBookmarksIndexInternal(pageSize);
 }
 
-export async function getTagBookmarksIndex(tagSlug: string) {
+export async function getTagBookmarksIndex(tagSlug: string, pageSize?: number) {
   initializeBookmarksDataAccess();
-  return getTagBookmarksIndexInternal(tagSlug);
+  return getTagBookmarksIndexInternal(tagSlug, pageSize);
 }
 
 export async function getTagBookmarksPage(
   tagSlug: string,
   pageNumber: number,
+  pageSize?: number,
 ): Promise<UnifiedBookmark[]> {
   initializeBookmarksDataAccess();
-  return getTagBookmarksPageInternal(tagSlug, pageNumber);
+  return getTagBookmarksPageInternal(tagSlug, pageNumber, pageSize);
 }
 
 export async function listBookmarkTagSlugs(): Promise<string[]> {
