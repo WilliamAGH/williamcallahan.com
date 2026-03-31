@@ -10,16 +10,18 @@
  */
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
-import { DiscoverFeed } from "@/components/features/bookmarks/discover-feed.client";
+import {
+  DiscoverFeedWrapper,
+  DiscoverFeedSkeleton,
+} from "@/components/features/bookmarks/discover-feed-wrapper.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
-import { getDiscoveryGroupedBookmarks } from "@/lib/db/queries/discovery-grouped";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-import type { DiscoverFeedContent } from "@/types/features/discovery";
 
 const INITIAL_DISCOVER_SECTIONS_PER_PAGE = 2;
 
@@ -72,38 +74,16 @@ export default async function BookmarksPage({
   const jsonLdData = generateSchemaGraph(schemaParams);
 
   if (feedMode === "discover" && !hasTagFilter) {
-    let discoverData: DiscoverFeedContent;
-    try {
-      discoverData = await getDiscoveryGroupedBookmarks({
-        sectionPage: 1,
-        sectionsPerPage: INITIAL_DISCOVER_SECTIONS_PER_PAGE,
-      });
-    } catch (error) {
-      console.error(
-        "[BookmarksPage] Discover feed failed. Rendering explicit degraded mode.",
-        error,
-      );
-      discoverData = {
-        recentlyAdded: [],
-        topicSections: [],
-        internalHrefs: {},
-        pagination: {
-          sectionPage: 1,
-          sectionsPerPage: 4,
-          totalSections: 0,
-          hasNextSectionPage: false,
-          nextSectionPage: null,
-        },
-        degradation: {
-          isDegraded: true,
-          reasons: ["Discover feed is temporarily unavailable. Please retry or use latest feed."],
-        },
-      };
-    }
     return (
       <>
         <JsonLdScript data={jsonLdData} />
-        <DiscoverFeed data={discoverData} />
+        <Suspense fallback={<DiscoverFeedSkeleton />}>
+          <DiscoverFeedWrapper
+            sectionPage={1}
+            sectionsPerPage={INITIAL_DISCOVER_SECTIONS_PER_PAGE}
+            recencyDays={90}
+          />
+        </Suspense>
       </>
     );
   }
