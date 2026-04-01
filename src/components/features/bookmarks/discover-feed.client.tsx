@@ -255,7 +255,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   return (
     <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4">
       <nav
-        className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border -mx-4 px-4 py-2 mb-8"
+        className="sticky top-0 z-30 bg-background/95 border-b border-border -mx-4 px-4 py-2 mb-8"
         aria-label="Topic navigation"
       >
         <div className="flex items-center gap-3 mb-1.5">

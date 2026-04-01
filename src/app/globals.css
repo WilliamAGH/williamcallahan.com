@@ -81,10 +81,9 @@
   }
 }
 
-/* Smooth scrolling */
+/* Scroll padding for anchor links under the sticky header */
 html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 100px; /* Accounts for fixed header */
+  scroll-padding-top: 100px;
 }
 
 /* Terminal text selection */

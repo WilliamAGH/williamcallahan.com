@@ -80,7 +80,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   if (isCompact) {
     const COMPACT_TAG_LIMIT = 3;
     return (
-      <div className="relative flex h-[23rem] flex-col overflow-hidden rounded-2xl bg-white/50 shadow-xl ring-0 backdrop-blur-lg transition-all duration-200 hover:scale-[1.005] hover:shadow-2xl dark:bg-gray-800/50">
+      <div className="relative flex h-[23rem] flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-0 transition-[box-shadow,transform] duration-200 hover:scale-[1.005] hover:shadow-2xl dark:bg-gray-800">
         <div className="relative w-full aspect-video overflow-hidden rounded-t-2xl bg-gray-100 dark:bg-gray-800">
           {effectiveInternalHref ? (
             <Link
@@ -175,7 +175,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
   return (
     <div
-      className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200 hover:scale-[1.005] ${
+      className={`relative flex flex-col bg-white dark:bg-gray-800 ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-[box-shadow,transform] duration-200 hover:scale-[1.005] ${
         isHero ? "md:shadow-2xl" : ""
       }`}
     >
