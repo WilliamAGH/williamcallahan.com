@@ -1,12 +1,10 @@
-import { BOOKMARKS_PER_PAGE, DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import {
-  getBookmarks,
+  getBookmarksByTag,
   getBookmarksIndex,
   getBookmarksPage,
   resolveBookmarkTagSlug,
+  getBookmarkById,
 } from "@/lib/bookmarks/service.server";
-import { findRelatedBookmarkIdsForSeeds } from "@/lib/db/queries/embedding-similarity";
-import { tagToSlug } from "@/lib/utils/tag-utils";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
@@ -14,6 +12,8 @@ import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 import { getMonotonicTime } from "@/lib/utils";
 import { getDiscoveryRankedBookmarks } from "@/lib/db/queries/discovery-scores";
 import { getDiscoveryGroupedBookmarks } from "@/lib/db/queries/discovery-grouped";
+import { findRelatedBookmarkIdsForSeeds } from "@/lib/db/queries/embedding-similarity";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
 
@@ -41,41 +41,6 @@ function buildInternalHrefs(
   return res;
 }
 
-function extractTagNames(rawTags: unknown): string[] {
-  if (!Array.isArray(rawTags)) {
-    return [];
-  }
-
-  const tags: string[] = [];
-  for (const rawTag of rawTags) {
-    if (typeof rawTag === "string") {
-      const trimmed = rawTag.trim();
-      if (trimmed.length > 0) {
-        tags.push(trimmed);
-      }
-      continue;
-    }
-    if (typeof rawTag !== "object" || rawTag === null) {
-      continue;
-    }
-
-    const candidateName = Reflect.get(rawTag, "name");
-    if (typeof candidateName !== "string") {
-      continue;
-    }
-    const trimmed = candidateName.trim();
-    if (trimmed.length > 0) {
-      tags.push(trimmed);
-    }
-  }
-  return tags;
-}
-
-function bookmarkHasTagSlug(bookmark: { tags?: unknown }, normalizedTagSlug: string): boolean {
-  const tags = extractTagNames(bookmark.tags);
-  return tags.some((tag) => tagToSlug(tag).toLowerCase() === normalizedTagSlug);
-}
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   preventCaching();
 
@@ -97,15 +62,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     ? 4
     : Math.min(12, Math.max(1, rawSectionsPerPage));
 
+  const rawRecencyDays = Number.parseInt(searchParams.get("recencyDays") || "0", 10);
+  const recencyDays = Number.isNaN(rawRecencyDays) ? 0 : Math.max(0, rawRecencyDays);
+
   try {
-    const indexData = await getBookmarksIndex();
-    const discoverDegradationReasons: string[] = [];
+    const indexData = await getBookmarksIndex(limit);
 
     if (feedMode === "discover" && !tagFilter) {
       if (discoverView === "grouped") {
         const groupedDiscoverData = await getDiscoveryGroupedBookmarks({
           sectionPage,
           sectionsPerPage,
+          recencyDays,
         });
         return NextResponse.json(
           {
@@ -115,153 +83,126 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               view: "grouped",
               pagination: groupedDiscoverData.pagination,
               degraded: groupedDiscoverData.degradation,
+              recencyDays,
             },
           },
           { headers: CACHE_HEADERS },
         );
       }
 
-      let rankedBookmarks: Awaited<ReturnType<typeof getDiscoveryRankedBookmarks>> = [];
-      try {
-        rankedBookmarks = await getDiscoveryRankedBookmarks(page, limit);
-      } catch (error) {
-        discoverDegradationReasons.push(
-          "Discovery ranking unavailable. Falling back to latest ordering.",
-        );
-        console.warn(
-          "[API Bookmarks] Discover ranking unavailable. Falling back to latest order.",
-          error,
-        );
-      }
-
-      if (rankedBookmarks.length > 0) {
-        const bookmarkData = rankedBookmarks.map((entry) => entry.bookmark);
-        const slugMapping = await loadSlugMapping();
-        const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
-        const total = indexData?.count ?? bookmarkData.length;
-        const totalPages = Math.ceil(total / limit);
-        const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
-
-        return NextResponse.json(
-          {
-            data: bookmarkData,
-            internalHrefs,
-            meta: {
-              pagination: {
-                page,
-                limit,
-                total,
-                totalPages,
-                hasNext: page < totalPages,
-                hasPrev: page > 1,
-              },
-              feed: "discover",
-              degraded: {
-                isDegraded: discoverDegradationReasons.length > 0,
-                reasons: discoverDegradationReasons,
-              },
-              dataVersion: lastFetchedAt,
-              lastRefreshed: new Date(lastFetchedAt).toISOString(),
-            },
-          },
-          { headers: CACHE_HEADERS },
-        );
-      }
-
-      console.warn(
-        "[API Bookmarks] Discover feed requested, but no ranked rows were available. Falling back to latest order.",
+      // Discover ranking is a required feature - propagate errors explicitly [RC1]
+      const { items: rankedBookmarks, totalCount: rankedTotal } = await getDiscoveryRankedBookmarks(
+        page,
+        limit,
+        { recencyDays },
       );
-      discoverDegradationReasons.push(
-        "Discover ranking returned no rows. Falling back to latest ordering.",
+
+      const bookmarkData = rankedBookmarks.map((entry) => entry.bookmark);
+      const slugMapping = await loadSlugMapping();
+      const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
+      const total = recencyDays > 0 ? rankedTotal : (indexData?.count ?? rankedTotal);
+      const totalPages = Math.ceil(total / limit);
+      const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
+
+      return NextResponse.json(
+        {
+          data: bookmarkData,
+          internalHrefs,
+          meta: {
+            pagination: {
+              page,
+              limit,
+              total,
+              totalPages,
+              hasNext: page < totalPages,
+              hasPrev: page > 1,
+            },
+            feed: "discover",
+            degraded: {
+              isDegraded: false,
+              reasons: [],
+            },
+            dataVersion: lastFetchedAt,
+            lastRefreshed: new Date(lastFetchedAt).toISOString(),
+          },
+        },
+        { headers: CACHE_HEADERS },
       );
     }
 
-    if (!tagFilter && page > 0 && limit <= BOOKMARKS_PER_PAGE) {
-      if (indexData) {
-        const { totalPages, count: total, lastFetchedAt = getMonotonicTime() } = indexData;
+    if (tagFilter) {
+      const normalizedTagFilter = tagFilter.trim();
+      const resolved = await resolveBookmarkTagSlug(normalizedTagFilter);
+      const canonicalTagSlug = resolved.canonicalSlug;
 
-        if (page <= totalPages) {
-          const paginatedBookmarks = await getBookmarksPage(page);
+      const { bookmarks: tagBookmarks, totalCount: total } = await getBookmarksByTag(
+        canonicalTagSlug,
+        page,
+        limit,
+      );
+      const totalPages = Math.ceil(total / limit);
 
-          const slugMapping = await loadSlugMapping();
-          const internalHrefs = buildInternalHrefs(paginatedBookmarks, slugMapping);
+      let finalBookmarks: UnifiedBookmark[] = [...tagBookmarks];
+      let relatedCount = 0;
 
-          return NextResponse.json(
-            {
-              data: paginatedBookmarks,
-              internalHrefs,
-              meta: {
-                pagination: {
-                  page,
-                  limit,
-                  total,
-                  totalPages,
-                  hasNext: page < totalPages,
-                  hasPrev: page > 1,
-                },
-                feed: "latest",
-                dataVersion: lastFetchedAt,
-                lastRefreshed: new Date(lastFetchedAt).toISOString(),
-              },
-            },
-            { headers: CACHE_HEADERS },
-          );
+      if (page === 1 && tagBookmarks.length < limit) {
+        try {
+          const relatedIds = await findRelatedBookmarkIdsForSeeds({
+            seedBookmarkIds: tagBookmarks.slice(0, 3).map((bookmark) => bookmark.id),
+            excludeIds: tagBookmarks.map((bookmark) => bookmark.id),
+            limit: limit - tagBookmarks.length,
+          });
+
+          if (relatedIds.length > 0) {
+            const relatedBookmarks = await Promise.all(relatedIds.map((id) => getBookmarkById(id)));
+            const validRelated = relatedBookmarks.filter((b): b is UnifiedBookmark => b !== null);
+            finalBookmarks = [...tagBookmarks, ...validRelated];
+            relatedCount = validRelated.length;
+          }
+        } catch (error) {
+          console.warn("[API Bookmarks] Semantic expansion unavailable for tag filter.", error);
         }
       }
-    }
 
-    const allBookmarks = await getBookmarks({
-      ...DEFAULT_BOOKMARK_OPTIONS,
-      includeImageData: true,
-      skipExternalFetch: false,
-      force: false,
-    });
-    const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
+      const slugMapping = await loadSlugMapping();
+      const internalHrefs = buildInternalHrefs(finalBookmarks, slugMapping);
+      const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 
-    let filteredBookmarks: typeof allBookmarks = allBookmarks;
-
-    const normalizedTagFilter = tagFilter ? decodeURIComponent(tagFilter).trim() : null;
-    const resolvedTagFilter = normalizedTagFilter
-      ? await resolveBookmarkTagSlug(normalizedTagFilter)
-      : null;
-    const normalizedTagFilterSlug = resolvedTagFilter?.canonicalSlug?.trim() || null;
-    if (normalizedTagFilterSlug) {
-      filteredBookmarks = filteredBookmarks.filter((bookmark) =>
-        bookmarkHasTagSlug(bookmark, normalizedTagFilterSlug),
+      return NextResponse.json(
+        {
+          data: finalBookmarks,
+          internalHrefs,
+          meta: {
+            pagination: {
+              page,
+              limit,
+              total,
+              totalPages,
+              hasNext: page < totalPages,
+              hasPrev: page > 1,
+            },
+            feed: "latest",
+            filter: {
+              tag: tagFilter,
+              resolvedTag: resolved.canonicalTagName,
+              exactCount: tagBookmarks.length,
+              relatedCount,
+              mode: relatedCount > 0 ? "exact_plus_related" : "exact",
+            },
+            dataVersion: lastFetchedAt,
+            lastRefreshed: new Date(lastFetchedAt).toISOString(),
+          },
+        },
+        { headers: CACHE_HEADERS },
       );
     }
 
-    const offset = (page - 1) * limit;
-    const exactPageBookmarks = filteredBookmarks.slice(offset, offset + limit);
-    let relatedBookmarks: typeof allBookmarks = [];
+    // Default latest feed path
+    const total = indexData?.count ?? 0;
+    const totalPages = Math.ceil(total / limit);
+    const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 
-    if (tagFilter && page === 1 && exactPageBookmarks.length < limit) {
-      try {
-        const relatedIds = await findRelatedBookmarkIdsForSeeds({
-          seedBookmarkIds: filteredBookmarks.slice(0, 3).map((bookmark) => bookmark.id),
-          excludeIds: filteredBookmarks.map((bookmark) => bookmark.id),
-          limit: limit - exactPageBookmarks.length,
-        });
-        const bookmarkById = new Map<string, (typeof allBookmarks)[number]>(
-          allBookmarks.map((bookmark) => [bookmark.id, bookmark] as const),
-        );
-        relatedBookmarks = relatedIds
-          .map((id) => bookmarkById.get(id))
-          .filter((bookmark): bookmark is (typeof allBookmarks)[number] => Boolean(bookmark));
-      } catch (error) {
-        void error;
-        console.warn(
-          "[API Bookmarks] Semantic expansion unavailable; returning exact matches only.",
-        );
-      }
-    }
-
-    const paginatedBookmarks = [
-      ...exactPageBookmarks,
-      ...relatedBookmarks.slice(0, Math.max(0, limit - exactPageBookmarks.length)),
-    ];
-    const totalPages = Math.ceil(filteredBookmarks.length / limit);
-
+    const paginatedBookmarks = await getBookmarksPage(page, limit);
     const slugMapping = await loadSlugMapping();
     const internalHrefs = buildInternalHrefs(paginatedBookmarks, slugMapping);
 
@@ -271,22 +212,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         internalHrefs,
         meta: {
           pagination: {
-            limit,
             page,
-            total: filteredBookmarks.length,
+            limit,
+            total,
             totalPages,
             hasNext: page < totalPages,
             hasPrev: page > 1,
           },
           feed: "latest",
-          filter: tagFilter
-            ? {
-                tag: tagFilter,
-                exactCount: filteredBookmarks.length,
-                relatedCount: relatedBookmarks.length,
-                mode: "exact_plus_related",
-              }
-            : undefined,
           dataVersion: lastFetchedAt,
           lastRefreshed: new Date(lastFetchedAt).toISOString(),
         },
@@ -296,10 +229,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     console.error("[API Bookmarks] Failed to fetch bookmarks:", errorMessage);
-    const payload: { error: string; details?: string } = { error: "Failed to fetch bookmarks" };
-    if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
-      payload.details = errorMessage;
-    }
-    return NextResponse.json(payload, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch bookmarks" }, { status: 500 });
   }
 }

@@ -125,6 +125,11 @@ ENV SENTRY_LOG_LEVEL=info
 # Disable Next.js "use cache" during build to prevent prerender timeouts
 # The cache directive has strict timeouts that cause failures during SSG
 ENV USE_NEXTJS_CACHE=false
+# Prevent V8 OOM during SSG — default ~4GB is insufficient when generating
+# 200+ pages with MDX compilation and Sharp blur placeholders
+ENV NODE_OPTIONS="--max-old-space-size=8192"
+# Serialize static page generation to reduce peak memory and DB pool contention
+ENV STATIC_GEN_CONCURRENCY=1
 
 # 3. Accept and propagate public env vars for Next.js build (changes occasionally)
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID

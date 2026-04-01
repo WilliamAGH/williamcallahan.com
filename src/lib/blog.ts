@@ -422,7 +422,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
  */
 export async function getAllTags(): Promise<string[]> {
   try {
-    const posts = await getAllPosts();
+    const posts = await getAllPostsMeta();
 
     // Filter out posts with no tags and flatten the array
     const allTags = posts

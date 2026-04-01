@@ -4,6 +4,15 @@ import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 export type BookmarkSelect = typeof bookmarks.$inferSelect;
 export type BookmarkInsert = typeof bookmarks.$inferInsert;
 
+/** Subset of BookmarkSelect for optimized list views. Excludes heavy fields. */
+export type BookmarkLightweightSelect = Omit<
+  BookmarkSelect,
+  "scrapedContentText" | "searchVector" | "assets"
+>;
+
+/** Union type for bookmark records in various stages of data completeness. */
+export type BookmarkRef = BookmarkSelect | BookmarkLightweightSelect;
+
 export type BookmarkFtsSearchHit = {
   bookmark: UnifiedBookmark;
   score: number;

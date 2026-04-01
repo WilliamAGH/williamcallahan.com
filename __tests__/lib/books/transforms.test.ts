@@ -124,37 +124,41 @@ describe("Book Transforms", () => {
   });
 
   describe("Cover URL generation", () => {
-    it("builds proxied cover URL through local API", () => {
+    it("builds key-free cover URL through book cover proxy", () => {
       const item = makeAbsItem({ id: "book-123" });
       const book = absItemToBook(item, BASE_OPTIONS);
-      // Cover URLs route through our local /api/cache/images proxy
-      // to avoid Next.js Image Optimization remote pattern issues
-      const expectedDirectUrl = "https://abs.example.com/api/items/book-123/cover?token=test-key";
-      expect(book.coverUrl).toBe(`/api/cache/images?url=${encodeURIComponent(expectedDirectUrl)}`);
+      // Cover URLs use /api/books/cover/[id] which injects credentials server-side
+      expect(book.coverUrl).toBe("/api/books/cover/book-123");
     });
 
-    it("buildDirectCoverUrl returns direct AudioBookShelf URL", () => {
-      // Direct URL is used for server-side operations like blur generation
+    it("cover URL does not contain API key", () => {
+      const item = makeAbsItem({ id: "book-123" });
+      const book = absItemToBook(item, BASE_OPTIONS);
+      expect(book.coverUrl).not.toContain("test-key");
+      expect(book.coverUrl).not.toContain("token");
+    });
+
+    it("buildDirectCoverUrl returns direct AudioBookShelf URL with token (server-side only)", () => {
       const directUrl = buildDirectCoverUrl("book-456", "https://abs.example.com", "test-key");
       expect(directUrl).toBe("https://abs.example.com/api/items/book-456/cover?token=test-key");
     });
 
-    it("accepts root-relative proxy cover URLs in book schema", () => {
+    it("accepts root-relative cover proxy URLs in book schema", () => {
       const book = validateBook({
         id: "schema-book-1",
         title: "Schema Book",
-        coverUrl: "/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg",
+        coverUrl: "/api/books/cover/schema-book-1",
       });
-      expect(book.coverUrl).toBe("/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg");
+      expect(book.coverUrl).toBe("/api/books/cover/schema-book-1");
     });
 
-    it("accepts root-relative proxy cover URLs in list-item schema", () => {
+    it("accepts root-relative cover proxy URLs in list-item schema", () => {
       const item = validateBookBrief({
         id: "schema-list-1",
         title: "Schema List Book",
-        coverUrl: "/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg",
+        coverUrl: "/api/books/cover/schema-list-1",
       });
-      expect(item.coverUrl).toBe("/api/cache/images?url=https%3A%2F%2Fexample.com%2Fcover.jpg");
+      expect(item.coverUrl).toBe("/api/books/cover/schema-list-1");
     });
 
     it("rejects malformed non-url cover URLs", () => {
@@ -243,14 +247,11 @@ describe("Book Transforms", () => {
       });
       const listItem = absItemToBookListItem(item, BASE_OPTIONS);
 
-      // Cover URL should be proxied through local API
-      const expectedDirectUrl =
-        "https://abs.example.com/api/items/list-item-id/cover?token=test-key";
       expect(listItem).toEqual({
         id: "list-item-id",
         title: "Grid Book",
         authors: ["Jane Doe"],
-        coverUrl: `/api/cache/images?url=${encodeURIComponent(expectedDirectUrl)}`,
+        coverUrl: "/api/books/cover/list-item-id",
       });
     });
   });

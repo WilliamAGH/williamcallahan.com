@@ -11,32 +11,13 @@
  */
 import "server-only"; // Ensure this component remains server-only
 
-// Defer heavy imports to reduce initial bundle size
-const getBookmarks = async () => {
-  const mod = await import("@/lib/bookmarks/service.server");
-  return mod.getBookmarks;
-};
-const getBookmarksPage = async () => {
-  const mod = await import("@/lib/bookmarks/service.server");
-  return mod.getBookmarksPage;
-};
-const getBookmarksIndex = async () => {
-  const mod = await import("@/lib/bookmarks/service.server");
-  return mod.getBookmarksIndex;
-};
-const normalizeBookmarkTag = async () => {
-  const mod = await import("@/lib/bookmarks/utils");
-  return mod.normalizeBookmarkTag;
-};
-const stripImageData = async () => {
-  const mod = await import("@/lib/bookmarks/utils");
-  return mod.stripImageData;
-};
-const loadSafeBookmarkSlugResolver = async () => {
-  const mod = await import("@/lib/bookmarks/slug-helpers");
-  return mod.getSafeBookmarkSlug;
-};
-import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
+import { getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
+import {
+  normalizeBookmarkTag,
+  stripImageData,
+  convertSerializableBookmarksToUnified,
+} from "@/lib/bookmarks/utils";
+import { getSafeBookmarkSlug } from "@/lib/bookmarks/slug-helpers";
 
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type {
@@ -103,13 +84,8 @@ export async function BookmarksServer({
       return;
     }
 
-    let resolveSlug:
-      | ((id: string, bookmarks?: UnifiedBookmark[]) => Promise<string | null>)
-      | null = null;
-
     for (const bookmark of missing) {
-      resolveSlug ??= await loadSafeBookmarkSlugResolver();
-      const slug = await resolveSlug(bookmark.id, bookmarkList);
+      const slug = await getSafeBookmarkSlug(bookmark.id, bookmarkList);
       if (slug) {
         internalHrefs.set(bookmark.id, `/bookmarks/${slug}`);
       }
@@ -124,27 +100,17 @@ export async function BookmarksServer({
     totalPages = propsTotalPages || 1;
     totalCount = propsTotalCount || propsBookmarks.length;
     await assignInternalHrefs(bookmarks);
-  } else if (initialPage && initialPage > 1) {
-    const getBookmarksPageFunc = await getBookmarksPage();
-    const getBookmarksIndexFunc = await getBookmarksIndex();
+  } else {
+    // Default to fetching paginated bookmarks. initialPage defaults to 1.
+    const pageToFetch = initialPage && initialPage >= 1 ? initialPage : 1;
     const [pageData, indexData] = await Promise.all([
-      getBookmarksPageFunc(initialPage),
-      getBookmarksIndexFunc(),
+      getBookmarksPage(pageToFetch),
+      getBookmarksIndex(),
     ]);
     bookmarks = pageData ?? [];
     totalPages = indexData?.totalPages ?? 1;
     totalCount = indexData?.count ?? 0;
     if (bookmarks.length > 0) {
-      await assignInternalHrefs(bookmarks);
-    }
-  } else {
-    // Default to fetching all bookmarks for the main page or if no specific page is set
-    const allBookmarks = (await (await getBookmarks())({ includeImageData })) as UnifiedBookmark[];
-    if (Array.isArray(allBookmarks) && allBookmarks.length > 0) {
-      bookmarks = allBookmarks;
-      const index = await (await getBookmarksIndex())();
-      totalPages = index?.totalPages ?? 1;
-      totalCount = index?.count ?? 0;
       await assignInternalHrefs(bookmarks);
     }
   }
@@ -157,20 +123,17 @@ export async function BookmarksServer({
 
   // Transform to serializable format for client component
   // Using standardized utility functions to ensure consistency
-  const normalizeFunc = await normalizeBookmarkTag();
-  const stripImageDataFunc = await stripImageData();
-
   const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => {
     // When includeImageData is false, use the standardized stripImageData utility
     if (!includeImageData) {
-      const lightweight = stripImageDataFunc(bookmark);
+      const lightweight = stripImageData(bookmark);
       return {
         id: lightweight.id,
         url: lightweight.url,
         title: lightweight.title,
         description: lightweight.description,
         slug: lightweight.slug, // REQUIRED field
-        tags: Array.isArray(lightweight.tags) ? lightweight.tags.map(normalizeFunc) : [],
+        tags: Array.isArray(lightweight.tags) ? lightweight.tags.map(normalizeBookmarkTag) : [],
         dateBookmarked: lightweight.dateBookmarked,
         dateCreated: lightweight.dateCreated,
         content: lightweight.content,
@@ -194,7 +157,7 @@ export async function BookmarksServer({
       title: bookmark.title,
       description: bookmark.description,
       slug: bookmark.slug, // REQUIRED field
-      tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeFunc) : [],
+      tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeBookmarkTag) : [],
       dateBookmarked: bookmark.dateBookmarked,
       dateCreated: bookmark.dateCreated,
       content: bookmark.content,

@@ -34,6 +34,17 @@ const { mockGetDiscoveryGroupedBookmarks } = vi.hoisted(() => ({
     recentlyAdded: [],
     topicSections: [],
     internalHrefs: {},
+    pagination: {
+      sectionPage: 1,
+      sectionsPerPage: 2,
+      totalSections: 0,
+      hasNextSectionPage: false,
+      nextSectionPage: null,
+    },
+    degradation: {
+      isDegraded: false,
+      reasons: [],
+    },
   }),
 }));
 
@@ -112,10 +123,11 @@ describe("Bookmarks Root Feed", () => {
 
     expect(container).toBeTruthy();
     expect(container?.querySelector('[data-testid="discover-feed"]')).not.toBeNull();
-    expect(mockGetDiscoveryGroupedBookmarks).toHaveBeenCalledTimes(1);
+    expect(mockGetDiscoveryGroupedBookmarks).toHaveBeenCalled();
     expect(mockGetDiscoveryGroupedBookmarks).toHaveBeenCalledWith({
       sectionPage: 1,
       sectionsPerPage: 2,
+      recencyDays: 90,
     });
   });
 

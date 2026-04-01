@@ -4,8 +4,11 @@ import { mapBookmarkSelectToUnifiedBookmark } from "@/lib/db/bookmark-record-map
 import { db } from "@/lib/db/connection";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
+import { lightweightBookmarkColumns } from "@/lib/db/queries/bookmarks";
+import type { BookmarkLightweightSelect } from "@/types/db/bookmarks";
 
 const MS_PER_DAY = 86_400_000;
+
 const NINETY_DAYS_MS = 90 * MS_PER_DAY;
 const DWELL_TARGET_MS = 120_000;
 const RECENCY_PRIMARY_WEIGHT = 0.82;
@@ -89,13 +92,15 @@ export function computeDiscoveryScore(input: {
 export async function getDiscoveryRankedBookmarks(
   page: number,
   limit: number,
-): Promise<
-  Array<{
+  options: { recencyDays?: number } = {},
+): Promise<{
+  items: Array<{
     bookmark: ReturnType<typeof mapBookmarkSelectToUnifiedBookmark>;
     discoveryScore: number;
     hasEngagement: boolean;
-  }>
-> {
+  }>;
+  totalCount: number;
+}> {
   if (!Number.isInteger(page) || page < 1) {
     throw new Error(`page must be a positive integer. Received: ${page}`);
   }
@@ -103,39 +108,26 @@ export async function getDiscoveryRankedBookmarks(
     throw new Error(`limit must be a positive integer. Received: ${limit}`);
   }
 
-  let engagementRows: Array<{
-    contentId: string;
-    impressions: number;
-    clicks: number;
-    avgDwellMs: number;
-    externalClicks: number;
-    latestEventAt: string;
-  }> = [];
+  const recencyDays = options.recencyDays;
 
-  try {
-    engagementRows = await db
-      .select({
-        contentId: contentEngagement.contentId,
-        impressions: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'impression')::int`,
-        clicks: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'click')::int`,
-        avgDwellMs: sql<number>`coalesce(avg(${contentEngagement.durationMs}) filter (where ${contentEngagement.eventType} = 'dwell'), 0)::float`,
-        externalClicks: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'external_click')::int`,
-        latestEventAt: sql<string>`max(${contentEngagement.createdAt})::text`,
-      })
-      .from(contentEngagement)
-      .where(
-        and(
-          eq(contentEngagement.contentType, "bookmark"),
-          gte(contentEngagement.createdAt, new Date(Date.now() - NINETY_DAYS_MS)),
-        ),
-      )
-      .groupBy(contentEngagement.contentId);
-  } catch (error) {
-    console.warn(
-      "[DiscoveryScores] Failed to load engagement events. Using recency-only fallback for discover ranking.",
-      error,
-    );
-  }
+  // Engagement signals are required for discover ranking — propagate errors [RC1a]
+  const engagementRows = await db
+    .select({
+      contentId: contentEngagement.contentId,
+      impressions: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'impression')::int`,
+      clicks: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'click')::int`,
+      avgDwellMs: sql<number>`coalesce(avg(${contentEngagement.durationMs}) filter (where ${contentEngagement.eventType} = 'dwell'), 0)::float`,
+      externalClicks: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'external_click')::int`,
+      latestEventAt: sql<string>`max(${contentEngagement.createdAt})::text`,
+    })
+    .from(contentEngagement)
+    .where(
+      and(
+        eq(contentEngagement.contentType, "bookmark"),
+        gte(contentEngagement.createdAt, new Date(Date.now() - NINETY_DAYS_MS)),
+      ),
+    )
+    .groupBy(contentEngagement.contentId);
 
   const engagementByBookmarkId = new Map(
     engagementRows.map((row) => {
@@ -151,29 +143,36 @@ export async function getDiscoveryRankedBookmarks(
     }),
   );
 
-  const bookmarkRows = await db
-    .select({ bookmark: bookmarks })
-    .from(bookmarks)
-    .orderBy(desc(bookmarks.dateBookmarked));
+  const bookmarkQuery = db.select(lightweightBookmarkColumns).from(bookmarks);
+
+  if (recencyDays && recencyDays > 0) {
+    const cutoffDate = new Date(Date.now() - recencyDays * MS_PER_DAY).toISOString();
+    bookmarkQuery.where(gte(bookmarks.dateBookmarked, cutoffDate));
+  }
+
+  const bookmarkRows = (await bookmarkQuery.orderBy(
+    desc(bookmarks.dateBookmarked),
+  )) as BookmarkLightweightSelect[];
 
   const engagementCoverage =
     bookmarkRows.length === 0 ? 0 : engagementByBookmarkId.size / bookmarkRows.length;
 
   const ranked = bookmarkRows
     .map((row) => {
-      const engagementSignal = engagementByBookmarkId.get(row.bookmark.id) ?? null;
-      const baseRecencyScore = computeBaseRecencyScore(row.bookmark.dateBookmarked);
+      const engagementSignal = engagementByBookmarkId.get(row.id) ?? null;
+      const baseRecencyScore = computeBaseRecencyScore(row.dateBookmarked);
       const score = computeDiscoveryScore({
         baseRecencyScore,
         engagementSignal,
         engagementCoverage,
       });
       return {
-        bookmark: mapBookmarkSelectToUnifiedBookmark(row.bookmark),
+        bookmark: mapBookmarkSelectToUnifiedBookmark(row),
         discoveryScore: score,
         hasEngagement: engagementSignal !== null,
       };
     })
+
     .toSorted((a, b) => {
       if (b.discoveryScore !== a.discoveryScore) {
         return b.discoveryScore - a.discoveryScore;
@@ -182,5 +181,5 @@ export async function getDiscoveryRankedBookmarks(
     });
 
   const offset = (page - 1) * limit;
-  return ranked.slice(offset, offset + limit);
+  return { items: ranked.slice(offset, offset + limit), totalCount: ranked.length };
 }

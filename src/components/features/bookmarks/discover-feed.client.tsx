@@ -10,6 +10,7 @@ import type { DiscoverFeedContent, DiscoverFeedProps } from "@/types/features/di
 const DISCOVER_PRIORITY_ROW_IMAGE_COUNT = 4;
 const OBSERVER_ROOT_MARGIN = "960px 0px";
 const OPTIMISTIC_EXPAND_DELAY_MS = 150;
+const MAX_RECENCY_DAYS = 720;
 
 function mergeTopicSections(
   currentSections: ReadonlyArray<DiscoverFeedContent["topicSections"][number]>,
@@ -62,6 +63,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   );
   const [pagination, setPagination] = useState(() => data.pagination);
   const [degradation, setDegradation] = useState(() => data.degradation);
+  const [currentRecencyDays, setCurrentRecencyDays] = useState(90);
   const [isAutoExpandAvailable, setIsAutoExpandAvailable] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
@@ -75,16 +77,19 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
     [topicSections],
   );
 
-  const hasMoreTopicSections = pagination.hasNextSectionPage;
+  const hasMorePages = pagination.hasNextSectionPage;
+  const canExpandWindow = !hasMorePages && currentRecencyDays < MAX_RECENCY_DAYS;
+  const hasMoreTopicSections = hasMorePages || canExpandWindow;
   const canAutoLoadMore = hasMoreTopicSections && loadMoreError === null && isAutoExpandAvailable;
 
   const fetchGroupedDiscoverPage = useCallback(
-    async (nextSectionPage: number, nextSectionsPerPage: number) => {
+    async (nextSectionPage: number, nextSectionsPerPage: number, recencyDays: number) => {
       const params = new URLSearchParams({
         feed: "discover",
         discoverView: "grouped",
         sectionPage: String(nextSectionPage),
         sectionsPerPage: String(nextSectionsPerPage),
+        recencyDays: String(recencyDays),
       });
       const response = await fetch(`/api/bookmarks?${params.toString()}`);
       if (!response.ok) {
@@ -97,43 +102,63 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   );
 
   const loadMoreTopicSections = useCallback(async () => {
-    if (
-      !pagination.hasNextSectionPage ||
-      pagination.nextSectionPage === null ||
-      loadMoreInFlightRef.current
-    ) {
-      return;
-    }
+    if (loadMoreInFlightRef.current) return;
+
+    const morePages = pagination.hasNextSectionPage;
+    const expandable = !morePages && currentRecencyDays < MAX_RECENCY_DAYS;
+    if (!morePages && !expandable) return;
+
     loadMoreInFlightRef.current = true;
     setIsLoadingMore(true);
     setLoadMoreError(null);
 
+    // Phase 1: paginate within current recency window (fixed dataset)
+    // Phase 2: when window exhausted, expand recency and restart from page 1
+    const isExpanding = !morePages;
+    const nextRecencyDays = isExpanding ? currentRecencyDays * 2 : currentRecencyDays;
+    const nextPage = isExpanding ? 1 : (pagination.nextSectionPage ?? 1);
+
     try {
       const nextData = await fetchGroupedDiscoverPage(
-        pagination.nextSectionPage,
+        nextPage,
         pagination.sectionsPerPage,
+        nextRecencyDays,
       );
       startTransition(() => {
         setTopicSections((current) => mergeTopicSections(current, nextData.topicSections));
         setInternalHrefs((current) => ({ ...current, ...nextData.internalHrefs }));
         setPagination(nextData.pagination);
-        setDegradation((current) => ({
-          isDegraded: current.isDegraded || nextData.degradation.isDegraded,
-          reasons: [...current.reasons, ...nextData.degradation.reasons],
-        }));
+        if (isExpanding) {
+          setCurrentRecencyDays(nextRecencyDays);
+        }
+        setDegradation((current) => {
+          const mergedReasons = [...current.reasons, ...nextData.degradation.reasons];
+          const uniqueReasons = Array.from(new Set(mergedReasons));
+          return {
+            isDegraded: uniqueReasons.length > 0,
+            reasons: uniqueReasons,
+          };
+        });
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to load more sections";
       setLoadMoreError(errorMessage);
-      setDegradation((current) => ({
-        isDegraded: true,
-        reasons: [...current.reasons, `Infinite-scroll expansion failed: ${errorMessage}`],
-      }));
+      setDegradation((current) => {
+        const mergedReasons = [
+          ...current.reasons,
+          `Infinite-scroll expansion failed: ${errorMessage}`,
+        ];
+        const uniqueReasons = Array.from(new Set(mergedReasons));
+        return {
+          isDegraded: true,
+          reasons: uniqueReasons,
+        };
+      });
     } finally {
       loadMoreInFlightRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [fetchGroupedDiscoverPage, pagination]);
+  }, [fetchGroupedDiscoverPage, pagination, currentRecencyDays]);
 
   useEffect(() => {
     if (
@@ -168,13 +193,17 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
     }
     if (typeof window !== "undefined" && typeof window.IntersectionObserver === "undefined") {
       setIsAutoExpandAvailable(false);
-      setDegradation((current) => ({
-        isDegraded: true,
-        reasons: [
+      setDegradation((current) => {
+        const mergedReasons = [
           ...current.reasons,
           "Infinite-scroll auto-expansion is unavailable in this browser.",
-        ],
-      }));
+        ];
+        const uniqueReasons = Array.from(new Set(mergedReasons));
+        return {
+          isDegraded: true,
+          reasons: uniqueReasons,
+        };
+      });
       return;
     }
 
@@ -221,11 +250,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
     }
   }, [canAutoLoadMore, loadMoreTopicSections, topicSections.length]);
 
-  const degradationReasons = useMemo(
-    () => Array.from(new Set(degradation.reasons)),
-    [degradation.reasons],
-  );
-  const isDegraded = degradation.isDegraded || degradationReasons.length > 0;
+  const isDegraded = degradation.isDegraded || degradation.reasons.length > 0;
 
   return (
     <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4">
@@ -256,7 +281,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
       {isDegraded && (
         <div className="mb-6 rounded-lg border border-amber-300/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
           <p className="font-medium">Discover feed is running in degraded mode.</p>
-          <p>{degradationReasons.join(" ")}</p>
+          <p>{degradation.reasons.join(" ")}</p>
         </div>
       )}
 

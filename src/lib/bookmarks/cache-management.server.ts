@@ -58,7 +58,7 @@ export function invalidateNextJsBookmarksCache(): void {
 }
 
 /**
- * Invalidate a specific page's cache.
+ * Invalidate a specific page's cache across all page sizes.
  * @param pageNumber - Page number to invalidate
  */
 export function invalidatePageCache(pageNumber: number): void {
@@ -68,7 +68,7 @@ export function invalidatePageCache(pageNumber: number): void {
 }
 
 /**
- * Invalidate a specific tag's cache.
+ * Invalidate a specific tag's cache (all pages and page sizes).
  * @param tagSlug - Tag slug to invalidate
  */
 export function invalidateTagCache(tagSlug: string): void {

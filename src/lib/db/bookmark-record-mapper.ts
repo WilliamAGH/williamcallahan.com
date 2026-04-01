@@ -1,4 +1,4 @@
-import type { BookmarkInsert, BookmarkSelect } from "@/types/db/bookmarks";
+import type { BookmarkInsert, BookmarkRef } from "@/types/db/bookmarks";
 import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const toUndefined = <T>(value: T | null): T | undefined => {
@@ -27,7 +27,7 @@ const generateDeterministicFallbackSlug = (url: string, id: string): string => {
   return `${base}-${id.slice(0, FALLBACK_SLUG_ID_PREFIX_LENGTH)}`;
 };
 
-const resolveRowSlug = (row: Pick<BookmarkSelect, "id" | "slug" | "url">): string => {
+const resolveRowSlug = (row: Pick<BookmarkRef, "id" | "slug" | "url">): string => {
   const normalizedSlug = row.slug.trim();
   if (normalizedSlug.length > 0) {
     return normalizedSlug;
@@ -40,7 +40,11 @@ const resolveRowSlug = (row: Pick<BookmarkSelect, "id" | "slug" | "url">): strin
   return repairedSlug;
 };
 
-export function mapBookmarkSelectToUnifiedBookmark(row: BookmarkSelect): UnifiedBookmark {
+export function mapBookmarkSelectToUnifiedBookmark(row: BookmarkRef): UnifiedBookmark {
+  // Use 'in' operator to safely check for existence of optional/heavy fields
+  // to satisfy structural type safety requirements [TS1]
+  const hasFullData = "scrapedContentText" in row;
+
   return unifiedBookmarkSchema.parse({
     id: row.id,
     url: row.url,
@@ -57,9 +61,9 @@ export function mapBookmarkSelectToUnifiedBookmark(row: BookmarkSelect): Unified
     taggingStatus: toUndefined(row.taggingStatus),
     note: row.note,
     summary: row.summary,
-    scrapedContentText: toUndefined(row.scrapedContentText),
+    scrapedContentText: hasFullData ? toUndefined(row.scrapedContentText) : undefined,
     content: toUndefined(row.content),
-    assets: toUndefined(row.assets),
+    assets: hasFullData ? toUndefined(row.assets) : undefined,
     logoData: row.logoData,
     readingTime: toUndefined(row.readingTime),
     wordCount: toUndefined(row.wordCount),
@@ -77,7 +81,7 @@ export function mapBookmarkSelectToUnifiedBookmark(row: BookmarkSelect): Unified
 }
 
 export function mapBookmarkSelectsToUnifiedBookmarks(
-  rows: readonly BookmarkSelect[],
+  rows: readonly BookmarkRef[],
 ): UnifiedBookmark[] {
   return rows.map(mapBookmarkSelectToUnifiedBookmark);
 }

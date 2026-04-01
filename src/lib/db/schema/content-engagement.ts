@@ -22,6 +22,10 @@ export const contentEngagement = pgTable(
   (table) => [
     index("idx_engagement_content").on(table.contentType, table.contentId),
     index("idx_engagement_scoring").on(table.contentType, table.eventType, table.createdAt),
+    // Covering index created via raw SQL migration (drizzle/0023_engagement-covering-index.sql)
+    // with INCLUDE(event_type, duration_ms) for Index Only Scans.
+    // Drizzle ORM 0.45.x lacks .include() — declare key columns only.
+    index("idx_engagement_covering").on(table.contentType, table.createdAt, table.contentId),
     index("idx_engagement_visitor").on(table.visitorHash, table.createdAt),
   ],
 );

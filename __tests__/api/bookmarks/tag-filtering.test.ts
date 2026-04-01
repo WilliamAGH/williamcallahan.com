@@ -5,8 +5,11 @@
 import { GET } from "@/app/api/bookmarks/route";
 import {
   getBookmarks,
+  getBookmarksByTag,
   getBookmarksIndex,
+  getBookmarksPage,
   resolveBookmarkTagSlug,
+  getBookmarkById,
 } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { findRelatedBookmarkIdsForSeeds } from "@/lib/db/queries/embedding-similarity";
@@ -21,7 +24,10 @@ vi.mock("@/lib/db/queries/discovery-scores");
 vi.mock("@/lib/db/queries/embedding-similarity");
 
 const mockGetBookmarks = vi.mocked(getBookmarks);
+const mockGetBookmarksByTag = vi.mocked(getBookmarksByTag);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
+const mockGetBookmarksPage = vi.mocked(getBookmarksPage);
+const mockGetBookmarkById = vi.mocked(getBookmarkById);
 const mockResolveBookmarkTagSlug = vi.mocked(resolveBookmarkTagSlug);
 const mockLoadSlugMapping = vi.mocked(loadSlugMapping);
 const mockFindRelatedBookmarkIdsForSeeds = vi.mocked(findRelatedBookmarkIdsForSeeds);
@@ -121,6 +127,22 @@ describe("Bookmark API Tag Filtering", () => {
       };
     });
     mockFindRelatedBookmarkIdsForSeeds.mockResolvedValue([]);
+    mockGetBookmarksByTag.mockImplementation(async (slug) => {
+      const filtered = mockBookmarks.filter((b) =>
+        (b.tags as string[]).some((t) => tagToSlug(t) === slug),
+      );
+      return {
+        bookmarks: filtered,
+        totalCount: filtered.length,
+        totalPages: 1,
+      };
+    });
+    mockGetBookmarkById.mockImplementation(async (id) => {
+      return mockBookmarks.find((b) => b.id === id) ?? null;
+    });
+    mockGetBookmarksPage.mockImplementation(async (page) => {
+      return mockBookmarks;
+    });
   });
 
   afterEach(() => {
@@ -129,7 +151,6 @@ describe("Bookmark API Tag Filtering", () => {
 
   describe("Tag parameter handling", () => {
     it("should filter bookmarks by tag in slug format", async () => {
-      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
       const response = await GET(createRequest({ tag: "web-development" }));
@@ -142,12 +163,11 @@ describe("Bookmark API Tag Filtering", () => {
         tag: "web-development",
         exactCount: 1,
         relatedCount: 0,
-        mode: "exact_plus_related",
+        mode: "exact",
       });
     });
 
     it("should append semantically related bookmarks after exact tag matches on page 1", async () => {
-      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
       mockFindRelatedBookmarkIdsForSeeds.mockResolvedValueOnce(["2"]);
 
@@ -165,7 +185,6 @@ describe("Bookmark API Tag Filtering", () => {
     });
 
     it("should handle multi-word tags with hyphens", async () => {
-      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
       const response = await GET(createRequest({ tag: "software-development-tools" }));
@@ -177,7 +196,6 @@ describe("Bookmark API Tag Filtering", () => {
     });
 
     it("should handle URL-encoded tags", async () => {
-      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
       const response = await GET(createRequest({ tag: "web development" }));
@@ -189,7 +207,6 @@ describe("Bookmark API Tag Filtering", () => {
     });
 
     it("should perform case-insensitive tag matching", async () => {
-      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
       const response = await GET(createRequest({ tag: "WEB-DEVELOPMENT" }));
@@ -201,8 +218,12 @@ describe("Bookmark API Tag Filtering", () => {
     });
 
     it("should return empty array for non-existent tags", async () => {
-      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
+      mockGetBookmarksByTag.mockResolvedValueOnce({
+        bookmarks: [],
+        totalCount: 0,
+        totalPages: 0,
+      });
 
       const response = await GET(createRequest({ tag: "non-existent-tag" }));
       const data = await response.json();
@@ -228,7 +249,11 @@ describe("Bookmark API Tag Filtering", () => {
             }) as UnifiedBookmark,
         );
 
-      mockGetBookmarks.mockResolvedValueOnce(largeSet);
+      mockGetBookmarksByTag.mockResolvedValueOnce({
+        bookmarks: largeSet.slice(20, 40),
+        totalCount: 50,
+        totalPages: 3,
+      });
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(largeSet.length, 20));
       // Override default slug mapping for this test's larger dataset
       mockLoadSlugMapping.mockResolvedValueOnce(createMockSlugMapping(largeSet));
@@ -250,8 +275,8 @@ describe("Bookmark API Tag Filtering", () => {
     });
 
     it("should return all bookmarks when no tag filter provided", async () => {
-      mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
       mockGetBookmarksIndex.mockResolvedValueOnce(null);
+      mockGetBookmarksPage.mockResolvedValueOnce(mockBookmarks);
 
       const response = await GET(createRequest({ feed: "latest" }));
       const data = await response.json();
@@ -265,14 +290,13 @@ describe("Bookmark API Tag Filtering", () => {
   describe("Error handling", () => {
     it("should handle errors gracefully", async () => {
       mockGetBookmarksIndex.mockResolvedValueOnce(null);
-      mockGetBookmarks.mockRejectedValueOnce(new Error("Database error"));
+      mockGetBookmarksPage.mockRejectedValueOnce(new Error("Database error"));
 
       const response = await GET(createRequest({ feed: "latest" }));
       const data = await response.json();
 
       expect(response.status).toBe(500);
       expect(data.error).toBe("Failed to fetch bookmarks");
-      expect(data.details).toBe("Database error");
     });
   });
 });

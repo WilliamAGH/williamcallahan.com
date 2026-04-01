@@ -4,9 +4,11 @@ import { mapBookmarkSelectToUnifiedBookmark } from "@/lib/db/bookmark-record-map
 import { db } from "@/lib/db/connection";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
+import { lightweightBookmarkColumns } from "@/lib/db/queries/bookmarks";
 import { loadCanonicalTagMaps } from "@/lib/db/queries/discovery-tag-taxonomy";
 import { findSimilarBookmarkIds } from "@/lib/db/queries/discovery-similarity";
 import { resolvePrimaryTag } from "@/lib/bookmarks/tag-resolver";
+import type { BookmarkLightweightSelect } from "@/types/db/bookmarks";
 import type {
   BookmarkForDiscovery,
   DiscoverFeedContent,
@@ -32,6 +34,35 @@ const RECENT_DAYS = 7,
   RECENT_LIMIT = 8;
 const DEFAULT_SECTIONS_PER_PAGE = 4,
   MAX_SECTIONS_PER_PAGE = 12;
+
+// ---------------------------------------------------------------------------
+// Engagement & Result Caching
+// ---------------------------------------------------------------------------
+
+let engagementCache: {
+  map: Map<string, number>;
+  expiresAt: number;
+} | null = null;
+
+const discoverFeedCache: Map<
+  string,
+  {
+    content: DiscoverFeedContent;
+    expiresAt: number;
+  }
+> = new Map();
+
+const similarityCache: Map<
+  string,
+  {
+    ids: string[];
+    expiresAt: number;
+  }
+> = new Map();
+
+const ENGAGEMENT_CACHE_TTL_MS = 300_000; // 5 minutes
+const DISCOVER_FEED_CACHE_TTL_MS = 900_000; // 15 minutes
+const SIMILARITY_CACHE_TTL_MS = 3_600_000; // 1 hour
 
 export function groupByPrimaryTag(rows: ScoredBookmark[], options: GroupOptions): TopicSection[] {
   const grouped = new Map<string, { tagName: string; rows: ScoredBookmark[] }>();
@@ -115,6 +146,11 @@ export function dedupeDiscoverSections(
 }
 
 async function loadEngagementMap(): Promise<Map<string, number>> {
+  const now = Date.now();
+  if (engagementCache && engagementCache.expiresAt > now) {
+    return engagementCache.map;
+  }
+
   const rows = await db
     .select({
       contentId: contentEngagement.contentId,
@@ -133,7 +169,7 @@ async function loadEngagementMap(): Promise<Map<string, number>> {
     )
     .groupBy(contentEngagement.contentId);
 
-  return new Map(
+  const engagementMap = new Map(
     rows.map((row) => {
       const latestMs = Date.parse(row.latestEventAt);
       const ageInDays =
@@ -150,6 +186,31 @@ async function loadEngagementMap(): Promise<Map<string, number>> {
       ] as const;
     }),
   );
+
+  engagementCache = {
+    map: engagementMap,
+    expiresAt: now + ENGAGEMENT_CACHE_TTL_MS,
+  };
+
+  return engagementMap;
+}
+
+async function getCachedSimilarIds(anchorId: string, limit: number): Promise<string[]> {
+  const now = Date.now();
+  const cacheKey = `${anchorId}:${limit}`;
+  const cached = similarityCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.ids;
+  }
+
+  const ids = await findSimilarBookmarkIds(anchorId, new Set<string>([anchorId]), limit);
+
+  similarityCache.set(cacheKey, {
+    ids,
+    expiresAt: now + SIMILARITY_CACHE_TTL_MS,
+  });
+
+  return ids;
 }
 
 async function applySectionBlend(sections: TopicSection[]): Promise<TopicSection[]> {
@@ -158,9 +219,8 @@ async function applySectionBlend(sections: TopicSection[]): Promise<TopicSection
       const anchor = section.bookmarks[0];
       if (!anchor) return section;
 
-      const similarIds = await findSimilarBookmarkIds(
+      const similarIds = await getCachedSimilarIds(
         anchor.id,
-        new Set<string>([anchor.id]),
         Math.max(8, section.bookmarks.length * 2),
       );
       const similarSet = new Set(similarIds);
@@ -182,7 +242,7 @@ async function applySectionBlend(sections: TopicSection[]): Promise<TopicSection
 }
 
 export async function getDiscoveryGroupedBookmarks(
-  options: { sectionPage?: number; sectionsPerPage?: number } = {},
+  options: { sectionPage?: number; sectionsPerPage?: number; recencyDays?: number } = {},
 ): Promise<DiscoverFeedContent> {
   const sectionPage = Number.isInteger(options.sectionPage)
     ? Math.max(1, options.sectionPage ?? 1)
@@ -194,42 +254,38 @@ export async function getDiscoveryGroupedBookmarks(
       )
     : DEFAULT_SECTIONS_PER_PAGE;
 
-  const degradationReasons: string[] = [];
+  const recencyDays = options.recencyDays;
+  const cacheKey = `${sectionPage}:${sectionsPerPage}:${recencyDays ?? 0}`;
+  const now = Date.now();
 
-  let engagementMap = new Map<string, number>();
-  try {
-    engagementMap = await loadEngagementMap();
-  } catch (error: unknown) {
-    degradationReasons.push(
-      "Engagement telemetry unavailable. Discover used recency-only scoring.",
-    );
-    console.warn(
-      "[DiscoverGrouped] Failed to load engagement events. Using recency-only fallback.",
-      error,
-    );
+  const cachedResult = discoverFeedCache.get(cacheKey);
+  if (cachedResult && cachedResult.expiresAt > now) {
+    return cachedResult.content;
   }
 
-  let taxonomyMaps: Awaited<ReturnType<typeof loadCanonicalTagMaps>> | null = null;
-  try {
-    taxonomyMaps = await loadCanonicalTagMaps();
-  } catch (error: unknown) {
-    degradationReasons.push("Tag taxonomy unavailable. Discover used inline bookmark tags.");
-    console.warn(
-      "[DiscoverGrouped] Failed to load tag taxonomy. Using inline tag fallback.",
-      error,
-    );
-  }
+  // Parallelize initial metadata and data fetches to eliminate waterfall
+  // Signals are required for the Discover feed - failure propagates to the caller [RC1]
+  const [engagementMap, taxonomyMaps, bookmarkRows] = await Promise.all([
+    loadEngagementMap(),
+    loadCanonicalTagMaps(),
+    (async () => {
+      const query = db.select(lightweightBookmarkColumns).from(bookmarks);
 
-  const bookmarkRows = await db
-    .select({ bookmark: bookmarks })
-    .from(bookmarks)
-    .orderBy(desc(bookmarks.dateBookmarked));
+      if (recencyDays && recencyDays > 0) {
+        const cutoffDate = new Date(Date.now() - recencyDays * MS_PER_DAY).toISOString();
+        query.where(gte(bookmarks.dateBookmarked, cutoffDate));
+      }
+
+      return query.orderBy(desc(bookmarks.dateBookmarked)) as Promise<BookmarkLightweightSelect[]>;
+    })(),
+  ]);
+
   const engagementCoverage =
     bookmarkRows.length === 0 ? 0 : engagementMap.size / bookmarkRows.length;
 
   const scored: ScoredBookmark[] = bookmarkRows.map((row) => {
-    const mappedBookmark = mapBookmarkSelectToUnifiedBookmark(row.bookmark);
-    const engagementSignal = engagementMap.get(row.bookmark.id) ?? null;
+    const mappedBookmark = mapBookmarkSelectToUnifiedBookmark(row);
+    const engagementSignal = engagementMap.get(row.id) ?? null;
     return {
       bookmark: mappedBookmark,
       primaryTag: resolvePrimaryTag(mappedBookmark as BookmarkForDiscovery, taxonomyMaps),
@@ -241,30 +297,32 @@ export async function getDiscoveryGroupedBookmarks(
     };
   });
 
-  let rankedSections = groupByPrimaryTag(scored, {
+  const rankedSections = groupByPrimaryTag(scored, {
     perSection: PER_SECTION,
     minPerSection: MIN_PER_SECTION,
   });
-  try {
-    rankedSections = await applySectionBlend(rankedSections);
-  } catch (error: unknown) {
-    degradationReasons.push(
-      "Embedding similarity boost unavailable. Discover used popularity-only tag ranking.",
-    );
-    console.warn("[DiscoverGrouped] Failed to apply embedding similarity section boost.", error);
-  }
 
   const recentBookmarks = filterRecentlyAdded(scored, { days: RECENT_DAYS, limit: RECENT_LIMIT });
   const dedupedDiscoverData = dedupeDiscoverSections(recentBookmarks, rankedSections);
   const totalSections = dedupedDiscoverData.rankedSections.length;
   const offset = (sectionPage - 1) * sectionsPerPage;
-  const pagedSections = dedupedDiscoverData.rankedSections.slice(offset, offset + sectionsPerPage);
+
+  // CRITICAL: Slicing sections BEFORE applying expensive similarity blend/scoring.
+  // This eliminates the vector search waterfall for pages that are not being rendered.
+  const pagedSectionsRaw = dedupedDiscoverData.rankedSections.slice(
+    offset,
+    offset + sectionsPerPage,
+  );
+
+  // applySectionBlend is now a mandatory part of the pipeline - no catch block [RC1]
+  const pagedSections = await applySectionBlend(pagedSectionsRaw);
+
   const hasNextSectionPage = offset + sectionsPerPage < totalSections;
 
   const internalHrefs: Record<string, string> = {};
   const serializeWithHref = createSerializeWithHref(internalHrefs);
 
-  return {
+  const result: DiscoverFeedContent = {
     recentlyAdded:
       sectionPage === 1
         ? dedupedDiscoverData.recentBookmarks.map((bookmark) => serializeWithHref(bookmark))
@@ -285,8 +343,15 @@ export async function getDiscoveryGroupedBookmarks(
       nextSectionPage: hasNextSectionPage ? sectionPage + 1 : null,
     },
     degradation: {
-      isDegraded: degradationReasons.length > 0,
-      reasons: degradationReasons,
+      isDegraded: false,
+      reasons: [],
     },
   };
+
+  discoverFeedCache.set(cacheKey, {
+    content: result,
+    expiresAt: now + DISCOVER_FEED_CACHE_TTL_MS,
+  });
+
+  return result;
 }

@@ -457,6 +457,9 @@ const nextConfig = {
         // search omitted to allow width/url query params
       },
       {
+        pathname: "/api/books/cover/**",
+      },
+      {
         pathname: "/api/logo",
         // search omitted to allow website/domain/company query params
       },

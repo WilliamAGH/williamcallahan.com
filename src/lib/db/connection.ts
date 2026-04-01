@@ -10,10 +10,10 @@
  */
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
+import { PRODUCTION_HOSTNAME, SUBDOMAIN_PATTERN } from "@/lib/config/site-identity";
 
 const DEFAULT_DATABASE_POOL_MAX = 5;
 const PRODUCTION_ENVIRONMENT = "production";
-const PRODUCTION_HOSTNAME = "williamcallahan.com";
 const EXTERNAL_PRODUCTION_DB_HOST = "167.234.219.57";
 const EXTERNAL_PRODUCTION_DB_PORT = "5438";
 const DEFAULT_INTERNAL_PRODUCTION_DB_HOST = "q0kks8ww044c0o4w4o4ok408";
@@ -110,7 +110,7 @@ const resolveEnvironmentFromSiteUrl = (): { environment: string; source: string 
     return null;
   }
 
-  if (parsed.hostname === "williamcallahan.com") {
+  if (parsed.hostname === PRODUCTION_HOSTNAME) {
     // Guard: only resolve to production when NODE_ENV also confirms production runtime.
     // This prevents local dev with NEXT_PUBLIC_SITE_URL=production from writing.
     if (process.env.NODE_ENV?.trim() === PRODUCTION_ENVIRONMENT) {
@@ -124,7 +124,7 @@ const resolveEnvironmentFromSiteUrl = (): { environment: string; source: string 
   }
 
   const DEV_SUBDOMAIN_PREFIXES = ["alpha", "dev", "sandbox"];
-  const subdomainMatch = parsed.hostname.match(/^([^.]+)\.williamcallahan\.com$/);
+  const subdomainMatch = parsed.hostname.match(SUBDOMAIN_PATTERN);
   if (subdomainMatch?.[1]) {
     if (DEV_SUBDOMAIN_PREFIXES.includes(subdomainMatch[1])) {
       return { environment: "development", source: "NEXT_PUBLIC_SITE_URL" };
