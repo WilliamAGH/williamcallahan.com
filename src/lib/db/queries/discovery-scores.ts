@@ -109,39 +109,24 @@ export async function getDiscoveryRankedBookmarks(
 
   const recencyDays = options.recencyDays;
 
-  let engagementRows: Array<{
-    contentId: string;
-    impressions: number;
-    clicks: number;
-    avgDwellMs: number;
-    externalClicks: number;
-    latestEventAt: string;
-  }> = [];
-
-  try {
-    engagementRows = await db
-      .select({
-        contentId: contentEngagement.contentId,
-        impressions: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'impression')::int`,
-        clicks: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'click')::int`,
-        avgDwellMs: sql<number>`coalesce(avg(${contentEngagement.durationMs}) filter (where ${contentEngagement.eventType} = 'dwell'), 0)::float`,
-        externalClicks: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'external_click')::int`,
-        latestEventAt: sql<string>`max(${contentEngagement.createdAt})::text`,
-      })
-      .from(contentEngagement)
-      .where(
-        and(
-          eq(contentEngagement.contentType, "bookmark"),
-          gte(contentEngagement.createdAt, new Date(Date.now() - NINETY_DAYS_MS)),
-        ),
-      )
-      .groupBy(contentEngagement.contentId);
-  } catch (error) {
-    console.warn(
-      "[DiscoveryScores] Failed to load engagement events. Using recency-only fallback for discover ranking.",
-      error,
-    );
-  }
+  // Engagement signals are required for discover ranking — propagate errors [RC1a]
+  const engagementRows = await db
+    .select({
+      contentId: contentEngagement.contentId,
+      impressions: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'impression')::int`,
+      clicks: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'click')::int`,
+      avgDwellMs: sql<number>`coalesce(avg(${contentEngagement.durationMs}) filter (where ${contentEngagement.eventType} = 'dwell'), 0)::float`,
+      externalClicks: sql<number>`count(*) filter (where ${contentEngagement.eventType} = 'external_click')::int`,
+      latestEventAt: sql<string>`max(${contentEngagement.createdAt})::text`,
+    })
+    .from(contentEngagement)
+    .where(
+      and(
+        eq(contentEngagement.contentType, "bookmark"),
+        gte(contentEngagement.createdAt, new Date(Date.now() - NINETY_DAYS_MS)),
+      ),
+    )
+    .groupBy(contentEngagement.contentId);
 
   const engagementByBookmarkId = new Map(
     engagementRows.map((row) => {

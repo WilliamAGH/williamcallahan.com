@@ -1,6 +1,6 @@
 import { DiscoverFeed } from "./discover-feed.client";
 import { getDiscoveryGroupedBookmarks } from "@/lib/db/queries/discovery-grouped";
-import type { DiscoverFeedContent, DiscoverFeedWrapperProps } from "@/types/features/discovery";
+import type { DiscoverFeedWrapperProps } from "@/types/features/discovery";
 
 /**
  * Server component that fetches discover feed data with streaming support.
@@ -11,35 +11,13 @@ export async function DiscoverFeedWrapper({
   sectionsPerPage,
   recencyDays,
 }: DiscoverFeedWrapperProps) {
-  let discoverData: DiscoverFeedContent;
-  try {
-    discoverData = await getDiscoveryGroupedBookmarks({
-      sectionPage,
-      sectionsPerPage,
-      recencyDays,
-    });
-  } catch (error) {
-    console.error(
-      "[DiscoverFeedWrapper] Discover feed fetch failed. Rendering degraded mode.",
-      error,
-    );
-    discoverData = {
-      recentlyAdded: [],
-      topicSections: [],
-      internalHrefs: {},
-      pagination: {
-        sectionPage,
-        sectionsPerPage,
-        totalSections: 0,
-        hasNextSectionPage: false,
-        nextSectionPage: null,
-      },
-      degradation: {
-        isDegraded: true,
-        reasons: ["Discover feed is temporarily unavailable. Please retry later."],
-      },
-    };
-  }
+  // Errors propagate to the nearest error boundary (src/app/bookmarks/error.tsx)
+  // which provides a retry button. No synthetic empty feed — [RC1a].
+  const discoverData = await getDiscoveryGroupedBookmarks({
+    sectionPage,
+    sectionsPerPage,
+    recencyDays,
+  });
 
   return <DiscoverFeed data={discoverData} />;
 }

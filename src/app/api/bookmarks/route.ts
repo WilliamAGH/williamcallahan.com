@@ -97,7 +97,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const slugMapping = await loadSlugMapping();
       const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
       const total = indexData?.count ?? bookmarkData.length;
-      const totalPages = indexData?.totalPages ?? Math.ceil(total / limit);
+      const totalPages = Math.ceil(total / limit);
       const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 
       return NextResponse.json(
@@ -150,9 +150,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
           if (relatedIds.length > 0) {
             const relatedBookmarks = await Promise.all(relatedIds.map((id) => getBookmarkById(id)));
-            const validRelated = relatedBookmarks.filter(
-              (b): b is UnifiedBookmark => b !== null && !("isLightweight" in b),
-            );
+            const validRelated = relatedBookmarks.filter((b): b is UnifiedBookmark => b !== null);
             finalBookmarks = [...tagBookmarks, ...validRelated];
             relatedCount = validRelated.length;
           }
@@ -195,15 +193,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Default latest feed path
-    const {
-      totalPages,
-      count: total,
-      lastFetchedAt = getMonotonicTime(),
-    } = indexData ?? {
-      totalPages: 1,
-      count: 0,
-      lastFetchedAt: getMonotonicTime(),
-    };
+    const total = indexData?.count ?? 0;
+    const totalPages = Math.ceil(total / limit);
+    const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 
     const paginatedBookmarks = await getBookmarksPage(page, limit);
     const slugMapping = await loadSlugMapping();
