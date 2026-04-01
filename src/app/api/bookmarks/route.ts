@@ -91,12 +91,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       // Discover ranking is a required feature - propagate errors explicitly [RC1]
-      const rankedBookmarks = await getDiscoveryRankedBookmarks(page, limit, { recencyDays });
+      const { items: rankedBookmarks, totalCount: rankedTotal } = await getDiscoveryRankedBookmarks(
+        page,
+        limit,
+        { recencyDays },
+      );
 
       const bookmarkData = rankedBookmarks.map((entry) => entry.bookmark);
       const slugMapping = await loadSlugMapping();
       const internalHrefs = buildInternalHrefs(bookmarkData, slugMapping);
-      const total = indexData?.count ?? bookmarkData.length;
+      const total = recencyDays > 0 ? rankedTotal : (indexData?.count ?? rankedTotal);
       const totalPages = Math.ceil(total / limit);
       const lastFetchedAt = indexData?.lastFetchedAt ?? getMonotonicTime();
 

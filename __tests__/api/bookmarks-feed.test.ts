@@ -102,7 +102,7 @@ describe("Bookmark feed modes", () => {
       hasEngagement: true,
     }));
 
-    mockGetDiscoveryRankedBookmarks.mockResolvedValue(ranked);
+    mockGetDiscoveryRankedBookmarks.mockResolvedValue({ items: ranked, totalCount: ranked.length });
     mockLoadSlugMapping.mockResolvedValue(
       createSlugMapping(ranked.map((entry) => entry.bookmark as UnifiedBookmark)),
     );

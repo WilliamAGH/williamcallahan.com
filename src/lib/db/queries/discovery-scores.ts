@@ -93,13 +93,14 @@ export async function getDiscoveryRankedBookmarks(
   page: number,
   limit: number,
   options: { recencyDays?: number } = {},
-): Promise<
-  Array<{
+): Promise<{
+  items: Array<{
     bookmark: ReturnType<typeof mapBookmarkSelectToUnifiedBookmark>;
     discoveryScore: number;
     hasEngagement: boolean;
-  }>
-> {
+  }>;
+  totalCount: number;
+}> {
   if (!Number.isInteger(page) || page < 1) {
     throw new Error(`page must be a positive integer. Received: ${page}`);
   }
@@ -180,5 +181,5 @@ export async function getDiscoveryRankedBookmarks(
     });
 
   const offset = (page - 1) * limit;
-  return ranked.slice(offset, offset + limit);
+  return { items: ranked.slice(offset, offset + limit), totalCount: ranked.length };
 }
