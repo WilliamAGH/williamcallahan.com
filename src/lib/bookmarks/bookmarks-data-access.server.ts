@@ -137,7 +137,11 @@ async function getCachedBookmarksPage(
 ): Promise<UnifiedBookmark[]> {
   "use cache";
   safeCacheLife({ revalidate: 86400 });
-  safeCacheTag("bookmarks", `bookmarks-page-${pageNumber}-sz-${pageSize}`);
+  safeCacheTag(
+    "bookmarks",
+    `bookmarks-page-${pageNumber}`,
+    `bookmarks-page-${pageNumber}-sz-${pageSize}`,
+  );
   return getBookmarksPageDirect(pageNumber, pageSize);
 }
 
@@ -177,7 +181,11 @@ async function getCachedTagBookmarksPage(
 ): Promise<UnifiedBookmark[]> {
   "use cache";
   safeCacheLife({ revalidate: 86400 });
-  safeCacheTag("bookmarks", `bookmarks-tag-${tagSlug}-page-${pageNumber}-sz-${pageSize}`);
+  safeCacheTag(
+    "bookmarks",
+    `bookmarks-tag-${tagSlug}`,
+    `bookmarks-tag-${tagSlug}-page-${pageNumber}-sz-${pageSize}`,
+  );
   return getTagBookmarksPageDirect(tagSlug, pageNumber, pageSize);
 }
 
