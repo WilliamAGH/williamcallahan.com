@@ -10,6 +10,7 @@ import type { DiscoverFeedContent, DiscoverFeedProps } from "@/types/features/di
 const DISCOVER_PRIORITY_ROW_IMAGE_COUNT = 4;
 const OBSERVER_ROOT_MARGIN = "960px 0px";
 const OPTIMISTIC_EXPAND_DELAY_MS = 150;
+const MAX_RECENCY_DAYS = 720;
 
 function mergeTopicSections(
   currentSections: ReadonlyArray<DiscoverFeedContent["topicSections"][number]>,
@@ -76,7 +77,9 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
     [topicSections],
   );
 
-  const hasMoreTopicSections = pagination.hasNextSectionPage;
+  const hasMorePages = pagination.hasNextSectionPage;
+  const canExpandWindow = !hasMorePages && currentRecencyDays < MAX_RECENCY_DAYS;
+  const hasMoreTopicSections = hasMorePages || canExpandWindow;
   const canAutoLoadMore = hasMoreTopicSections && loadMoreError === null && isAutoExpandAvailable;
 
   const fetchGroupedDiscoverPage = useCallback(
@@ -99,23 +102,25 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   );
 
   const loadMoreTopicSections = useCallback(async () => {
-    if (
-      !pagination.hasNextSectionPage ||
-      pagination.nextSectionPage === null ||
-      loadMoreInFlightRef.current
-    ) {
-      return;
-    }
+    if (loadMoreInFlightRef.current) return;
+
+    const morePages = pagination.hasNextSectionPage;
+    const expandable = !morePages && currentRecencyDays < MAX_RECENCY_DAYS;
+    if (!morePages && !expandable) return;
+
     loadMoreInFlightRef.current = true;
     setIsLoadingMore(true);
     setLoadMoreError(null);
 
-    // Expand recency window: 90 -> 180 -> 360 -> 720...
-    const nextRecencyDays = currentRecencyDays * 2;
+    // Phase 1: paginate within current recency window (fixed dataset)
+    // Phase 2: when window exhausted, expand recency and restart from page 1
+    const isExpanding = !morePages;
+    const nextRecencyDays = isExpanding ? currentRecencyDays * 2 : currentRecencyDays;
+    const nextPage = isExpanding ? 1 : (pagination.nextSectionPage ?? 1);
 
     try {
       const nextData = await fetchGroupedDiscoverPage(
-        pagination.nextSectionPage,
+        nextPage,
         pagination.sectionsPerPage,
         nextRecencyDays,
       );
@@ -123,7 +128,9 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
         setTopicSections((current) => mergeTopicSections(current, nextData.topicSections));
         setInternalHrefs((current) => ({ ...current, ...nextData.internalHrefs }));
         setPagination(nextData.pagination);
-        setCurrentRecencyDays(nextRecencyDays);
+        if (isExpanding) {
+          setCurrentRecencyDays(nextRecencyDays);
+        }
         setDegradation((current) => {
           const mergedReasons = [...current.reasons, ...nextData.degradation.reasons];
           const uniqueReasons = Array.from(new Set(mergedReasons));
