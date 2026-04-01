@@ -14,7 +14,7 @@ import { createErrorResponse } from "@/lib/utils/api-utils";
 import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
 const COVER_FETCH_TIMEOUT_MS = 15_000;
-const CACHE_DURATION_SECONDS = 60 * 60 * 24 * 365; // 1 year — covers are static
+const CACHE_DURATION_SECONDS = 60 * 60 * 24 * 30; // 30 days — covers change rarely but aren't versioned
 const HTTP_NOT_FOUND = 404;
 const HTTP_BAD_GATEWAY = 502;
 const HTTP_GATEWAY_TIMEOUT = 504;
@@ -56,11 +56,16 @@ export async function GET(
       return new NextResponse(null, { status });
     }
 
+    const contentType = upstream.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("image/")) {
+      return new NextResponse(null, { status: HTTP_BAD_GATEWAY });
+    }
+
     return new NextResponse(upstream.body, {
       status: 200,
       headers: {
-        "Content-Type": upstream.headers.get("content-type") ?? "image/jpeg",
-        "Cache-Control": `public, max-age=${CACHE_DURATION_SECONDS}, immutable`,
+        "Content-Type": contentType,
+        "Cache-Control": `public, max-age=${CACHE_DURATION_SECONDS}, stale-while-revalidate=86400`,
         ...IMAGE_SECURITY_HEADERS,
       },
     });
