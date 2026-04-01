@@ -127,15 +127,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     if (tagFilter) {
-      const normalizedTagFilter = decodeURIComponent(tagFilter).trim();
+      const normalizedTagFilter = tagFilter.trim();
       const resolved = await resolveBookmarkTagSlug(normalizedTagFilter);
       const canonicalTagSlug = resolved.canonicalSlug;
 
-      const {
-        bookmarks: tagBookmarks,
-        totalCount: total,
-        totalPages,
-      } = await getBookmarksByTag(canonicalTagSlug, page, limit);
+      const { bookmarks: tagBookmarks, totalCount: total } = await getBookmarksByTag(
+        canonicalTagSlug,
+        page,
+        limit,
+      );
+      const totalPages = Math.ceil(total / limit);
 
       let finalBookmarks: UnifiedBookmark[] = [...tagBookmarks];
       let relatedCount = 0;
