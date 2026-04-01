@@ -48,7 +48,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   feedMode = "discover",
   internalHrefs,
 }) => {
-  const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   const router = useRouter();
   const pathname = usePathname();
@@ -109,7 +108,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const { trackImpression } = useEngagementTracker();
 
   useEffect(() => {
-    setMounted(true);
     if (initialPage > 1) goToPage(initialPage);
   }, [initialPage, goToPage]);
 
@@ -220,7 +218,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
               disabled={isRefreshing}
               className="flex-shrink-0 p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Refresh Bookmarks"
-              style={{ visibility: mounted ? "visible" : "hidden" }}
             >
               {isRefreshing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -248,27 +245,23 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         </div>
       )}
 
-      {mounted && showPaginationNav && (
-        <BookmarkPaginationNav {...paginationProps} className="mb-6" />
-      )}
+      {showPaginationNav && <BookmarkPaginationNav {...paginationProps} className="mb-6" />}
 
       <div className="mb-6">
-        {mounted ? (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-gray-500 dark:text-gray-400">
-              {resultsCountText}
-              {selectedTag && ` tagged with "${selectedTag}"`}
-              {lastRefreshed && (
-                <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
-                  · refreshed {lastRefreshed.toLocaleTimeString()}
-                </span>
-              )}
-            </p>
-            {isDevelopment && <span />}
-          </div>
-        ) : (
-          <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded" suppressHydrationWarning />
-        )}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-gray-500 dark:text-gray-400">
+            {resultsCountText}
+            {selectedTag && ` tagged with "${selectedTag}"`}
+            {lastRefreshed && (
+              <span
+                className="text-xs text-gray-400 dark:text-gray-500 ml-2"
+                suppressHydrationWarning
+              >
+                · refreshed {lastRefreshed.toLocaleTimeString()}
+              </span>
+            )}
+          </p>
+        </div>
       </div>
 
       {error && (
