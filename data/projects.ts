@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2026-02-09";
+export const updatedAt = "2026-04-06";
 
 export const projects: Project[] = [
   {
@@ -68,8 +68,7 @@ export const projects: Project[] = [
     description:
       "Web app that merges search with an AI chat assistant: select results, then ask GPT/Groq/Gemini using that grounded context. Built with Next.js, TypeScript, Convex Database, and Vercel AI SDK, with heavy server-side scraping/parsing to filter only relevant context.",
     shortSummary: "AI-powered web search with a contextual chat assistant",
-    url: "https://researchly.fyi",
-    githubUrl: "https://github.com/WilliamAGH/Researchly",
+    url: "https://researchly.chat",
     imageKey: "images/other/projects/searchAI.png",
     tags: [
       "AI",
@@ -90,6 +89,18 @@ export const projects: Project[] = [
       "Python",
       "Vercel AI SDK",
     ],
+    cvFeatured: true,
+  },
+  {
+    id: "Ensemble",
+    name: "Ensemble",
+    description:
+      "Multi-agent collaborative research interface where AI agents deliberate, react, and build on each other's reasoning in real time. A companion app to Researchly that surfaces richer insights through agent ensemble dynamics. Built with Svelte 5, Convex, and Tailwind CSS.",
+    shortSummary: "Multi-agent collaborative research with real-time AI deliberation",
+    url: "https://researchly.chat/ensemble/",
+    imageKey: "images/other/projects/ensemble-app.png",
+    tags: ["AI", "Multi-Agent", "Research Tool", "Collaborative", "Real-time", "Web App", "Svelte"],
+    techStack: ["Svelte 5", "TypeScript", "Convex Database", "Tailwind CSS", "Vite"],
     cvFeatured: true,
   },
   {
