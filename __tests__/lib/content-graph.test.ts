@@ -16,6 +16,12 @@ vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
 vi.mock("@/lib/blog");
 vi.mock("@/lib/utils/logger");
 vi.mock("@/lib/search/index-builder");
+vi.mock("@/lib/db/queries/bookmarks");
+vi.mock("@/lib/db/mutations/search-index-artifacts");
+vi.mock("@/lib/db/mutations/image-manifests");
+vi.mock("@/lib/s3/objects", () => ({
+  listS3Objects: vi.fn().mockResolvedValue([]),
+}));
 vi.mock("@/data/projects", () => ({
   projects: [],
 }));
@@ -133,13 +139,27 @@ describe("Content Graph Pre-computation", () => {
       );
 
       // Mock blog posts and projects for metadata
-      const { getAllPosts } = await import("@/lib/blog");
-      (getAllPosts as MockedFunction<typeof getAllPosts>).mockResolvedValue([
-        { slug: "test-post", title: "Test Post", tags: ["javascript"], publishedAt: "2024-01-01" },
+      const { getAllPostsMeta } = await import("@/lib/blog");
+      (getAllPostsMeta as MockedFunction<typeof getAllPostsMeta>).mockResolvedValue([
+        {
+          id: "test-post",
+          slug: "test-post",
+          title: "Test Post",
+          tags: ["javascript"],
+          publishedAt: "2024-01-01",
+        },
       ] as any);
 
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
-      (refreshBookmarks as any).mockResolvedValue([]);
+      const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const { getBookmarksIndexFromDatabase } = await import("@/lib/db/queries/bookmarks");
+
+      (getBookmarks as any).mockResolvedValue([{ id: "b1" }, { id: "b2" }]);
+      (getBookmarksIndexFromDatabase as any).mockResolvedValue({
+        count: 2,
+        lastFetchedAt: Date.now(),
+      });
+      (refreshBookmarks as any).mockResolvedValue([{ id: "b1" }, { id: "b2" }]);
       mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
 
       // Run the content graph build
@@ -238,11 +258,19 @@ describe("Content Graph Pre-computation", () => {
           })),
       );
 
-      const { getAllPosts } = await import("@/lib/blog");
-      (getAllPosts as any).mockResolvedValue([]);
+      const { getAllPostsMeta } = await import("@/lib/blog");
+      (getAllPostsMeta as any).mockResolvedValue([]);
 
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
-      (refreshBookmarks as any).mockResolvedValue([]);
+      const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const { getBookmarksIndexFromDatabase } = await import("@/lib/db/queries/bookmarks");
+
+      (getBookmarks as any).mockResolvedValue([{ id: "1" }, { id: "2" }]);
+      (getBookmarksIndexFromDatabase as any).mockResolvedValue({
+        count: 2,
+        lastFetchedAt: Date.now(),
+      });
+      (refreshBookmarks as any).mockResolvedValue([{ id: "1" }, { id: "2" }]);
       mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
 
       await manager.fetchData({
@@ -293,8 +321,13 @@ describe("Content Graph Pre-computation", () => {
 
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const { getBookmarksIndexFromDatabase } = await import("@/lib/db/queries/bookmarks");
 
       (getBookmarks as any).mockResolvedValue([]);
+      (getBookmarksIndexFromDatabase as any).mockResolvedValue({
+        count: 0,
+        lastFetchedAt: Date.now(),
+      });
       (refreshBookmarks as any).mockRejectedValue(new Error("API Error"));
 
       const result = await manager.fetchData({
