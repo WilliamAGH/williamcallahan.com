@@ -97,7 +97,6 @@ export class NextResponse {
   status: number;
   headers: ReturnType<typeof makeCaseInsensitiveHeaders>;
   cookies: { set: (cookie: CookieOptions) => void };
-  json?: () => Promise<unknown>;
 
   constructor(body?: unknown, init: { status?: number; headers?: Record<string, string> } = {}) {
     this.body = body;
@@ -116,13 +115,42 @@ export class NextResponse {
     };
   }
 
+  async text(): Promise<string> {
+    if (this.body instanceof ReadableStream) {
+      const reader = this.body.getReader();
+      const decoder = new TextDecoder();
+      let result = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value);
+      }
+      return result;
+    }
+    return String(this.body ?? "");
+  }
+
+  async json<T = unknown>(): Promise<T> {
+    const text = await this.text();
+    return JSON.parse(text);
+  }
+
+  async blob(): Promise<Blob> {
+    const text = await this.text();
+    return new Blob([text]);
+  }
+
+  async arrayBuffer(): Promise<ArrayBuffer> {
+    const text = await this.text();
+    return new TextEncoder().encode(text).buffer;
+  }
+
   static json<T>(
     data: T,
     init: { status?: number; headers?: Record<string, string> } = {},
   ): NextResponse {
     const response = new NextResponse(JSON.stringify(data), init);
     response.headers.set("content-type", "application/json");
-    response.json = () => Promise.resolve(data);
     return response;
   }
 
