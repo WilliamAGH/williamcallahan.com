@@ -1,15 +1,36 @@
 import { NextResponse } from "next/server";
 import { getAllPostsMeta } from "@/lib/blog";
-import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import { getBookmarksPage } from "@/lib/bookmarks/service.server";
 import { metadata } from "@/data/metadata";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
-interface FeedItem {
-  title: string;
-  url: string;
-  date: Date;
-  description: string;
-  category: "Blog" | "Bookmark";
+const MAX_FEED_ITEMS = 100;
+
+const escapeXml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+
+const wrapCdata = (value: string): string =>
+  `<![CDATA[${value.replaceAll("]]>", "]]]]><![CDATA[>")}]]>`;
+
+const pickDescription = (...values: Array<string | null | undefined>): string | null => {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+};
+
+function parseFeedDate(rawValue: string, label: string): Date | null {
+  const date = new Date(rawValue);
+  if (Number.isNaN(date.getTime())) {
+    console.error(`[feed.xml] Skipping ${label} because the date is invalid: ${rawValue}`);
+    return null;
+  }
+  return date;
 }
 
 // Next.js 16 + cacheComponents means pages are dynamic by default.
@@ -18,47 +39,65 @@ interface FeedItem {
 export async function GET() {
   const [posts, bookmarks] = await Promise.all([
     getAllPostsMeta(false), // exclude drafts
-    getBookmarks({ skipExternalFetch: true }), // fast local/cache fetch
+    getBookmarksPage(1, MAX_FEED_ITEMS), // lightweight, bounded fetch for feed generation
   ]);
 
   const siteUrl = metadata.site.url;
+  const feedUrl = `${siteUrl}/feed.xml`;
+  const generatedAt = new Date().toUTCString();
 
-  const feedItems: FeedItem[] = [
-    ...posts.map((post) => ({
-      title: post.title,
-      url: `${siteUrl}/blog/${post.slug}`,
-      date: post.publishedAt ? new Date(post.publishedAt) : new Date(),
-      description: post.excerpt || "",
-      category: "Blog" as const,
-    })),
-    ...(bookmarks as UnifiedBookmark[]).map((bookmark) => ({
-      title: bookmark.title,
-      url: `${siteUrl}/bookmarks/${bookmark.slug}`,
-      date: new Date(bookmark.dateBookmarked),
-      description: bookmark.description || bookmark.summary || "",
-      category: "Bookmark" as const,
-    })),
+  const feedItems = [
+    ...posts.flatMap((post) => {
+      const date = parseFeedDate(post.publishedAt, `blog post "${post.slug}"`);
+      if (!date) return [];
+      return [
+        {
+          title: post.title,
+          url: `${siteUrl}/blog/${post.slug}`,
+          date,
+          description: pickDescription(post.excerpt),
+          category: "Blog" as const,
+        },
+      ];
+    }),
+    ...bookmarks.flatMap((bookmark) => {
+      const date = parseFeedDate(bookmark.dateBookmarked, `bookmark "${bookmark.id}"`);
+      if (!date) return [];
+      return [
+        {
+          title: bookmark.title,
+          url: `${siteUrl}/bookmarks/${bookmark.slug}`,
+          date,
+          description: pickDescription(bookmark.description, bookmark.summary),
+          category: "Bookmark" as const,
+        },
+      ];
+    }),
   ];
 
   // Sort chronologically newest first
   feedItems.sort((a, b) => b.date.getTime() - a.date.getTime());
 
   // Cap at 100 to prevent unbounded XML growth over time
-  const latestItems = feedItems.slice(0, 100);
+  const latestItems = feedItems.slice(0, MAX_FEED_ITEMS);
 
   const rssItems = latestItems
     .map((item) => {
       // Prepending an indicator is an idiomatic pattern for combined feeds
       const titlePrefix = item.category === "Bookmark" ? "🔖 " : "📝 ";
+      const descriptionNode = item.description
+        ? `
+      <description>${wrapCdata(item.description)}</description>`
+        : "";
 
       return `
     <item>
-      <title><![CDATA[${titlePrefix}${item.title}]]></title>
-      <link>${item.url}</link>
-      <guid isPermaLink="true">${item.url}</guid>
+      <title>${wrapCdata(`${titlePrefix}${item.title}`)}</title>
+      <link>${escapeXml(item.url)}</link>
+      <guid isPermaLink="true">${escapeXml(item.url)}</guid>
       <pubDate>${item.date.toUTCString()}</pubDate>
-      <description><![CDATA[${item.description}]]></description>
-      <category>${item.category}</category>
+      ${descriptionNode}
+      <category>${escapeXml(item.category)}</category>
     </item>`;
     })
     .join("");
@@ -66,13 +105,13 @@ export async function GET() {
   const rssFeed = `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${metadata.title}</title>
-    <link>${siteUrl}</link>
-    <description>${metadata.description}</description>
+    <title>${wrapCdata(metadata.title)}</title>
+    <link>${escapeXml(siteUrl)}</link>
+    <description>${wrapCdata(metadata.description)}</description>
     <language>en-us</language>
     <generator>WilliamCallahan.com</generator>
-    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <atom:link href="${siteUrl}/feed.xml" rel="self" type="application/rss+xml"/>
+    <lastBuildDate>${generatedAt}</lastBuildDate>
+    <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml"/>
     ${rssItems}
   </channel>
 </rss>`;
