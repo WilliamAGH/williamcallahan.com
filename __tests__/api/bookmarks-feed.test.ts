@@ -195,7 +195,7 @@ describe("RSS feed route", () => {
     ]);
 
     const response = await getFeedRoute();
-    const xml = String(response.body);
+    const xml = await new Response(response.body).text();
 
     expect(response.headers.get("Content-Type")).toContain("application/rss+xml");
     expect(mockGetBookmarksPage).toHaveBeenCalledWith(1, 100);
@@ -225,7 +225,7 @@ describe("RSS feed route", () => {
     ]);
 
     const response = await getFeedRoute();
-    const xml = String(response.body);
+    const xml = await new Response(response.body).text();
 
     expect(response.status).toBe(200);
     expect(xml).toContain("Valid bookmark");
