@@ -48,6 +48,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   feedMode = "discover",
   internalHrefs,
 }) => {
+  const [mounted, setMounted] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   const router = useRouter();
   const pathname = usePathname();
@@ -108,6 +109,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const { trackImpression } = useEngagementTracker();
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+  useEffect(() => {
     if (initialPage > 1) goToPage(initialPage);
   }, [initialPage, goToPage]);
 
@@ -158,7 +162,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     if (selectedTag && currentPageRef.current !== 1) goToPage(1);
   }, [selectedTag, initialPage, goToPage]);
 
-  const useUrlPagination = globalThis.window !== undefined && baseUrl !== "/bookmarks";
+  const useUrlPagination = mounted && baseUrl !== "/bookmarks";
   const showPaginationNav = !enableInfiniteScroll;
 
   const paginatedSlice = (items: UnifiedBookmark[]): UnifiedBookmark[] => {
