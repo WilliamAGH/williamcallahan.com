@@ -81,6 +81,22 @@ vi.mock("@/components/features/bookmarks/discover-feed.client", () => ({
   DiscoverFeed: () => <div data-testid="discover-feed" />,
 }));
 
+vi.mock("@/components/features/bookmarks/discover-feed-wrapper.server", () => {
+  return {
+    __esModule: true,
+    DiscoverFeedWrapper: (props: any) => {
+      // Call it synchronously to register the invocation for vitest
+      mockGetDiscoveryGroupedBookmarks({
+        sectionPage: props.sectionPage,
+        sectionsPerPage: props.sectionsPerPage,
+        recencyDays: props.recencyDays,
+      });
+      return <div data-testid="discover-feed" />;
+    },
+    DiscoverFeedSkeleton: () => <div data-testid="discover-feed-skeleton" />,
+  };
+});
+
 vi.mock("@/lib/db/queries/discovery-grouped", () => ({
   __esModule: true,
   getDiscoveryGroupedBookmarks: mockGetDiscoveryGroupedBookmarks,
