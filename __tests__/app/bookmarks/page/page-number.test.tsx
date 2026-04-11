@@ -1,6 +1,7 @@
 import React, { act } from "react";
 import { vi } from "vitest";
 import { render } from "@testing-library/react";
+import type { DiscoverFeedWrapperProps } from "@/types/features/discovery";
 
 // Manually mock the entire data access layer for this test suite
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
@@ -84,7 +85,7 @@ vi.mock("@/components/features/bookmarks/discover-feed.client", () => ({
 vi.mock("@/components/features/bookmarks/discover-feed-wrapper.server", () => {
   return {
     __esModule: true,
-    DiscoverFeedWrapper: (props: any) => {
+    DiscoverFeedWrapper: (props: DiscoverFeedWrapperProps) => {
       // Call it synchronously to register the invocation for vitest
       mockGetDiscoveryGroupedBookmarks({
         sectionPage: props.sectionPage,
