@@ -49,7 +49,7 @@
     "lint:ox:typeaware": "oxlint -c config/oxlintrc.json --type-aware .",
     "lint:ast-grep": "ast-grep scan -c config/sgconfig.yml && echo 'No ast-grep violations found'",
     "lint:fix": "oxlint -c config/oxlintrc.json --fix . && eslint . --config config/eslint.config.ts --fix",
-    "type-check": "bunx tsc --noEmit",
+    "type-check": "node ./node_modules/next/dist/bin/next typegen && bunx tsc --noEmit",
     "type-check:tests": "bunx tsc --noEmit --project __tests__/tsconfig.json",
     "guard:runtime-json-s3-ops": "bash -c 'set -euo pipefail; if rg -n \"(getObject|putObject|deleteFromS3|listS3Objects|readBinaryS3|writeBinaryS3)\\\\(\\\\s*[\\\"\\x27]json/\" src --glob \"!src/lib/s3/**\"; then echo \"[Runtime JSON S3 Guard] Found forbidden json/* S3 object operations in src/. Use PostgreSQL-backed stores.\"; exit 1; fi'",
     "check:file-size": "bash -c 'fail=0; for f in $(find . -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.d.ts\" | grep -v \"node_modules/\" | grep -v \".next/\"); do lines=$(wc -l < \"$f\"); if [ $lines -gt 350 ]; then echo \"[File Size Warning] $f exceeds $lines lines (limit: 350)\"; fail=1; fi; done; if [ $fail -ne 0 ]; then echo \"[File Size Check] Files exceed 350 lines — run bun run check:file-size for details\"; fi; exit 0'",

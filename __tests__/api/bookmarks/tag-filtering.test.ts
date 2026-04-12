@@ -4,7 +4,6 @@
 
 import { GET } from "@/app/api/bookmarks/route";
 import {
-  getBookmarks,
   getBookmarksByTag,
   getBookmarksIndex,
   getBookmarksPage,
@@ -23,7 +22,6 @@ vi.mock("@/lib/bookmarks/slug-manager");
 vi.mock("@/lib/db/queries/discovery-scores");
 vi.mock("@/lib/db/queries/embedding-similarity");
 
-const mockGetBookmarks = vi.mocked(getBookmarks);
 const mockGetBookmarksByTag = vi.mocked(getBookmarksByTag);
 const mockGetBookmarksIndex = vi.mocked(getBookmarksIndex);
 const mockGetBookmarksPage = vi.mocked(getBookmarksPage);
@@ -140,7 +138,7 @@ describe("Bookmark API Tag Filtering", () => {
     mockGetBookmarkById.mockImplementation(async (id) => {
       return mockBookmarks.find((b) => b.id === id) ?? null;
     });
-    mockGetBookmarksPage.mockImplementation(async (page) => {
+    mockGetBookmarksPage.mockImplementation(async () => {
       return mockBookmarks;
     });
   });
