@@ -7,16 +7,12 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-/**
- * Common browser extension error patterns to filter from error reporting
- * Prevents unnecessary noise from extension conflicts
- */
 const NON_CRITICAL_ERROR_PATTERNS = [
   'can\'t redefine non-configurable property "ethereum"',
   "Load failed",
 ];
 
-const BROWSER_EXTENSION_ERROR_PATTERNS = [
+const CLIENT_NOISE_ERROR_PATTERNS = [
   "runtime.sendMessage",
   "Tab not found",
   "chrome.runtime",
@@ -26,11 +22,15 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
   "chrome-extension://",
   "script error",
   "Non-Error promise rejection captured",
+  "Event `Event` (type=error) captured as promise rejection",
+  "feature named `pageContext` was not found",
+  "The WKWebView was deallocated before the message was delivered",
+  "ReportingObserver [deprecation]",
   ...NON_CRITICAL_ERROR_PATTERNS,
 ];
 
 /**
- * Determines if an error should be filtered out based on browser extension patterns
+ * Determines if an error should be filtered out based on non-actionable client noise
  * @param errorMessage - The error message to check
  * @returns true if the error should be filtered out, false otherwise
  */
@@ -39,8 +39,7 @@ export function shouldFilterError(errorMessage: unknown): boolean {
     return false;
   }
   const normalizedMessage = errorMessage.toLowerCase();
-  // Check for known browser extension error patterns
-  for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {
+  for (const pattern of CLIENT_NOISE_ERROR_PATTERNS) {
     if (normalizedMessage.includes(pattern.toLowerCase())) {
       return true;
     }
@@ -108,10 +107,9 @@ if (process.env.NODE_ENV === "production") {
         enableLongAnimationFrame: true, // Long animation frame detection
       }),
 
-      // Capture browser deprecation warnings and interventions
-      // Helps identify compatibility issues before they become problems
+      // Capture actionable browser reports without filing non-actionable deprecation noise
       Sentry.reportingObserverIntegration({
-        types: ["crash", "deprecation", "intervention"],
+        types: ["crash", "intervention"],
       }),
     ],
 
@@ -123,10 +121,17 @@ if (process.env.NODE_ENV === "production") {
     // Setting this option to true will print useful information to the console while you're setting up Sentry.
     debug: false,
 
-    // Filter out browser extension errors
+    ignoreErrors: CLIENT_NOISE_ERROR_PATTERNS,
+
+    // Filter out known browser and WebView noise before events are sent
     beforeSend(event) {
-      const errorMessage = event.exception?.values?.[0]?.value || "";
-      return shouldFilterError(errorMessage) ? null : event;
+      const exceptionValues = event.exception?.values;
+      const exceptionMessages = exceptionValues
+        ? exceptionValues.flatMap(({ type, value }) => [type, value])
+        : [];
+      const messages = [event.message, ...exceptionMessages];
+
+      return messages.some(shouldFilterError) ? null : event;
     },
   });
 }

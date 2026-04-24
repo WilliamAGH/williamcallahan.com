@@ -3,9 +3,19 @@
  */
 
 describe("shouldFilterError", () => {
-  it("filters known browser extension errors", async () => {
+  it("filters known client-side noise", async () => {
     const { shouldFilterError } = await import("@/instrumentation-client");
-    expect(shouldFilterError("chrome-extension:// runtime.sendMessage failed")).toBe(true);
+    const filteredMessages = [
+      "chrome-extension:// runtime.sendMessage failed",
+      "Event `Event` (type=error) captured as promise rejection",
+      "Error: feature named `pageContext` was not found",
+      "Error: The WKWebView was deallocated before the message was delivered",
+      "ReportingObserver [deprecation]: The Shared Storage API is deprecated",
+    ];
+
+    for (const message of filteredMessages) {
+      expect(shouldFilterError(message)).toBe(true);
+    }
   });
 
   it("returns false for non-string values without throwing", async () => {
