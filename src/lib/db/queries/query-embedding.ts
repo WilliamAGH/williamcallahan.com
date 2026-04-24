@@ -30,11 +30,31 @@ export async function buildQueryEmbedding(
   logContext: string,
   context?: QueryEmbeddingContext,
 ): Promise<number[] | undefined> {
-  if (context?.precomputed && context.precomputed.length === CONTENT_EMBEDDING_DIMENSIONS) {
-    return context.precomputed;
+  if (context?.precomputed) {
+    if (context.precomputed.length === CONTENT_EMBEDDING_DIMENSIONS) {
+      return context.precomputed;
+    }
+    envLogger.log(
+      `${logContext} precomputed query embedding has wrong dimensionality; re-embedding`,
+      {
+        received: context.precomputed.length,
+        expected: CONTENT_EMBEDDING_DIMENSIONS,
+      },
+      { category: "Search" },
+    );
   }
 
-  const embeddingConfig = resolveDefaultEndpointCompatibleEmbeddingConfig();
+  let embeddingConfig: ReturnType<typeof resolveDefaultEndpointCompatibleEmbeddingConfig> = null;
+  try {
+    embeddingConfig = resolveDefaultEndpointCompatibleEmbeddingConfig();
+  } catch (error) {
+    envLogger.log(
+      `${logContext} embedding config unavailable; continuing with keyword-only search`,
+      { error: error instanceof Error ? error.message : String(error) },
+      { category: "Search" },
+    );
+    // RC1a: error logged; null signals FTS-only fallback
+  }
   if (!embeddingConfig) {
     return undefined;
   }
