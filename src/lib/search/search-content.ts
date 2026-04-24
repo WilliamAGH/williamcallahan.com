@@ -178,6 +178,8 @@ export async function rerankScoredResultsWithEmbeddings<T>(options: {
   timeoutMs?: number;
   keywordWeight?: number;
   vectorWeight?: number;
+  /** Precomputed query vector to skip embedding the query in the batched call. */
+  queryEmbedding?: number[];
 }): Promise<ScoredResult<T>[]> {
   const sanitizedQuery = sanitizeSearchQuery(options.query);
   if (!sanitizedQuery) {
@@ -200,20 +202,27 @@ export async function rerankScoredResultsWithEmbeddings<T>(options: {
     return options.scoredResults;
   }
 
+  const precomputedQueryVector = options.queryEmbedding;
+  const batchInput = precomputedQueryVector ? texts : [sanitizedQuery, ...texts];
+
   try {
     const vectors = await embedTextsWithEndpointCompatibleModel({
       config: embeddingConfig,
-      input: [sanitizedQuery, ...texts],
+      input: batchInput,
+      tier: "production-z",
       timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     });
-    const queryVector = vectors[0];
+    const queryVector = precomputedQueryVector ?? vectors[0];
     if (!queryVector) {
       return options.scoredResults;
     }
+    const candidateVectorOffset = precomputedQueryVector ? 0 : 1;
 
     const keywordScores = normalizeScores(candidates.map((candidate) => candidate.score));
     const vectorScores = normalizeScores(
-      candidates.map((_, index) => cosineSimilarity(queryVector, vectors[index + 1] ?? [])),
+      candidates.map((_, index) =>
+        cosineSimilarity(queryVector, vectors[index + candidateVectorOffset] ?? []),
+      ),
     );
 
     const keywordWeight = options.keywordWeight ?? DEFAULT_KEYWORD_WEIGHT;

@@ -3,13 +3,17 @@ import {
   endpointCompatibleEmbeddingsResponseSchema,
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
-import type { EndpointCompatibleEmbeddingConfig } from "@/types/schemas/ai-openai-compatible";
+import type {
+  EndpointCompatibleEmbeddingConfig,
+  OpenAiCompatibleTier,
+} from "@/types/schemas/ai-openai-compatible";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export async function embedTextsWithEndpointCompatibleModel(args: {
   config: EndpointCompatibleEmbeddingConfig;
   input: string[];
+  tier: OpenAiCompatibleTier;
   timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<number[][]> {
@@ -36,6 +40,7 @@ export async function embedTextsWithEndpointCompatibleModel(args: {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      "X-Tier": args.tier,
     },
     body: JSON.stringify(request),
     signal: requestSignal,

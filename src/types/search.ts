@@ -20,6 +20,19 @@ import type {
 export type ScoredResult<T> = { item: T; score: number };
 
 /**
+ * Per-request context for deduping query embedding calls across a fan-out.
+ *
+ * A caller running many searchers in parallel (e.g. the RAG retriever) computes
+ * the query embedding once and threads this object through every searcher, so
+ * concurrent searchers share one embedding HTTP call instead of each firing
+ * their own and queueing behind the inference server.
+ */
+export interface QueryEmbeddingContext {
+  /** Precomputed query vector; when present, searchers skip the network call. */
+  precomputed?: number[];
+}
+
+/**
  * Configuration for a MiniSearch index.
  * Centralizes the repetitive MiniSearch options used across all index builders.
  *
@@ -109,7 +122,7 @@ export type AnyAnalysisResponse =
 
 /** Configuration for each AI analysis search domain */
 export interface AnalysisDomainConfig {
-  searcher: (query: string) => Promise<SearchResultShape[]>;
+  searcher: (query: string, context?: QueryEmbeddingContext) => Promise<SearchResultShape[]>;
   prefix: string;
   getParentUrl: (id: string) => string;
   extractSearchableText: (analysis: AnyAnalysisResponse) => string[];

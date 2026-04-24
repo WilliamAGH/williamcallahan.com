@@ -11,6 +11,7 @@ import type { SearchResult, AggregatedTag } from "@/types/schemas/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
+import type { QueryEmbeddingContext } from "@/types/search";
 import { aggregateTags } from "../tag-aggregator";
 import { getBookmarksIndex, getCachedBooksData } from "../loaders/dynamic-content";
 import { projectsData } from "../loaders/static-content";
@@ -127,7 +128,10 @@ function formatTagTitle(tag: AggregatedTag): string {
  * Search tags across all content types.
  * Returns tags matching the query with proper hierarchy display.
  */
-export async function searchTags(query: string): Promise<SearchResult[]> {
+export async function searchTags(
+  query: string,
+  context?: QueryEmbeddingContext,
+): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
@@ -189,6 +193,7 @@ export async function searchTags(query: string): Promise<SearchResult[]> {
     scoredResults: limitedTags.map(({ tag, score }) => ({ item: tag, score })),
     getRerankText: (tag) => `${tag.name}\n${tag.contentType}`,
     logContext: "[searchTags]",
+    queryEmbedding: context?.precomputed,
   });
 
   // Transform to SearchResult format

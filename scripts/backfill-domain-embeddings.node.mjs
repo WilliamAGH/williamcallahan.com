@@ -75,7 +75,11 @@ function buildApiBaseUrl(baseUrl) {
 async function embedTexts(apiBaseUrl, apiKey, model, input, timeoutMs) {
   const res = await fetch(`${apiBaseUrl}/embeddings`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-Tier": "batch",
+    },
     body: JSON.stringify({ model, input }),
     signal: AbortSignal.timeout(timeoutMs),
   });

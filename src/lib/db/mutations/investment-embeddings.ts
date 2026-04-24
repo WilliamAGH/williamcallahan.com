@@ -145,7 +145,11 @@ export async function backfillInvestmentEmbeddings(
     if (rows.length === 0) break;
 
     const inputs = rows.map(buildInvestmentEmbeddingInput);
-    const embeddings = await embedTextsWithEndpointCompatibleModel({ config, input: inputs });
+    const embeddings = await embedTextsWithEndpointCompatibleModel({
+      config,
+      input: inputs,
+      tier: "batch",
+    });
     if (embeddings.length !== rows.length) {
       throw new Error(
         `Embedding count mismatch. Expected ${rows.length}, received ${embeddings.length}.`,

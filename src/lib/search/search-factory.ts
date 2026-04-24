@@ -8,7 +8,7 @@
  */
 
 import type { SearchResult } from "@/types/schemas/search";
-import type { SearchFunctionConfig } from "@/types/search";
+import type { QueryEmbeddingContext, SearchFunctionConfig } from "@/types/search";
 import { rerankScoredResultsWithEmbeddings, searchContent } from "./search-content";
 
 /**
@@ -17,6 +17,7 @@ import { rerankScoredResultsWithEmbeddings, searchContent } from "./search-conte
 async function executeSearch<TDoc, TResult extends SearchResult>(
   config: SearchFunctionConfig<TDoc, TResult>,
   query: string,
+  context?: QueryEmbeddingContext,
 ): Promise<TResult[]> {
   const index = await config.getIndex();
   const items = await Promise.resolve(config.getItems());
@@ -38,6 +39,7 @@ async function executeSearch<TDoc, TResult extends SearchResult>(
         keywordWeight: config.hybridRerank.keywordWeight,
         vectorWeight: config.hybridRerank.vectorWeight,
         logContext: `[search-factory:${config.cacheKey}]`,
+        queryEmbedding: context?.precomputed,
       })
     : scoredResults;
 
@@ -81,8 +83,8 @@ async function executeSearch<TDoc, TResult extends SearchResult>(
  */
 export function createCachedSearchFunction<TDoc, TResult extends SearchResult>(
   config: SearchFunctionConfig<TDoc, TResult>,
-): (query: string) => Promise<TResult[]> {
-  return async (query: string): Promise<TResult[]> => {
-    return executeSearch(config, query);
+): (query: string, context?: QueryEmbeddingContext) => Promise<TResult[]> {
+  return async (query: string, context?: QueryEmbeddingContext): Promise<TResult[]> => {
+    return executeSearch(config, query, context);
   };
 }

@@ -8,6 +8,7 @@ import { assertServerOnly } from "../utils/ensure-server-only";
 assertServerOnly();
 
 import type { SearchResult } from "@/types/schemas/search";
+import type { QueryEmbeddingContext } from "@/types/search";
 import { sanitizeSearchQuery } from "../validators/search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { hybridSearchBlogPosts } from "@/lib/db/queries/hybrid-search-books-blog";
@@ -18,11 +19,14 @@ const SEARCH_LIMIT = 50;
  * Search blog posts via hybrid PostgreSQL search.
  * Results sorted by hybrid score desc, then recency as tiebreaker.
  */
-export async function searchBlogPostsServerSide(query: string): Promise<SearchResult[]> {
+export async function searchBlogPostsServerSide(
+  query: string,
+  context?: QueryEmbeddingContext,
+): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBlogPosts]");
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBlogPosts]", context);
   const rows = await hybridSearchBlogPosts({
     query: sanitizedQuery,
     embedding,

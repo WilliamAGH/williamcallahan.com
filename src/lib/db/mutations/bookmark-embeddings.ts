@@ -222,6 +222,7 @@ export async function backfillBookmarkEmbeddings(
     const embeddings = await embedTextsWithEndpointCompatibleModel({
       config,
       input: embeddingInput,
+      tier: "batch",
     });
     if (embeddings.length !== rows.length) {
       throw new Error(
