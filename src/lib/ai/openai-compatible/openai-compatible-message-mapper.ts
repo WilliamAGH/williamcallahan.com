@@ -14,6 +14,7 @@ import type { EasyInputMessage, ResponseInput } from "openai/resources/responses
 import type {
   OpenAiCompatibleChatCompletionsRequest,
   OpenAiCompatibleResponsesRequest,
+  OpenAiCompatibleTier,
 } from "@/types/schemas/ai-openai-compatible";
 
 const NON_REASONING_MODEL_PREFIXES = ["gpt-3.5", "gpt-4"] as const;
@@ -129,8 +130,11 @@ export function toChatRequest(
 export function toRequestOptions(args: {
   timeoutMs?: number;
   signal?: AbortSignal;
+  tier: OpenAiCompatibleTier;
 }): OpenAIClient.RequestOptions {
-  const options: OpenAIClient.RequestOptions = {};
+  const options: OpenAIClient.RequestOptions = {
+    headers: { "X-Tier": args.tier },
+  };
   if (typeof args.timeoutMs === "number") options.timeout = args.timeoutMs;
   if (args.signal) options.signal = args.signal;
   return options;

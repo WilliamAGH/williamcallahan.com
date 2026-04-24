@@ -209,6 +209,7 @@ export async function rerankScoredResultsWithEmbeddings<T>(options: {
     const vectors = await embedTextsWithEndpointCompatibleModel({
       config: embeddingConfig,
       input: batchInput,
+      tier: "production-z",
       timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     });
     const queryVector = precomputedQueryVector ?? vectors[0];

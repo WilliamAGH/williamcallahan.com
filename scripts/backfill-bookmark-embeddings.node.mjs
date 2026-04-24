@@ -226,6 +226,7 @@ async function embedTextsWithEndpointCompatibleModel(args) {
     headers: {
       Authorization: `Bearer ${args.apiKey}`,
       "Content-Type": "application/json",
+      "X-Tier": "batch",
     },
     body: JSON.stringify({ model: args.model, input: args.input }),
     signal,

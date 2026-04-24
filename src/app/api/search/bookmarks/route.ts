@@ -101,6 +101,7 @@ async function tryHybridSearch(query: string): Promise<BookmarkFtsSearchHit[] | 
         const vectors = await embClient.embedTextsWithEndpointCompatibleModel({
           config,
           input: [query],
+          tier: "production-z",
           timeoutMs: 1_500,
         });
         const vec = vectors[0];

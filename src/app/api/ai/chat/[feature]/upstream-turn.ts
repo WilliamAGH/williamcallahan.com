@@ -56,7 +56,13 @@ export async function executeChatCompletionsTurn(
     ...(params.reasoningEffort == null ? {} : { reasoning_effort: params.reasoningEffort }),
     ...(params.responseFormat ? { response_format: params.responseFormat } : {}),
   };
-  const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
+  const callArgs = {
+    baseUrl: turnConfig.baseUrl,
+    apiKey: turnConfig.apiKey,
+    request,
+    signal,
+    tier: "production-a" as const,
+  };
 
   let startMeta: { id: string; model: string } | null = null;
   let emittedStartEvent = false;
@@ -161,7 +167,13 @@ export async function executeResponsesTurn(
     ...(params.reasoningEffort == null ? {} : { reasoning: { effort: params.reasoningEffort } }),
   };
 
-  const callArgs = { baseUrl: turnConfig.baseUrl, apiKey: turnConfig.apiKey, request, signal };
+  const callArgs = {
+    baseUrl: turnConfig.baseUrl,
+    apiKey: turnConfig.apiKey,
+    request,
+    signal,
+    tier: "production-a" as const,
+  };
 
   let startMeta: { id: string; model: string } | null = null;
   let emittedStartEvent = false;

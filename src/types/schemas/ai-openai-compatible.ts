@@ -4,6 +4,27 @@ import { embeddingSpaceIdSchema } from "@/types/schemas/embedding-space";
 export const aiUpstreamApiModeSchema = z.enum(["chat_completions", "responses"]);
 export type AiUpstreamApiMode = z.infer<typeof aiUpstreamApiModeSchema>;
 
+/**
+ * Gateway priority tier sent as the `X-Tier` header to the llm-gateway.
+ *
+ * Tier selection is per-call — every caller classifies its workload so the
+ * gateway can size reserved concurrency and queue depth appropriately.
+ *
+ *   production-a — live AI chat turns (user-blocking)
+ *   production-b — reserved for future live/user-blocking workloads
+ *   production-z — live render embeddings (search queries, hybrid rerank)
+ *   default      — unclassified; avoid setting this explicitly
+ *   batch        — background jobs and backfills (not user-facing)
+ */
+export const openAiCompatibleTierSchema = z.enum([
+  "production-a",
+  "production-b",
+  "production-z",
+  "default",
+  "batch",
+]);
+export type OpenAiCompatibleTier = z.infer<typeof openAiCompatibleTierSchema>;
+
 const openAiCompatibleToolCallSchema = z.object({
   id: z.string().min(1),
   type: z.literal("function"),

@@ -17,6 +17,7 @@ import {
   type OpenAiCompatibleChatCompletionsResponse,
   type OpenAiCompatibleResponsesRequest,
   type OpenAiCompatibleResponsesResponse,
+  type OpenAiCompatibleTier,
   openAiCompatibleChatCompletionsRequestSchema,
   openAiCompatibleChatCompletionsResponseSchema,
   openAiCompatibleResponsesRequestSchema,
@@ -137,6 +138,7 @@ export async function callOpenAiCompatibleChatCompletions(args: {
   baseUrl: string;
   apiKey?: string;
   request: OpenAiCompatibleChatCompletionsRequest;
+  tier: OpenAiCompatibleTier;
   timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<OpenAiCompatibleChatCompletionsResponse> {
@@ -153,6 +155,7 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
   baseUrl: string;
   apiKey?: string;
   request: OpenAiCompatibleChatCompletionsRequest;
+  tier: OpenAiCompatibleTier;
   timeoutMs?: number;
   signal?: AbortSignal;
   onStart?: (meta: { id: string; model: string }) => void;
@@ -227,6 +230,7 @@ export async function callOpenAiCompatibleResponses(args: {
   request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
     input: OpenAiCompatibleResponsesRequest["input"];
   };
+  tier: OpenAiCompatibleTier;
   timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<OpenAiCompatibleResponsesResponse> {
@@ -249,6 +253,7 @@ export async function streamOpenAiCompatibleResponses(args: {
   request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
     input: OpenAiCompatibleResponsesRequest["input"];
   };
+  tier: OpenAiCompatibleTier;
   timeoutMs?: number;
   signal?: AbortSignal;
   onStart?: (meta: { id: string; model: string }) => void;

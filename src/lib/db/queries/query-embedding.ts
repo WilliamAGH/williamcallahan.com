@@ -43,6 +43,7 @@ export async function buildQueryEmbedding(
     const vectors = await embedTextsWithEndpointCompatibleModel({
       config: embeddingConfig,
       input: [query],
+      tier: "production-z",
       timeoutMs: QUERY_EMBEDDING_TIMEOUT_MS,
     });
     const vector = vectors[0];
