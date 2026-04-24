@@ -386,6 +386,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       await callOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.com",
         apiKey: "test-key",
+        tier: "production-a",
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hi" }],
@@ -396,11 +397,13 @@ describe("OpenAI-Compatible AI Utilities", () => {
         },
       });
       const payload = mockCreate.mock.calls[0]?.[0];
+      const requestOptions = mockCreate.mock.calls[0]?.[1];
       expect(payload.max_completion_tokens).toBe(8192);
       expect(payload.max_tokens).toBeUndefined();
       expect(payload.top_p).toBe(0.9);
       expect(payload.reasoning_effort).toBe("medium");
       expect(payload.temperature).toBe(1);
+      expect(requestOptions?.headers?.["X-Tier"]).toBe("production-a");
     });
 
     it("omits undefined optional fields from chat request", async () => {
@@ -419,6 +422,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       await callOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.com",
         apiKey: "test-key",
+        tier: "production-a",
         request: { model: "test-model", messages: [{ role: "user", content: "hi" }] },
       });
       const payload = mockCreate.mock.calls[0]?.[0];
@@ -455,6 +459,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const response = await callOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.com",
         apiKey: "test-key",
+        tier: "production-a",
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hello" }],
@@ -486,6 +491,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       await callOpenAiCompatibleResponses({
         baseUrl: "https://example.com",
         apiKey: "test-key",
+        tier: "production-a",
         request: {
           model: "test-model",
           input: [
@@ -539,6 +545,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const response = await callOpenAiCompatibleResponses({
         baseUrl: "https://example.com",
         apiKey: "test-key",
+        tier: "production-a",
         request: {
           model: "test-model",
           input: [{ role: "user", content: "hello" }],
@@ -577,6 +584,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const response = await streamOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.net",
         apiKey: "test-key",
+        tier: "production-a",
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hello" }],
