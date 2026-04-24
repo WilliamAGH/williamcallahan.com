@@ -29,7 +29,7 @@ export type ScoredResult<T> = { item: T; score: number };
  */
 export interface QueryEmbeddingContext {
   /** Precomputed query vector; when present, searchers skip the network call. */
-  precomputed?: number[] | undefined;
+  precomputed?: number[];
 }
 
 /**
