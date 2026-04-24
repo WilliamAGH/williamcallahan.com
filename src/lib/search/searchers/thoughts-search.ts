@@ -4,6 +4,7 @@
  */
 
 import type { SearchResult } from "@/types/schemas/search";
+import type { QueryEmbeddingContext } from "@/types/search";
 import { PAGE_METADATA } from "@/data/metadata";
 import { hybridSearchThoughts } from "@/lib/db/queries/hybrid-search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
@@ -35,13 +36,16 @@ function getThoughtsPageResult(): SearchResult {
   };
 }
 
-export async function searchThoughts(query: string): Promise<SearchResult[]> {
+export async function searchThoughts(
+  query: string,
+  context?: QueryEmbeddingContext,
+): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) {
     return [];
   }
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchThoughts]");
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchThoughts]", context);
   const rows = await hybridSearchThoughts({
     query: sanitizedQuery,
     embedding,

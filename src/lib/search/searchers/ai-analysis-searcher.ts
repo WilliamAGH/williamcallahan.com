@@ -11,7 +11,11 @@
  */
 
 import type { SearchResult } from "@/types/schemas/search";
-import type { AnyAnalysisResponse, AnalysisDomainConfig } from "@/types/search";
+import type {
+  AnyAnalysisResponse,
+  AnalysisDomainConfig,
+  QueryEmbeddingContext,
+} from "@/types/search";
 import type { AnalysisDomain } from "@/types/ai-analysis";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
@@ -226,13 +230,14 @@ function extractIdFromUrl(url: string): string | null {
 async function searchDomainAnalysis(
   domain: AnalysisDomain,
   query: string,
+  context?: QueryEmbeddingContext,
 ): Promise<SearchResult[]> {
   const config = DOMAIN_CONFIGS[domain];
   const results: SearchResult[] = [];
 
   try {
     // Step 1: Search parent items to get candidates
-    const parentResults = await config.searcher(query);
+    const parentResults = await config.searcher(query, context);
     const topParents = parentResults.slice(0, MAX_PARENT_RESULTS);
 
     // Step 2: Fetch AI analysis for each parent (in parallel)
@@ -284,14 +289,17 @@ async function searchDomainAnalysis(
 }
 
 /** Search AI-generated analysis content across all domains. */
-export async function searchAiAnalysis(query: string): Promise<SearchResult[]> {
+export async function searchAiAnalysis(
+  query: string,
+  context?: QueryEmbeddingContext,
+): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
   // Search all domains in parallel
   const domains: AnalysisDomain[] = ["bookmarks", "books", "projects"];
   const domainResults = await Promise.all(
-    domains.map((domain) => searchDomainAnalysis(domain, sanitizedQuery)),
+    domains.map((domain) => searchDomainAnalysis(domain, sanitizedQuery, context)),
   );
 
   // Combine, sort by score, and limit
@@ -304,6 +312,7 @@ export async function searchAiAnalysis(query: string): Promise<SearchResult[]> {
     scoredResults: allResults.map((item) => ({ item, score: item.score })),
     getRerankText: (item) => [item.title, item.description ?? ""].join("\n"),
     logContext: "[searchAiAnalysis]",
+    queryEmbedding: context?.precomputed,
   });
   return reranked.map(({ item, score }) => ({ ...item, score }));
 }

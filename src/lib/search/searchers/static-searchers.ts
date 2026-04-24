@@ -15,6 +15,7 @@ import {
   getEducationItems,
   experiences,
 } from "../loaders/static-content";
+import type { QueryEmbeddingContext } from "@/types/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import {
@@ -27,11 +28,14 @@ const SEARCH_LIMIT = 50;
 /**
  * Search investments via hybrid PostgreSQL (FTS + trigram + pgvector).
  */
-export async function searchInvestments(query: string): Promise<SearchResult[]> {
+export async function searchInvestments(
+  query: string,
+  context?: QueryEmbeddingContext,
+): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchInvestments]");
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchInvestments]", context);
   const rows = await hybridSearchInvestments({
     query: sanitizedQuery,
     embedding,
@@ -96,11 +100,14 @@ export const searchEducation = createCachedSearchFunction({
  * Search projects via hybrid PostgreSQL (FTS + trigram + pgvector).
  * Includes special handling for exact "projects" query to add navigation result.
  */
-export async function searchProjects(query: string): Promise<SearchResult[]> {
+export async function searchProjects(
+  query: string,
+  context?: QueryEmbeddingContext,
+): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchProjects]");
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchProjects]", context);
   const rows = await hybridSearchProjects({
     query: sanitizedQuery,
     embedding,

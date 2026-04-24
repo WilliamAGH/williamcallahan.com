@@ -6,6 +6,15 @@
  */
 
 import { retrieveRelevantContent } from "@/lib/ai/rag/dynamic-retriever";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+import { searchBookmarks, searchBooks } from "@/lib/search/searchers/dynamic-searchers";
+import { searchInvestments, searchProjects } from "@/lib/search/searchers/static-searchers";
+
+// Mock buildQueryEmbedding so tests never hit the embedding endpoint and we can
+// assert it's invoked exactly once per retrieval (the fan-out dedup guarantee).
+vi.mock("@/lib/db/queries/query-embedding", () => ({
+  buildQueryEmbedding: vi.fn().mockResolvedValue(Array.from({ length: 2560 }, () => 0.1)),
+}));
 
 // Mock all search functions
 vi.mock("@/lib/search/searchers/static-searchers", () => ({
@@ -257,6 +266,27 @@ describe("RAG Dynamic Retriever", () => {
 
       expect(status).toBe("success");
       expect(results.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  describe("query embedding dedup", () => {
+    it("embeds the query once and threads the same vector to every searcher", async () => {
+      await retrieveRelevantContent("projects invest bookmarks books");
+
+      // The retriever must embed the query exactly once, not once per detected scope.
+      expect(buildQueryEmbedding).toHaveBeenCalledTimes(1);
+
+      const sharedVector = await (buildQueryEmbedding as unknown as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      // Each scope searcher that uses hybrid embeddings must receive a context
+      // carrying the same precomputed vector (identity-compared, not recomputed).
+      for (const searcher of [searchProjects, searchInvestments, searchBookmarks, searchBooks]) {
+        expect(searcher).toHaveBeenCalled();
+        const [, context] = (searcher as unknown as ReturnType<typeof vi.fn>).mock.calls[0] ?? [];
+        expect(context).toBeDefined();
+        expect(context?.precomputed).toBe(sharedVector);
+      }
     });
   });
 });

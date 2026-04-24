@@ -191,9 +191,15 @@ export type RagScopeName =
 
 /**
  * Search function type for scope searchers.
+ *
+ * The optional `context` argument carries a precomputed query embedding so
+ * that a caller running many searchers in parallel (e.g. RAG retrieval) can
+ * embed the query once and share the vector across scopes — see
+ * `QueryEmbeddingContext` in `@/types/search`.
  */
 export type ScopeSearcher = (
   query: string,
+  context?: import("./search").QueryEmbeddingContext,
 ) => Promise<Array<{ title: string; description?: string; url: string; score: number }>>;
 
 /**

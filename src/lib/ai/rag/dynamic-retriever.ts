@@ -25,6 +25,9 @@ import { searchBooks, searchBookmarks } from "@/lib/search/searchers/dynamic-sea
 import { searchTags } from "@/lib/search/searchers/tag-search";
 import { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
 import { searchThoughts } from "@/lib/search/searchers/thoughts-search";
+import type { QueryEmbeddingContext } from "@/types/search";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+import { sanitizeSearchQuery } from "@/lib/validators/search";
 import logger from "@/lib/utils/logger";
 
 /**
@@ -124,6 +127,14 @@ export async function retrieveRelevantContent(
     logger.info("[RAG] No scope keywords detected; using fallback scopes", { scopes, query });
   }
 
+  // Embed once per retrieval so concurrent scope searchers share the vector
+  // instead of each hitting the embedding endpoint in parallel.
+  const sanitizedQuery = sanitizeSearchQuery(query);
+  const precomputed = sanitizedQuery
+    ? await buildQueryEmbedding(sanitizedQuery, "[RAG]")
+    : undefined;
+  const embeddingContext: QueryEmbeddingContext = { precomputed };
+
   // Track failed scopes for caller awareness
   const failedScopes: string[] = [];
 
@@ -137,7 +148,7 @@ export async function retrieveRelevantContent(
     }
 
     try {
-      const results = await withScopeTimeout(searcher(query), timeoutMs, scope);
+      const results = await withScopeTimeout(searcher(query, embeddingContext), timeoutMs, scope);
       return results.slice(0, Math.ceil(maxResults / scopes.length)).map(
         (r): DynamicResult => ({
           scope,

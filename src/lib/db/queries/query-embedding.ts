@@ -8,6 +8,7 @@
  * @module db/queries/query-embedding
  */
 
+import type { QueryEmbeddingContext } from "@/types/search";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
@@ -20,11 +21,19 @@ const QUERY_EMBEDDING_TIMEOUT_MS = 1_500;
  *
  * Returns undefined (not throws) on failure so hybrid search
  * gracefully falls back to FTS-only.
+ *
+ * When `context.precomputed` is supplied and has the correct dimensionality,
+ * it is returned directly — no HTTP call is made.
  */
 export async function buildQueryEmbedding(
   query: string,
   logContext: string,
+  context?: QueryEmbeddingContext,
 ): Promise<number[] | undefined> {
+  if (context?.precomputed && context.precomputed.length === CONTENT_EMBEDDING_DIMENSIONS) {
+    return context.precomputed;
+  }
+
   const embeddingConfig = resolveDefaultEndpointCompatibleEmbeddingConfig();
   if (!embeddingConfig) {
     return undefined;
