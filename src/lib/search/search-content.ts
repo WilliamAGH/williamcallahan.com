@@ -179,7 +179,7 @@ export async function rerankScoredResultsWithEmbeddings<T>(options: {
   keywordWeight?: number;
   vectorWeight?: number;
   /** Precomputed query vector to skip embedding the query in the batched call. */
-  queryEmbedding?: number[] | undefined;
+  queryEmbedding?: number[];
 }): Promise<ScoredResult<T>[]> {
   const sanitizedQuery = sanitizeSearchQuery(options.query);
   if (!sanitizedQuery) {
