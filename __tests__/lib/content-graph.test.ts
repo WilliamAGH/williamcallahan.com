@@ -214,6 +214,14 @@ describe("Content Graph Pre-computation", () => {
         forceRefresh: true,
       });
 
+      const tagQuery = mockDbExecute.mock.calls[2]?.[0];
+      let tagQueryText = "";
+      if (typeof tagQuery === "object" && tagQuery !== null && "strings" in tagQuery) {
+        tagQueryText = Array.isArray(tagQuery.strings) ? tagQuery.strings.join(" ") : "";
+      }
+      expect(tagQueryText).toContain("jsonb_array_elements");
+      expect(tagQueryText).not.toContain("tags::text[]");
+
       // Verify related content was written via DB artifacts
       expect(mockWriteContentGraphArtifacts).toHaveBeenCalledWith(
         expect.arrayContaining([expect.objectContaining({ artifactType: "related-content" })]),
@@ -242,92 +250,7 @@ describe("Content Graph Pre-computation", () => {
           expect(b1Related[0]).toHaveProperty("title");
         }
       }
-    });
 
-    it("should build tag co-occurrence graph correctly", async () => {
-      // Mock embedding rows
-      const embeddingRows = [
-        {
-          domain: "bookmark",
-          entity_id: "1",
-          title: "JS React Bookmark",
-          content_date: "2024-01-01",
-        },
-        {
-          domain: "bookmark",
-          entity_id: "2",
-          title: "JS Vue Bookmark",
-          content_date: "2024-01-02",
-        },
-        { domain: "blog", entity_id: "3", title: "React TS Post", content_date: "2024-01-01" },
-      ];
-
-      // Mock tag content rows with overlapping tags
-      const tagContentRows = [
-        { domain: "bookmark", entity_id: "1", tags: ["javascript", "react"] },
-        { domain: "bookmark", entity_id: "2", tags: ["javascript", "vue"] },
-        { domain: "blog", entity_id: "3", tags: ["react", "typescript"] },
-      ];
-
-      // Bookmark quality rows (first db.execute call)
-      const bookmarkQualityRows = [
-        { id: "1", has_description: true, is_favorite: false, has_word_count: false },
-        { id: "2", has_description: true, is_favorite: false, has_word_count: false },
-      ];
-
-      mockDbExecute
-        .mockResolvedValueOnce(bookmarkQualityRows)
-        .mockResolvedValueOnce(embeddingRows)
-        .mockResolvedValueOnce(tagContentRows);
-
-      mockFindSimilarByEmbedding.mockResolvedValue([]);
-      mockFindSimilarByEntity.mockImplementation(() => [
-        {
-          domain: "bookmark",
-          entityId: "2",
-          title: "JS Vue",
-          similarity: 0.85,
-          contentDate: "2024-01-02",
-        },
-      ]);
-      mockRankEmbeddingCandidates.mockImplementation(
-        ({
-          candidates,
-        }: {
-          candidates: Array<{ domain: string; entityId: string; title: string }>;
-        }) =>
-          candidates.map((c, i) => ({
-            domain: c.domain,
-            entityId: c.entityId,
-            title: c.title,
-            score: 0.85 - i * 0.1,
-          })),
-      );
-
-      const { getAllPostsMeta } = await import("@/lib/blog");
-      vi.mocked(getAllPostsMeta).mockResolvedValue([]);
-
-      const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
-      const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      const { getBookmarksIndexFromDatabase } = await import("@/lib/db/queries/bookmarks");
-
-      vi.mocked(getBookmarks).mockResolvedValue([createBookmark("1"), createBookmark("2")]);
-      vi.mocked(getBookmarksIndexFromDatabase).mockResolvedValue(createBookmarksIndex(2));
-      vi.mocked(refreshBookmarks).mockResolvedValue([createBookmark("1"), createBookmark("2")]);
-      mockWriteContentGraphArtifacts.mockResolvedValue(undefined);
-
-      await manager.fetchData({
-        bookmarks: true,
-        forceRefresh: true,
-      });
-
-      // Verify tag graph was written via DB artifacts
-      expect(mockWriteContentGraphArtifacts).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.objectContaining({ artifactType: "tag-graph" })]),
-      );
-
-      // Check tag graph structure
-      const artifactsArg = mockWriteContentGraphArtifacts.mock.calls[0]?.[0];
       const tagGraphArtifact = artifactsArg?.find(
         (a: { artifactType: string }) => a.artifactType === "tag-graph",
       );
@@ -343,15 +266,15 @@ describe("Content Graph Pre-computation", () => {
 
         // Should have tag data
         expect(tagGraph.tags).toHaveProperty("javascript");
-        expect(tagGraph.tags).toHaveProperty("react");
+        expect(tagGraph.tags).toHaveProperty("typescript");
 
         // Check co-occurrence tracking
         const jsTag = tagGraph.tags.javascript;
         if (jsTag) {
           expect(jsTag.count).toBeGreaterThan(0);
           expect(jsTag.coOccurrences).toBeDefined();
-          expect(jsTag.contentIds).toContain("bookmark:1");
-          expect(jsTag.contentIds).toContain("bookmark:2");
+          expect(jsTag.contentIds).toContain("bookmark:b1");
+          expect(jsTag.contentIds).toContain("blog:p1");
         }
       }
     });

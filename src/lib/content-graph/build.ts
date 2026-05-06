@@ -222,21 +222,48 @@ export async function buildContentGraph(
       }));
     }
 
-    // Build tag graph from entities that have tag data
-    // Tags come from bookmarks, blog posts, projects, thoughts — query minimally
+    // Build tag graph from JSONB tag arrays across persisted content.
     const tagContentRows = await db.execute<{
       domain: string;
       entity_id: string;
       tags: string[] | null;
     }>(sql`
-      SELECT 'bookmark' AS domain, id AS entity_id, tags::text[]
-      FROM bookmarks WHERE tags IS NOT NULL
-      UNION ALL
-      SELECT 'blog' AS domain, id AS entity_id, tags::text[]
-      FROM blog_posts WHERE tags IS NOT NULL
-      UNION ALL
-      SELECT 'project' AS domain, id AS entity_id, tags::text[]
-      FROM projects WHERE tags IS NOT NULL
+      SELECT tag_source.domain, tag_source.entity_id, array_agg(tag_source.tag_name ORDER BY tag_source.tag_name) AS tags
+      FROM (
+        SELECT 'bookmark' AS domain, bookmarks.id AS entity_id,
+          CASE
+            WHEN jsonb_typeof(tag.value) = 'string' THEN tag.value #>> '{}'
+            WHEN jsonb_typeof(tag.value) = 'object' THEN tag.value ->> 'name'
+            ELSE NULL
+          END AS tag_name
+        FROM bookmarks
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE
+            WHEN jsonb_typeof(bookmarks.tags) = 'array' THEN bookmarks.tags
+            ELSE '[]'::jsonb
+          END
+        ) AS tag(value)
+        UNION ALL
+        SELECT 'blog' AS domain, blog_posts.id AS entity_id, tag.value #>> '{}' AS tag_name
+        FROM blog_posts
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE
+            WHEN jsonb_typeof(blog_posts.tags) = 'array' THEN blog_posts.tags
+            ELSE '[]'::jsonb
+          END
+        ) AS tag(value)
+        UNION ALL
+        SELECT 'project' AS domain, projects.id AS entity_id, tag.value #>> '{}' AS tag_name
+        FROM projects
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE
+            WHEN jsonb_typeof(projects.tags) = 'array' THEN projects.tags
+            ELSE '[]'::jsonb
+          END
+        ) AS tag(value)
+      ) AS tag_source
+      WHERE tag_source.tag_name IS NOT NULL AND btrim(tag_source.tag_name) <> ''
+      GROUP BY tag_source.domain, tag_source.entity_id
     `);
 
     const tagContent = tagContentRows.map((r) => ({
