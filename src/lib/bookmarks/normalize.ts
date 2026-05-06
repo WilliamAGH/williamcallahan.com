@@ -110,7 +110,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       modifiedAt: raw.modifiedAt,
       archived: raw.archived,
       isFavorite: raw.favourited,
-      taggingStatus: raw.taggingStatus,
+      taggingStatus: raw.taggingStatus ?? undefined,
       // Process note: remove citations but keep as single paragraph
       note: raw.note ? removeCitations(raw.note) : raw.note,
       // Process summary: remove citations and add paragraph breaks every 2 sentences
