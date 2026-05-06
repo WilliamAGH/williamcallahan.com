@@ -5,7 +5,7 @@
  * across all domains: bookmarks, books, projects.
  *
  * Strategy: Query-time search using existing searchers to find parent items,
- * then fetch/filter their AI analysis from S3.
+ * then fetch/filter their AI analysis from PostgreSQL.
  *
  * @module lib/search/searchers/ai-analysis-searcher
  */

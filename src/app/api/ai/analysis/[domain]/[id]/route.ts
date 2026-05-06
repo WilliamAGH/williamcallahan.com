@@ -2,7 +2,7 @@
  * AI Analysis Persistence API Endpoint
  * @module app/api/ai/analysis/[domain]/[id]/route
  * @description
- * POST endpoint for persisting AI-generated analysis to S3.
+ * POST endpoint for persisting AI-generated analysis to PostgreSQL.
  * Rate-limited per IP to prevent abuse.
  */
 
@@ -138,7 +138,7 @@ export async function POST(
     return createErrorResponse("Invalid analysis data", 400);
   }
 
-  // Persist to S3
+  // Persist to PostgreSQL
   try {
     await persistAnalysis(validDomain, id, analysisResult.data, {
       modelVersion: parsedBody.modelVersion,
@@ -153,7 +153,7 @@ export async function POST(
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     envLogger.log(
-      "Analysis persist: S3 write failed",
+      "Analysis persist: PostgreSQL write failed",
       { domain, id, error: message },
       { category: "AiAnalysis" },
     );

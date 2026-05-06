@@ -16,7 +16,7 @@ import type { OpenAiCompatibleResponseFormat } from "@/types/schemas/ai-openai-c
 
 /**
  * Supported analysis domains.
- * Each domain has its own S3 path prefix and analysis schema.
+ * Each domain has its own PostgreSQL rows and analysis schema.
  */
 export type AnalysisDomain = "bookmarks" | "projects" | "books";
 
@@ -55,7 +55,7 @@ export interface PersistAnalysisOptions {
   modelVersion?: string;
   /** Optional content hash for change detection */
   contentHash?: string;
-  /** Skip writing versioned file (only update latest.json) */
+  /** Skip writing an append-only version row; only update latest. */
   skipVersioning?: boolean;
 }
 
@@ -63,9 +63,9 @@ export interface PersistAnalysisOptions {
  * Result from listing analysis versions.
  */
 export interface AnalysisVersion {
-  /** S3 key for this version */
+  /** Stable version identifier */
   key: string;
-  /** Timestamp extracted from filename */
+  /** Generation timestamp */
   timestamp: string;
   /** ISO date string */
   date: string;
@@ -149,7 +149,7 @@ export interface AiAnalysisTerminalProps<TEntity, TAnalysis> {
   entityId: string;
   /** AI feature name for API routing (e.g., "bookmark-analysis") */
   featureName: string;
-  /** Domain key for S3 persistence (e.g., "bookmarks") */
+  /** Domain key for PostgreSQL persistence (e.g., "bookmarks") */
   persistenceKey: AnalysisDomain;
   /** Loading messages to cycle through */
   loadingMessages: string[];

@@ -46,7 +46,7 @@ export interface ProjectAiAnalysisProps {
   className?: string;
   /** Auto-trigger analysis on mount (default: true) */
   autoTrigger?: boolean;
-  /** Pre-cached analysis from S3 (if available) */
+  /** Pre-cached analysis from PostgreSQL (if available) */
   initialAnalysis?: CachedAnalysis<ProjectAiAnalysisResponse> | null;
   /** Start with analysis content collapsed (default: false) */
   defaultCollapsed?: boolean;

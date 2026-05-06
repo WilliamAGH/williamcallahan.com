@@ -2,7 +2,7 @@
  * AI Analysis Persistence Schemas
  * @module types/schemas/ai-analysis-persisted
  * @description
- * Zod v4 schemas for persisting AI-generated analysis to S3 with metadata envelope.
+ * Zod v4 schemas for persisting AI-generated analysis to PostgreSQL with metadata envelope.
  * Domain-agnostic: works for bookmarks, projects, books, etc.
  */
 

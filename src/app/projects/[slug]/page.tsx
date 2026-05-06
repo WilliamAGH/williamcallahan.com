@@ -147,7 +147,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const projectId = project.id ?? project.name;
   const path = `/projects/${slug}`;
 
-  // Fetch cached AI analysis from S3 (runs in parallel with rendering prep)
+  // Fetch cached AI analysis from PostgreSQL (runs in parallel with rendering prep)
   const cachedAnalysis = await getCachedAnalysis<ProjectAiAnalysisResponse>("projects", projectId);
   const pageMetadata = PAGE_METADATA.projects;
 
