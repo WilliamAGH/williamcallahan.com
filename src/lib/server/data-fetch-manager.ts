@@ -159,7 +159,7 @@ export class DataFetchManager {
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
-      Sentry.captureException(error);
+      Sentry.captureException?.(error);
       logger.error("[DataFetchManager] Bookmarks fetch failed:", error);
       return {
         success: false,
@@ -212,7 +212,7 @@ export class DataFetchManager {
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
-      Sentry.captureException(error);
+      Sentry.captureException?.(error);
       logger.error("[DataFetchManager] GitHub activity fetch failed:", error);
       return {
         success: false,
@@ -294,7 +294,7 @@ export class DataFetchManager {
       }
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
-      Sentry.captureException(error);
+      Sentry.captureException?.(error);
       logger.error("[DataFetchManager] Logos fetch failed:", error);
       return {
         success: false,
@@ -511,7 +511,7 @@ export class DataFetchManager {
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
-      Sentry.captureException(error);
+      Sentry.captureException?.(error);
       logger.error("[DataFetchManager] Search index build failed:", error);
       return {
         success: false,
@@ -592,7 +592,7 @@ export class DataFetchManager {
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
-      Sentry.captureException(error);
+      Sentry.captureException?.(error);
       logger.error("[DataFetchManager] Image manifest build failed:", error);
       return {
         success: false,
