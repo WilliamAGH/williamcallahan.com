@@ -174,23 +174,27 @@ export function parseLlmJson(rawText: string): unknown {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getPersistErrorMessage(response: Response, responseText: string): string {
-  if (!responseText) return response.statusText || `HTTP ${response.status}`;
+  const text = responseText.trim();
+  if (!text) return response.statusText || `HTTP ${response.status}`;
 
   try {
-    const parsed: unknown = JSON.parse(responseText);
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "error" in parsed &&
-      typeof parsed.error === "string"
-    ) {
-      return parsed.error;
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed === "object" && parsed !== null) {
+      // StandardApiErrorResponse shape (e.g. 429 buildApiRateLimitResponse,
+      // 503 buildApiServiceBusyResponse): { code, message, retryAfterSeconds, ... }
+      if ("message" in parsed && typeof parsed.message === "string" && parsed.message.trim()) {
+        return parsed.message;
+      }
+      // createErrorResponse shape: { error: string }
+      if ("error" in parsed && typeof parsed.error === "string" && parsed.error.trim()) {
+        return parsed.error;
+      }
     }
   } catch {
-    return responseText;
+    return text;
   }
 
-  return responseText;
+  return text;
 }
 
 /**
