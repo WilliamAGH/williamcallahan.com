@@ -783,6 +783,48 @@ describe("OpenAI-Compatible AI Utilities", () => {
         status: 400,
       });
     });
+
+    it("extracts the user-facing message from a StandardApiErrorResponse rate-limit body", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              code: "RATE_LIMITED",
+              message: "You've reached a rate limit. Please wait a few minutes and try again.",
+              retryAfterSeconds: 60,
+              retryAfterAt: new Date().toISOString(),
+              status: 429,
+            }),
+            { status: 429 },
+          ),
+        ),
+      );
+
+      await expect(persistAnalysis("bookmarks", "bm-1", { summary: "x" })).resolves.toEqual({
+        success: false,
+        message: "You've reached a rate limit. Please wait a few minutes and try again.",
+        status: 429,
+      });
+    });
+
+    it("falls back to statusText when the error body is whitespace-only", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response("   \n\t  ", {
+            status: 502,
+            statusText: "Bad Gateway",
+          }),
+        ),
+      );
+
+      await expect(persistAnalysis("projects", "p-1", { summary: "x" })).resolves.toEqual({
+        success: false,
+        message: "Bad Gateway",
+        status: 502,
+      });
+    });
   });
 
   describe("ai-token route", () => {
