@@ -13,7 +13,7 @@ import {
 } from "@/lib/ai/openai-compatible/feature-config";
 import { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
 import { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import { parseLlmJson } from "@/lib/ai/analysis-client-utils";
+import { parseLlmJson, persistAnalysis } from "@/lib/ai/analysis-client-utils";
 import {
   resolveModelParams,
   resolveFeatureSystemPrompt,
@@ -28,6 +28,11 @@ import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
 
 vi.mock("@/lib/rate-limiter", () => ({
   isOperationAllowed: vi.fn(() => true),
+}));
+
+vi.mock("@sentry/nextjs", () => ({
+  captureMessage: vi.fn(),
+  captureException: vi.fn(),
 }));
 
 describe("OpenAI-Compatible AI Utilities", () => {
@@ -747,6 +752,36 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("repairs recoverable JSON errors before parsing", () => {
       const parsed = parseLlmJson(`{summary: "ok", highlights: ["one",],}`);
       expect(parsed).toEqual({ summary: "ok", highlights: ["one"] });
+    });
+
+    it("reports successful analysis persistence", async () => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await persistAnalysis("bookmarks", "bookmark-1", { summary: "ok" });
+
+      expect(result).toEqual({ success: true });
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/ai/analysis/bookmarks/bookmark-1",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    it("returns failed persistence details without hiding the API error", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(JSON.stringify({ error: "Invalid analysis data" }), { status: 400 }),
+          ),
+      );
+
+      await expect(persistAnalysis("books", "book-1", { summary: "bad" })).resolves.toEqual({
+        success: false,
+        message: "Invalid analysis data",
+        status: 400,
+      });
     });
   });
 
