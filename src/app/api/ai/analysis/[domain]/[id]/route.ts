@@ -157,6 +157,6 @@ export async function POST(
       { domain, id, error: message },
       { category: "AiAnalysis" },
     );
-    return createErrorResponse("Failed to persist analysis", 500);
+    return createErrorResponse("Database write failed", 500);
   }
 }
