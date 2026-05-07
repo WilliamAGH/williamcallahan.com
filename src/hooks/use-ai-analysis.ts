@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { aiQueueStatsSchema } from "@/types/schemas/ai-openai-compatible-client";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 import { parseLlmJson, persistAnalysis } from "@/lib/ai/analysis-client-utils";
@@ -27,6 +28,7 @@ export function useAiAnalysis<TEntity, TAnalysis>(
     autoTrigger,
     initialAnalysis,
   } = args;
+  const router = useRouter();
 
   const [state, setState] = useState<AnalysisState<TAnalysis>>(() => {
     if (initialAnalysis?.analysis) {
@@ -142,8 +144,17 @@ export function useAiAnalysis<TEntity, TAnalysis>(
           throw new Error("AI response did not match expected format");
         }
 
+        if (signal?.aborted) throw new DOMException("Analysis aborted", "AbortError");
+
+        const persistResult = await persistAnalysis(persistenceKey, entityId, parsedAnalysis);
+        if (!persistResult.success) {
+          throw new Error(`Failed to persist analysis: ${persistResult.message}`);
+        }
+
+        if (signal?.aborted) throw new DOMException("Analysis aborted", "AbortError");
+
         setState({ status: "success", analysis: parsedAnalysis, error: null });
-        void persistAnalysis(persistenceKey, entityId, parsedAnalysis);
+        router.refresh();
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         const message = error instanceof Error ? error.message : "Failed to generate analysis";
@@ -160,6 +171,7 @@ export function useAiAnalysis<TEntity, TAnalysis>(
       buildUserPrompt,
       responseFormat,
       responseSchema,
+      router,
     ],
   );
 

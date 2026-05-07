@@ -3,7 +3,7 @@
  * @module lib/ai/analysis-client-utils
  * @description
  * Shared utilities for AI analysis client components.
- * Includes JSON parsing for LLM responses and S3 persistence helpers.
+ * Includes JSON parsing for LLM responses and PostgreSQL persistence helpers.
  */
 
 import * as Sentry from "@sentry/nextjs";
@@ -170,12 +170,35 @@ export function parseLlmJson(rawText: string): unknown {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S3 Persistence
+// PostgreSQL Persistence
 // ─────────────────────────────────────────────────────────────────────────────
 
+function getPersistErrorMessage(response: Response, responseText: string): string {
+  const text = responseText.trim();
+  if (!text) return response.statusText || `HTTP ${response.status}`;
+
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed === "object" && parsed !== null) {
+      // StandardApiErrorResponse shape (e.g. 429 buildApiRateLimitResponse,
+      // 503 buildApiServiceBusyResponse): { code, message, retryAfterSeconds, ... }
+      if ("message" in parsed && typeof parsed.message === "string" && parsed.message.trim()) {
+        return parsed.message;
+      }
+      // createErrorResponse shape: { error: string }
+      if ("error" in parsed && typeof parsed.error === "string" && parsed.error.trim()) {
+        return parsed.error;
+      }
+    }
+  } catch {
+    return text;
+  }
+
+  return text;
+}
+
 /**
- * Persist analysis to S3 via API endpoint.
- * Fire-and-forget - tracks errors via Sentry but doesn't block the UI.
+ * Persist analysis to PostgreSQL via API endpoint.
  *
  * @param domain - The analysis domain (bookmarks, books, projects)
  * @param id - The item ID
@@ -185,7 +208,7 @@ export async function persistAnalysis(
   domain: AnalysisDomain,
   id: string,
   analysis: unknown,
-): Promise<void> {
+): Promise<{ success: true } | { success: false; message: string; status?: number }> {
   const context = { id, domain };
 
   try {
@@ -196,15 +219,24 @@ export async function persistAnalysis(
     });
 
     if (!response.ok) {
+      const responseText = await response.text();
+      const message = getPersistErrorMessage(response, responseText);
       Sentry.captureMessage(`${domain} AI analysis persist failed`, {
         level: "warning",
-        extra: { ...context, status: response.status, statusText: response.statusText },
+        extra: { ...context, status: response.status, statusText: response.statusText, message },
       });
+      return { success: false, message, status: response.status };
     }
+
+    return { success: true };
   } catch (error) {
     Sentry.captureException(error, {
       extra: context,
       tags: { feature: "ai-analysis-persist" },
     });
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unable to persist analysis",
+    };
   }
 }

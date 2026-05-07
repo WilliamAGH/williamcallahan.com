@@ -9,9 +9,13 @@ import {
   POST as invalidateBookmarksHandler,
   DELETE as clearBookmarksHandler,
 } from "@/app/api/cache/bookmarks/route";
+import { POST as revalidateBookmarksHandler } from "@/app/api/revalidate/bookmarks/route";
 import { GET as healthMetricsHandler } from "@/app/api/health/metrics/route";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { NextRequest } from "next/server";
+import { revalidatePath, revalidateTag } from "next/cache";
+
+vi.mock("next/cache");
 
 // Mock the cache library
 vi.mock("@/lib/cache", async (importOriginal) => {
@@ -79,6 +83,8 @@ vi.mock("@/lib/health/status-monitor.server", () => ({
 }));
 
 const mockedGetSystemMetrics = getSystemMetrics as MockedFunction<typeof getSystemMetrics>;
+const mockedRevalidatePath = vi.mocked(revalidatePath);
+const mockedRevalidateTag = vi.mocked(revalidateTag);
 
 describe("Cache Invalidation via API Routes", () => {
   beforeAll(() => {
@@ -147,6 +153,40 @@ describe("Cache Invalidation via API Routes", () => {
 
       // Restore environment
       process.env.ADMIN_API_KEY = originalApiKey;
+    });
+  });
+
+  describe("Bookmarks Revalidation API", () => {
+    const originalBookmarkSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
+
+    beforeEach(() => {
+      process.env.BOOKMARK_CRON_REFRESH_SECRET = "bookmark-cache-secret";
+    });
+
+    afterEach(() => {
+      process.env.BOOKMARK_CRON_REFRESH_SECRET = originalBookmarkSecret;
+    });
+
+    it("invalidates every bookmark cache tag after authorized scheduler refresh", async () => {
+      const request = new NextRequest("http://localhost:3000/api/revalidate/bookmarks", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer bookmark-cache-secret",
+        },
+      });
+
+      const response = revalidateBookmarksHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toHaveProperty("success", true);
+      expect(mockedRevalidatePath).toHaveBeenCalledWith("/bookmarks");
+      expect(mockedRevalidatePath).toHaveBeenCalledWith("/bookmarks/[slug]", "page");
+      expect(mockedRevalidatePath).toHaveBeenCalledWith("/bookmarks/domain/[domainSlug]", "page");
+      expect(mockedRevalidateTag).toHaveBeenCalledWith("bookmarks", "max");
+      expect(mockedRevalidateTag).toHaveBeenCalledWith("bookmarks-db-full", "max");
+      expect(mockedRevalidateTag).toHaveBeenCalledWith("bookmark-slug-mapping", "max");
+      expect(mockedRevalidateTag).toHaveBeenCalledWith("search-index", "max");
     });
   });
 

@@ -52,7 +52,7 @@ export interface BookCardProps {
  */
 export interface BookDetailProps {
   book: Book;
-  /** Pre-cached AI analysis from S3 (if available) */
+  /** Pre-cached AI analysis from PostgreSQL (if available) */
   cachedAnalysis?: CachedAnalysis<BookAiAnalysisResponse> | null;
 }
 

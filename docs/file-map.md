@@ -185,7 +185,7 @@ File/Path Functionality Description
 ## Lib Directory
 
 - [~] **ai/** `ai-shared-services` - Unified AI provider and web search services
-  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing via `JSON.parse`, S3 persistence)
+  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing via `JSON.parse`, PostgreSQL persistence)
   - [x] **openai-compatible/**
     - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution, preferred-model resolution, and shared upstream queue-key builder
     - [x] `embeddings-client.ts` `ai-shared-services` - Endpoint-compatible `/v1/embeddings` client for batch embedding generation

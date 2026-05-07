@@ -51,6 +51,11 @@ export function invalidateNextJsBookmarksCache(): void {
     safeRevalidateTag("bookmarks");
     safeRevalidateTag("bookmarks-db-full");
     safeRevalidateTag("bookmarks-s3-full");
+    safeRevalidateTag("bookmarks-index");
+    safeRevalidateTag("bookmarks-tag-slugs");
+    safeRevalidateTag("bookmark-slug-mapping");
+    safeRevalidateTag("bookmarks-slugs");
+    safeRevalidateTag("search-index");
     envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, {
       category: "Bookmarks",
     });

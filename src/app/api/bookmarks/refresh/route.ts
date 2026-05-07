@@ -20,8 +20,9 @@ import { getClientIp } from "@/lib/utils/request-utils";
 import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
 import { type NextRequest, NextResponse } from "next/server";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { getMonotonicTime } from "@/lib/utils";
+import { invalidateNextJsBookmarksCache } from "@/lib/bookmarks/cache-management.server";
 
 // Ensure this route is not statically cached
 
@@ -169,7 +170,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             revalidatePath("/bookmarks");
             revalidatePath("/bookmarks/[slug]", "page");
             revalidatePath("/bookmarks/domain/[domainSlug]", "page");
-            revalidateTag("bookmarks", "max");
+            invalidateNextJsBookmarksCache();
             console.log("[API Trigger] ✅ Cache invalidated successfully");
           } catch (cacheError) {
             console.error("[API Trigger] Failed to invalidate cache:", cacheError);
@@ -178,14 +179,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           const failureError = new Error(
             `Bookmark background refresh failed: ${bookmarkResult?.error ?? "unknown"}`,
           );
-          Sentry.captureException(failureError);
+          Sentry.captureException?.(failureError);
           console.log(`[API Trigger] ❌ Refresh failed: ${bookmarkResult?.error}`);
           logger.error(`[API Bookmarks Refresh] Background refresh failed:`, bookmarkResult?.error);
         }
         return undefined;
       })
       .catch((error) => {
-        Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
+        Sentry.captureException?.(error instanceof Error ? error : new Error(String(error)));
         console.log(`[API Trigger] ❌ Refresh error: ${error}`);
         logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
       })
@@ -214,7 +215,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
+    Sentry.captureException?.(error instanceof Error ? error : new Error(String(error)));
     logger.error("Failed to refresh bookmarks:", error);
     return NextResponse.json(
       {

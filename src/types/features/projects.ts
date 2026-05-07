@@ -70,6 +70,6 @@ export type ProjectPageProps = {
 // Props for the ProjectDetail component
 export type ProjectDetailProps = {
   project: Project;
-  /** Pre-cached AI analysis from S3 (if available) */
+  /** Pre-cached AI analysis from PostgreSQL (if available) */
   cachedAnalysis?: CachedAnalysis<ProjectAiAnalysisResponse> | null;
 };

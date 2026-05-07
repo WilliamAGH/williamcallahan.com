@@ -214,7 +214,7 @@ export async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBook
     logBookmarkDataAccessEvent("Changes detected, persisting bookmarks (selective)");
     return persistBookmarksWithSlugs(allIncomingBookmarks, "selective-change");
   } catch (error: unknown) {
-    Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
+    Sentry.captureException?.(error instanceof Error ? error : new Error(String(error)));
     console.error(`${LOG_PREFIX} Error during selective refresh:`, String(error));
     throw error;
   }
@@ -272,7 +272,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
       const { loadDatabaseFallback } = await loadRefreshHelperModule();
       return loadDatabaseFallback();
     } catch (error: unknown) {
-      Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
+      Sentry.captureException?.(error instanceof Error ? error : new Error(String(error)));
       console.error(`${LOG_PREFIX} Failed to refresh bookmarks:`, String(error));
       throw error;
     } finally {

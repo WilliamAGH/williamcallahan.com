@@ -7,6 +7,7 @@
  */
 
 import { validateBookmarksDataset } from "../../../src/lib/validators/bookmarks";
+import { bookmarksApiResponseSchema } from "../../../src/types/schemas/bookmark";
 import type { UnifiedBookmark } from "../../../src/types";
 
 // Mock console.error to suppress error logs during tests
@@ -282,5 +283,34 @@ describe("Bookmarks Validation", () => {
     const result = validateBookmarksDataset(bookmarks);
     expect(result.isValid).toBe(true);
     expect(result.reason).toBeUndefined();
+  });
+
+  test("should accept null API enrichment statuses", () => {
+    const result = bookmarksApiResponseSchema.safeParse({
+      bookmarks: [
+        {
+          id: "bookmark-with-null-statuses",
+          createdAt: "2026-04-23T06:25:16.000Z",
+          modifiedAt: "2026-04-23T06:25:16.000Z",
+          title: "Valid API Bookmark",
+          archived: false,
+          favourited: false,
+          taggingStatus: null,
+          summarizationStatus: null,
+          note: null,
+          summary: null,
+          tags: [],
+          content: {
+            type: "link",
+            url: "https://example.com",
+            title: "Valid API Bookmark",
+            description: "A bookmark from the API.",
+          },
+        },
+      ],
+      nextCursor: null,
+    });
+
+    expect(result.success).toBe(true);
   });
 });

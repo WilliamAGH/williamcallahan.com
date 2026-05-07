@@ -47,7 +47,7 @@ export interface BookmarkAiAnalysisProps {
   className?: string;
   /** Auto-trigger analysis on mount (default: true) */
   autoTrigger?: boolean;
-  /** Pre-cached analysis from S3 (if available) */
+  /** Pre-cached analysis from PostgreSQL (if available) */
   initialAnalysis?: CachedAnalysis<BookmarkAiAnalysisResponse>;
   /** Callback when analysis is successfully completed or loaded */
   onAnalysisComplete?: (analysis: BookmarkAiAnalysisResponse) => void;

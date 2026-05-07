@@ -147,7 +147,7 @@ export default async function BookPage({ params }: BookPageProps) {
     return notFound();
   }
 
-  // Fetch cached AI analysis from S3 (runs in parallel with rendering prep)
+  // Fetch cached AI analysis from PostgreSQL (runs in parallel with rendering prep)
   const cachedAnalysis = await getCachedAnalysis<BookAiAnalysisResponse>("books", book.id);
 
   const path = `/books/${slug}`;

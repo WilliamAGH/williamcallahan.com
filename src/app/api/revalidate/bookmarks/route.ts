@@ -1,5 +1,6 @@
 import { envLogger } from "@/lib/utils/env-logger";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { invalidateNextJsBookmarksCache } from "@/lib/bookmarks/cache-management.server";
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -47,13 +48,7 @@ export function POST(request: NextRequest): NextResponse {
     // Domain-filtered bookmark pages
     revalidatePath("/bookmarks/domain/[domainSlug]", "page");
 
-    // Tag-based revalidation for all bookmark-related content
-    revalidateTag("bookmarks", "max");
-    // Ensure the function-level full dataset cache is also invalidated
-    // This tag is used by fetchAndCacheBookmarks() when loading the S3 dataset
-    revalidateTag("bookmarks-s3-full", "max");
-    // Invalidate index-specific cache when present
-    revalidateTag("bookmarks-index", "max");
+    invalidateNextJsBookmarksCache();
 
     console.log("[Cache Invalidation] ✅ Successfully invalidated all bookmark caches");
 
