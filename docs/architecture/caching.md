@@ -16,7 +16,7 @@ See `docs/architecture/caching.mmd` for the current write/read/supporting flow.
 
 | Domain                   | Source of truth                                             | Cached read path                                   | Invalidation                                                |
 | ------------------------ | ----------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
-| Bookmarks                | PostgreSQL read model (`src/lib/db/*`)                      | `"use cache"` functions + tag-labeled RSC reads    | `revalidateTag("bookmarks")`, slug/tag-specific tags        |
+| Bookmarks                | PostgreSQL read model (`src/lib/db/*`)                      | `"use cache"` functions + tag-labeled RSC reads    | `invalidateNextJsBookmarksCache()` (dataset, slug, tag, search caches), slug/tag-specific tags |
 | Blog + Related Content   | Repository content + PostgreSQL content-graph artifacts     | Server read functions with `cacheLife/cacheTag`    | `revalidateTag("blog")`, `revalidateTag("related-content")` |
 | GitHub Activity          | PostgreSQL `github_activity_store` (JSON payload documents) | RSC summaries/pages using cache tags               | `revalidateTag("github-activity")`                          |
 | Images/Logos/OG metadata | S3 objects + manifests                                      | Cache-tagged server accessors and manifest loaders | tag invalidation + key-level refresh                        |
@@ -60,9 +60,10 @@ export function invalidateDomainData() {
 
 Common tag strategy:
 
-- `bookmarks`
+- `bookmarks` (and related: `bookmarks-db-full`, `bookmarks-s3-full`, `bookmarks-index`, `bookmarks-tag-slugs`, `bookmark-slug-mapping`, `bookmarks-slugs`)
 - `bookmark-{slug}`
 - `bookmarks-tag-{slug}`
+- `search-index`
 - `related-content`
 - `blog`
 - `github-activity`
