@@ -13,9 +13,16 @@ import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import { CONTENT_GRAPH_ARTIFACT_TYPES } from "@/lib/db/schema/content-graph";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
 import { rankEmbeddingCandidates } from "@/lib/db/queries/embedding-similarity";
+import { relatedContentTypeSchema, type RelatedContentType } from "@/types/schemas/related-content";
 
 const MAX_RELATED = 20;
 const YIELD_INTERVAL = 10;
+
+function hasRelatedContentDomain<T extends { domain: string }>(
+  row: T,
+): row is T & { domain: RelatedContentType } {
+  return relatedContentTypeSchema.safeParse(row.domain).success;
+}
 
 async function buildTagGraph(
   allContent: Array<{ type: string; id: string; tags?: string[] }>,
@@ -163,7 +170,7 @@ export async function buildContentGraph(
       ORDER BY domain, entity_id
     `);
 
-    let entities = [...embeddingRows];
+    let entities = embeddingRows.filter(hasRelatedContentDomain);
     if (typeof config.testLimit === "number" && config.testLimit > 0) {
       entities = entities.slice(0, config.testLimit);
     }
@@ -182,7 +189,7 @@ export async function buildContentGraph(
 
     const relatedContentMappings: Record<
       string,
-      Array<{ type: string; id: string; score: number; title: string }>
+      Array<{ type: RelatedContentType; id: string; score: number; title: string }>
     > = {};
 
     for (let i = 0; i < entities.length; i++) {
@@ -196,9 +203,7 @@ export async function buildContentGraph(
       const entity = entities[i];
       if (!entity) continue;
 
-      const sourceDomain = entity.domain as Parameters<
-        typeof findSimilarByEntity
-      >[0]["sourceDomain"];
+      const sourceDomain = entity.domain;
       const contentKey = `${entity.domain}:${entity.entity_id}`;
 
       const candidates = await findSimilarByEntity({
@@ -208,7 +213,7 @@ export async function buildContentGraph(
       });
       const scored = rankEmbeddingCandidates({
         sourceDomain,
-        candidates,
+        candidates: candidates.filter(hasRelatedContentDomain),
         bookmarkQualityById,
         maxPerDomain: 5,
         maxTotal: MAX_RELATED,
