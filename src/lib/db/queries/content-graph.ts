@@ -7,6 +7,7 @@
  */
 
 import { eq } from "drizzle-orm";
+import type { ZodIssue } from "zod/v4";
 import { db } from "@/lib/db/connection";
 import { CONTENT_GRAPH_ARTIFACT_TYPES, contentGraphArtifacts } from "@/lib/db/schema/content-graph";
 import { relatedContentGraphSchema, booksRelatedContentDataSchema } from "@/types/schemas/book";
@@ -17,6 +18,26 @@ import {
   type TagGraph,
 } from "@/types/schemas/related-content";
 import type { BooksRelatedContent, RelatedContentGraph } from "@/types/schemas/book";
+
+let invalidRelatedContentArtifactLogged = false;
+
+function formatZodIssuePath(issue: ZodIssue): string {
+  return issue.path.length > 0 ? issue.path.map(String).join(".") : "<root>";
+}
+
+function logInvalidRelatedContentArtifact(issues: readonly ZodIssue[]): void {
+  if (invalidRelatedContentArtifactLogged) {
+    return;
+  }
+  invalidRelatedContentArtifactLogged = true;
+  const summary = issues
+    .slice(0, 5)
+    .map((issue) => `${formatZodIssuePath(issue)}: ${issue.message}`)
+    .join("; ");
+  console.warn(
+    `[db/queries/content-graph] Invalid related-content artifact; falling back to on-demand related-content. issues=${issues.length}; first=${summary}`,
+  );
+}
 
 /**
  * Read a single content graph artifact by type.
@@ -49,7 +70,12 @@ export async function readRelatedContent(): Promise<RelatedContentGraph | null> 
     return null;
   }
 
-  return relatedContentGraphSchema.parse(payload);
+  const parsed = relatedContentGraphSchema.safeParse(payload);
+  if (!parsed.success) {
+    logInvalidRelatedContentArtifact(parsed.error.issues);
+    return null;
+  }
+  return parsed.data;
 }
 
 /**

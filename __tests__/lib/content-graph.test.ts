@@ -131,6 +131,12 @@ describe("Content Graph Pre-computation", () => {
           content_date: "2024-01-02",
         },
         { domain: "blog", entity_id: "p1", title: "Test Post", content_date: "2024-01-01" },
+        {
+          domain: "opengraph",
+          entity_id: "og1",
+          title: "Cached OpenGraph",
+          content_date: "2024-01-01",
+        },
       ];
 
       // Mock tag content rows returned by the second db.execute call
@@ -161,6 +167,13 @@ describe("Content Graph Pre-computation", () => {
               entityId: "p1",
               title: "Test Post",
               similarity: 0.85,
+              contentDate: "2024-01-01",
+            },
+            {
+              domain: "opengraph",
+              entityId: "og1",
+              title: "Cached OpenGraph",
+              similarity: 0.82,
               contentDate: "2024-01-01",
             },
             {
@@ -240,16 +253,23 @@ describe("Content Graph Pre-computation", () => {
         expect(Object.keys(relatedContent)).toContain("bookmark:b1");
         expect(Object.keys(relatedContent)).toContain("bookmark:b2");
         expect(Object.keys(relatedContent)).toContain("blog:p1");
+        expect(Object.keys(relatedContent)).not.toContain("opengraph:og1");
 
         // Each entry should have related items with required fields
         const b1Related = relatedContent["bookmark:b1"];
         if (b1Related && b1Related.length > 0) {
+          expect(b1Related).toEqual(
+            expect.not.arrayContaining([expect.objectContaining({ type: "opengraph" })]),
+          );
           expect(b1Related[0]).toHaveProperty("type");
           expect(b1Related[0]).toHaveProperty("id");
           expect(b1Related[0]).toHaveProperty("score");
           expect(b1Related[0]).toHaveProperty("title");
         }
       }
+      expect(mockFindSimilarByEntity).not.toHaveBeenCalledWith(
+        expect.objectContaining({ sourceId: "og1" }),
+      );
 
       const tagGraphArtifact = artifactsArg?.find(
         (a: { artifactType: string }) => a.artifactType === "tag-graph",

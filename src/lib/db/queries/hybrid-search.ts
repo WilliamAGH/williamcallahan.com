@@ -13,7 +13,7 @@
  * @module db/queries/hybrid-search
  */
 
-import { desc, sql } from "drizzle-orm";
+import { desc, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
@@ -198,10 +198,7 @@ export async function semanticSearchBookmarks(
   const ids = idRows.map((r) => r.entity_id);
   const scoreMap = new Map(idRows.map((r) => [r.entity_id, Number(r.vec_score)]));
 
-  const bookmarkRows = await db
-    .select()
-    .from(bookmarks)
-    .where(sql`${bookmarks.id} = ANY(${ids})`);
+  const bookmarkRows = await db.select().from(bookmarks).where(inArray(bookmarks.id, ids));
 
   return mapBookmarkSelectsToUnifiedBookmarks(bookmarkRows)
     .map((b) => ({
