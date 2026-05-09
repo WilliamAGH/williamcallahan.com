@@ -53,6 +53,27 @@ describe("lib/cache", () => {
       expect(cachedFn).toHaveBeenCalled();
       expect(fallbackFn).toHaveBeenCalled();
     });
+
+    it("should use direct fallback during production build", async () => {
+      const previousPhase = process.env.NEXT_PHASE;
+      process.env.NEXT_PHASE = "phase-production-build";
+      const cachedFn = vi.fn().mockResolvedValue("cached result");
+      const fallbackFn = vi.fn().mockResolvedValue("fallback result");
+
+      try {
+        const result = await withCacheFallback(cachedFn, fallbackFn);
+
+        expect(result).toBe("fallback result");
+        expect(cachedFn).not.toHaveBeenCalled();
+        expect(fallbackFn).toHaveBeenCalled();
+      } finally {
+        if (previousPhase === undefined) {
+          delete process.env.NEXT_PHASE;
+        } else {
+          process.env.NEXT_PHASE = previousPhase;
+        }
+      }
+    });
   });
 
   describe("USE_NEXTJS_CACHE", () => {
