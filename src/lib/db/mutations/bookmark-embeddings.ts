@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
@@ -119,6 +119,17 @@ function normalizeBookmarkIds(bookmarkIds?: string[]): string[] | undefined {
   return unique.size > 0 ? [...unique] : [];
 }
 
+function buildBookmarkIdFilter(bookmarkIds?: readonly string[]): SQL {
+  if (!bookmarkIds || bookmarkIds.length === 0) {
+    return sql``;
+  }
+  const ids = sql.join(
+    bookmarkIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
+  return sql` AND b.id IN (${ids})`;
+}
+
 /**
  * Find bookmarks that don't yet have a row in embeddings.
  * Uses LEFT JOIN instead of checking a per-domain embedding column.
@@ -136,8 +147,7 @@ async function readMissingEmbeddingRows(
     WHERE ce.entity_id IS NULL
   `;
 
-  const idFilter =
-    bookmarkIds && bookmarkIds.length > 0 ? sql` AND b.id = ANY(${bookmarkIds})` : sql``;
+  const idFilter = buildBookmarkIdFilter(bookmarkIds);
 
   const rows = await db.execute<{
     id: string;
@@ -167,8 +177,7 @@ async function readMissingEmbeddingRows(
 }
 
 async function countMissingEmbeddings(bookmarkIds?: string[]): Promise<number> {
-  const idFilter =
-    bookmarkIds && bookmarkIds.length > 0 ? sql` AND b.id = ANY(${bookmarkIds})` : sql``;
+  const idFilter = buildBookmarkIdFilter(bookmarkIds);
 
   const rows = await db.execute<{ cnt: number }>(sql`
     SELECT count(*)::int AS cnt
