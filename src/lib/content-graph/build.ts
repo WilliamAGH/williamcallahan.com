@@ -211,15 +211,16 @@ export async function buildContentGraph(
         sourceId: entity.entity_id,
         limit: MAX_RELATED + 10,
       });
+      const displayableCandidates = candidates.filter(hasRelatedContentDomain);
       const scored = rankEmbeddingCandidates({
         sourceDomain,
-        candidates: candidates.filter(hasRelatedContentDomain),
+        candidates: displayableCandidates,
         bookmarkQualityById,
         maxPerDomain: 5,
         maxTotal: MAX_RELATED,
       });
 
-      relatedContentMappings[contentKey] = scored.map((c) => ({
+      relatedContentMappings[contentKey] = scored.filter(hasRelatedContentDomain).map((c) => ({
         type: c.domain,
         id: c.entityId,
         score: c.score,
