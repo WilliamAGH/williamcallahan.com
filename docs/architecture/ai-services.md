@@ -169,4 +169,4 @@ All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so w
 - `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` asserts tool-call rounds and deterministic search fallback behavior.
 - `__tests__/api/ai/chat-upstream-pipeline-analysis-validation.test.ts` verifies JSON/schema retry paths, coercion, and fallback normalization for bookmark analysis.
 - `__tests__/components/ui/terminal/commands.test.ts` confirms terminal one-shot flow against the SSE-only contract.
-- `__tests__/lib/ai-openai-compatible.test.ts` exercises browser SSE parsing and OpenAI-compatible transport behavior.
+- `__tests__/lib/ai-openai-compatible.test.ts` exercises browser SSE parsing, OpenAI-compatible transport behavior, and client-side analysis persistence (persistAnalysis success/error paths).
