@@ -33,7 +33,7 @@ function splitEmbeddingInput(text: string): string[] {
     const chunk = text.slice(start, end).trim();
     if (chunk.length > 0) chunks.push(chunk);
     start = end;
-    while (start < text.length && /\s/.test(text[start] ?? "")) start += 1;
+    while (start < text.length && /\s/.test(text.charAt(start))) start += 1;
   }
   return chunks;
 }
