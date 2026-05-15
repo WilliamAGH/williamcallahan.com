@@ -99,6 +99,7 @@ For a route param `feature`, the server resolves configuration with this precede
   - `AI_DEFAULT_OPENAI_API_KEY`
 - Used for:
   - PostgreSQL bookmark embedding backfill (`bun run bookmarks:embeddings:backfill`, executed via Node script `scripts/backfill-bookmark-embeddings.node.mjs`)
+- The shared app/server embeddings client sends OpenAI-style array inputs and splits oversized logical inputs into endpoint-safe chunks before posting. Chunk vectors are pooled back into one vector per original input so callers keep stable count/order parity.
 
 ## OpenAI SDK Notes
 
