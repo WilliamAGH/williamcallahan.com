@@ -288,7 +288,8 @@ export const responsesOutputMessageItemSchema = z.union([
 
 export const endpointCompatibleEmbeddingsRequestSchema = z.object({
   model: z.string().min(1),
-  input: z.array(z.string().min(1)).min(1),
+  input: z.array(z.string().trim().min(1)).min(1),
+  dimensions: z.number().int().min(32).max(2560).optional(),
 });
 
 export type EndpointCompatibleEmbeddingsRequest = z.infer<

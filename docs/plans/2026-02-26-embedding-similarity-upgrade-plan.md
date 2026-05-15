@@ -420,7 +420,7 @@ Same pattern as investments.
 
 **Step 1-8:** Follow identical pattern as Task 6. Schema columns: id, name, slug, description, short_summary, url, github_url, image_key, tags (jsonb), tech_stack (jsonb), note, cv_featured. FTS: A=name, B=short_summary+description, C=tags. Embedding input: Name, ShortSummary, Description, Tags, TechStack, Note.
 
-**Note on tsvector with jsonb tags:** Since `tags` is jsonb, use `to_tsvector('english', coalesce(tags::text, ''))` in the GENERATED ALWAYS expression.
+**Note on tsvector with jsonb tags:** Since `tags` is jsonb (array of strings or objects), extracting tags for FTS requires `jsonb_array_elements`. For simple string arrays, use a subquery or unnest pattern; for mixed string/object arrays (like bookmarks), use `CASE` with `jsonb_typeof` to handle both formats. The simple cast `tags::text` is unreliable and may produce incorrect results.
 
 ```bash
 git commit -m "feat(db): add projects table with FTS/trigram and unified embedding support"
