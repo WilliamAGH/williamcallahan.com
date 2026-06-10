@@ -1,7 +1,9 @@
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, eq, notInArray, sql, type SQL } from "drizzle-orm";
+import type { PgColumn, PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import {
+  BOOKMARK_ENRICHMENT_FIELDS,
   mapUnifiedBookmarksToBookmarkInserts,
   mapUnifiedBookmarkToBookmarkInsert,
 } from "@/lib/db/bookmark-record-mapper";
@@ -21,10 +23,26 @@ const GLOBAL_BOOKMARK_INDEX_STATE_ID = "global";
 const UPSERT_MAX_RETRIES = 3;
 const UPSERT_RETRY_DELAY_MS = 500;
 
-const buildBookmarkConflictUpdate = ({
+/**
+ * Enrichment-owned columns ([BOOKMARK_ENRICHMENT_FIELDS]) are produced by
+ * OpenGraph/logo/computed-field pipelines, not by the Karakeep source
+ * payload. A refresh that carries no enrichment must not erase previously
+ * persisted values, so on conflict these columns keep the stored value
+ * whenever the incoming one is NULL.
+ */
+const preserveEnrichment = (column: PgColumn): SQL =>
+  sql`coalesce(excluded.${sql.identifier(column.name)}, ${column})`;
+
+export const buildBookmarkConflictUpdate = ({
   id: _id,
   ...updatableFields
-}: BookmarkInsert): Omit<BookmarkInsert, "id"> => updatableFields;
+}: BookmarkInsert): PgUpdateSetSource<typeof bookmarks> => {
+  const set: PgUpdateSetSource<typeof bookmarks> = { ...updatableFields };
+  for (const field of BOOKMARK_ENRICHMENT_FIELDS) {
+    set[field] = preserveEnrichment(bookmarks[field]);
+  }
+  return set;
+};
 
 const buildBookmarkIndexStatePayload = (
   count: number,

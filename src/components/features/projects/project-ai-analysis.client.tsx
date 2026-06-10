@@ -171,13 +171,10 @@ export function ProjectAiAnalysis({
   initialAnalysis,
   defaultCollapsed = false,
 }: Readonly<ProjectAiAnalysisProps>) {
-  // Use project.id if available, otherwise fall back to project.name
-  const projectId = project.id ?? project.name;
-
   return (
     <AiAnalysisTerminal
       entity={project}
-      entityId={projectId}
+      entityId={project.id}
       featureName={AI_FEATURE_NAME}
       persistenceKey={PERSISTENCE_KEY}
       loadingMessages={LOADING_MESSAGES}

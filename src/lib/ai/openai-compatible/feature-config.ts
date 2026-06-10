@@ -6,8 +6,8 @@ import type {
 } from "@/types/schemas/ai-openai-compatible";
 import { requireEmbeddingSpaceIdForProviderModelId } from "@/lib/ai/embeddings/embedding-space-registry";
 
-const DEFAULT_BASE_URL = "https://popos-sf7.com";
-const DEFAULT_MODEL = "openai/gpt-oss-120b,openai/gpt-oss-20b";
+const DEFAULT_BASE_URL = "https://api.llm-gateway.iocloudhost.net";
+const DEFAULT_MODEL = "qwen3.6:onprem";
 const DEFAULT_MAX_PARALLEL = 1;
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-qwen3-embedding-4b";
 

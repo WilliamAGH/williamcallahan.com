@@ -1,4 +1,20 @@
-import { CACHE_TTL, getCacheProfile, withCacheFallback, USE_NEXTJS_CACHE } from "@/lib/cache";
+const mockCacheTag = vi.fn();
+const mockCacheLife = vi.fn();
+const mockRevalidateTag = vi.fn();
+
+vi.mock("next/cache", () => ({
+  cacheTag: (...args: unknown[]) => mockCacheTag(...args),
+  cacheLife: (...args: unknown[]) => mockCacheLife(...args),
+  revalidateTag: (...args: unknown[]) => mockRevalidateTag(...args),
+}));
+
+import {
+  CACHE_TTL,
+  cacheContextGuards,
+  getCacheProfile,
+  withCacheFallback,
+  USE_NEXTJS_CACHE,
+} from "@/lib/cache";
 
 describe("lib/cache", () => {
   describe("CACHE_TTL constants", () => {
@@ -79,6 +95,29 @@ describe("lib/cache", () => {
   describe("USE_NEXTJS_CACHE", () => {
     it("should be a boolean", () => {
       expect(typeof USE_NEXTJS_CACHE).toBe("boolean");
+    });
+  });
+
+  describe("cacheContextGuards during production build", () => {
+    it("forwards cacheTag and cacheLife so prerendered entries stay invalidatable by revalidateTag", () => {
+      const previousPhase = process.env.NEXT_PHASE;
+      process.env.NEXT_PHASE = "phase-production-build";
+      mockCacheTag.mockClear();
+      mockCacheLife.mockClear();
+
+      try {
+        cacheContextGuards.cacheTag("AiAnalysis", "ai-analysis-bookmarks-abc");
+        cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 });
+
+        expect(mockCacheTag).toHaveBeenCalledWith("ai-analysis-bookmarks-abc");
+        expect(mockCacheLife).toHaveBeenCalledWith({ revalidate: 86400 });
+      } finally {
+        if (previousPhase === undefined) {
+          delete process.env.NEXT_PHASE;
+        } else {
+          process.env.NEXT_PHASE = previousPhase;
+        }
+      }
     });
   });
 });

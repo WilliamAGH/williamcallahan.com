@@ -63,6 +63,15 @@ Derived columns are computed during normalization (`lib/bookmarks/normalize.ts`)
 - **`og_title`**, **`og_description`**, **`og_image`**: Populated during OG enrichment (`lib/bookmarks/enrich-opengraph.ts`) or backfilled by fetching bookmark URLs and parsing `<meta property="og:*">` tags.
 - **`logo_data`**: `{url, alt}` JSONB mapped from the S3 CDN logo manifest (`json/image-data/logos/manifest.json`) keyed by bookmark domain.
 
+### Enrichment Preservation Contract
+
+Enrichment-owned columns are listed once in `BOOKMARK_ENRICHMENT_FIELDS` (`lib/db/bookmark-record-mapper.ts`); all consumers bind that list:
+
+- **Upsert** (`lib/db/mutations/bookmarks.ts`): on conflict these columns use `COALESCE(excluded.col, bookmarks.col)` so a less-enriched dataset can never null out persisted enrichment.
+- **Hydration** (`lib/bookmarks/enrichment-hydration.ts`): freshly normalized Karakeep payloads are merged with prior persisted rows before enrichment, so unchanged bookmarks skip image work and partial refreshes carry enrichment forward.
+- **Refresh gate** (`lib/bookmarks/refresh-helpers.ts`): the raw-API checksum is computed with the same canonical `calculateBookmarksChecksum`; in data-updater mode the cached short-circuit is bypassed while any bookmark still needs its Karakeep asset upgraded to an S3 CDN URL (`needsKarakeepImageUpgrade`).
+- **Runtime split**: only the data updater (`IS_DATA_UPDATER=true`) downloads Karakeep assets and persists them to S3; the web runtime keeps the relative `/api/assets/<id>` proxy URL (never passed to `persistImageToS3`, which rejects app-relative URLs) until the next updater run upgrades it.
+
 ### Backfill Scripts
 
 All backfill scripts are standalone Node (`#!/usr/bin/env node`) scripts using `postgres` directly. They share a production write guard pattern (`assertDatabaseWriteAllowed`) and support `--dry-run`, `--force`, and `--ids` flags.

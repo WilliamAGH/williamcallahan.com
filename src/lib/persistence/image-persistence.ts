@@ -16,24 +16,27 @@ function getDisplayUrl(imageUrl: string): string {
 
 /** Build full S3 CDN URL from an S3 key. Throws OgError if CDN URL is not configured. */
 function buildS3CdnUrl(s3Key: string): string {
-  const cdnUrl = getS3CdnUrl();
-  if (!cdnUrl) {
+  // getS3CdnUrl throws when NEXT_PUBLIC_S3_CDN_URL is unset; rewrap so
+  // callers receive the documented OgError code.
+  try {
+    return `${getS3CdnUrl()}/${s3Key}`;
+  } catch (error) {
     throw new OgError(
       "NEXT_PUBLIC_S3_CDN_URL not configured - cannot construct S3 URL",
       "s3-config-missing",
+      { originalError: error instanceof Error ? error : new Error(String(error)) },
     );
   }
-  return `${cdnUrl}/${s3Key}`;
 }
 
 /** Build S3 CDN URL, returning null on configuration error (for non-throwing contexts) */
 function buildS3CdnUrlOrNull(s3Key: string, logContext: string): string | null {
-  const cdnUrl = getS3CdnUrl();
-  if (!cdnUrl) {
+  try {
+    return `${getS3CdnUrl()}/${s3Key}`;
+  } catch {
     console.error(`[OpenGraph S3] ${logContext} NEXT_PUBLIC_S3_CDN_URL not configured`);
     return null;
   }
-  return `${cdnUrl}/${s3Key}`;
 }
 
 /** Schedule background image persistence to S3 */

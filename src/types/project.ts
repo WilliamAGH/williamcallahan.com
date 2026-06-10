@@ -1,8 +1,12 @@
 import type { RegistryLink } from "./schemas/registry-link";
 
 export interface Project {
-  /** Unique identifier for the project (typically same as name) */
-  id?: string;
+  /**
+   * Stable unique identifier for the project. Persistence identity for AI
+   * analysis and DB rows — never derive it from the display name and never
+   * rename it casually: renames orphan persisted content keyed by the old id.
+   */
+  id: string;
   name: string;
   description: string;
   shortSummary: string; // Short summary for concise display

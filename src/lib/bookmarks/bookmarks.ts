@@ -24,6 +24,7 @@ import {
   enrichWithOpenGraph,
   loadDatabaseFallback,
 } from "./refresh-helpers";
+import { hydrateEnrichmentFromDatabase } from "./enrichment-hydration";
 
 /**
  * Refreshes bookmarks data before persistence orchestration.
@@ -61,8 +62,11 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
     // Normalize and generate slugs
     const normalizedBookmarks = await normalizeAndGenerateSlugs(allRawBookmarks);
 
+    // Carry forward prior enrichment so unchanged bookmarks skip image work
+    const hydratedBookmarks = await hydrateEnrichmentFromDatabase(normalizedBookmarks);
+
     // Enrich with OpenGraph data
-    const enrichedBookmarks = await enrichWithOpenGraph(normalizedBookmarks);
+    const enrichedBookmarks = await enrichWithOpenGraph(hydratedBookmarks);
 
     console.log("[refreshBookmarksData] Refresh cycle completed successfully.");
     return enrichedBookmarks;

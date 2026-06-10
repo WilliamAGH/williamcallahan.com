@@ -15,7 +15,8 @@ const MIN_IMAGE_BUFFER_SIZE = 100;
 import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { getOgImageS3Key, hashImageContent } from "@/lib/utils/opengraph-utils";
-import { listS3Objects } from "@/lib/s3/objects";
+import { checkIfS3ObjectExists } from "@/lib/s3/objects";
+import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { processImageBufferSimple } from "./shared-image-processing";
 import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 
@@ -42,6 +43,16 @@ export async function persistImageToS3(
       ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
       : imageUrl;
     console.log(`[${logContext}] Read-only mode: Skipping S3 persistence for ${displayUrl}`);
+    return null;
+  }
+
+  if (imageUrl.startsWith("/")) {
+    // App-relative proxy URLs (e.g. /api/assets/<id>) are not fetchable from
+    // the server; Karakeep assets must go through fetchKarakeepImage +
+    // persistImageBufferToS3 instead.
+    console.error(
+      `[${logContext}] Cannot persist app-relative URL ${imageUrl}; use the Karakeep asset buffer path.`,
+    );
     return null;
   }
 
@@ -176,6 +187,20 @@ export async function persistImageToS3(
 }
 
 /**
+ * A first-party Karakeep asset is either our own proxy URL or a URL on the
+ * configured Karakeep API host — not the hardcoded karakeep.app/hoarder.io
+ * SaaS domains, since this site runs a self-hosted instance.
+ */
+function isFirstPartyKarakeepAsset(imageUrl: string): boolean {
+  if (imageUrl.startsWith("/api/assets/")) return true;
+  try {
+    return new URL(imageUrl).hostname === new URL(BOOKMARKS_API_CONFIG.API_URL).hostname;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Handle stale image URLs by triggering automatic OpenGraph recrawl
  * This is called when image URLs return 404, indicating the OpenGraph metadata is stale
  */
@@ -187,7 +212,7 @@ async function handleStaleImageUrl(
   try {
     const { invalidateOpenGraphCacheForUrl } = await import("@/lib/data-access/opengraph");
 
-    const isKarakeepUrl = /^https?:\/\/(?:[^/]+\.)?(karakeep\.app|hoarder\.io)\/.+/i.test(imageUrl);
+    const isKarakeepUrl = isFirstPartyKarakeepAsset(imageUrl);
 
     // Only trigger recrawl for **first-party Karakeep / Hoarder assets**. Third-party images that
     // disappear (like a site's own og-image.png) should *not* force an immediate refetch cycle – we
@@ -252,72 +277,24 @@ export async function findImageInS3(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<string | null> {
-  // 1. Direct lookup for the ideal filename based on the full known path
+  // The key derivation is deterministic on (pageUrl, idempotencyKey) — the
+  // same inputs the writer uses — so a single existence check is sufficient.
+  // A list-and-substring fallback is impossible here: stored keys embed an
+  // 8-char hash, never the raw idempotency key.
   const idealKey = getOgImageS3Key(imageUrl, s3Directory, pageUrl, idempotencyKey);
-  if (isDebug)
-    debug(
-      `[${logContext}] Attempting direct S3 lookup with key: ${idealKey} for image: ${imageUrl}`,
-    );
   try {
-    const buffer = await readBinaryS3(idealKey);
-    if (buffer) {
+    if (await checkIfS3ObjectExists(idealKey)) {
       if (isDebug) debug(`[${logContext}] Found image by direct key lookup: ${idealKey}`);
       return idealKey;
     }
   } catch (error) {
-    // Catching potential errors from readBinaryS3 if it throws
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (isDebug)
-      debug(
-        `[${logContext}] Error during direct key lookup for ${idealKey}: ${errorMessage}. Proceeding to fallback search.`,
-      );
-  }
-
-  // 2. Fallback: List objects and search by idempotency key
-  // This is the most reliable fallback if the exact URL/hash has changed but the content ID hasn't.
-  if (isDebug)
-    debug(
-      `[${logContext}] Direct key lookup failed for ${idealKey}. Proceeding to fallback search by IdempotencyKey: ${idempotencyKey}`,
-    );
-  try {
-    if (idempotencyKey) {
-      const allImages = await listS3Objects(s3Directory);
-      if (allImages.length > 0) {
-        const foundById = allImages.find((key) => key.includes(idempotencyKey));
-        if (foundById) {
-          if (isDebug)
-            debug(
-              `[${logContext}] Fallback search: Found image by ID '${idempotencyKey}': ${foundById}`,
-            );
-          return foundById;
-        }
-        if (isDebug)
-          debug(
-            `[${logContext}] Fallback search: IdempotencyKey '${idempotencyKey}' not found in ${allImages.length} listed S3 objects in directory ${s3Directory}.`,
-          );
-      } else {
-        if (isDebug)
-          debug(
-            `[${logContext}] Fallback search: No images found in S3 directory ${s3Directory} to search by IdempotencyKey '${idempotencyKey}'.`,
-          );
-      }
-    } else {
-      if (isDebug)
-        debug(
-          `[${logContext}] Fallback search: No IdempotencyKey provided, skipping search by ID for image: ${imageUrl}.`,
-        );
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(
-      `[${logContext}] Error during fallback S3 object listing in ${s3Directory}:`,
-      errorMessage,
-    );
+    console.error(`[${logContext}] S3 existence check failed for ${idealKey}: ${errorMessage}`);
   }
 
   if (isDebug)
     debug(
-      `[${logContext}] All S3 lookups failed for image (Original URL: ${imageUrl}, IdempotencyKey: ${idempotencyKey}, PageURL: ${pageUrl}, IdealKey: ${idealKey})`,
+      `[${logContext}] No stored image for (Original URL: ${imageUrl}, IdempotencyKey: ${idempotencyKey}, PageURL: ${pageUrl}, IdealKey: ${idealKey})`,
     );
   return null;
 }
