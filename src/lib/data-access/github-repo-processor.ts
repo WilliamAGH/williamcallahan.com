@@ -20,6 +20,16 @@ import {
   type SingleRepoProcessingResult,
 } from "@/types/features/github-processing";
 
+async function loadCachedRepoStats(
+  repoOwner: string,
+  repoName: string,
+): Promise<{ stats: RepoRawWeeklyStat[]; status: RepoWeeklyStatCache["status"] } | null> {
+  const dbCache = await readRepoWeeklyStatsRecord(repoOwner, repoName);
+  if (!dbCache || !Array.isArray(dbCache.stats) || dbCache.stats.length === 0) return null;
+  debug(`[GitHub-Repo] Using DB cache for ${repoOwner}/${repoName}`);
+  return { stats: dbCache.stats.toSorted((a, b) => a.w - b.w), status: dbCache.status };
+}
+
 async function fetchOrLoadRepoStats(
   repoOwner: string,
   repoName: string,
@@ -41,11 +51,8 @@ async function fetchOrLoadRepoStats(
   }
 
   // No API data - use PostgreSQL cache snapshot
-  const dbCache = await readRepoWeeklyStatsRecord(repoOwner, repoName);
-  if (dbCache && Array.isArray(dbCache.stats) && dbCache.stats.length > 0) {
-    debug(`[GitHub-Repo] Using DB cache for ${repoOwner}/${repoName}`);
-    return { stats: dbCache.stats.toSorted((a, b) => a.w - b.w), status: dbCache.status };
-  }
+  const dbCache = await loadCachedRepoStats(repoOwner, repoName);
+  if (dbCache) return dbCache;
 
   return { stats: [], status: "empty_no_user_contribs" };
 }
@@ -138,6 +145,8 @@ export async function processSingleRepository({
       status = "fetch_error";
       dataComplete = false;
     }
+    const dbCache = await loadCachedRepoStats(repoOwner, repoName);
+    if (dbCache) stats = dbCache.stats;
   }
 
   const accumulated = accumulateWeeklyStats(stats, trailingYearFromDate, now);
