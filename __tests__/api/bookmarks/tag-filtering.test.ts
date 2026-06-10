@@ -204,6 +204,35 @@ describe("Bookmark API Tag Filtering", () => {
       expect(data.data[0].id).toBe("1");
     });
 
+    it("should query canonical tag results when the requested tag is an alias", async () => {
+      const aliasBookmark = mockBookmarks[0];
+      if (!aliasBookmark) throw new Error("Expected alias bookmark fixture");
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
+      mockResolveBookmarkTagSlug.mockResolvedValueOnce({
+        requestedSlug: "llms",
+        canonicalSlug: "ai",
+        canonicalTagName: "AI",
+        isAlias: true,
+      });
+      mockGetBookmarksByTag.mockResolvedValueOnce({
+        bookmarks: [aliasBookmark],
+        totalCount: 1,
+        totalPages: 1,
+      });
+
+      const response = await GET(createRequest({ tag: "llms" }));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(mockResolveBookmarkTagSlug).toHaveBeenCalledWith("llms");
+      expect(mockGetBookmarksByTag).toHaveBeenCalledWith("ai", 1, 20);
+      expect(data.meta.filter).toMatchObject({
+        tag: "llms",
+        resolvedTag: "AI",
+        exactCount: 1,
+      });
+    });
+
     it("should perform case-insensitive tag matching", async () => {
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 

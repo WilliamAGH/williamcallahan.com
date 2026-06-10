@@ -6,7 +6,12 @@
  * @module lib/bookmarks/normalize
  */
 
-import type { RawApiBookmark, UnifiedBookmark, BookmarkContent } from "@/types/schemas/bookmark";
+import {
+  unifiedBookmarkSchema,
+  type RawApiBookmark,
+  type UnifiedBookmark,
+  type BookmarkContent,
+} from "@/types/schemas/bookmark";
 import { envLogger } from "@/lib/utils/env-logger";
 import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
 import { extractDomainWithoutWww } from "@/lib/utils/url-utils";
@@ -57,7 +62,20 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
     const scrapedContentText = normalizeScrapedContentText(
       typeof rawHtml === "string" ? rawHtml : null,
     );
-    const bookmarkUrl = raw.content?.url || "";
+    const bookmarkUrlResult = unifiedBookmarkSchema.shape.url.safeParse(raw.content.url);
+    if (!bookmarkUrlResult.success) {
+      envLogger.log(
+        "Skipping bookmark with invalid URL",
+        {
+          index,
+          bookmarkId: raw.id,
+          issues: bookmarkUrlResult.error.issues,
+        },
+        { category: "BookmarksNormalize" },
+      );
+      return null;
+    }
+    const bookmarkUrl = bookmarkUrlResult.data;
     const domainCandidate = bookmarkUrl ? extractDomainWithoutWww(bookmarkUrl) : "";
     const domain = domainCandidate && domainCandidate !== bookmarkUrl ? domainCandidate : undefined;
     const wordCount = computeWordCount(scrapedContentText);

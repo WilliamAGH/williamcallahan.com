@@ -14,6 +14,7 @@ import { z } from "zod/v4";
 
 /** Reusable URL schema (top-level Zod v4 form) */
 const urlSchema = z.url();
+const appRelativeAssetUrlSchema = z.string().startsWith("/api/assets/");
 
 /** Reusable nullable-optional string */
 const stringOrNullSchema = z.string().nullable().optional();
@@ -131,7 +132,7 @@ export const unifiedBookmarkSchema = z.object({
   description: z.string(),
   slug: z.string().min(1),
   tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
-  ogImage: z.url().optional(),
+  ogImage: z.union([z.url(), appRelativeAssetUrlSchema]).optional(),
   dateBookmarked: z.string(),
   datePublished: z.string().nullable().optional(),
   dateCreated: z.string().optional(),

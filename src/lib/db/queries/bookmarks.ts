@@ -74,35 +74,6 @@ async function resolveCanonicalTagSlugInternal(tagSlug: string): Promise<Bookmar
     };
   }
 
-  const tagRows = await db
-    .select({
-      tagSlug: bookmarkTags.tagSlug,
-      tagName: bookmarkTags.tagName,
-      tagStatus: bookmarkTags.tagStatus,
-    })
-    .from(bookmarkTags)
-    .where(eq(bookmarkTags.tagSlug, requestedSlug))
-    .limit(1);
-  const tagRow = tagRows[0];
-
-  if (!tagRow) {
-    return {
-      requestedSlug,
-      canonicalSlug: requestedSlug,
-      canonicalTagName: null,
-      isAlias: false,
-    };
-  }
-
-  if (tagRow.tagStatus !== "alias") {
-    return {
-      requestedSlug,
-      canonicalSlug: requestedSlug,
-      canonicalTagName: tagRow.tagName,
-      isAlias: false,
-    };
-  }
-
   const aliasRows = await db
     .select({
       canonicalSlug: bookmarkTagAliasLinks.targetTagSlug,
@@ -119,20 +90,39 @@ async function resolveCanonicalTagSlugInternal(tagSlug: string): Promise<Bookmar
     .limit(1);
   const aliasRow = aliasRows[0];
 
-  if (!aliasRow) {
+  if (aliasRow) {
+    return {
+      requestedSlug,
+      canonicalSlug: aliasRow.canonicalSlug,
+      canonicalTagName: aliasRow.canonicalTagName,
+      isAlias: aliasRow.canonicalSlug !== requestedSlug,
+    };
+  }
+
+  const tagRows = await db
+    .select({
+      tagSlug: bookmarkTags.tagSlug,
+      tagName: bookmarkTags.tagName,
+    })
+    .from(bookmarkTags)
+    .where(eq(bookmarkTags.tagSlug, requestedSlug))
+    .limit(1);
+  const tagRow = tagRows[0];
+
+  if (!tagRow) {
     return {
       requestedSlug,
       canonicalSlug: requestedSlug,
-      canonicalTagName: tagRow.tagName,
+      canonicalTagName: null,
       isAlias: false,
     };
   }
 
   return {
     requestedSlug,
-    canonicalSlug: aliasRow.canonicalSlug,
-    canonicalTagName: aliasRow.canonicalTagName,
-    isAlias: aliasRow.canonicalSlug !== requestedSlug,
+    canonicalSlug: requestedSlug,
+    canonicalTagName: tagRow.tagName,
+    isAlias: false,
   };
 }
 
@@ -172,6 +162,26 @@ export const lightweightBookmarkColumns = {
   isPrivate: bookmarks.isPrivate,
   isFavorite: bookmarks.isFavorite,
 } as const;
+
+const tagAliasJoinCondition = () =>
+  and(
+    eq(bookmarkTagAliasLinks.sourceTagSlug, bookmarkTagLinks.tagSlug),
+    eq(bookmarkTagAliasLinks.linkType, "alias"),
+  );
+
+const canonicalTagLinkSlug = sql<string>`coalesce(${bookmarkTagAliasLinks.targetTagSlug}, ${bookmarkTagLinks.tagSlug})`;
+
+const tagLinkMatchesCanonicalSlug = (canonicalSlug: string) =>
+  sql`${canonicalTagLinkSlug} = ${canonicalSlug}`;
+
+async function countBookmarksForCanonicalTag(canonicalSlug: string): Promise<number> {
+  const countRows = await db
+    .select({ count: sql<number>`count(distinct ${bookmarkTagLinks.bookmarkId})::int` })
+    .from(bookmarkTagLinks)
+    .leftJoin(bookmarkTagAliasLinks, tagAliasJoinCondition())
+    .where(tagLinkMatchesCanonicalSlug(canonicalSlug));
+  return countRows[0]?.count ?? 0;
+}
 
 export async function resolveCanonicalTagSlug(tagSlug: string): Promise<BookmarkTagResolution> {
   return resolveCanonicalTagSlugInternal(tagSlug);
@@ -275,13 +285,23 @@ export async function getBookmarksPageByTag(
     return [];
   }
 
+  const matchingBookmarkIds = db
+    .selectDistinctOn([bookmarkTagLinks.bookmarkId], {
+      bookmarkId: bookmarkTagLinks.bookmarkId,
+      dateBookmarked: bookmarkTagLinks.dateBookmarked,
+    })
+    .from(bookmarkTagLinks)
+    .leftJoin(bookmarkTagAliasLinks, tagAliasJoinCondition())
+    .where(tagLinkMatchesCanonicalSlug(resolution.canonicalSlug))
+    .orderBy(bookmarkTagLinks.bookmarkId, desc(bookmarkTagLinks.dateBookmarked))
+    .as("matching_bookmark_tag_links");
+
   const offset = (pageNumber - 1) * pageSize;
   const rows = (await db
     .select(lightweightBookmarkColumns)
-    .from(bookmarkTagLinks)
-    .innerJoin(bookmarks, eq(bookmarkTagLinks.bookmarkId, bookmarks.id))
-    .where(eq(bookmarkTagLinks.tagSlug, resolution.canonicalSlug))
-    .orderBy(desc(bookmarkTagLinks.dateBookmarked), desc(bookmarkTagLinks.bookmarkId))
+    .from(matchingBookmarkIds)
+    .innerJoin(bookmarks, eq(matchingBookmarkIds.bookmarkId, bookmarks.id))
+    .orderBy(desc(matchingBookmarkIds.dateBookmarked), desc(matchingBookmarkIds.bookmarkId))
     .limit(pageSize)
     .offset(offset)) as BookmarkLightweightSelect[];
 
@@ -327,23 +347,23 @@ export async function getTagBookmarksIndexFromDatabase(
     return null;
   }
 
-  const rows = await db
+  const stateRows = await db
     .select()
     .from(bookmarkTagIndexState)
     .where(eq(bookmarkTagIndexState.tagSlug, resolution.canonicalSlug))
     .limit(1);
-  const stateRow = rows[0];
-  if (stateRow) {
-    return mapBookmarkIndexStateToBookmarksIndex(stateRow);
-  }
-
-  const countRows = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(bookmarkTagLinks)
-    .where(eq(bookmarkTagLinks.tagSlug, resolution.canonicalSlug));
-  const count = countRows[0]?.count ?? 0;
+  const count = await countBookmarksForCanonicalTag(resolution.canonicalSlug);
   if (count === 0) {
     return null;
+  }
+  const stateRow = stateRows[0];
+  if (stateRow) {
+    return {
+      ...mapBookmarkIndexStateToBookmarksIndex(stateRow),
+      count,
+      totalPages: Math.ceil(count / pageSize),
+      pageSize,
+    };
   }
   return buildFallbackIndex(count, pageSize);
 }
