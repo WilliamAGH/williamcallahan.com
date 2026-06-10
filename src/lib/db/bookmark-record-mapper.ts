@@ -1,6 +1,27 @@
 import type { BookmarkInsert, BookmarkRef } from "@/types/db/bookmarks";
 import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 
+/**
+ * Canonical list of bookmark fields owned by enrichment/backfill pipelines
+ * (OpenGraph, logos, computed fields, scraped content) rather than the
+ * Karakeep source payload. Consumers must bind this list instead of
+ * restating it: the upsert preserves these columns via COALESCE and the
+ * refresh pipeline hydrates them from prior rows before re-enrichment.
+ */
+export const BOOKMARK_ENRICHMENT_FIELDS = [
+  "ogImage",
+  "ogTitle",
+  "ogDescription",
+  "ogUrl",
+  "ogImageExternal",
+  "ogImageLastFetchedAt",
+  "ogImageEtag",
+  "logoData",
+  "readingTime",
+  "wordCount",
+  "scrapedContentText",
+] as const satisfies ReadonlyArray<keyof UnifiedBookmark & keyof BookmarkInsert>;
+
 const toUndefined = <T>(value: T | null): T | undefined => {
   if (value === null) {
     return undefined;
@@ -8,9 +29,14 @@ const toUndefined = <T>(value: T | null): T | undefined => {
   return value;
 };
 
-/** Convert a nullable string to a valid URL or undefined. Silently drops non-URL values. */
+/**
+ * Convert a nullable string to a servable image URL or undefined.
+ * Accepts absolute URLs and app-relative paths (e.g. /api/assets/<id> proxy
+ * URLs persisted by the web runtime); drops anything else.
+ */
 const toUrlOrUndefined = (value: string | null): string | undefined => {
   if (!value) return undefined;
+  if (value.startsWith("/")) return value;
   return URL.canParse(value) ? value : undefined;
 };
 

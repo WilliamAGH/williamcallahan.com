@@ -172,8 +172,12 @@ export const convertBookmarksToSerializable = (
 /**
  * Calculate checksum for bookmark array based on id and modification time.
  * Order-insensitive: sorts by id to avoid false change detection from reordering.
+ * Accepts any projection carrying identity + modification fields so raw API
+ * payloads and persisted UnifiedBookmarks produce comparable values.
  */
-export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string =>
+export const calculateBookmarksChecksum = (
+  bookmarks: ReadonlyArray<Pick<UnifiedBookmark, "id" | "dateBookmarked" | "modifiedAt">>,
+): string =>
   [...bookmarks]
     .toSorted((a, b) => (a.id || "").localeCompare(b.id || ""))
     .map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)

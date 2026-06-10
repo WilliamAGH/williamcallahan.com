@@ -319,12 +319,17 @@ export async function processBookmarksInBatches(
               absoluteImageUrl = null;
             }
           } else {
-            // In web runtime, we can't fetch from Karakeep directly
-            // Just use the relative URL and let the client handle it
-            absoluteImageUrl = sourceImageUrl;
+            // Web runtime: keep the servable proxy URL and let the scheduled
+            // data updater upgrade it to a persisted S3 CDN URL. Relative
+            // URLs must never reach persistImageToS3 (fetch cannot resolve
+            // them server-side).
+            bookmark.ogImage = sourceImageUrl;
+            bookmark.ogImageExternal = sourceImageUrl;
             console.log(
-              `${LOG_PREFIX} 🔗 Web runtime: Using relative URL for Karakeep asset: ${absoluteImageUrl}`,
+              `${LOG_PREFIX} 🔗 Web runtime: keeping Karakeep proxy URL for later S3 upgrade: ${sourceImageUrl}`,
             );
+            sourceImageUrl = null;
+            absoluteImageUrl = null;
           }
         }
 
@@ -376,9 +381,10 @@ export async function processBookmarksInBatches(
               imageStats.bookmarksWithoutImages++;
             }
           }
-        } else {
-          // No valid image URL after processing
-          bookmark.ogImage = undefined;
+        } else if (!bookmark.ogImage) {
+          // Nothing resolved by the Karakeep branch and no prior image to
+          // keep. (The success paths above null sourceImageUrl/absoluteImageUrl
+          // after setting bookmark.ogImage — never clear their result here.)
           bookmark.ogImageExternal = undefined;
           imageStats.bookmarksWithoutImages++;
         }

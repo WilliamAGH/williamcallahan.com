@@ -10,7 +10,8 @@
 import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { normalizeBookmarks } from "./normalize";
 import { processBookmarksInBatches } from "./enrich-opengraph";
-import { createHash } from "node:crypto";
+import { calculateBookmarksChecksum } from "./utils";
+import { needsKarakeepImageUpgrade } from "./enrichment-hydration";
 
 import {
   type UnifiedBookmark,
@@ -152,8 +153,16 @@ export async function validateChecksumAndGetCached(
   allRawBookmarks: RawApiBookmark[],
   force: boolean,
 ): Promise<ChecksumResult> {
-  const rawJsonString = JSON.stringify(allRawBookmarks);
-  const rawChecksum = createHash("sha256").update(rawJsonString).digest("hex");
+  // Must match the canonical checksum persisted by rebuildBookmarkTaxonomyState
+  // (calculateBookmarksChecksum over the unified dataset), so project raw
+  // API fields onto the same identity + modification shape.
+  const rawChecksum = calculateBookmarksChecksum(
+    allRawBookmarks.map((raw) => ({
+      id: raw.id,
+      dateBookmarked: raw.createdAt,
+      modifiedAt: raw.modifiedAt,
+    })),
+  );
 
   if (force) {
     console.log("[refreshBookmarksData] Force refresh requested, skipping checksum check.");
@@ -184,7 +193,20 @@ export async function validateChecksumAndGetCached(
       return { cached: null, checksum: rawChecksum };
     }
 
-    console.log(`[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) - reuse cached.`);
+    // The data updater is the only runtime able to move Karakeep assets into
+    // S3; reusing the cache there must not strand bookmarks whose images are
+    // still proxy URLs or missing.
+    if (process.env.IS_DATA_UPDATER === "true") {
+      const pendingImageUpgrades = cachedBookmarks.filter(needsKarakeepImageUpgrade).length;
+      if (pendingImageUpgrades > 0) {
+        console.log(
+          `[refreshBookmarksData] ${pendingImageUpgrades} bookmarks awaiting S3 image upgrade; running full enrichment.`,
+        );
+        return { cached: null, checksum: rawChecksum };
+      }
+    }
+
+    console.log(`[refreshBookmarksData] Raw checksum unchanged - reuse cached.`);
     return { cached: cachedBookmarks, checksum: rawChecksum };
   } catch (error) {
     console.warn(
