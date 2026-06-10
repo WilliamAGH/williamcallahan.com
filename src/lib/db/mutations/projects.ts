@@ -9,14 +9,8 @@
 
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { projects } from "@/lib/db/schema/projects";
+import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import type { Project } from "@/types/project";
-
-function projectToSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 /**
  * Upsert a batch of projects.
@@ -28,7 +22,7 @@ export async function upsertProjects(data: Project[]): Promise<number> {
   let upserted = 0;
   for (const item of data) {
     const id = item.id;
-    const slug = projectToSlug(item.name);
+    const slug = generateProjectSlug(item.name);
     await db
       .insert(projects)
       .values({

@@ -133,7 +133,7 @@ export async function buildStaticInventorySections(): Promise<{
           formatLine({
             id: project.id,
             name: project.name,
-            url: `/projects/${generateProjectSlug(project.name, project.id)}`,
+            url: `/projects/${generateProjectSlug(project.name)}`,
             externalUrl: project.url,
             githubUrl: project.githubUrl,
             tags: project.tags,
