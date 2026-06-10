@@ -14,6 +14,8 @@ import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 
+const EXACT_MATCH_SCORE_MULTIPLIER = 2;
+
 /**
  * Generic search function that filters items based on a query.
  * Uses MiniSearch for fuzzy matching when available, falls back to substring search.
@@ -64,10 +66,6 @@ export function searchContent<T>(
       const searchResults = miniSearchIndex.search(sanitizedQuery, {
         prefix: true, // Allow prefix matching for autocomplete-like behavior
         fuzzy: 0.2, // Allow typos (20% edit distance)
-        boost: {
-          // Boost exact matches
-          exactMatch: 2,
-        },
         combineWith: "OR", // Any term can match; MiniSearch scoring ranks multi-term hits higher
       });
 
@@ -79,7 +77,11 @@ export function searchContent<T>(
         .filter((item) => resultIds.has(extractId(item)))
         .map((item) => ({
           item,
-          score: scoreById.get(extractId(item)) ?? 0,
+          score:
+            (scoreById.get(extractId(item)) ?? 0) *
+            (getExactMatchField?.(item).toLowerCase() === sanitizedQuery
+              ? EXACT_MATCH_SCORE_MULTIPLIER
+              : 1),
         }))
         .toSorted((a, b) => b.score - a.score);
     } catch (error) {

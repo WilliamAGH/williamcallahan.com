@@ -10,6 +10,7 @@
 
 import MiniSearch from "minisearch";
 import { loadIndexFromJSON } from "@/lib/search/index-builder";
+import { searchContent } from "@/lib/search/search-content";
 import type { IndexFieldConfig, SerializedIndex } from "@/types/search";
 
 describe("Search Index Serialization", () => {
@@ -220,6 +221,39 @@ describe("Search Index Serialization", () => {
       const loadedIndex = loadIndexFromJSON<(typeof sampleDocuments)[0]>(afterS3);
       expect(loadedIndex).toBeDefined();
       expect(loadedIndex.documentCount).toBe(sampleDocuments.length);
+    });
+  });
+
+  describe("MiniSearch search options", () => {
+    it("does not override configured field boosts with an exactMatch pseudo-field", () => {
+      const docs = [
+        { id: "title-hit", title: "needle", description: "plain" },
+        { id: "description-hit", title: "plain", description: "needle needle needle needle" },
+      ];
+      const index = new MiniSearch<(typeof docs)[number]>({
+        fields: ["title", "description"],
+        storeFields: ["id", "title", "description"],
+        idField: "id",
+        searchOptions: { boost: { title: 10 } },
+      });
+      index.addAll(docs);
+      const searchSpy = vi.spyOn(index, "search");
+
+      const results = searchContent(
+        docs,
+        "needle",
+        (doc) => [doc.title, doc.description],
+        undefined,
+        index,
+        (doc) => doc.id,
+      );
+
+      expect(searchSpy).toHaveBeenCalledWith("needle", {
+        prefix: true,
+        fuzzy: 0.2,
+        combineWith: "OR",
+      });
+      expect(results[0]?.item.id).toBe("title-hit");
     });
   });
 
