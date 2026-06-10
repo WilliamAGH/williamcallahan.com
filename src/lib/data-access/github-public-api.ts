@@ -72,7 +72,9 @@ function formatActivityView(
   };
 
   const allTimeData = activityRecord.cumulativeAllTimeData || trailingYearData;
-  const priorYearCommits = allTimeData.allPriorYearCommits;
+  // Only the cumulative record carries prior-year commits; the trailing-year
+  // fallback never has them.
+  const priorYearCommits = activityRecord.cumulativeAllTimeData?.allPriorYearCommits;
 
   return {
     source,
