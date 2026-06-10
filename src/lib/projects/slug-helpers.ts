@@ -23,6 +23,13 @@ export function generateProjectSlug(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
+function matchesProjectSlug(project: Project, normalizedSlug: string): boolean {
+  return (
+    generateProjectSlug(project.name) === normalizedSlug ||
+    generateProjectSlug(project.id) === normalizedSlug
+  );
+}
+
 /**
  * Find a project by its slug from a list of projects.
  *
@@ -35,9 +42,9 @@ export function findProjectBySlug(slug: string, projects: Project[]): Project | 
     return null;
   }
 
-  const normalizedSlug = slug.toLowerCase();
+  const normalizedSlug = slug.trim().toLowerCase();
 
-  return projects.find((project) => generateProjectSlug(project.name) === normalizedSlug) ?? null;
+  return projects.find((project) => matchesProjectSlug(project, normalizedSlug)) ?? null;
 }
 
 /**

@@ -10,13 +10,17 @@
  */
 
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { projects } from "@/data/projects";
 import { ProjectDetail } from "@/components/features/projects/project-detail";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
-import { findProjectBySlug, getAllProjectSlugs } from "@/lib/projects/slug-helpers";
+import {
+  findProjectBySlug,
+  generateProjectSlug,
+  getAllProjectSlugs,
+} from "@/lib/projects/slug-helpers";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
@@ -87,17 +91,18 @@ function buildProjectOgImageUrl(project: Project): string {
 
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const path = `/projects/${slug}`;
   const project = findProjectBySlug(slug, projects);
 
   if (!project) {
     return {
-      ...getStaticPageMetadata(path, "projects"),
+      ...getStaticPageMetadata(`/projects/${slug}`, "projects"),
       title: "Project Not Found",
       description: "The requested project could not be found.",
     };
   }
 
+  const canonicalSlug = generateProjectSlug(project.name);
+  const path = `/projects/${canonicalSlug}`;
   const baseMetadata = getStaticPageMetadata(path, "projects");
   const customTitle = generateDynamicTitle(project.name, "projects");
   const customDescription = project.shortSummary || project.description.slice(0, 155);
@@ -144,8 +149,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     return notFound();
   }
 
+  const canonicalSlug = generateProjectSlug(project.name);
+  if (slug.toLowerCase() !== canonicalSlug) {
+    permanentRedirect(`/projects/${canonicalSlug}`);
+  }
+
   const projectId = project.id;
-  const path = `/projects/${slug}`;
+  const path = `/projects/${canonicalSlug}`;
 
   // Fetch cached AI analysis from PostgreSQL (runs in parallel with rendering prep)
   const cachedAnalysis = await getCachedAnalysis<ProjectAiAnalysisResponse>("projects", projectId);
