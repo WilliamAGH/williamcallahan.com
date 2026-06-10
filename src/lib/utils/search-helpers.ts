@@ -138,7 +138,7 @@ export function transformSearchResultToTerminalResult(result: SearchResult): Sel
  */
 function getDefaultDocumentId(document: object): string {
   if (!("id" in document)) return "";
-  const { id } = document;
+  const id = document.id;
   return typeof id === "string" || typeof id === "number" ? String(id) : "";
 }
 

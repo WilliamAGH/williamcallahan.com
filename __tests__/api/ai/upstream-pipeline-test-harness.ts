@@ -29,10 +29,10 @@ vi.mock("@/lib/ai/openai-compatible/openai-compatible-client", () => ({
     status?: string;
     error?: { code: string; message: string } | null;
   }) => {
-    if (response.status !== "failed") return;
+    if (response.status === undefined || response.status === "completed") return;
     const detail = response.error
       ? `${response.error.code}: ${response.error.message}`
-      : "No provider error details returned.";
+      : `No provider error details returned for status "${response.status}".`;
     throw Object.assign(
       new Error(
         `[AI] Responses API returned status "${response.status}" for ${response.id}: ${detail}`,

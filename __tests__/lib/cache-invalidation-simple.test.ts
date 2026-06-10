@@ -59,7 +59,7 @@ describe("Cache Invalidation Functions", () => {
     });
   });
 
-  describe.todo("GitHub Cache (Mocked)", () => {
+  describe("GitHub Cache (Mocked)", () => {
     it("should expose cached activity readers", async () => {
       // Clear module cache and use our mock
       vi.resetModules();

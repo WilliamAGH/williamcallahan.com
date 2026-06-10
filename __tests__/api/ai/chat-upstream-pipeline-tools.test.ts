@@ -233,4 +233,20 @@ describe("AI Chat Upstream Pipeline Tools", () => {
       "invalid_prompt: Provider rejected the prompt",
     );
   });
+
+  it.each(["queued", "in_progress", "cancelled", "incomplete"] as const)(
+    "surfaces Responses API non-completed status %s",
+    async (status) => {
+      mockCallOpenAiCompatibleResponses.mockResolvedValueOnce({
+        id: `response_${status}`,
+        status,
+        output_text: "",
+        output: [],
+      });
+
+      await expect(createPipeline({ apiMode: "responses" }).runUpstream()).rejects.toThrow(
+        `status "${status}"`,
+      );
+    },
+  );
 });

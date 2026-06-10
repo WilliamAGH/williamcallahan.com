@@ -3,7 +3,7 @@ import {
   EmptyBookmarksApiResponseError,
   fetchAllPagesFromApi,
 } from "@/lib/bookmarks/refresh-helpers";
-import { normalizeBookmark } from "@/lib/bookmarks/normalize";
+import { normalizeBookmark, normalizeBookmarks } from "@/lib/bookmarks/normalize";
 import type { RawApiBookmark } from "@/types/schemas/bookmark";
 
 function makeRawBookmark(id: string, htmlContent: string | null): RawApiBookmark {
@@ -76,6 +76,15 @@ describe("Scraped content pipeline", () => {
     rawBookmark.content.url = "";
 
     expect(normalizeBookmark(rawBookmark, 0)).toBeNull();
+  });
+
+  it("aborts collection normalization when any bookmark has an invalid source URL", () => {
+    const invalidBookmark = makeRawBookmark("bookmark-empty-url", null);
+    invalidBookmark.content.url = "";
+
+    expect(() =>
+      normalizeBookmarks([makeRawBookmark("bookmark-valid", null), invalidBookmark]),
+    ).toThrow("Refusing partial refresh");
   });
 
   it("requests includeContent=true on every paginated API fetch", async () => {

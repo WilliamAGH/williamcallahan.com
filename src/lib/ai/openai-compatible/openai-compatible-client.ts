@@ -137,10 +137,10 @@ function normalizeResponsesOutputText<T extends { output: unknown[]; output_text
 export function assertOpenAiCompatibleResponsesSucceeded(
   response: OpenAiCompatibleResponsesResponse,
 ): void {
-  if (response.status !== "failed") return;
+  if (response.status === undefined || response.status === "completed") return;
   const detail = response.error
     ? `${response.error.code}: ${response.error.message}`
-    : "No provider error details returned.";
+    : `No provider error details returned for status "${response.status}".`;
   throw Object.assign(
     new Error(
       `[AI] Responses API returned status "${response.status}" for ${response.id}: ${detail}`,

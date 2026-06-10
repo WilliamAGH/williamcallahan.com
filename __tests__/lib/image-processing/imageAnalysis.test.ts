@@ -51,13 +51,6 @@ describe("Logo Analysis Module", () => {
       const result = await invertLogo(testBuffer);
       expect(result).toBe(testBuffer); // Should return the original buffer
     });
-
-    it("should return original buffer when preserveTransparency is requested", async () => {
-      // TODO(wasm-image): This is a no-op stub until WASM implementation
-      const testBuffer = Buffer.from([0]);
-      const result = await invertLogo(testBuffer);
-      expect(result).toBe(testBuffer); // Should return the original buffer
-    });
   });
 
   describe("doesLogoNeedInversion", () => {
