@@ -27,6 +27,7 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const isProductionRuntime = (): boolean => process.env.NODE_ENV === "production";
 
 /**
  * Parse and validate request parameters for the debug endpoint.
@@ -64,14 +65,18 @@ function parseDebugParams(
 }
 
 export async function GET(request: NextRequest) {
+  preventCaching();
+
+  if (isProductionRuntime()) {
+    return createErrorResponse("Not found", 404);
+  }
+
   if (isProductionBuildPhase()) {
     return NextResponse.json(
       { buildPhase: true, message: "Related-content debug disabled during build phase" },
       { status: 200, headers: NO_STORE_HEADERS },
     );
   }
-
-  preventCaching();
 
   try {
     const params = parseDebugParams(request.nextUrl.searchParams);

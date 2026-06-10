@@ -1,9 +1,12 @@
 /**
  * @file Unit tests for the og-image API route handler
  * @description Tests that verify the 0.0.0.0 URL fix works correctly in Docker environments
+ * @vitest-environment node
  */
 
 // Mock environment variables and dependencies before importing the route
+import { NextRequest } from "next/server";
+
 const originalEnv = process.env;
 
 beforeEach(() => {
@@ -19,26 +22,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   process.env = originalEnv;
 });
 
-/**
- * Mock NextRequest that simulates Docker environment
- */
-class MockNextRequest {
-  url: string;
-
-  constructor(url: string) {
-    this.url = url;
-  }
-
-  get nextUrl() {
-    return new URL(this.url);
-  }
-}
-
 describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
-  let GET: any;
+  let GET: typeof import("@/app/api/og-image/route").GET;
 
   beforeEach(async () => {
     // Import GET after setting up mocks
@@ -52,9 +41,9 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
      */
     it("should construct redirect URLs without 0.0.0.0 in production", async () => {
       const dockerRequestUrl = "http://0.0.0.0:3000/api/og-image?url=invalid-url";
-      const request = new MockNextRequest(dockerRequestUrl) as any;
+      const request = new NextRequest(dockerRequestUrl);
 
-      let response: any;
+      let response: Response | undefined;
       let locationHeader: string | null = null;
 
       try {
@@ -90,7 +79,7 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
     it("should handle Karakeep asset IDs without 0.0.0.0 URLs", async () => {
       const assetId = "a1b2c3d4e5f6789012345678901234567890";
       const dockerRequestUrl = `http://0.0.0.0:3000/api/og-image?url=${assetId}`;
-      const request = new MockNextRequest(dockerRequestUrl) as any;
+      const request = new NextRequest(dockerRequestUrl);
 
       try {
         const response = await GET(request);
@@ -124,7 +113,7 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
       const testGET = routeModule.GET;
 
       const dockerRequestUrl = "http://0.0.0.0:3000/api/og-image?url=invalid";
-      const request = new MockNextRequest(dockerRequestUrl) as any;
+      const request = new NextRequest(dockerRequestUrl);
 
       try {
         const response = await testGET(request);
@@ -142,17 +131,87 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
   });
 });
 
+describe("OG-Image bookmark fallback validation", () => {
+  const sourceUrl = "https://source.example/page";
+  const attackerUrl = "https://attacker.example/phish";
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.doUnmock("@/lib/s3/client");
+    vi.doUnmock("@/lib/s3/config");
+    vi.doUnmock("@/lib/utils/s3-error-guards");
+    vi.doUnmock("@/lib/db/queries/bookmarks");
+  });
+
+  it("does not redirect to non-image bookmark fallback URLs", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/s3/client", () => ({
+      getS3Client: () => ({
+        send: () => Promise.reject(new Error("missing")),
+      }),
+    }));
+    vi.doMock("@/lib/s3/config", () => ({
+      getS3Config: () => ({ bucket: "test-bucket" }),
+    }));
+    vi.doMock("@/lib/utils/s3-error-guards", () => ({
+      isS3Error: () => true,
+    }));
+    vi.doMock("@/lib/db/queries/bookmarks", () => ({
+      getBookmarkById: () =>
+        Promise.resolve({
+          content: {
+            imageUrl: attackerUrl,
+          },
+        }),
+    }));
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response("<html>not an image</html>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        }),
+      )
+      .mockRejectedValueOnce(new Error("source unavailable"))
+      .mockResolvedValueOnce(
+        new Response("<html>not an image</html>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        }),
+      );
+    const { GET } = await import("@/app/api/og-image/route");
+    const request = new NextRequest(
+      `https://williamcallahan.com/api/og-image?url=${encodeURIComponent(sourceUrl)}&bookmarkId=bookmark-1`,
+    );
+
+    const response = await GET(request);
+    const locationHeader = response.headers.get("Location");
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      attackerUrl,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "User-Agent": "Mozilla/5.0 (compatible; OpenGraph-Image-Bot/1.0)",
+        }),
+      }),
+    );
+    expect(locationHeader).not.toBe(attackerUrl);
+    expect(locationHeader).toContain("opengraph-placeholder.png");
+  });
+});
+
 describe("Production URL Validation", () => {
   /**
    * @description Integration test that verifies getBaseUrl behavior
    */
   it("should use production fallback when env vars are missing", async () => {
     // Test the getBaseUrl function directly
-    process.env = {
-      ...originalEnv,
-      NODE_ENV: "production",
-      // Intentionally omit API_BASE_URL and NEXT_PUBLIC_SITE_URL
-    };
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("API_BASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
+    vi.resetModules();
 
     // Clear module cache (only if available - not supported in Bun)
     // if (typeof vi.resetModules === "function") {
@@ -177,7 +236,7 @@ describe("Production URL Validation", () => {
 describe("Logo API Route Validation", () => {
   it("rejects company fallback without a domain", async () => {
     const { GET } = await import("@/app/api/logo/route");
-    const request = new MockNextRequest("http://localhost/api/logo?company=OpenAI") as any;
+    const request = new NextRequest("http://localhost/api/logo?company=OpenAI");
 
     const response = await GET(request);
     expect(response.status).toBe(400);

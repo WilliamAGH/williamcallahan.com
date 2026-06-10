@@ -15,6 +15,10 @@ export interface OgFetchResult {
   error?: string;
 }
 
+export type VerifiedImageRedirect =
+  | { status: "verified"; url: string }
+  | { status: "blocked"; reason: string };
+
 /**
  * Enhanced OpenGraph result with caching metadata.
  * This interface is the primary type for OpenGraph data

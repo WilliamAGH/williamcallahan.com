@@ -40,6 +40,8 @@ function parseTypesParam(value: string | null): RelatedContentType[] | undefined
 }
 
 export async function GET(request: NextRequest) {
+  preventCaching();
+
   if (isProductionBuildPhase()) {
     return NextResponse.json(
       {
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE_HEADERS },
     );
   }
-  preventCaching();
+
   const startTime = getMonotonicTime();
 
   try {

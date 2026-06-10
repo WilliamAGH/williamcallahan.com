@@ -158,6 +158,19 @@ export class NextResponse {
   static next(init?: { headers?: Record<string, string> }): NextResponse {
     return new NextResponse(null, { status: 200, headers: init?.headers });
   }
+
+  static redirect(
+    url: string | URL,
+    init: number | { status?: number; headers?: Record<string, string> } = {},
+  ): NextResponse {
+    const responseInit =
+      typeof init === "number"
+        ? { status: init }
+        : { status: init.status ?? 307, headers: init.headers };
+    const response = new NextResponse(null, responseInit);
+    response.headers.set("location", url.toString());
+    return response;
+  }
 }
 
 // Mock connection() - Next.js 16 function to ensure request-time execution

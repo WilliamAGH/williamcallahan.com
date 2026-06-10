@@ -18,6 +18,10 @@ import { projectAiAnalysisResponseSchema } from "@/types/schemas/project-ai-anal
 import { persistAnalysisRequestSchema } from "@/types/schemas/ai-analysis-persisted";
 import { getClientIp } from "@/lib/utils/request-utils";
 import {
+  getRequestOriginHostname,
+  isAllowedAiGateHostname,
+} from "@/lib/ai/openai-compatible/gate-token";
+import {
   NO_STORE_HEADERS,
   buildApiRateLimitResponse,
   createErrorResponse,
@@ -88,6 +92,16 @@ export async function POST(
   const MAX_ID_LENGTH = 100;
   if (!id || id.length === 0 || id.length > MAX_ID_LENGTH) {
     return createErrorResponse("Invalid ID", 400);
+  }
+
+  const originHost = getRequestOriginHostname(request);
+  if (!originHost || !isAllowedAiGateHostname(originHost)) {
+    envLogger.log(
+      "Analysis persist: forbidden origin",
+      { domain, id, originHost: originHost ?? "missing" },
+      { category: "AiAnalysis" },
+    );
+    return createErrorResponse("Forbidden", 403);
   }
 
   // Rate limit by IP
