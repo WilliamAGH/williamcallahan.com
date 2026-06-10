@@ -14,7 +14,7 @@ const MIN_IMAGE_BUFFER_SIZE = 100;
 
 import { readBinaryS3, writeBinaryS3 } from "@/lib/s3/binary";
 import { debug, isDebug } from "@/lib/utils/debug";
-import { getOgImageS3Key, hashImageContent } from "@/lib/utils/opengraph-utils";
+import { getOgImageS3Key } from "@/lib/utils/opengraph-utils";
 import { checkIfS3ObjectExists } from "@/lib/s3/objects";
 import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { processImageBufferSimple } from "./shared-image-processing";
@@ -131,14 +131,7 @@ export async function persistImageToS3(
         `[${logContext}] Image processed for ${imageUrl}. New size: ${processedBuffer.length} bytes, ContentType: ${contentType}`,
       );
 
-    // Generate S3 key based on idempotency key if available, otherwise fallback to content hash
-    const s3Key = getOgImageS3Key(
-      imageUrl,
-      s3Directory,
-      pageUrl,
-      idempotencyKey,
-      hashImageContent(processedBuffer),
-    );
+    const s3Key = getOgImageS3Key(imageUrl, s3Directory, pageUrl, idempotencyKey);
     if (isDebug)
       debug(`[${logContext}] Generated S3 key: ${s3Key} for image from URL: ${imageUrl}`);
 
@@ -195,8 +188,12 @@ function isFirstPartyKarakeepAsset(imageUrl: string): boolean {
   if (imageUrl.startsWith("/api/assets/")) return true;
   try {
     return new URL(imageUrl).hostname === new URL(BOOKMARKS_API_CONFIG.API_URL).hostname;
-  } catch {
-    return false;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[Image S3] Failed to classify Karakeep asset URL. imageUrl=${imageUrl}, apiUrl=${BOOKMARKS_API_CONFIG.API_URL}: ${message}`,
+    );
+    throw new Error(`Invalid Karakeep asset URL configuration: ${message}`, { cause: error });
   }
 }
 
