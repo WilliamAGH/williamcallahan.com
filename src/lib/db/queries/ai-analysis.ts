@@ -8,6 +8,7 @@
 
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
+import { envLogger } from "@/lib/utils/env-logger";
 import { aiAnalysisLatest, aiAnalysisVersions } from "@/lib/db/schema/ai-analysis";
 import {
   persistedBookmarkAnalysisSchema,
@@ -20,28 +21,45 @@ import type { AnalysisDomain, AnalysisVersion, CachedAnalysis } from "@/types/ai
 // Domain-specific Schema Selection
 // ─────────────────────────────────────────────────────────────────────────────
 
+const schemaForDomain = (domain: AnalysisDomain) => {
+  switch (domain) {
+    case "bookmarks":
+      return persistedBookmarkAnalysisSchema;
+    case "books":
+      return persistedBookAnalysisSchema;
+    case "projects":
+      return persistedProjectAnalysisSchema;
+  }
+};
+
 /**
  * Parse a raw JSONB payload through the domain-specific Zod schema.
  * Returns the validated CachedAnalysis or null on validation failure.
+ * Failures are logged: a stored payload that stops validating would
+ * otherwise be indistinguishable from missing data.
  */
 const parsePayloadForDomain = (
   domain: AnalysisDomain,
+  entityId: string,
   rawPayload: unknown,
 ): CachedAnalysis<unknown> | null => {
-  switch (domain) {
-    case "bookmarks": {
-      const result = persistedBookmarkAnalysisSchema.safeParse(rawPayload);
-      return result.success ? result.data : null;
-    }
-    case "books": {
-      const result = persistedBookAnalysisSchema.safeParse(rawPayload);
-      return result.success ? result.data : null;
-    }
-    case "projects": {
-      const result = persistedProjectAnalysisSchema.safeParse(rawPayload);
-      return result.success ? result.data : null;
-    }
+  const result = schemaForDomain(domain).safeParse(rawPayload);
+  if (result.success) {
+    return result.data;
   }
+
+  envLogger.log(
+    "Stored analysis payload failed schema validation",
+    {
+      domain,
+      entityId,
+      issues: result.error.issues
+        .slice(0, 3)
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`),
+    },
+    { category: "AiAnalysis" },
+  );
+  return null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,7 +85,7 @@ export async function readLatestAnalysis(
     return null;
   }
 
-  return parsePayloadForDomain(domain, firstRow.payload);
+  return parsePayloadForDomain(domain, entityId, firstRow.payload);
 }
 
 /**
