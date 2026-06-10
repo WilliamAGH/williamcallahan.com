@@ -27,20 +27,16 @@ const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 ```
 
-### Route Handlers Require `dynamic = "force-dynamic"`
+### Route Handlers Require `connection()`
 
-Route Handlers can be statically pre-rendered at build time even with `noStore()`. **You MUST export `dynamic = "force-dynamic"`**:
+Route Handlers can be pre-rendered at build time even with `noStore()`. Under Next.js 16 Cache Components, call `connection()` before `noStore()` and build-phase guards:
 
 ```typescript
-//  FORBIDDEN - noStore() alone doesn't prevent static rendering
 import { unstable_noStore as noStore } from "next/cache";
-export async function GET() {
-  noStore(); // Not enough! Route can still be pre-rendered at build
-}
+import { connection } from "next/server";
 
-//  REQUIRED - explicit opt-out of static rendering
-export const dynamic = "force-dynamic";
 export async function GET() {
+  await connection();
   noStore();
 }
 ```

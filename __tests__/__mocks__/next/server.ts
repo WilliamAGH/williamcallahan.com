@@ -2,6 +2,8 @@
  * Mock for next/server module
  */
 
+import { vi } from "vitest";
+
 interface CookieOptions {
   name?: string;
   value?: string;
@@ -174,6 +176,4 @@ export class NextResponse {
 }
 
 // Mock connection() - Next.js 16 function to ensure request-time execution
-export async function connection(): Promise<void> {
-  return Promise.resolve();
-}
+export const connection = vi.fn(async (): Promise<void> => undefined);

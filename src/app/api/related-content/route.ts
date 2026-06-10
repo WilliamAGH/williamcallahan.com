@@ -6,7 +6,7 @@
  */
 
 import { preventCaching, createErrorResponse, NO_STORE_HEADERS } from "@/lib/utils/api-utils";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, connection } from "next/server";
 import { limitByTypeAndTotal } from "@/lib/utils/limit-by-type";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
@@ -40,6 +40,8 @@ function parseTypesParam(value: string | null): RelatedContentType[] | undefined
 }
 
 export async function GET(request: NextRequest) {
+  // connection(): ensure request-time execution under cacheComponents to avoid prerendered buildPhase responses
+  await connection();
   preventCaching();
 
   if (isProductionBuildPhase()) {

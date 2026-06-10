@@ -4,7 +4,7 @@
  */
 
 import { vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, connection } from "next/server";
 import { GET } from "@/app/api/search/all/route";
 import { GET as getRelatedContent } from "@/app/api/related-content/route";
 import { GET as getRelatedContentDebug } from "@/app/api/related-content/debug/route";
@@ -286,6 +286,7 @@ describe("Related Content API route guards", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(data.meta).toHaveProperty("buildPhase", true);
+    expect(connection).toHaveBeenCalledOnce();
     expect(relatedContentMocks.findSimilarByEntity).not.toHaveBeenCalled();
   });
 
