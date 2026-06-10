@@ -398,7 +398,7 @@ function UploadWindowContentInner({
 
       // Validate the file
       const validation = validateFileForType(file, fileType);
-      if (!validation.valid) {
+      if ("error" in validation) {
         setValidationError(validation.error);
       }
     },
@@ -412,7 +412,7 @@ function UploadWindowContentInner({
       // Re-validate if a file is selected
       if (selectedFile) {
         const validation = validateFileForType(selectedFile, newType);
-        if (!validation.valid) {
+        if ("error" in validation) {
           setValidationError(validation.error);
         } else {
           setValidationError(null);

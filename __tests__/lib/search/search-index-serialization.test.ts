@@ -11,7 +11,8 @@
 import MiniSearch from "minisearch";
 import { loadIndexFromJSON } from "@/lib/search/index-builder";
 import { searchContent } from "@/lib/search/search-content";
-import type { IndexFieldConfig, SerializedIndex } from "@/types/search";
+import type { IndexFieldConfig } from "@/types/search";
+import type { SerializedIndex } from "@/types/schemas/search";
 
 describe("Search Index Serialization", () => {
   // Sample data for creating test indexes

@@ -141,8 +141,8 @@ describe("lib/data-access/github.ts functionality", () => {
       mockRefreshGitHubActivityDataFromApi.mockResolvedValue(mockResult);
 
       const mockMetadata = {
-        LastModified: new Date(),
-        ETag: "test-etag",
+        lastModified: new Date(),
+        eTag: "test-etag",
       };
       mockGetS3ObjectMetadata.mockResolvedValue(mockMetadata);
 
@@ -166,15 +166,15 @@ describe("lib/data-access/github.ts functionality", () => {
     it("should handle S3 metadata retrieval", async () => {
       const testKey = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA_PROD_FALLBACK;
       const mockMetadata = {
-        LastModified: new Date("2024-01-01"),
-        ETag: "test-etag",
+        lastModified: new Date("2024-01-01"),
+        eTag: "test-etag",
       };
 
       mockGetS3ObjectMetadata.mockResolvedValue(mockMetadata);
 
       const metadata = await getS3ObjectMetadata(testKey);
       expect(metadata).toEqual(mockMetadata);
-      expect(metadata?.LastModified).toEqual(new Date("2024-01-01"));
+      expect(metadata?.lastModified).toEqual(new Date("2024-01-01"));
     });
 
     it("should calculate age correctly", () => {

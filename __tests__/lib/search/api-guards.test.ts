@@ -13,11 +13,15 @@ import {
   withNoStoreHeaders,
 } from "@/lib/search/api-guards";
 import { NextRequest } from "next/server";
+import type { RateLimiterConfig } from "@/types/lib";
 
 // Mock the rate limiter
-const mockIsOperationAllowed = vi.fn(() => true);
+const mockIsOperationAllowed = vi.fn(
+  (_storeName: string, _contextId: string, _config: RateLimiterConfig) => true,
+);
 vi.mock("@/lib/rate-limiter", () => ({
-  isOperationAllowed: (...args: unknown[]) => mockIsOperationAllowed(...args),
+  isOperationAllowed: (storeName: string, contextId: string, config: RateLimiterConfig) =>
+    mockIsOperationAllowed(storeName, contextId, config),
 }));
 
 describe("Search API Guards", () => {
@@ -25,10 +29,12 @@ describe("Search API Guards", () => {
 
   beforeEach(() => {
     vi.resetModules();
+    vi.unstubAllEnvs();
     process.env = { ...originalEnv };
   });
 
   afterAll(() => {
+    vi.unstubAllEnvs();
     process.env = originalEnv;
   });
 
@@ -126,7 +132,7 @@ describe("Search API Guards", () => {
 
   describe("createSearchErrorResponse", () => {
     it("includes details in non-production environment", async () => {
-      process.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
       const response = createSearchErrorResponse("User message", "Internal details");
 
       expect(response.status).toBe(500);
@@ -136,7 +142,7 @@ describe("Search API Guards", () => {
     });
 
     it("excludes details in production environment", async () => {
-      process.env.NODE_ENV = "production";
+      vi.stubEnv("NODE_ENV", "production");
       const response = createSearchErrorResponse("User message", "Internal details");
 
       expect(response.status).toBe(500);
@@ -146,14 +152,14 @@ describe("Search API Guards", () => {
     });
 
     it("uses custom status code", () => {
-      process.env.NODE_ENV = "test";
+      vi.stubEnv("NODE_ENV", "test");
       const response = createSearchErrorResponse("Bad request", "Validation failed", 400);
 
       expect(response.status).toBe(400);
     });
 
     it("includes Cache-Control no-store header", () => {
-      process.env.NODE_ENV = "test";
+      vi.stubEnv("NODE_ENV", "test");
       const response = createSearchErrorResponse("Error", "Details");
 
       expect(response.headers.get("Cache-Control")).toBe("no-store");

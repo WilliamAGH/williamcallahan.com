@@ -2,7 +2,7 @@
  * Mock for GitHub data access module
  */
 
-import type { StoredGithubActivityRecord, UserActivityView } from "@/types/github";
+import type { StoredGithubActivity, UserActivityView } from "@/types/github";
 
 // Export S3 key constants that other modules may import
 export const GITHUB_ACTIVITY_S3_KEY_DIR = "github-activity";
@@ -29,7 +29,7 @@ const mockActivity: UserActivityView = {
   },
 };
 
-function toStoredRecord(segment: UserActivityView["trailingYearData"]): StoredGithubActivityRecord {
+function toStoredRecord(segment: UserActivityView["trailingYearData"]): StoredGithubActivity {
   return {
     source: "api",
     data: segment.data,
@@ -61,7 +61,7 @@ export function refreshGitHubActivityDataFromApi() {
       linesAdded: mockActivity.allTimeStats.linesAdded,
       linesRemoved: mockActivity.allTimeStats.linesRemoved,
       dataComplete: true,
-    } satisfies StoredGithubActivityRecord,
+    } satisfies StoredGithubActivity,
   });
 }
 

@@ -8,7 +8,7 @@
  */
 
 import { buildBookmarksIndex } from "@/lib/search/loaders/dynamic-content";
-import type { BookmarkIndexInput } from "@/types/search";
+import type { BookmarkIndexInput } from "@/types/schemas/search";
 
 describe("Dynamic Content Loaders", () => {
   describe("buildBookmarksIndex", () => {

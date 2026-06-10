@@ -124,8 +124,9 @@ describe("Upload API", () => {
       writeBinaryS3Mock.mockResolvedValue(undefined);
       parsePdfFromBufferMock.mockResolvedValue({
         metadata: { title: "Test Book", author: "Test Author" },
-        pages: [{ pageNumber: 1, textContent: "Page 1 content" }],
+        pages: [{ pageNumber: 1, textContent: "Page 1 content", wordCount: 3 }],
         totalWordCount: 100,
+        totalPages: 1,
       });
 
       const formData = new FormData();
@@ -188,9 +189,19 @@ describe("Upload API", () => {
 
       writeBinaryS3Mock.mockResolvedValue(undefined);
       parseEpubFromBufferMock.mockResolvedValue({
-        metadata: { title: "Test ePub", creator: "Test Author" },
-        chapters: [{ id: "ch1", title: "Chapter 1", textContent: "Chapter content" }],
+        metadata: { title: "Test ePub", author: "Test Author" },
+        chapters: [
+          {
+            id: "ch1",
+            order: 1,
+            title: "Chapter 1",
+            textContent: "Chapter content",
+            htmlContent: "<p>Chapter content</p>",
+            wordCount: 2,
+          },
+        ],
         totalWordCount: 150,
+        totalChapters: 1,
       });
 
       const formData = new FormData();

@@ -51,19 +51,23 @@ describe("Tag Utility Functions", () => {
 
     it("should handle object arrays", () => {
       const tags = [
-        { name: "tag1", id: "1" },
-        { name: "tag2", id: "2" },
+        { name: "tag1", id: "1", slug: "tag1" },
+        { name: "tag2", id: "2", slug: "tag2" },
       ];
       expect(normalizeTagsToStrings(tags)).toEqual(["tag1", "tag2"]);
     });
 
     it("should handle mixed arrays", () => {
-      const tags = ["stringTag", { name: "objectTag", id: "1" }, "anotherString"];
+      const tags = [
+        "stringTag",
+        { name: "objectTag", id: "1", slug: "object-tag" },
+        "anotherString",
+      ];
       expect(normalizeTagsToStrings(tags)).toEqual(["stringTag", "objectTag", "anotherString"]);
     });
 
     it("should filter out empty values", () => {
-      const tags = ["tag1", "", { name: "", id: "1" }, "tag2"];
+      const tags = ["tag1", "", { name: "", id: "1", slug: "" }, "tag2"];
       expect(normalizeTagsToStrings(tags)).toEqual(["tag1", "tag2"]);
     });
 

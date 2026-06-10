@@ -4,9 +4,8 @@ import {
   invertLogo,
   doesLogoNeedInversion,
   analyzeImage, // Include legacy export for coverage
-  type LogoBrightnessAnalysis, // Import the type
-  type LogoInversion, // Import the type
 } from "@/lib/image-handling/image-analysis";
+import type { LogoBrightnessAnalysis, LogoInversion } from "@/types/logo";
 
 // TODO(wasm-image): Sharp was removed to fix memory leaks. These tests now expect
 // stubbed values until we implement a WASM-based image analysis pipeline.
@@ -56,7 +55,7 @@ describe("Logo Analysis Module", () => {
     it("should return original buffer when preserveTransparency is requested", async () => {
       // TODO(wasm-image): This is a no-op stub until WASM implementation
       const testBuffer = Buffer.from([0]);
-      const result = await invertLogo(testBuffer, true);
+      const result = await invertLogo(testBuffer);
       expect(result).toBe(testBuffer); // Should return the original buffer
     });
   });

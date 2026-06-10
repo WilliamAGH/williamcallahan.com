@@ -6,12 +6,13 @@
 "use client";
 
 import type { UserActivityView } from "@/types/github";
-import type { ContributionDay, PriorYearCommitSummary } from "@/types/schemas/github-storage";
+import type { PriorYearCommitSummary } from "@/types/schemas/github-storage";
 import { formatDistanceToNow } from "date-fns";
 import { Code, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ActivityCalendarComponent, {
+  type Activity,
   type ThemeInput as ReactActivityCalendarThemeInput,
 } from "react-activity-calendar";
 import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
@@ -24,6 +25,12 @@ const MOBILE_COLUMNS = 20; // Fewer columns for mobile to make blocks more visib
 const BLOCK_MARGIN_PX = 2; // Keep constant; margin between squares
 const MIN_BLOCK_SIZE = 8; // Minimum block size for visibility
 const MAX_BLOCK_SIZE = 16; // Maximum block size to prevent oversized blocks
+
+function normalizeContributionDays(
+  days: UserActivityView["trailingYearData"]["data"] | undefined,
+): Activity[] {
+  return days?.map((day) => ({ date: day.date, count: day.count, level: day.level ?? 0 })) ?? [];
+}
 
 // Define the custom theme for the calendar
 const calendarCustomTheme: ReactActivityCalendarThemeInput = {
@@ -48,7 +55,7 @@ const GitHubActivity = () => {
   const { resolvedTheme } = useTheme(); // Resolved theme (accounts for system preference)
   const [blockSize, setBlockSize] = useState<number>(12); // Dynamically calculated square size
   const [isMobile, setIsMobile] = useState(false); // Track mobile viewport
-  const [activityData, setActivityData] = useState<ContributionDay[]>([]); // Activity data for the calendar
+  const [activityData, setActivityData] = useState<Activity[]>([]); // Activity data for the calendar
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial data fetch
   const [isRefreshing, setIsRefreshing] = useState(false); // Loading state for refresh operation
   const [error, setError] = useState<string | null>(null); // Error message, if any
@@ -199,7 +206,7 @@ const GitHubActivity = () => {
           setError(errorMsg); // Set error from API response
 
           // Try to use partial data if available, even with an error response
-          setActivityData(result?.trailingYearData?.data ?? []);
+          setActivityData(normalizeContributionDays(result?.trailingYearData?.data));
           setTotalContributions(result?.trailingYearData?.totalContributions ?? 0);
           setTrailingYearLinesAdded(result?.trailingYearData?.linesAdded ?? null);
           setTrailingYearLinesRemoved(result?.trailingYearData?.linesRemoved ?? null);
@@ -215,7 +222,7 @@ const GitHubActivity = () => {
         }
 
         // If response is OK and data is present
-        setActivityData(result?.trailingYearData?.data ?? []);
+        setActivityData(normalizeContributionDays(result?.trailingYearData?.data));
         setTotalContributions(result?.trailingYearData?.totalContributions ?? 0);
         setTrailingYearLinesAdded(result?.trailingYearData?.linesAdded ?? null);
         setTrailingYearLinesRemoved(result?.trailingYearData?.linesRemoved ?? null);

@@ -5,16 +5,16 @@ import { bookAiAnalysisResponseSchema } from "@/types/schemas/book-ai-analysis";
 import { bookmarkAiAnalysisResponseSchema } from "@/types/schemas/bookmark-ai-analysis";
 import { projectAiAnalysisResponseSchema } from "@/types/schemas/project-ai-analysis";
 
-export const ANALYSIS_SCHEMA_BY_FEATURE: Record<
+export const ANALYSIS_SCHEMA_BY_FEATURE = {
+  "bookmark-analysis": bookmarkAiAnalysisResponseSchema,
+  "book-analysis": bookAiAnalysisResponseSchema,
+  "project-analysis": projectAiAnalysisResponseSchema,
+} satisfies Record<
   AnalysisFeatureId,
   | typeof bookmarkAiAnalysisResponseSchema
   | typeof bookAiAnalysisResponseSchema
   | typeof projectAiAnalysisResponseSchema
-> = {
-  "bookmark-analysis": bookmarkAiAnalysisResponseSchema,
-  "book-analysis": bookAiAnalysisResponseSchema,
-  "project-analysis": projectAiAnalysisResponseSchema,
-};
+>;
 
 export const ANALYSIS_FIELD_CONFIG: Record<
   AnalysisFeatureId,

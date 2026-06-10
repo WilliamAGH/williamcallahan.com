@@ -4,7 +4,8 @@ import { getBookmarksIndex, getBookmarksPage } from "@/lib/bookmarks/service.ser
 import { getAllPostsMeta } from "@/lib/blog";
 import { getDiscoveryRankedBookmarks } from "@/lib/db/queries/discovery-scores";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
-import type { BookmarkSlugMapping, UnifiedBookmark } from "@/types";
+import type { BookmarkSlugMapping, UnifiedBookmark } from "@/types/schemas/bookmark";
+import { NextRequest } from "next/server";
 
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/slug-manager");
@@ -114,7 +115,7 @@ describe("Bookmark feed modes", () => {
     mockLoadSlugMapping.mockResolvedValue(createSlugMapping(latestBookmarks));
 
     const response = await getBookmarksRoute(
-      new Request("http://localhost/api/bookmarks?feed=latest&page=1&limit=20"),
+      new NextRequest("http://localhost/api/bookmarks?feed=latest&page=1&limit=20"),
     );
     const payload = await response.json();
 
@@ -145,7 +146,7 @@ describe("Bookmark feed modes", () => {
     );
 
     const response = await getBookmarksRoute(
-      new Request("http://localhost/api/bookmarks?feed=discover&page=1&limit=4"),
+      new NextRequest("http://localhost/api/bookmarks?feed=discover&page=1&limit=4"),
     );
     const payload = await response.json();
 
@@ -164,7 +165,7 @@ describe("Bookmark feed modes", () => {
     mockGetDiscoveryRankedBookmarks.mockRejectedValueOnce(new Error("relation missing"));
 
     const response = await getBookmarksRoute(
-      new Request("http://localhost/api/bookmarks?feed=discover&page=1&limit=20"),
+      new NextRequest("http://localhost/api/bookmarks?feed=discover&page=1&limit=20"),
     );
 
     expect(response.status).toBe(500);

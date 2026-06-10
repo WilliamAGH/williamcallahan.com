@@ -28,11 +28,11 @@ import React from "react"; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { Terminal } from "../../../../src/components/ui/terminal/terminal-implementation.client";
 import { TerminalProvider } from "../../../../src/components/ui/terminal/terminal-context.client";
-import {
-  useRegisteredWindowState as useRegisteredWindowStateImported,
-  type GlobalWindowRegistryContextType,
-  type WindowState,
-} from "../../../../src/lib/context/global-window-registry-context.client"; // Import types for mocking
+import { useRegisteredWindowState as useRegisteredWindowStateImported } from "../../../../src/lib/context/global-window-registry-context.client";
+import type {
+  GlobalWindowRegistryContextType,
+  WindowStateValue,
+} from "../../../../src/types/ui/window";
 
 // --- Mock TerminalHeader ---
 vi.mock("../../../../src/components/ui/terminal/terminal-header", () => ({
@@ -77,7 +77,7 @@ vi.mock("next/navigation", () => ({
 // --- Mock GlobalWindowRegistryContext using mock.module ---
 // Keep state external for potential modification by mocked actions if needed,
 // but primarily control return values via mockImplementationOnce in tests.
-let mockWindowState: WindowState = "normal";
+let mockWindowState: WindowStateValue = "normal";
 const MockIcon = React.forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
   <svg ref={ref} {...props} data-testid="mock-icon" />
 ));
@@ -109,7 +109,7 @@ vi.mock("../../../../src/lib/context/global-window-registry-context.client", () 
         },
         registerWindow: vi.fn(),
         unregisterWindow: vi.fn(),
-        setWindowState: vi.fn((id: string, state: WindowState) => {
+        setWindowState: vi.fn((id: string, state: WindowStateValue) => {
           if (id === "main-terminal") setMockState(state);
         }),
         minimizeWindow: vi.fn((id: string) => {

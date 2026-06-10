@@ -1,7 +1,8 @@
 import { buildChatPipeline } from "@/app/api/ai/chat/[feature]/upstream-pipeline";
 import { searchBookmarks } from "@/lib/search/searchers/dynamic-searchers";
-import type { AiChatModelStreamEvent, ValidatedRequestContext } from "@/types/features/ai-chat";
+import type { ValidatedRequestContext } from "@/types/features/ai-chat";
 import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
+import type { AiChatModelStreamUpdate } from "@/types/schemas/ai-openai-compatible-client";
 
 export const mockCallOpenAiCompatibleChatCompletions = vi.fn().mockResolvedValue({
   choices: [{ message: { content: "ok" } }],
@@ -121,7 +122,7 @@ const bookmarkResult = {
 
 export type ApiMode = "chat_completions" | "responses";
 export type ChatFeature = "terminal_chat" | "bookmark-analysis";
-export type EventPayload = AiChatModelStreamEvent;
+export type EventPayload = AiChatModelStreamUpdate;
 export type PipelineOptions = {
   feature?: ChatFeature;
   temperature?: number;

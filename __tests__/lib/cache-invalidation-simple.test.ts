@@ -60,16 +60,16 @@ describe("Cache Invalidation Functions", () => {
   });
 
   describe.todo("GitHub Cache (Mocked)", () => {
-    it("should have invalidation function", async () => {
+    it("should expose cached activity readers", async () => {
       // Clear module cache and use our mock
       vi.resetModules();
       const githubModule = await import("@/lib/data-access/github");
 
-      expect(githubModule.invalidateAllGitHubCaches).toBeDefined();
-      expect(typeof githubModule.invalidateAllGitHubCaches).toBe("function");
-
-      // Test that function can be called without errors
-      expect(() => githubModule.invalidateAllGitHubCaches()).not.toThrow();
+      expect(githubModule.refreshGitHubActivityDataFromApi).toBeDefined();
+      expect(typeof githubModule.refreshGitHubActivityDataFromApi).toBe("function");
+      const githubPublicModule = await import("@/lib/data-access/github-public-api");
+      expect(githubPublicModule.getGithubActivityCached).toBeDefined();
+      expect(typeof githubPublicModule.getGithubActivityCached).toBe("function");
     });
   });
 });

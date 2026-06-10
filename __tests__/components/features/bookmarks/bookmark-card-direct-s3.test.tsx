@@ -15,6 +15,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   process.env = originalEnv;
 });
 
@@ -216,7 +217,7 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
      */
     it("should use API proxy in development instead of direct S3 URLs", () => {
       // Set development environment
-      process.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
 
       const mockBookmark = {
         id: "test-dev-1",

@@ -7,12 +7,35 @@ import { createArticleMetadata, getStaticPageMetadata } from "@/lib/seo/metadata
 import { SEO_DATE_FIELDS } from "@/lib/constants";
 // Remove unused imports - commented out rather than deleted to maintain line numbers
 // import { metadata as siteMetadata, SITE_NAME, PAGE_METADATA } from '../../../../data/metadata';
-import { isPacificDateString, type ArticleOpenGraph, type ProfileOpenGraph } from "@/types/seo";
-import type { SchemaGraph, WebPageBase, CollectionPageSchema } from "@/types/seo/schema";
+import { isPacificDateString } from "@/types/seo";
+import type { ArticleOpenGraph, ProfileOpenGraph } from "@/types/seo/opengraph";
+import type { SchemaGraph, WebPageBase, CollectionPageEntity } from "@/types/seo/schema";
 // import type { Metadata } from 'next';
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Mock process.env for tests
 process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
+
+function requireRecord(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null) {
+    throw new Error(`Expected ${label} to be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function assertArticleOpenGraph(value: unknown): asserts value is ArticleOpenGraph {
+  const record = requireRecord(value, "OpenGraph metadata");
+  if (record.type !== "article") {
+    throw new Error(`Expected article OpenGraph metadata, got ${String(record.type)}`);
+  }
+  requireRecord(record.article, "OpenGraph article metadata");
+}
+
+function assertProfileOpenGraph(value: unknown): asserts value is ProfileOpenGraph {
+  const record = requireRecord(value, "OpenGraph metadata");
+  if (record.type !== "profile") {
+    throw new Error(`Expected profile OpenGraph metadata, got ${String(record.type)}`);
+  }
+}
 
 describe("SEO Metadata", () => {
   describe("createArticleMetadata", () => {
@@ -27,12 +50,13 @@ describe("SEO Metadata", () => {
 
     it("should generate complete article metadata with proper date formats", () => {
       const metadata = createArticleMetadata(mockArticleParams);
+      assertArticleOpenGraph(metadata.openGraph);
 
       // Verify OpenGraph dates (article type should have these)
-      expect(metadata.openGraph?.article?.publishedTime).toBeDefined();
-      expect(metadata.openGraph?.article?.modifiedTime).toBeDefined();
-      expect(isPacificDateString(metadata.openGraph?.article?.publishedTime)).toBe(true);
-      expect(isPacificDateString(metadata.openGraph?.article?.modifiedTime)).toBe(true);
+      expect(metadata.openGraph.article.publishedTime).toBeDefined();
+      expect(metadata.openGraph.article.modifiedTime).toBeDefined();
+      expect(isPacificDateString(metadata.openGraph.article.publishedTime)).toBe(true);
+      expect(isPacificDateString(metadata.openGraph.article.modifiedTime)).toBe(true);
 
       // Verify HTML meta dates
       const publishedDate = metadata.other?.[SEO_DATE_FIELDS.meta.published];
@@ -45,12 +69,13 @@ describe("SEO Metadata", () => {
 
     it("should maintain consistent dates across all formats", () => {
       const metadata = createArticleMetadata(mockArticleParams);
+      assertArticleOpenGraph(metadata.openGraph);
 
       // Get all date representations
       const dates = {
         og: {
-          published: metadata.openGraph?.article?.publishedTime,
-          modified: metadata.openGraph?.article?.modifiedTime,
+          published: metadata.openGraph.article.publishedTime,
+          modified: metadata.openGraph.article.modifiedTime,
         },
         meta: {
           published: metadata.other?.[SEO_DATE_FIELDS.meta.published],
@@ -78,9 +103,10 @@ describe("SEO Metadata", () => {
         ...mockArticleParams,
         datePublished: "2025-01-01T12:00:00", // January = PST
       });
+      assertArticleOpenGraph(metadata.openGraph);
 
       // Check all date fields end with -08:00
-      expect(metadata.openGraph?.article?.publishedTime).toMatch(/-08:00$/);
+      expect(metadata.openGraph.article.publishedTime).toMatch(/-08:00$/);
       const publishedDate = metadata.other?.[SEO_DATE_FIELDS.meta.published];
       expect(typeof publishedDate === "string" && publishedDate).toMatch(/-08:00$/);
     });
@@ -90,20 +116,22 @@ describe("SEO Metadata", () => {
         ...mockArticleParams,
         datePublished: "2025-07-01T12:00:00", // July = PDT
       });
+      assertArticleOpenGraph(metadata.openGraph);
 
       // Check all date fields end with -07:00
-      expect(metadata.openGraph?.article?.publishedTime).toMatch(/-07:00$/);
+      expect(metadata.openGraph.article.publishedTime).toMatch(/-07:00$/);
       const publishedDate = metadata.other?.[SEO_DATE_FIELDS.meta.published];
       expect(typeof publishedDate === "string" && publishedDate).toMatch(/-07:00$/);
     });
 
     it("should include required article metadata fields", () => {
       const metadata = createArticleMetadata(mockArticleParams);
+      assertArticleOpenGraph(metadata.openGraph);
 
       // Verify OpenGraph article fields exist
-      expect(metadata.openGraph?.type).toBe("article");
-      expect(metadata.openGraph?.article?.section).toBeDefined();
-      expect(typeof metadata.openGraph?.article?.section).toBe("string");
+      expect(metadata.openGraph.type).toBe("article");
+      expect(metadata.openGraph.article.section).toBeDefined();
+      expect(typeof metadata.openGraph.article.section).toBe("string");
 
       // Verify title exists
       expect(metadata.title).toBeDefined();
@@ -114,9 +142,9 @@ describe("SEO Metadata", () => {
       expect(typeof metadata.description).toBe("string");
 
       // Verify tags are present
-      expect(metadata.openGraph?.article?.tags).toBeDefined();
-      expect(Array.isArray(metadata.openGraph?.article?.tags)).toBe(true);
-      if (metadata.openGraph?.article?.tags) {
+      expect(metadata.openGraph.article.tags).toBeDefined();
+      expect(Array.isArray(metadata.openGraph.article.tags)).toBe(true);
+      if (metadata.openGraph.article.tags) {
         for (const tag of metadata.openGraph.article.tags) {
           expect(typeof tag).toBe("string");
           expect(tag).toBeTruthy();
@@ -134,14 +162,20 @@ describe("SEO Metadata", () => {
       };
 
       const metadata = createArticleMetadata(minimalParams);
+      assertArticleOpenGraph(metadata.openGraph);
+      const images = metadata.openGraph.images;
+      if (!Array.isArray(images)) {
+        throw new Error("Expected article OpenGraph images to be an array");
+      }
+      const firstImage = images[0];
 
       // Verify default values
-      expect(metadata.openGraph?.article?.tags).toEqual([]);
-      expect(metadata.openGraph?.images).toBeDefined();
-      expect(metadata.openGraph?.images?.[0]?.alt).toBeDefined();
-      expect(metadata.openGraph?.images?.[0]?.url).toBeDefined();
-      expect(typeof metadata.openGraph?.images?.[0]?.alt).toBe("string");
-      expect(typeof metadata.openGraph?.images?.[0]?.url).toBe("string");
+      expect(metadata.openGraph.article.tags).toEqual([]);
+      expect(images).toBeDefined();
+      expect(firstImage?.alt).toBeDefined();
+      expect(firstImage?.url).toBeDefined();
+      expect(typeof firstImage?.alt).toBe("string");
+      expect(typeof firstImage?.url).toBe("string");
     });
   });
 
@@ -219,7 +253,7 @@ describe("SEO Metadata", () => {
         blogMetadata.script?.[0]?.text || "{}",
       ) as SchemaGraph;
       const collectionPage = parsedBlogJsonLd["@graph"]?.find(
-        (entity): entity is CollectionPageSchema => entity["@type"] === "CollectionPage",
+        (entity): entity is CollectionPageEntity => entity["@type"] === "CollectionPage",
       );
       expect(collectionPage).toBeDefined();
       if (collectionPage) {
@@ -355,7 +389,8 @@ describe("SEO Metadata", () => {
     it("should include OpenGraph metadata with correct type", () => {
       // Test profile type
       const experienceMetadata = getStaticPageMetadata("/experience", "experience");
-      const experienceOg = experienceMetadata.openGraph as ProfileOpenGraph;
+      const experienceOg = experienceMetadata.openGraph;
+      assertProfileOpenGraph(experienceOg);
       expect(experienceOg.type).toBe("profile");
       expect(experienceOg.firstName).toBeDefined();
       expect(experienceOg.lastName).toBeDefined();
@@ -363,7 +398,8 @@ describe("SEO Metadata", () => {
 
       // Test article type for collection pages
       const blogMetadata = getStaticPageMetadata("/blog", "blog");
-      const blogOg = blogMetadata.openGraph as ArticleOpenGraph;
+      const blogOg = blogMetadata.openGraph;
+      assertArticleOpenGraph(blogOg);
       expect(blogOg.type).toBe("article");
       expect(blogOg.article).toBeDefined();
       expect(blogOg.article.publishedTime).toBeDefined();

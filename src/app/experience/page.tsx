@@ -21,7 +21,8 @@ import { getLogoCdnData } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
-import type { Experience as ExperienceType, ProcessedExperience } from "@/types/schemas/experience";
+import type { Experience as ExperienceType } from "@/types/schemas/experience";
+import type { ExperienceCardExtendedProps } from "@/types/features/experience";
 import type { Logo } from "@/types/logo";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { mapWithBoundedConcurrency } from "@/lib/utils/async-lock";
@@ -75,7 +76,7 @@ export default async function ExperiencePage() {
   const experienceData = await mapWithBoundedConcurrency(
     experiences,
     EXPERIENCE_LOGO_BATCH_SIZE,
-    async (exp: ExperienceType): Promise<ProcessedExperience> => {
+    async (exp: ExperienceType): Promise<ExperienceCardExtendedProps> => {
       const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
       const domain = hasOverrideDomain
         ? normalizeDomain(exp.logoOnlyDomain as string)
@@ -126,7 +127,6 @@ export default async function ExperiencePage() {
         return {
           ...exp,
           logoData: fallbackLogo ?? { url: getCompanyPlaceholder(), source: null },
-          error: `Failed to process logo: ${errorMessage}`,
         };
       }
     },

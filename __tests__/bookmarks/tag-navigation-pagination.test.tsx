@@ -10,7 +10,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { useRouter, usePathname } from "next/navigation";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
 import { usePagination } from "@/hooks/use-pagination";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
@@ -26,6 +26,7 @@ vi.mock("@/hooks/use-pagination");
 const mockBookmarks: UnifiedBookmark[] = [
   {
     id: "1",
+    slug: "react-best-practices",
     url: "https://example.com/1",
     title: "React Best Practices",
     description: "Learn React",
@@ -35,6 +36,7 @@ const mockBookmarks: UnifiedBookmark[] = [
   },
   {
     id: "2",
+    slug: "typescript-guide",
     url: "https://example.com/2",
     title: "TypeScript Guide",
     description: "TypeScript fundamentals",
@@ -44,6 +46,7 @@ const mockBookmarks: UnifiedBookmark[] = [
   },
   {
     id: "3",
+    slug: "react-hooks",
     url: "https://example.com/3",
     title: "React Hooks",
     description: "Advanced React patterns",
@@ -89,6 +92,7 @@ describe("Tag Navigation with Pagination", () => {
     it("should pass tag filter to pagination hook when tag prop is provided", () => {
       render(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -105,7 +109,13 @@ describe("Tag Navigation with Pagination", () => {
     });
 
     it("should not pass tag filter when no tag prop is provided", () => {
-      render(<BookmarksWithPagination initialBookmarks={mockBookmarks} baseUrl="/bookmarks" />);
+      render(
+        <BookmarksWithPagination
+          bookmarks={mockBookmarks}
+          initialBookmarks={mockBookmarks}
+          baseUrl="/bookmarks"
+        />,
+      );
 
       // Verify the hook was called without tag parameter
       expect(usePagination).toHaveBeenCalledWith(
@@ -118,6 +128,7 @@ describe("Tag Navigation with Pagination", () => {
     it("should maintain tag filter across page navigation", () => {
       const { rerender } = render(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -129,6 +140,7 @@ describe("Tag Navigation with Pagination", () => {
       // Simulate navigating to page 2
       rerender(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -149,7 +161,13 @@ describe("Tag Navigation with Pagination", () => {
 
   describe("Tag Selection Navigation", () => {
     it("should navigate to tag URL when a tag is clicked", async () => {
-      render(<BookmarksWithPagination initialBookmarks={mockBookmarks} showFilterBar={true} />);
+      render(
+        <BookmarksWithPagination
+          bookmarks={mockBookmarks}
+          initialBookmarks={mockBookmarks}
+          showFilterBar={true}
+        />,
+      );
 
       // Find and click a tag
       const reactTag = await screen.findByRole("button", { name: /React/i });
@@ -165,6 +183,7 @@ describe("Tag Navigation with Pagination", () => {
 
       render(
         <BookmarksWithPagination
+          bookmarks={mockBookmarks}
           initialBookmarks={mockBookmarks}
           showFilterBar={true}
           initialTag="React"
@@ -196,7 +215,13 @@ describe("Tag Navigation with Pagination", () => {
         mutate: mockMutate,
       });
 
-      render(<BookmarksWithPagination initialBookmarks={mockBookmarks} showFilterBar={true} />);
+      render(
+        <BookmarksWithPagination
+          bookmarks={mockBookmarks}
+          initialBookmarks={mockBookmarks}
+          showFilterBar={true}
+        />,
+      );
 
       // Click a tag
       const typescriptTag = await screen.findByRole("button", { name: /TypeScript/i });
@@ -215,6 +240,7 @@ describe("Tag Navigation with Pagination", () => {
 
       render(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -235,6 +261,7 @@ describe("Tag Navigation with Pagination", () => {
     it("should use correct baseUrl for tag pages", () => {
       const { rerender } = render(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -254,6 +281,7 @@ describe("Tag Navigation with Pagination", () => {
       // When page changes, hook should be called with new page
       rerender(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -275,6 +303,7 @@ describe("Tag Navigation with Pagination", () => {
     it("should show same content for same tag URL on refresh", () => {
       const { rerender } = render(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -291,6 +320,7 @@ describe("Tag Navigation with Pagination", () => {
 
       rerender(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -309,6 +339,7 @@ describe("Tag Navigation with Pagination", () => {
 
       const { rerender } = render(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -320,6 +351,7 @@ describe("Tag Navigation with Pagination", () => {
       // Simulate page navigation by re-rendering with new page
       rerender(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="React"
           initialTag="React"
@@ -345,6 +377,7 @@ describe("Tag Navigation with Pagination", () => {
       const bookmarksWithSpecialTags: UnifiedBookmark[] = [
         {
           id: "1",
+          slug: "c-plus-plus-guide",
           url: "https://example.com",
           title: "C++ Guide",
           description: "A guide to C++",
@@ -370,6 +403,7 @@ describe("Tag Navigation with Pagination", () => {
 
       render(
         <BookmarksWithPagination
+          bookmarks={bookmarksWithSpecialTags}
           initialBookmarks={bookmarksWithSpecialTags}
           showFilterBar={true}
         />,
@@ -400,6 +434,7 @@ describe("Tag Navigation with Pagination", () => {
 
       render(
         <BookmarksWithPagination
+          bookmarks={[]}
           initialBookmarks={[]}
           tag="NonExistentTag"
           initialTag="NonExistentTag"

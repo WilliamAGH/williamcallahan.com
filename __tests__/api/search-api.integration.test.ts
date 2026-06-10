@@ -266,6 +266,7 @@ describe("Related Content API route guards", () => {
   const ORIGINAL_ENV = { ...process.env };
 
   beforeEach(() => {
+    vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
     relatedContentMocks.findSimilarByEntity.mockClear();
     relatedContentMocks.sourceEmbeddingExists.mockClear();
@@ -273,6 +274,7 @@ describe("Related Content API route guards", () => {
   });
 
   afterAll(() => {
+    vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
   });
 
@@ -291,7 +293,7 @@ describe("Related Content API route guards", () => {
   });
 
   it("hides the related-content debug route in production before database reads", async () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     const response = await getRelatedContentDebug(
       new NextRequest("https://williamcallahan.com/api/related-content/debug?type=bookmark&id=b1"),
     );

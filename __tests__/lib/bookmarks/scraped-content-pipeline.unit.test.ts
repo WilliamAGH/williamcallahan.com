@@ -4,7 +4,7 @@ import {
   fetchAllPagesFromApi,
 } from "@/lib/bookmarks/refresh-helpers";
 import { normalizeBookmark } from "@/lib/bookmarks/normalize";
-import type { RawApiBookmark } from "@/types/bookmark";
+import type { RawApiBookmark } from "@/types/schemas/bookmark";
 
 function makeRawBookmark(id: string, htmlContent: string | null): RawApiBookmark {
   return {

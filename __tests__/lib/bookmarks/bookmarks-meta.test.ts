@@ -5,7 +5,7 @@
  * For integration tests of real business logic, mock S3 instead.
  */
 import { vi } from "vitest";
-import type { UnifiedBookmark } from "@/types/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { S3NotFoundError } from "@/lib/s3/errors";
 
 // Explicit mock - no alias hijacking
@@ -36,13 +36,15 @@ const mockBookmarks: UnifiedBookmark[] = [
     url: "https://example.com",
     title: "Example",
     description: "Test bookmark",
+    slug: "example",
     tags: [createTag("test")],
-    imageUrl: null,
     domain: "example.com",
-    createdAt: "2024-01-01",
-    updatedAt: "2024-01-01",
+    dateBookmarked: "2024-01-01",
+    sourceUpdatedAt: "2024-01-01",
+    dateCreated: "2024-01-01",
+    modifiedAt: "2024-01-01",
     isFavorite: false,
-  } as UnifiedBookmark,
+  },
 ];
 
 /** Helper to strip tag objects -> names for deep equality where expected data uses strings */

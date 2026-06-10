@@ -9,12 +9,13 @@
 
 import si from "systeminformation";
 import { getMonotonicTime } from "@/lib/utils";
+import type { HealthMetrics } from "@/types/health";
 
 /**
  * Fetches a consolidated object of system metrics.
  * @returns {Promise<object>} A promise that resolves to an object containing system metrics.
  */
-export async function getSystemMetrics() {
+export async function getSystemMetrics(): Promise<HealthMetrics["system"]> {
   const [mem, cpu, net] = await Promise.all([si.mem(), si.currentLoad(), si.networkStats()]);
 
   return {

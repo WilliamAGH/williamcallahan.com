@@ -29,7 +29,7 @@ import {
   getBookmarksPage,
   invalidateBookmarksCache,
 } from "@/lib/bookmarks/bookmarks-data-access.server";
-import { getGithubActivity, invalidateAllGitHubCaches } from "@/lib/data-access/github-public-api";
+import { getGithubActivity } from "@/lib/data-access/github-public-api";
 import { getAllPosts } from "@/lib/blog";
 import { invalidateBlogCache } from "@/lib/blog/mdx";
 import type { GraphQLRepoNode } from "@/types/github";
@@ -149,19 +149,16 @@ describe("Next.js Cache Invalidation", () => {
         const start = Date.now();
         const activity2 = await getGithubActivity();
         const cachedTime = Date.now() - start;
-        expect(activity2.trailingYearData.contributionCalendar.totalContributions).toBe(
-          activity1.trailingYearData.contributionCalendar.totalContributions,
+        expect(activity2.trailingYearData.totalContributions).toBe(
+          activity1.trailingYearData.totalContributions,
         );
-
-        // Invalidate cache
-        invalidateAllGitHubCaches();
 
         // Third fetch (should be fresh)
         const start2 = Date.now();
         const activity3 = await getGithubActivity();
         const freshTime = Date.now() - start2;
-        expect(activity3.trailingYearData.contributionCalendar.totalContributions).toBe(
-          activity1.trailingYearData.contributionCalendar.totalContributions,
+        expect(activity3.trailingYearData.totalContributions).toBe(
+          activity1.trailingYearData.totalContributions,
         );
 
         console.log(`GitHub cache test - Cached: ${cachedTime}ms, Fresh: ${freshTime}ms`);

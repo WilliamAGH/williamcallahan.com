@@ -257,7 +257,7 @@ async function memoizedPostLookup({
       return { status: "found", post: result.post };
     }
 
-    if (result.reason === "error") {
+    if ("error" in result) {
       console.error(`[${fnName}] Error during lookup for slug "${slug}":`, result.error);
       // Don't memoize error results - allow retry on next request
       memo.delete(slug);

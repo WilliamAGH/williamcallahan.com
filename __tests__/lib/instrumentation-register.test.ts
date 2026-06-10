@@ -23,11 +23,12 @@ describe("instrumentation register", () => {
   });
 
   afterAll(() => {
+    vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
   });
 
   it("invokes node instrumentation register in node runtime", async () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.NEXT_RUNTIME = "nodejs";
     mockRuntimeModules();
 
@@ -39,7 +40,7 @@ describe("instrumentation register", () => {
   });
 
   it("invokes edge instrumentation register in edge runtime", async () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.NEXT_RUNTIME = "edge";
     mockRuntimeModules();
 
@@ -51,7 +52,7 @@ describe("instrumentation register", () => {
   });
 
   it("skips instrumentation in development", async () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     process.env.NEXT_RUNTIME = "nodejs";
     mockRuntimeModules();
 

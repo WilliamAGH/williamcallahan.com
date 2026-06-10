@@ -24,6 +24,9 @@ import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 const formatSlugEnvironmentSnapshot = (): string =>
   `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;
 
+type BookmarkSlugSource = Pick<UnifiedBookmark, "id" | "url" | "title"> &
+  Partial<Pick<UnifiedBookmark, "slug">>;
+
 let hasLoggedSlugEnvironmentInfo = false;
 
 const logSlugEnvironmentOnce = (context: string): void => {
@@ -42,7 +45,7 @@ const logSlugEnvironmentOnce = (context: string): void => {
  * @returns Mapping with slugs, reverse lookup, and checksum
  * @throws Error if any bookmark cannot generate a slug
  */
-export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugMapping {
+export function generateSlugMapping(bookmarks: BookmarkSlugSource[]): BookmarkSlugMapping {
   const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
   const reverseMap: Record<string, string> = {};
 
@@ -126,7 +129,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
  * @param overwrite - Kept for API compatibility; ignored in DB mode
  */
 export async function saveSlugMapping(
-  bookmarks: UnifiedBookmark[],
+  bookmarks: BookmarkSlugSource[],
   overwrite = true,
 ): Promise<void> {
   void overwrite;

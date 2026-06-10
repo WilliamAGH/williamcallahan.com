@@ -126,6 +126,9 @@ describe("AI Chat Request Validation", () => {
     const result = await validateRequest(request, "terminal_chat");
 
     expect(result).toBeDefined();
+    if ("parsedBody" in result) {
+      throw new Error("Expected validation to return a Response for non-SSE requests");
+    }
     expect(result.status).toBe(406);
     expect(result.headers.get("X-System-Status")).toBeFalsy();
   });

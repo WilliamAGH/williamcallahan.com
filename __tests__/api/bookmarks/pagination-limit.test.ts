@@ -3,8 +3,7 @@ import { getBookmarks, getBookmarksIndex, getBookmarksPage } from "@/lib/bookmar
 // Import BOOKMARKS_PER_PAGE lazily within isolated module to avoid global cache interfering with env-config tests
 // Placeholder variable – will be set in beforeAll
 let BOOKMARKS_PER_PAGE: number;
-import type { UnifiedBookmark } from "@/types";
-import type { BookmarkSlugMapping } from "@/types/bookmark";
+import type { BookmarkSlugMapping, UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Mock dependencies used inside the route
 vi.mock("@/lib/bookmarks/service.server");
@@ -42,7 +41,11 @@ describe("Bookmark API – large limit behavior", () => {
     mockGetBookmarksIndex.mockImplementation(async (limit) => ({
       count: mockBookmarks.length,
       totalPages: Math.ceil(mockBookmarks.length / (limit || BOOKMARKS_PER_PAGE)),
+      pageSize: limit || BOOKMARKS_PER_PAGE,
+      lastModified: "2025-01-01T00:00:00.000Z",
       lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: "mock-checksum",
     }));
     mockGetBookmarksPage.mockResolvedValue(mockBookmarks);
 
