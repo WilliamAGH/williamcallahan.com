@@ -163,13 +163,14 @@ export function classifyProxyRequest(
   const accept = normalizeHeaderValue(request.headers.get("accept"))?.toLowerCase() ?? "";
   const secFetchDest = normalizeHeaderValue(request.headers.get("sec-fetch-dest"))?.toLowerCase();
   const secFetchMode = normalizeHeaderValue(request.headers.get("sec-fetch-mode"))?.toLowerCase();
+  const isPageMethod = method === "GET" || method === "HEAD";
 
   if (pathname.startsWith("/api/")) return "api";
   if (pathname.startsWith("/_next/image")) return "image";
   if (hasPrefetchHeader(request.headers)) return "prefetch";
   if (isRscRequest(pathname, url.searchParams, request.headers)) return "rsc";
   if (
-    method === "GET" &&
+    isPageMethod &&
     (accept.includes("text/html") ||
       secFetchDest === "document" ||
       secFetchMode === "navigate" ||

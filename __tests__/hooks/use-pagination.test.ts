@@ -2,7 +2,8 @@ import type { MockedFunction } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePagination } from "@/hooks/use-pagination";
 import useSWRInfinite from "swr/infinite";
-import type { UnifiedBookmark, PaginatedResponse } from "@/types";
+import type { PaginatedResponse } from "@/types/lib";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Mock SWR
 vi.mock("swr/infinite");
@@ -12,6 +13,7 @@ const mockItems: UnifiedBookmark[] = Array.from({ length: 50 }, (_, i) => ({
   url: `https://example.com/${i}`,
   title: `Item ${i}`,
   description: `Description for item ${i}`,
+  slug: `item-${i}`,
   tags: [`tag${i % 3}`],
   dateBookmarked: "2024-01-01T00:00:00.000Z",
   sourceUpdatedAt: "2024-01-01T00:00:00.000Z",

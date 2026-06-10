@@ -9,7 +9,7 @@ import {
   prepareDocumentsForIndexing,
   transformSearchResultToTerminalResult,
 } from "@/lib/utils/search-helpers";
-import type { SearchResult } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
 
 describe("Search Helpers", () => {
   let consoleWarnSpy: MockInstance;
@@ -278,7 +278,7 @@ describe("Search Helpers", () => {
     it("should transform SearchResult to TerminalSearchResult", () => {
       const searchResult: SearchResult = {
         id: "post-123",
-        type: "blog",
+        type: "blog-post",
         title: "Test Post",
         description: "A test description",
         url: "/blog/test-post",
@@ -288,7 +288,7 @@ describe("Search Helpers", () => {
       const result = transformSearchResultToTerminalResult(searchResult);
 
       expect(result).toEqual({
-        id: "blog-post-123",
+        id: "blog-post-post-123",
         label: "Test Post",
         description: "A test description",
         path: "/blog/test-post",
@@ -318,7 +318,7 @@ describe("Search Helpers", () => {
     it("should handle missing title with fallback", () => {
       const searchResult = {
         id: "test-id",
-        type: "investment",
+        type: "page",
         title: undefined,
         description: "Some description",
         url: "/investments/test",
@@ -333,7 +333,7 @@ describe("Search Helpers", () => {
     it("should handle missing url with fallback", () => {
       const searchResult = {
         id: "test-id",
-        type: "experience",
+        type: "page",
         title: "Test Title",
         description: "Description",
         url: undefined,
@@ -348,7 +348,7 @@ describe("Search Helpers", () => {
     it("should warn and generate deterministic fallback ID when id is missing", () => {
       const searchResult = {
         id: "",
-        type: "blog",
+        type: "blog-post",
         title: "No ID Post",
         description: "Missing ID",
         url: "/blog/no-id",
@@ -358,7 +358,7 @@ describe("Search Helpers", () => {
       const result = transformSearchResultToTerminalResult(searchResult);
 
       // Deterministic fallback: `${type}:${url}:${title}` lowercased, non-alphanum replaced
-      expect(result.id).toBe("blog:/blog/no-id:no-id-post");
+      expect(result.id).toBe("blog-post:/blog/no-id:no-id-post");
       expect(result.label).toBe("No ID Post");
     });
   });

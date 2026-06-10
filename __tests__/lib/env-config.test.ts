@@ -27,6 +27,7 @@ describe("Environment Variable Configuration", () => {
   beforeEach(() => {
     /** Reset modules to pick up new env vars */
     vi.resetModules();
+    vi.unstubAllEnvs();
     /** Clone the original env */
     process.env = { ...originalEnv };
   });
@@ -36,6 +37,7 @@ describe("Environment Variable Configuration", () => {
    * Prevents test pollution by resetting process.env to original values
    */
   afterEach(() => {
+    vi.unstubAllEnvs();
     /** Restore original env */
     process.env = { ...originalEnv };
   });
@@ -222,7 +224,7 @@ describe("Environment Variable Configuration", () => {
 
   describe("PostgreSQL Access Mode", () => {
     it("keeps test sessions read-only by default", async () => {
-      process.env.NODE_ENV = "test";
+      vi.stubEnv("NODE_ENV", "test");
       Reflect.deleteProperty(process.env, "DEPLOYMENT_ENV");
       // Clear site URL so NODE_ENV fallback is exercised
       Reflect.deleteProperty(process.env, "NEXT_PUBLIC_SITE_URL");
@@ -237,7 +239,7 @@ describe("Environment Variable Configuration", () => {
     });
 
     it("allows writes only when deployment environment resolves to production", async () => {
-      process.env.NODE_ENV = "test";
+      vi.stubEnv("NODE_ENV", "test");
       process.env.DEPLOYMENT_ENV = "production";
       // Clear site URL so DEPLOYMENT_ENV fallback is exercised
       Reflect.deleteProperty(process.env, "NEXT_PUBLIC_SITE_URL");
@@ -254,7 +256,7 @@ describe("Environment Variable Configuration", () => {
     });
 
     it("blocks writes when deployment environment is not production", async () => {
-      process.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
       process.env.DEPLOYMENT_ENV = "testing";
       // Clear site URL so DEPLOYMENT_ENV fallback is exercised
       Reflect.deleteProperty(process.env, "NEXT_PUBLIC_SITE_URL");
@@ -273,7 +275,7 @@ describe("Environment Variable Configuration", () => {
     });
 
     it("allows writes for canonical production runtime when DEPLOYMENT_ENV is stale", async () => {
-      process.env.NODE_ENV = "production";
+      vi.stubEnv("NODE_ENV", "production");
       process.env.DEPLOYMENT_ENV = "development";
       process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
 
@@ -290,7 +292,7 @@ describe("Environment Variable Configuration", () => {
     });
 
     it("keeps development runtimes read-only even when the public site URL is production", async () => {
-      process.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
       process.env.DEPLOYMENT_ENV = "development";
       process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
 

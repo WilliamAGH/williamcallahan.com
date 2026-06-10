@@ -13,7 +13,7 @@ import {
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { findRelatedBookmarkIdsForSeeds } from "@/lib/db/queries/embedding-similarity";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
+import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
 import { NextRequest } from "next/server";
 
 // Mock dependencies
@@ -133,6 +133,7 @@ describe("Bookmark API Tag Filtering", () => {
         bookmarks: filtered,
         totalCount: filtered.length,
         totalPages: 1,
+        fromCache: true,
       };
     });
     mockGetBookmarkById.mockImplementation(async (id) => {
@@ -204,6 +205,36 @@ describe("Bookmark API Tag Filtering", () => {
       expect(data.data[0].id).toBe("1");
     });
 
+    it("should query canonical tag results when the requested tag is an alias", async () => {
+      const aliasBookmark = mockBookmarks[0];
+      if (!aliasBookmark) throw new Error("Expected alias bookmark fixture");
+      mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
+      mockResolveBookmarkTagSlug.mockResolvedValueOnce({
+        requestedSlug: "llms",
+        canonicalSlug: "ai",
+        canonicalTagName: "AI",
+        isAlias: true,
+      });
+      mockGetBookmarksByTag.mockResolvedValueOnce({
+        bookmarks: [aliasBookmark],
+        totalCount: 1,
+        totalPages: 1,
+        fromCache: true,
+      });
+
+      const response = await GET(createRequest({ tag: "llms" }));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(mockResolveBookmarkTagSlug).toHaveBeenCalledWith("llms");
+      expect(mockGetBookmarksByTag).toHaveBeenCalledWith("ai", 1, 20);
+      expect(data.meta.filter).toMatchObject({
+        tag: "llms",
+        resolvedTag: "AI",
+        exactCount: 1,
+      });
+    });
+
     it("should perform case-insensitive tag matching", async () => {
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(mockBookmarks.length));
 
@@ -221,6 +252,7 @@ describe("Bookmark API Tag Filtering", () => {
         bookmarks: [],
         totalCount: 0,
         totalPages: 0,
+        fromCache: true,
       });
 
       const response = await GET(createRequest({ tag: "non-existent-tag" }));
@@ -251,6 +283,7 @@ describe("Bookmark API Tag Filtering", () => {
         bookmarks: largeSet.slice(20, 40),
         totalCount: 50,
         totalPages: 3,
+        fromCache: true,
       });
       mockGetBookmarksIndex.mockResolvedValueOnce(createIndexData(largeSet.length, 20));
       // Override default slug mapping for this test's larger dataset

@@ -4,7 +4,7 @@
  * Verifies getBookmarksByTag behavior through DB query module mocks.
  */
 import { vi } from "vitest";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { getBookmarksByTag } from "@/lib/bookmarks/bookmarks-data-access.server";
 import {
   getBookmarksPageByTag,

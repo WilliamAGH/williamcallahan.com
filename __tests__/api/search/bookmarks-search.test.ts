@@ -1,6 +1,6 @@
 import { GET } from "@/app/api/search/bookmarks/route";
-import type { SearchResult } from "@/types/search";
-import type { UnifiedBookmark } from "@/types";
+import type { SearchResult } from "@/types/schemas/search";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const { mockSearchBookmarksFtsPage } = vi.hoisted(() => ({
   mockSearchBookmarksFtsPage: vi.fn(),

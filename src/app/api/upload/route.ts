@@ -151,7 +151,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // Validate file against type configuration
     const validation = validateFileForType(file, fileType);
-    if (!validation.valid) {
+    if ("error" in validation) {
       return NextResponse.json(
         { success: false, error: validation.error },
         { status: 400, headers: CORS_HEADERS },

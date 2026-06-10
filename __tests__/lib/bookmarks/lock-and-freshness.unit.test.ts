@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 
 const mockGetBookmarksIndexFromDatabase = vi.fn();
@@ -78,7 +78,7 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
     vi.clearAllMocks();
 
     process.env.MIN_BOOKMARKS_THRESHOLD = "1";
-    process.env.NODE_ENV = "test";
+    vi.stubEnv("NODE_ENV", "test");
     process.env.SELECTIVE_OG_REFRESH = "true";
 
     mockGetAllBookmarks.mockResolvedValue([]);
@@ -109,7 +109,7 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
       checksum: calculateBookmarksChecksum(dataset),
     });
 
-    setRefreshBookmarksCallback(() => dataset);
+    setRefreshBookmarksCallback(() => Promise.resolve(dataset));
     initializeBookmarksDataAccess();
 
     expect(await acquireRefreshLock()).toBe(true);

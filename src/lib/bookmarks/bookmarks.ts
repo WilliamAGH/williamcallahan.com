@@ -19,6 +19,7 @@ import {
   validateApiConfig,
   handleTestEnvironment,
   fetchAllPagesFromApi,
+  EmptyBookmarksApiResponseError,
   validateChecksumAndGetCached,
   normalizeAndGenerateSlugs,
   enrichWithOpenGraph,
@@ -73,6 +74,7 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
   } catch (error) {
     const fetchError = error instanceof Error ? error : new Error(String(error));
     console.error(`[refreshBookmarksData] PRIMARY_FETCH_FAILURE: ${fetchError.message}`);
+    if (fetchError instanceof EmptyBookmarksApiResponseError) throw fetchError;
 
     // Attempt PostgreSQL fallback
     const fallbackData = await loadDatabaseFallback();

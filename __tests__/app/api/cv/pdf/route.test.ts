@@ -6,68 +6,9 @@
  */
 
 import type { ReactElement } from "react";
+import { NextRequest } from "next/server";
 
-type ResponseHeadersInit = Record<string, string> | undefined;
-
-class HeaderBag {
-  private readonly store = new Map<string, string>();
-
-  constructor(init?: ResponseHeadersInit) {
-    if (init) {
-      for (const [key, value] of Object.entries(init)) {
-        this.store.set(key.toLowerCase(), value);
-      }
-    }
-  }
-
-  get(name: string): string | null {
-    return this.store.get(name.toLowerCase()) ?? null;
-  }
-
-  set(name: string, value: string): void {
-    this.store.set(name.toLowerCase(), value);
-  }
-}
-
-class TestResponse {
-  private readonly body: Buffer;
-  readonly status: number;
-  readonly headers: HeaderBag;
-
-  constructor(
-    body: string | Buffer | Uint8Array | null,
-    init?: { status?: number; headers?: ResponseHeadersInit },
-  ) {
-    if (body instanceof Buffer) {
-      this.body = body;
-    } else if (body instanceof Uint8Array) {
-      this.body = Buffer.from(body);
-    } else if (body == null) {
-      this.body = Buffer.alloc(0);
-    } else {
-      this.body = Buffer.from(body);
-    }
-
-    this.status = init?.status ?? 200;
-    this.headers = new HeaderBag(init?.headers);
-  }
-
-  arrayBuffer(): Promise<ArrayBuffer> {
-    const copy = Buffer.from(this.body);
-    return Promise.resolve(copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength));
-  }
-
-  json(): Promise<unknown> {
-    return Promise.resolve(JSON.parse(this.body.toString("utf8")));
-  }
-}
-
-if (typeof globalThis.Response === "undefined") {
-  (globalThis as { Response?: typeof TestResponse }).Response =
-    TestResponse as unknown as typeof globalThis.Response;
-}
-
-const renderToBufferMock = vi.fn<Promise<Buffer>, [ReactElement]>();
+const renderToBufferMock = vi.fn<(element: ReactElement) => Promise<Buffer>>();
 const mockPdfComponent = vi.fn(() => null);
 
 const mockedLogger = {
@@ -110,7 +51,7 @@ describe("GET /api/cv/pdf", () => {
     const pdfPayload = Buffer.from("%PDF-1.4 test payload");
     renderToBufferMock.mockResolvedValueOnce(pdfPayload);
 
-    const request = { url: "https://example.com/api/cv/pdf" } as Request;
+    const request = new NextRequest("https://example.com/api/cv/pdf");
     const { GET } = await import("@/app/api/cv/pdf/route");
     const response = await GET(request);
 
@@ -132,7 +73,7 @@ describe("GET /api/cv/pdf", () => {
     const error = new Error("render failed");
     renderToBufferMock.mockRejectedValueOnce(error);
 
-    const request = { url: "https://example.com/api/cv/pdf" } as Request;
+    const request = new NextRequest("https://example.com/api/cv/pdf");
     const { GET } = await import("@/app/api/cv/pdf/route");
     const response = await GET(request);
 

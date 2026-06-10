@@ -31,13 +31,6 @@ function assertProdWrite(op) {
     throw new Error(`[write-guard] Blocked "${op}": env="${raw}".`);
 }
 
-function toSlug(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 async function run() {
   const dry = hasFlag("--dry-run");
   if (!dry) assertProdWrite("seed-projects");
@@ -46,11 +39,16 @@ async function run() {
 
   try {
     let projects;
+    let generateProjectSlug;
     try {
-      const mod = await import("../data/projects.ts");
-      projects = mod.projects;
+      const [projectsMod, slugMod] = await Promise.all([
+        import("../data/projects.ts"),
+        import("../src/lib/projects/slug-helpers.ts"),
+      ]);
+      projects = projectsMod.projects;
+      generateProjectSlug = slugMod.generateProjectSlug;
     } catch {
-      console.error(`${P} Cannot import data/projects.ts directly.`);
+      console.error(`${P} Cannot import project data and slug owner directly.`);
       console.error(`${P} This script should be invoked via: bun run seed:projects`);
       process.exit(1);
     }
@@ -58,7 +56,7 @@ async function run() {
     console.log(`${P} Found ${projects.length} projects`);
     if (dry) {
       for (const proj of projects) {
-        console.log(`  ${proj.id ?? toSlug(proj.name)}: ${proj.name}`);
+        console.log(`  ${proj.id ?? generateProjectSlug(proj.name)}: ${proj.name}`);
       }
       console.log(`${P} Dry run complete.`);
       return;
@@ -66,14 +64,15 @@ async function run() {
 
     let upserted = 0;
     for (const proj of projects) {
-      const id = proj.id ?? toSlug(proj.name);
+      const id = proj.id ?? generateProjectSlug(proj.name);
+      const slug = generateProjectSlug(proj.name);
       await sql`
         INSERT INTO projects (
           id, name, slug, description, short_summary, url,
           github_url, image_key, tags, tech_stack,
           note, cv_featured, registry_links
         ) VALUES (
-          ${id}, ${proj.name}, ${toSlug(proj.name)}, ${proj.description},
+          ${id}, ${proj.name}, ${slug}, ${proj.description},
           ${proj.shortSummary}, ${proj.url},
           ${proj.githubUrl ?? null}, ${proj.imageKey},
           ${proj.tags ? JSON.stringify(proj.tags) : null}::jsonb,

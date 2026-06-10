@@ -1,7 +1,8 @@
 import { buildChatPipeline } from "@/app/api/ai/chat/[feature]/upstream-pipeline";
 import { searchBookmarks } from "@/lib/search/searchers/dynamic-searchers";
-import type { AiChatModelStreamEvent, ValidatedRequestContext } from "@/types/features/ai-chat";
+import type { ValidatedRequestContext } from "@/types/features/ai-chat";
 import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
+import type { AiChatModelStreamUpdate } from "@/types/schemas/ai-openai-compatible-client";
 
 export const mockCallOpenAiCompatibleChatCompletions = vi.fn().mockResolvedValue({
   choices: [{ message: { content: "ok" } }],
@@ -23,6 +24,22 @@ export const mockGetUpstreamRequestQueue = vi.fn().mockReturnValue({
 });
 
 vi.mock("@/lib/ai/openai-compatible/openai-compatible-client", () => ({
+  assertOpenAiCompatibleResponsesSucceeded: (response: {
+    id: string;
+    status?: string;
+    error?: { code: string; message: string } | null;
+  }) => {
+    if (response.status === undefined || response.status === "completed") return;
+    const detail = response.error
+      ? `${response.error.code}: ${response.error.message}`
+      : `No provider error details returned for status "${response.status}".`;
+    throw Object.assign(
+      new Error(
+        `[AI] Responses API returned status "${response.status}" for ${response.id}: ${detail}`,
+      ),
+      { name: "OpenAiCompatibleResponsesFailureError", status: 502 },
+    );
+  },
   callOpenAiCompatibleChatCompletions: (...args: unknown[]) =>
     mockCallOpenAiCompatibleChatCompletions(...args),
   callOpenAiCompatibleResponses: (...args: unknown[]) => mockCallOpenAiCompatibleResponses(...args),
@@ -105,7 +122,7 @@ const bookmarkResult = {
 
 export type ApiMode = "chat_completions" | "responses";
 export type ChatFeature = "terminal_chat" | "bookmark-analysis";
-export type EventPayload = AiChatModelStreamEvent;
+export type EventPayload = AiChatModelStreamUpdate;
 export type PipelineOptions = {
   feature?: ChatFeature;
   temperature?: number;

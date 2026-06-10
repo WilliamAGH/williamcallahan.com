@@ -36,6 +36,7 @@ const mockBookmarkEntries = [
     slug: "example-bookmark",
     url: "https://example.com",
     title: "Example Bookmark",
+    description: "Example bookmark used by route smoke tests",
     modifiedAt: "2024-01-01T00:00:00.000Z",
     dateCreated: "2024-01-01T00:00:00.000Z",
     dateBookmarked: "2024-01-01T00:00:00.000Z",

@@ -31,6 +31,15 @@ const loadBookmarkQueryModule = async (): Promise<typeof import("@/lib/db/querie
   return bookmarkQueryModulePromise;
 };
 
+export class EmptyBookmarksApiResponseError extends Error {
+  constructor(pageCount: number) {
+    super(
+      `[refreshBookmarksData] Bookmarks API returned zero bookmarks across ${pageCount} page(s); refusing stale database fallback.`,
+    );
+    this.name = "EmptyBookmarksApiResponseError";
+  }
+}
+
 /** Validates required environment configuration and returns API context. */
 export function validateApiConfig(): BookmarksApiContext {
   const bookmarksListId = BOOKMARKS_API_CONFIG.LIST_ID;
@@ -142,6 +151,9 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
   console.log(
     `[refreshBookmarksData] Total raw bookmarks fetched across ${pageCount} pages: ${allRawBookmarks.length}`,
   );
+  if (allRawBookmarks.length === 0) {
+    throw new EmptyBookmarksApiResponseError(pageCount);
+  }
   return allRawBookmarks;
 }
 

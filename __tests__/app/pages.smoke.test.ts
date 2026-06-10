@@ -181,4 +181,23 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
       else process.env.S3_SERVER_URL = originalS3ServerUrl;
     }
   });
+
+  it("redirects id-derived project detail slugs to canonical name slugs", async () => {
+    vi.resetModules();
+    const { permanentRedirect } = await import("next/navigation");
+    const redirectError = new Error("redirected");
+    vi.mocked(permanentRedirect).mockImplementationOnce(() => {
+      throw redirectError;
+    });
+
+    const pageModule = await import("@/app/projects/[slug]/page");
+    const ProjectDetailPage = pageModule.default;
+
+    await expect(
+      ProjectDetailPage({
+        params: Promise.resolve({ slug: "tui-aventure-vc" }),
+      }),
+    ).rejects.toBe(redirectError);
+    expect(permanentRedirect).toHaveBeenCalledWith("/projects/company-research-tui");
+  });
 });

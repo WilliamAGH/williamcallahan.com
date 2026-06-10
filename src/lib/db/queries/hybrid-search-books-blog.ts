@@ -49,9 +49,12 @@ export async function hybridSearchBooks(options: {
       WITH keyword_results AS (
         SELECT id,
           ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(title, ${trimmed}) AS trgm_score
+          similarity(title, ${trimmed}) AS trgm_score,
+          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+            + similarity(title, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
         FROM books
         WHERE search_vector @@ ${tsQuery} OR title % ${trimmed}
+        ORDER BY keyword_score DESC, id DESC
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
@@ -93,13 +96,14 @@ export async function hybridSearchBooks(options: {
     authors: string[] | null;
     description: string | null;
     cover_url: string | null;
-    fts_score: number;
+    keyword_score: number;
   }>(sql`
     SELECT id, title, slug, authors, description, cover_url,
-      ts_rank_cd(search_vector, ${tsQuery}) AS fts_score
+      ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+        + similarity(title, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
     FROM books
     WHERE search_vector @@ ${tsQuery} OR title % ${trimmed}
-    ORDER BY fts_score DESC LIMIT ${limit}
+    ORDER BY keyword_score DESC, id DESC LIMIT ${limit}
   `);
 
   return rows.map((r) => ({
@@ -109,7 +113,7 @@ export async function hybridSearchBooks(options: {
     authors: r.authors,
     description: r.description,
     coverUrl: r.cover_url,
-    score: Number(r.fts_score),
+    score: Number(r.keyword_score),
   }));
 }
 
@@ -143,10 +147,13 @@ export async function hybridSearchBlogPosts(options: {
       WITH keyword_results AS (
         SELECT id,
           ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(title, ${trimmed}) AS trgm_score
+          similarity(title, ${trimmed}) AS trgm_score,
+          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+            + similarity(title, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
         FROM blog_posts
         WHERE draft = false
           AND (search_vector @@ ${tsQuery} OR title % ${trimmed})
+        ORDER BY keyword_score DESC, id DESC
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
@@ -191,14 +198,15 @@ export async function hybridSearchBlogPosts(options: {
     author_name: string;
     tags: string[] | null;
     published_at: string;
-    fts_score: number;
+    keyword_score: number;
   }>(sql`
     SELECT id, title, slug, excerpt, author_name, tags, published_at,
-      ts_rank_cd(search_vector, ${tsQuery}) AS fts_score
+      ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+        + similarity(title, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
     FROM blog_posts
     WHERE draft = false
       AND (search_vector @@ ${tsQuery} OR title % ${trimmed})
-    ORDER BY fts_score DESC LIMIT ${limit}
+    ORDER BY keyword_score DESC, id DESC LIMIT ${limit}
   `);
 
   return rows.map((r) => ({
@@ -209,6 +217,6 @@ export async function hybridSearchBlogPosts(options: {
     authorName: r.author_name,
     tags: r.tags,
     publishedAt: r.published_at,
-    score: Number(r.fts_score),
+    score: Number(r.keyword_score),
   }));
 }

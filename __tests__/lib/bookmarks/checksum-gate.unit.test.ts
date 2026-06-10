@@ -16,10 +16,28 @@ const CREATED_AT = "2026-01-01T00:00:00.000Z";
 const MODIFIED_AT = "2026-02-01T00:00:00.000Z";
 
 function buildRaw(id: string, modifiedAt = MODIFIED_AT): RawApiBookmark {
-  return { id, createdAt: CREATED_AT, modifiedAt } as RawApiBookmark;
+  return {
+    id,
+    createdAt: CREATED_AT,
+    modifiedAt,
+    title: `Bookmark ${id}`,
+    archived: false,
+    favourited: false,
+    taggingStatus: null,
+    summarizationStatus: null,
+    note: null,
+    summary: null,
+    tags: [],
+    content: {
+      type: "link",
+      url: `https://example.com/${id}`,
+      title: `Bookmark ${id}`,
+      description: null,
+    },
+  };
 }
 
-function buildCached(id: string): UnifiedBookmark {
+function buildCached(id: string, overrides: Partial<UnifiedBookmark> = {}): UnifiedBookmark {
   return {
     id,
     slug: `example-com-${id}`,
@@ -30,7 +48,8 @@ function buildCached(id: string): UnifiedBookmark {
     dateBookmarked: CREATED_AT,
     modifiedAt: MODIFIED_AT,
     sourceUpdatedAt: MODIFIED_AT,
-  } as UnifiedBookmark;
+    ...overrides,
+  };
 }
 
 describe("validateChecksumAndGetCached", () => {
@@ -71,5 +90,41 @@ describe("validateChecksumAndGetCached", () => {
 
     expect(result.cached).toBeNull();
     expect(mockGetBookmarksIndexFromDatabase).not.toHaveBeenCalled();
+  });
+
+  it("bypasses cache in updater mode while Karakeep proxy images need S3 upgrades", async () => {
+    const previousUpdater = process.env.IS_DATA_UPDATER;
+    process.env.IS_DATA_UPDATER = "true";
+    const cached = [
+      buildCached("a", {
+        content: {
+          type: "link",
+          url: "https://example.com/a",
+          title: "Bookmark a",
+          description: null,
+          imageAssetId: "asset-1",
+        },
+        ogImage: "/api/assets/asset-1",
+        ogImageExternal: "/api/assets/asset-1",
+      }),
+    ];
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
+      checksum: calculateBookmarksChecksum(cached),
+      count: cached.length,
+    });
+    mockGetAllBookmarks.mockResolvedValue(cached);
+
+    try {
+      const result = await validateChecksumAndGetCached([buildRaw("a")], false);
+
+      expect(result.cached).toBeNull();
+      expect(mockGetAllBookmarks).toHaveBeenCalled();
+    } finally {
+      if (previousUpdater === undefined) {
+        delete process.env.IS_DATA_UPDATER;
+      } else {
+        process.env.IS_DATA_UPDATER = previousUpdater;
+      }
+    }
   });
 });

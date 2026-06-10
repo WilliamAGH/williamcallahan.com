@@ -324,10 +324,24 @@ export type EndpointCompatibleEmbeddingConfig = z.infer<
   typeof endpointCompatibleEmbeddingConfigSchema
 >;
 
+const openAiCompatibleResponsesStatusSchema = z.enum([
+  "completed",
+  "failed",
+  "in_progress",
+  "cancelled",
+  "queued",
+  "incomplete",
+]);
+const openAiCompatibleResponsesErrorSchema = z
+  .object({ code: z.string().min(1), message: z.string().min(1) })
+  .loose();
+
 export const openAiCompatibleResponsesResponseSchema = z.object({
   id: z.string().min(1),
   output_text: z.string(),
   output: z.array(z.unknown()),
+  status: openAiCompatibleResponsesStatusSchema.optional(),
+  error: openAiCompatibleResponsesErrorSchema.nullable().optional(),
 });
 
 export type OpenAiCompatibleResponsesResponse = z.infer<

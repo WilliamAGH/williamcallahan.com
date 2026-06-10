@@ -101,10 +101,13 @@ async function hybridSearchWithEmbedding(
     WITH keyword_results AS (
       SELECT id,
         ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-        similarity(title, ${query}) AS trgm_score
+        similarity(title, ${query}) AS trgm_score,
+        ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+          + similarity(title, ${query}) * ${TRIGRAM_WEIGHT} AS keyword_score
       FROM bookmarks
       WHERE search_vector @@ ${tsQuery}
          OR title % ${query}
+      ORDER BY keyword_score DESC, id DESC
       LIMIT ${KEYWORD_CANDIDATE_LIMIT}
     ),
     semantic_results AS (
@@ -143,19 +146,17 @@ async function keywordOnlySearch(
   limit: number,
 ): Promise<Array<{ bookmark: UnifiedBookmark; score: number }>> {
   const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
+  const keywordScore = sql<number>`ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
+    + similarity(${bookmarks.title}, ${query}) * ${TRIGRAM_WEIGHT}`;
 
   const rows = await db
     .select({
       bookmark: bookmarks,
-      score: sql<number>`ts_rank_cd(${bookmarks.searchVector}, ${tsQuery})`,
+      score: keywordScore,
     })
     .from(bookmarks)
-    .where(sql`${bookmarks.searchVector} @@ ${tsQuery}`)
-    .orderBy(
-      sql`ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) DESC`,
-      desc(bookmarks.dateBookmarked),
-      desc(bookmarks.id),
-    )
+    .where(sql`${bookmarks.searchVector} @@ ${tsQuery} OR ${bookmarks.title} % ${query}`)
+    .orderBy(sql`${keywordScore} DESC`, desc(bookmarks.dateBookmarked), desc(bookmarks.id))
     .limit(limit);
 
   return rows.map((row) => ({
@@ -249,10 +250,13 @@ export async function hybridSearchThoughts(options: {
       WITH keyword_results AS (
         SELECT id,
           ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(title, ${normalizedQuery}) AS trgm_score
+          similarity(title, ${normalizedQuery}) AS trgm_score,
+          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+            + similarity(title, ${normalizedQuery}) * ${TRIGRAM_WEIGHT} AS keyword_score
         FROM thoughts
         WHERE draft = false
           AND (search_vector @@ ${tsQuery} OR title % ${normalizedQuery})
+        ORDER BY keyword_score DESC, id DESC
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
@@ -295,6 +299,8 @@ export async function hybridSearchThoughts(options: {
   }
 
   const tsQuery = sql`websearch_to_tsquery('english', ${normalizedQuery})`;
+  const keywordScore = sql<number>`ts_rank_cd(${thoughts.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
+    + similarity(${thoughts.title}, ${normalizedQuery}) * ${TRIGRAM_WEIGHT}`;
   const rows = await db
     .select({
       id: thoughts.id,
@@ -305,15 +311,13 @@ export async function hybridSearchThoughts(options: {
       tags: thoughts.tags,
       createdAt: thoughts.createdAt,
       updatedAt: thoughts.updatedAt,
-      score: sql<number>`ts_rank_cd(${thoughts.searchVector}, ${tsQuery})`,
+      score: keywordScore,
     })
     .from(thoughts)
-    .where(sql`${thoughts.draft} = false AND ${thoughts.searchVector} @@ ${tsQuery}`)
-    .orderBy(
-      sql`ts_rank_cd(${thoughts.searchVector}, ${tsQuery}) DESC`,
-      desc(thoughts.createdAt),
-      desc(thoughts.id),
+    .where(
+      sql`${thoughts.draft} = false AND (${thoughts.searchVector} @@ ${tsQuery} OR ${thoughts.title} % ${normalizedQuery})`,
     )
+    .orderBy(sql`${keywordScore} DESC`, desc(thoughts.createdAt), desc(thoughts.id))
     .limit(limit);
 
   return rows.map((row) => ({

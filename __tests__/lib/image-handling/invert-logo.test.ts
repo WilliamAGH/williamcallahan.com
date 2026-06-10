@@ -2,12 +2,10 @@
 const { TextEncoder: UtilTextEncoder, TextDecoder: UtilTextDecoder } = require("node:util");
 
 if (typeof global.TextEncoder === "undefined" && UtilTextEncoder) {
-  // @ts-expect-error assign
   global.TextEncoder = UtilTextEncoder;
 }
 
 if (typeof global.TextDecoder === "undefined" && UtilTextDecoder) {
-  // @ts-expect-error assign
   global.TextDecoder = UtilTextDecoder as unknown as typeof global.TextDecoder;
 }
 
@@ -19,8 +17,8 @@ import { invertLogoBuffer } from "@/lib/image-handling/invert-logo";
  * Returns the encoded PNG buffer and the original pixel data.
  */
 function generateSinglePixelPng(r: number, g: number, b: number): Buffer {
-  const img = new Image(1, 1, { kind: "RGB" });
-  img.setPixelXY(0, 0, [r, g, b]);
+  const img = new Image(1, 1);
+  img.setPixelXY(0, 0, [r, g, b, 255]);
   const buffer = Buffer.from(img.toBuffer({ format: "png" }));
   return buffer;
 }
@@ -32,7 +30,7 @@ describe("invertLogoBuffer", () => {
 
     const { buffer: inverted } = await invertLogoBuffer(redPng);
 
-    const invertedImg = await Image.load(inverted);
+    const invertedImg = await Image.load(new Uint8Array(inverted));
     const [r, g, b] = invertedImg.getPixelXY(0, 0);
 
     expect(r).toBe(0);

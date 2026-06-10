@@ -134,6 +134,21 @@ function normalizeResponsesOutputText<T extends { output: unknown[]; output_text
   return { ...response, output_text: outputText };
 }
 
+export function assertOpenAiCompatibleResponsesSucceeded(
+  response: OpenAiCompatibleResponsesResponse,
+): void {
+  if (response.status === undefined || response.status === "completed") return;
+  const detail = response.error
+    ? `${response.error.code}: ${response.error.message}`
+    : `No provider error details returned for status "${response.status}".`;
+  throw Object.assign(
+    new Error(
+      `[AI] Responses API returned status "${response.status}" for ${response.id}: ${detail}`,
+    ),
+    { name: "OpenAiCompatibleResponsesFailureError", status: 502 },
+  );
+}
+
 export async function callOpenAiCompatibleChatCompletions(args: {
   baseUrl: string;
   apiKey?: string;
@@ -244,7 +259,9 @@ export async function callOpenAiCompatibleResponses(args: {
     toRequestOptions(args),
   );
   const normalizedResponse = normalizeResponsesOutputText(response);
-  return openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
+  const parsedResponse = openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
+  assertOpenAiCompatibleResponsesSucceeded(parsedResponse);
+  return parsedResponse;
 }
 
 export async function streamOpenAiCompatibleResponses(args: {
@@ -318,5 +335,7 @@ export async function streamOpenAiCompatibleResponses(args: {
   if (thinkParser && normalizedResponse.output_text) {
     normalizedResponse.output_text = stripThinkTags(normalizedResponse.output_text);
   }
-  return openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
+  const parsedResponse = openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
+  assertOpenAiCompatibleResponsesSucceeded(parsedResponse);
+  return parsedResponse;
 }

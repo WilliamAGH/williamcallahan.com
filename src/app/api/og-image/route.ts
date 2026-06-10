@@ -23,11 +23,50 @@ import { openGraphUrlSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { isS3Error } from "@/lib/utils/s3-error-guards";
+import type { VerifiedImageRedirect } from "@/types/opengraph";
 
 const getS3Context = () => {
   const { bucket } = getS3Config();
   return { bucket, s3Client: getS3Client() };
 };
+
+async function getVerifiedImageRedirectUrl(
+  imageUrl: string,
+  source: string,
+): Promise<VerifiedImageRedirect> {
+  const urlValidation = openGraphUrlSchema.safeParse(imageUrl);
+  if (!urlValidation.success) {
+    logger.warn(`[OG-Image] Ignoring unsafe ${source} image URL`, urlValidation.error);
+    return { status: "blocked", reason: "unsafe-url" };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(urlValidation.data, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; OpenGraph-Image-Bot/1.0)",
+      },
+    });
+    await response.body?.cancel();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType?.startsWith("image/")) {
+      throw new Error(`Invalid content type: ${contentType}`);
+    }
+
+    return { status: "verified", url: urlValidation.data };
+  } catch (error) {
+    logger.warn(`[OG-Image] Ignoring unverifiable ${source} image URL`, error);
+    return { status: "blocked", reason: "unverifiable-url" };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 /**
  * Main handler for OpenGraph image requests
@@ -273,7 +312,13 @@ export async function GET(request: NextRequest) {
           logger.info(
             `[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`,
           );
-          return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
+          const verifiedImageUrl = await getVerifiedImageRedirectUrl(
+            fallbackImageData.imageUrl,
+            "Karakeep fallback",
+          );
+          if (verifiedImageUrl.status === "verified") {
+            return NextResponse.redirect(verifiedImageUrl.url, { status: 302 });
+          }
         }
 
         // Try screenshotAssetId as second option
@@ -355,7 +400,13 @@ export async function GET(request: NextRequest) {
         // Try imageUrl first
         if (fallbackImageData.imageUrl) {
           logger.info(`[OG-Image] Using Karakeep imageUrl fallback: ${fallbackImageData.imageUrl}`);
-          return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
+          const verifiedImageUrl = await getVerifiedImageRedirectUrl(
+            fallbackImageData.imageUrl,
+            "Karakeep fallback",
+          );
+          if (verifiedImageUrl.status === "verified") {
+            return NextResponse.redirect(verifiedImageUrl.url, { status: 302 });
+          }
         }
 
         // Try imageAssetId

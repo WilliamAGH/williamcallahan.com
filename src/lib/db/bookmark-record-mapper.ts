@@ -31,13 +31,15 @@ const toUndefined = <T>(value: T | null): T | undefined => {
 
 /**
  * Convert a nullable string to a servable image URL or undefined.
- * Accepts absolute URLs and app-relative paths (e.g. /api/assets/<id> proxy
- * URLs persisted by the web runtime); drops anything else.
+ * Accepts absolute URLs and app-relative /api/assets/<id> proxy URLs persisted
+ * by the web runtime; drops anything else.
  */
 const toUrlOrUndefined = (value: string | null): string | undefined => {
   if (!value) return undefined;
-  if (value.startsWith("/")) return value;
-  return URL.canParse(value) ? value : undefined;
+  if (value.startsWith("/api/assets/")) return value;
+  if (!URL.canParse(value)) return undefined;
+  const parsed = new URL(value);
+  return parsed.protocol === "http:" || parsed.protocol === "https:" ? value : undefined;
 };
 
 const SLUG_SANITIZE_PATTERN = /[^a-z0-9]+/gi;
@@ -117,39 +119,40 @@ export function mapUnifiedBookmarkToBookmarkInsert(bookmark: UnifiedBookmark): B
   if (normalizedSlug.length === 0) {
     throw new Error(`[BookmarkMapper] Cannot persist bookmark ${bookmark.id} with an empty slug.`);
   }
+  const parsedBookmark = unifiedBookmarkSchema.parse({ ...bookmark, slug: normalizedSlug });
 
   return {
-    id: bookmark.id,
+    id: parsedBookmark.id,
     slug: normalizedSlug,
-    url: bookmark.url,
-    title: bookmark.title,
-    description: bookmark.description,
-    note: bookmark.note ?? null,
-    summary: bookmark.summary ?? null,
-    scrapedContentText: bookmark.scrapedContentText ?? null,
-    tags: bookmark.tags,
-    content: bookmark.content ?? null,
-    assets: bookmark.assets ?? null,
-    logoData: bookmark.logoData ?? null,
-    ogImage: bookmark.ogImage ?? null,
-    ogTitle: bookmark.ogTitle ?? null,
-    ogDescription: bookmark.ogDescription ?? null,
-    ogUrl: bookmark.ogUrl ?? null,
-    ogImageExternal: bookmark.ogImageExternal ?? null,
-    ogImageLastFetchedAt: bookmark.ogImageLastFetchedAt ?? null,
-    ogImageEtag: bookmark.ogImageEtag ?? null,
-    readingTime: bookmark.readingTime ?? null,
-    wordCount: bookmark.wordCount ?? null,
-    archived: bookmark.archived === true,
-    isPrivate: bookmark.isPrivate === true,
-    isFavorite: bookmark.isFavorite === true,
-    taggingStatus: bookmark.taggingStatus ?? null,
-    domain: bookmark.domain ?? null,
-    dateBookmarked: bookmark.dateBookmarked,
-    datePublished: bookmark.datePublished ?? null,
-    dateCreated: bookmark.dateCreated ?? null,
-    modifiedAt: bookmark.modifiedAt ?? null,
-    sourceUpdatedAt: bookmark.sourceUpdatedAt,
+    url: parsedBookmark.url,
+    title: parsedBookmark.title,
+    description: parsedBookmark.description,
+    note: parsedBookmark.note ?? null,
+    summary: parsedBookmark.summary ?? null,
+    scrapedContentText: parsedBookmark.scrapedContentText ?? null,
+    tags: parsedBookmark.tags,
+    content: parsedBookmark.content ?? null,
+    assets: parsedBookmark.assets ?? null,
+    logoData: parsedBookmark.logoData ?? null,
+    ogImage: parsedBookmark.ogImage ?? null,
+    ogTitle: parsedBookmark.ogTitle ?? null,
+    ogDescription: parsedBookmark.ogDescription ?? null,
+    ogUrl: parsedBookmark.ogUrl ?? null,
+    ogImageExternal: parsedBookmark.ogImageExternal ?? null,
+    ogImageLastFetchedAt: parsedBookmark.ogImageLastFetchedAt ?? null,
+    ogImageEtag: parsedBookmark.ogImageEtag ?? null,
+    readingTime: parsedBookmark.readingTime ?? null,
+    wordCount: parsedBookmark.wordCount ?? null,
+    archived: parsedBookmark.archived === true,
+    isPrivate: parsedBookmark.isPrivate === true,
+    isFavorite: parsedBookmark.isFavorite === true,
+    taggingStatus: parsedBookmark.taggingStatus ?? null,
+    domain: parsedBookmark.domain ?? null,
+    dateBookmarked: parsedBookmark.dateBookmarked,
+    datePublished: parsedBookmark.datePublished ?? null,
+    dateCreated: parsedBookmark.dateCreated ?? null,
+    modifiedAt: parsedBookmark.modifiedAt ?? null,
+    sourceUpdatedAt: parsedBookmark.sourceUpdatedAt,
   };
 }
 

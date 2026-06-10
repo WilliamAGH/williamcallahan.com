@@ -12,6 +12,8 @@
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
 const HTTP_GONE = 410;
+const GOOGLEBOT_USER_AGENT =
+  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -357,19 +359,22 @@ async function fetchExternalOpenGraph(
 
       // Use shared fetch utility with timeout and browser headers
       const headers = getBrowserHeaders();
-      const response = await fetchWithTimeout(url, {
+      let response = await fetchWithTimeout(url, {
         timeout: OPENGRAPH_FETCH_CONFIG.TIMEOUT,
-        headers: {
-          ...headers,
-          // Try Googlebot UA if we've had issues before
-          ...(imageService.hasDomainFailedTooManyTimes(domain)
-            ? {
-                "User-Agent":
-                  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-              }
-            : {}),
-        },
+        headers,
       });
+
+      if (response.status === HTTP_FORBIDDEN) {
+        envLogger.log(
+          `Retrying OpenGraph fetch with Googlebot user agent after 403`,
+          { url },
+          { category: "OpenGraph" },
+        );
+        response = await fetchWithTimeout(url, {
+          timeout: OPENGRAPH_FETCH_CONFIG.TIMEOUT,
+          headers: { ...headers, "User-Agent": GOOGLEBOT_USER_AGENT },
+        });
+      }
 
       if (response.status === HTTP_NOT_FOUND || response.status === HTTP_GONE) {
         return { permanentFailure: true, status: response.status };

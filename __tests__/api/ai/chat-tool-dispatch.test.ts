@@ -1,4 +1,7 @@
-import { extractToolCallsFromResponseOutput } from "@/app/api/ai/chat/[feature]/tool-dispatch";
+import {
+  dispatchResponseToolCallsByName,
+  extractToolCallsFromResponseOutput,
+} from "@/app/api/ai/chat/[feature]/tool-dispatch";
 
 describe("AI Chat Tool Dispatch (tool-dispatch)", () => {
   it("returns an empty array when output has no function_call items", () => {
@@ -8,7 +11,7 @@ describe("AI Chat Tool Dispatch (tool-dispatch)", () => {
     expect(console.warn).not.toHaveBeenCalled();
   });
 
-  it("extracts valid tool calls and logs drop counts for invalid/unknown calls", () => {
+  it("extracts schema-valid tool calls and logs drop counts for invalid calls", () => {
     const output: unknown[] = [
       { type: "function_call", call_id: "bad-1", name: "search_bookmarks" },
       {
@@ -27,21 +30,45 @@ describe("AI Chat Tool Dispatch (tool-dispatch)", () => {
 
     const calls = extractToolCallsFromResponseOutput(output);
 
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.call_id).toBe("ok-1");
-    expect(calls[0]?.name).toBe("search_bookmarks");
-    expect(typeof calls[0]?.arguments).toBe("string");
-    expect(calls[0]?.arguments).toBe(JSON.stringify({ query: "wikipedia", maxResults: 5 }));
+    expect(calls).toHaveLength(2);
+    expect(calls.map((call) => call.call_id)).toEqual(["unknown-1", "ok-1"]);
+    expect(calls[1]?.name).toBe("search_bookmarks");
+    expect(typeof calls[1]?.arguments).toBe("string");
+    expect(calls[1]?.arguments).toBe(JSON.stringify({ query: "wikipedia", maxResults: 5 }));
 
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("[WARN] [AI Chat] Dropped responses function_call items"),
       expect.objectContaining({
         totalOutputItems: 3,
         functionCallItems: 3,
-        acceptedFunctionCalls: 1,
+        acceptedFunctionCalls: 2,
         droppedInvalidSchema: 1,
-        droppedUnknownTool: 1,
       }),
     );
+  });
+
+  it("returns function_call_output errors for unknown Responses API tools", async () => {
+    const dispatch = await dispatchResponseToolCallsByName([
+      {
+        type: "function_call",
+        call_id: "unknown-1",
+        name: "search_not_registered",
+        arguments: JSON.stringify({ query: "wikipedia" }),
+      },
+    ]);
+
+    expect(dispatch.outputs).toEqual([
+      {
+        type: "function_call_output",
+        call_id: "unknown-1",
+        output: JSON.stringify({
+          query: "",
+          results: [],
+          totalResults: 0,
+          error: 'Unknown tool "search_not_registered"',
+        }),
+      },
+    ]);
+    expect(dispatch.failedCallIds).toEqual(["unknown-1"]);
   });
 });

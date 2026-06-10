@@ -9,7 +9,7 @@ import {
   getSlugForBookmark,
   getBookmarkIdFromSlug,
 } from "@/lib/bookmarks/slug-manager";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
+import type { BookmarkSlugMapping } from "@/types/schemas/bookmark";
 import { getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
@@ -22,42 +22,21 @@ vi.mock("@/lib/utils/logger");
 const mockGetSlugMappingRows = vi.mocked(getSlugMappingRowsFromDatabase);
 
 describe("Bookmark Slug Mapping", () => {
-  const mockBookmarks: UnifiedBookmark[] = [
+  const mockBookmarks: Parameters<typeof generateSlugMapping>[0] = [
     {
       id: "bookmark1",
       url: "https://example.com",
       title: "Example Site",
-      description: "An example website for testing",
-      tags: [],
-      domain: "example.com",
-      dateBookmarked: "2024-01-01",
-      sourceUpdatedAt: "2024-01-01T00:00:00Z",
-      summary: "",
-      note: "",
     },
     {
       id: "bookmark2",
       url: "https://github.com/user/repo",
       title: "GitHub Repo",
-      description: "A GitHub repository",
-      tags: [],
-      domain: "github.com",
-      dateBookmarked: "2024-01-02",
-      sourceUpdatedAt: "2024-01-02T00:00:00Z",
-      summary: "",
-      note: "",
     },
     {
       id: "bookmark3",
       url: "https://example.com",
       title: "Example Site Again",
-      description: "Another example website for testing duplicates",
-      tags: [],
-      domain: "example.com",
-      dateBookmarked: "2024-01-03",
-      sourceUpdatedAt: "2024-01-03T00:00:00Z",
-      summary: "",
-      note: "",
     },
   ];
 
@@ -80,7 +59,7 @@ describe("Bookmark Slug Mapping", () => {
     });
 
     it("should preserve existing slugs when provided", () => {
-      const bookmarksWithSlugs: UnifiedBookmark[] = [
+      const bookmarksWithSlugs: Parameters<typeof generateSlugMapping>[0] = [
         { ...mockBookmarks[0], slug: "stable-example-slug" },
         { ...mockBookmarks[1], slug: "stable-github-slug" },
       ];

@@ -117,7 +117,7 @@ function handleAnalysisValidation(params: {
     });
   }
   const validation = validateAnalysisOutput(analysisFeature, text);
-  if (validation.ok) return { action: "done", text: validation.normalizedText };
+  if (!("reason" in validation)) return { action: "done", text: validation.normalizedText };
   const nextAttempt = attemptsSoFar + 1;
   if (nextAttempt < MAX_ANALYSIS_VALIDATION_ATTEMPTS) {
     console.warn(

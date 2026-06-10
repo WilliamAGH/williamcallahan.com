@@ -340,5 +340,9 @@ describe("randomString", () => {
     it("does not allow blanket https: sources for imgSrc", () => {
       expect(CSP_DIRECTIVES.imgSrc).not.toContain("https:");
     });
+
+    it("does not include unsafe-eval in static script sources", () => {
+      expect(CSP_DIRECTIVES.scriptSrc).not.toContain("'unsafe-eval'");
+    });
   });
 });

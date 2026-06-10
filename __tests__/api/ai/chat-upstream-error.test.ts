@@ -73,27 +73,25 @@ describe("isTimeoutError", () => {
 });
 
 describe("formatErrorMessage", () => {
-  const originalEnv = process.env.NODE_ENV;
-
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("sanitizes error details in production", () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     const result = formatErrorMessage(new Error("secret upstream key invalid"));
     expect(result).toBe("Upstream AI service error");
     expect(result).not.toContain("secret");
   });
 
   it("includes error details in development", () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     const result = formatErrorMessage(new Error("Connection refused"));
     expect(result).toBe("Upstream AI service error: Connection refused");
   });
 
   it("handles non-Error values", () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     expect(formatErrorMessage("plain string")).toBe("Upstream AI service error: plain string");
     expect(formatErrorMessage(42)).toBe("Upstream AI service error: 42");
   });

@@ -142,14 +142,19 @@ export async function persistImageAndGetS3UrlWithStatus(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<PersistImageResult> {
+  if (imageUrl.startsWith("/")) {
+    console.error(
+      `[OpenGraph S3] Cannot persist app-relative image URL ${imageUrl}; Karakeep assets must use the buffer persistence path.`,
+    );
+    return { s3Url: null, wasNewlyPersisted: false };
+  }
+
   // Check if we're in read-only mode (build phase, tests, etc.)
   if (isS3ReadOnly()) {
-    // Skip validation for internal /api/assets/ URLs - these are our own proxy endpoints
-    // and should always be valid. Also skip data URLs.
-    const isInternalAsset = imageUrl.startsWith("/api/assets/");
+    // Skip validation for data URLs.
     const isDataUrl = imageUrl.startsWith("data:");
 
-    if (!isInternalAsset && !isDataUrl) {
+    if (!isDataUrl) {
       try {
         // Try HEAD first, then gracefully fall back to a 1-byte GET if HEAD is blocked.
         const headResult = await fetch(imageUrl, {
@@ -183,18 +188,13 @@ export async function persistImageAndGetS3UrlWithStatus(
         );
         return { s3Url: null, wasNewlyPersisted: false };
       }
-    } else if (isInternalAsset || isDataUrl) {
-      console.log(
-        `[OpenGraph S3] Skipping validation for ${isDataUrl ? "data URL" : "internal asset URL"}: ${isDataUrl ? "data:..." : imageUrl}`,
-      );
+    } else {
+      console.log("[OpenGraph S3] Skipping validation for data URL: data:...");
     }
 
-    // For internal assets or data URLs, don't schedule persistence since they're already hosted inline or by us
-    // Just return the URL which will work from any host
-    if (isInternalAsset || isDataUrl) {
-      console.log(
-        `[OpenGraph S3] Using ${isDataUrl ? "data" : "relative"} URL for ${isDataUrl ? "inline" : "internal Karakeep"} asset`,
-      );
+    // For data URLs, don't schedule persistence since they're already inline.
+    if (isDataUrl) {
+      console.log("[OpenGraph S3] Using data URL for inline asset");
       return { s3Url: imageUrl, wasNewlyPersisted: false };
     }
 

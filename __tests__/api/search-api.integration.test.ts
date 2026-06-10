@@ -4,7 +4,16 @@
  */
 
 import { vi } from "vitest";
+import { NextRequest, connection } from "next/server";
 import { GET } from "@/app/api/search/all/route";
+import { GET as getRelatedContent } from "@/app/api/related-content/route";
+import { GET as getRelatedContentDebug } from "@/app/api/related-content/debug/route";
+
+const relatedContentMocks = vi.hoisted(() => ({
+  findSimilarByEntity: vi.fn().mockResolvedValue([]),
+  sourceEmbeddingExists: vi.fn().mockResolvedValue(true),
+  hydrateRelatedContent: vi.fn().mockResolvedValue([]),
+}));
 
 // Headers is already available globally via polyfills.js
 
@@ -107,6 +116,15 @@ vi.mock("@/lib/search/searchers/tag-search", () => ({
 
 vi.mock("@/lib/search/searchers/ai-analysis-searcher", () => ({
   searchAiAnalysis: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/db/queries/cross-domain-similarity", () => ({
+  findSimilarByEntity: relatedContentMocks.findSimilarByEntity,
+  sourceEmbeddingExists: relatedContentMocks.sourceEmbeddingExists,
+}));
+
+vi.mock("@/lib/db/queries/content-hydration", () => ({
+  hydrateRelatedContent: relatedContentMocks.hydrateRelatedContent,
 }));
 
 /**
@@ -241,5 +259,47 @@ describe("Search API: GET /api/search/all", () => {
         expect(Array.isArray(result.results)).toBe(true);
       }
     });
+  });
+});
+
+describe("Related Content API route guards", () => {
+  const ORIGINAL_ENV = { ...process.env };
+
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    process.env = { ...ORIGINAL_ENV };
+    relatedContentMocks.findSimilarByEntity.mockClear();
+    relatedContentMocks.sourceEmbeddingExists.mockClear();
+    relatedContentMocks.hydrateRelatedContent.mockClear();
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+    process.env = { ...ORIGINAL_ENV };
+  });
+
+  it("returns a no-store build-phase payload without querying related content", async () => {
+    process.env.NEXT_PHASE = "phase-production-build";
+    const response = await getRelatedContent(
+      new NextRequest("https://williamcallahan.com/api/related-content?type=bookmark&id=b1"),
+    );
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(data.meta).toHaveProperty("buildPhase", true);
+    expect(connection).toHaveBeenCalledOnce();
+    expect(relatedContentMocks.findSimilarByEntity).not.toHaveBeenCalled();
+  });
+
+  it("hides the related-content debug route in production before database reads", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const response = await getRelatedContentDebug(
+      new NextRequest("https://williamcallahan.com/api/related-content/debug?type=bookmark&id=b1"),
+    );
+
+    expect(response.status).toBe(404);
+    expect(relatedContentMocks.sourceEmbeddingExists).not.toHaveBeenCalled();
+    expect(relatedContentMocks.findSimilarByEntity).not.toHaveBeenCalled();
   });
 });

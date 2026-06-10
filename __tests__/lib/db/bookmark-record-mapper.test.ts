@@ -110,4 +110,19 @@ describe("bookmark-record-mapper", () => {
       "[BookmarkMapper] Cannot persist bookmark bookmark-3 with an empty slug.",
     );
   });
+
+  it("throws when persisting a bookmark with an empty URL", () => {
+    const invalidBookmark: UnifiedBookmark = {
+      id: "bookmark-4",
+      slug: "bookmark-4",
+      url: "",
+      title: "Fourth Bookmark",
+      description: "Fourth description",
+      tags: [],
+      dateBookmarked: "2026-02-25T10:00:00.000Z",
+      sourceUpdatedAt: "2026-02-25T10:00:00.000Z",
+    };
+
+    expect(() => mapUnifiedBookmarkToBookmarkInsert(invalidBookmark)).toThrow(/Invalid URL/);
+  });
 });

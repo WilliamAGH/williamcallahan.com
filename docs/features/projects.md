@@ -39,6 +39,8 @@ See [Projects Architecture Diagram](./projects.mmd).
 - Project detail links now set `prefetch={false}` in project cards.
   - This reduces high-volume prefetch fan-out from the projects grid under load.
   - Route transitions remain fully functional, but background request pressure is lower.
+- Project detail URLs emit name-derived canonical slugs.
+  - Older id-derived project paths resolve server-side and permanently redirect to the canonical slug.
 
 ## Key Files
 

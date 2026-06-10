@@ -16,7 +16,7 @@
  * @fileoverview External API connectivity smoke test for bookmarks backend
  */
 
-import type { BookmarksApiResponse, RawApiBookmark } from "@/types/bookmark";
+import type { BookmarksApiResponse, RawApiBookmark } from "@/types/schemas/bookmark";
 
 const BOOKMARK_BEARER_TOKEN = process.env.BOOKMARK_BEARER_TOKEN;
 const BOOKMARKS_LIST_ID = process.env.BOOKMARKS_LIST_ID;

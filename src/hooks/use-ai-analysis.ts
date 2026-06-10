@@ -156,12 +156,12 @@ export function useAiAnalysis<TEntity, TAnalysis>(
         if (signal?.aborted) throw new DOMException("Analysis aborted", "AbortError");
 
         setState({ status: "success", analysis: parsedAnalysis, error: null });
-        if (persistResult.success) {
-          router.refresh();
-        } else {
+        if ("message" in persistResult) {
           console.warn(
             `[useAiAnalysis] Analysis displayed but not persisted: ${persistResult.message}`,
           );
+        } else {
+          router.refresh();
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;

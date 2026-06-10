@@ -44,7 +44,7 @@ function buildStaticContext(): StaticContext {
     .map((p) => ({
       name: p.name,
       description: p.shortSummary ?? p.description,
-      url: `/projects/${generateProjectSlug(p.name, p.id)}`,
+      url: `/projects/${generateProjectSlug(p.name)}`,
       externalUrl: p.url,
     }));
 

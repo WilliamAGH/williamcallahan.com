@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 
 const mockGetBookmarksIndexFromDatabase = vi.fn();

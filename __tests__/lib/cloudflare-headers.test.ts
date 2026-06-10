@@ -10,10 +10,12 @@ describe("Cloudflare header enforcement", () => {
   const ORIGINAL_ENV = { ...process.env };
 
   beforeEach(() => {
+    vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
   });
 
   afterAll(() => {
+    vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
   });
 
@@ -50,7 +52,7 @@ describe("Cloudflare header enforcement", () => {
   });
 
   it("skips enforcement outside production", () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
 
     const headers = new Headers();
     const response = requireCloudflareHeaders(headers, { route: "/api/ai/token" });
@@ -58,7 +60,7 @@ describe("Cloudflare header enforcement", () => {
   });
 
   it("blocks when headers are missing in production", () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.API_BASE_URL = "https://williamcallahan.com";
 
     const headers = new Headers();

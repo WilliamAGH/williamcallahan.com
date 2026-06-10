@@ -2,6 +2,7 @@ import type { MockedFunction } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { useSearchParams } from "next/navigation";
+import { ReadonlyURLSearchParams } from "next/dist/client/components/readonly-url-search-params";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -33,10 +34,11 @@ vi.mock("next/link", () => ({
 
 describe("PaginationControlUrl", () => {
   const mockUseSearchParams = useSearchParams as MockedFunction<typeof useSearchParams>;
+  const searchParams = (query = "") => new ReadonlyURLSearchParams(query);
 
   beforeEach(() => {
     // Mock URLSearchParams
-    mockUseSearchParams.mockReturnValue(new URLSearchParams());
+    mockUseSearchParams.mockReturnValue(searchParams());
   });
 
   afterEach(() => {
@@ -91,7 +93,7 @@ describe("PaginationControlUrl", () => {
   });
 
   it("preserves query parameters in pagination links", () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams("q=test&tag=javascript"));
+    mockUseSearchParams.mockReturnValue(searchParams("q=test&tag=javascript"));
 
     render(
       <PaginationControlUrl

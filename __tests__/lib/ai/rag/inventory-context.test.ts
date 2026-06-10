@@ -4,7 +4,7 @@
  */
 
 import { buildInventoryContext } from "@/lib/ai/rag/inventory-context";
-import type { BookmarkIndexItem } from "@/types/schemas/search";
+import type { BookmarkIndexEntry } from "@/types/schemas/search";
 
 vi.mock("@/data/investments", () => ({
   investments: [
@@ -106,7 +106,7 @@ vi.mock("@/lib/blog/mdx", () => ({
 
 vi.mock("@/lib/search/loaders/dynamic-content", async () => {
   const { default: MiniSearch } = await import("minisearch");
-  const emptyBookmarksIndex = new MiniSearch<BookmarkIndexItem>({
+  const emptyBookmarksIndex = new MiniSearch<BookmarkIndexEntry>({
     fields: ["title", "description", "tags", "summary", "author", "publisher", "url", "slug"],
     storeFields: ["id", "title", "tags", "url", "slug"],
   });

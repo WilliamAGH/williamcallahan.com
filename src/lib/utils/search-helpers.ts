@@ -136,9 +136,15 @@ export function transformSearchResultToTerminalResult(result: SearchResult): Sel
  * ];
  * const deduped = dedupeDocuments(posts, (post) => post.slug);
  */
-export function dedupeDocuments<T extends { id?: string | number }>(
+function getDefaultDocumentId(document: object): string {
+  if (!("id" in document)) return "";
+  const id = document.id;
+  return typeof id === "string" || typeof id === "number" ? String(id) : "";
+}
+
+export function dedupeDocuments<T extends object>(
   documents: T[],
-  getIdField: (doc: T) => string = (doc) => String(doc.id ?? ""),
+  getIdField: (doc: T) => string = getDefaultDocumentId,
 ): T[] {
   const seen = new Set<string>();
   const deduped: T[] = [];
@@ -184,7 +190,7 @@ export function dedupeDocuments<T extends { id?: string | number }>(
  * @param getIdField - Function to extract the ID field
  * @returns Deduplicated array of documents
  */
-export function prepareDocumentsForIndexing<T extends { id?: string | number }>(
+export function prepareDocumentsForIndexing<T extends object>(
   documents: T[],
   sourceName: string,
   getIdField?: (doc: T) => string,

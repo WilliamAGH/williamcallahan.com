@@ -158,27 +158,21 @@ describe("Sitemap URL Generation", () => {
 
 describe("Sitemap Collector Error Handling", () => {
   const siteUrl = "https://williamcallahan.com";
-  let originalNodeEnv: string | undefined;
   let originalVitest: string | undefined;
   let originalTest: string | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    originalNodeEnv = process.env.NODE_ENV;
     originalVitest = process.env.VITEST;
     originalTest = process.env.TEST;
-    process.env.NODE_ENV = "test";
+    vi.stubEnv("NODE_ENV", "test");
     process.env.VITEST = "true";
     process.env.TEST = "true";
     mockLoadSlugMapping.mockResolvedValue(null);
   });
 
   afterEach(() => {
-    if (typeof originalNodeEnv === "string") {
-      process.env.NODE_ENV = originalNodeEnv;
-    } else {
-      delete process.env.NODE_ENV;
-    }
+    vi.unstubAllEnvs();
     if (typeof originalVitest === "string") {
       process.env.VITEST = originalVitest;
     } else {
@@ -193,7 +187,7 @@ describe("Sitemap Collector Error Handling", () => {
 
   it("throws in production when bookmark collection fails", async () => {
     const outage = new Error("S3 outage");
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.VITEST = "false";
     process.env.TEST = "false";
     mockGetBookmarksIndex.mockRejectedValue(outage);
@@ -203,7 +197,7 @@ describe("Sitemap Collector Error Handling", () => {
 
   it("throws in production when tag collection fails", async () => {
     const outage = new Error("S3 outage");
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.VITEST = "false";
     process.env.TEST = "false";
     mockListBookmarkTagSlugs.mockRejectedValue(outage);

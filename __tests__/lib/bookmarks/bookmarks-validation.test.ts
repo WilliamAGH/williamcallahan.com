@@ -8,7 +8,7 @@
 
 import { validateBookmarksDataset } from "../../../src/lib/validators/bookmarks";
 import { bookmarksApiResponseSchema } from "../../../src/types/schemas/bookmark";
-import type { UnifiedBookmark } from "../../../src/types";
+import type { UnifiedBookmark } from "../../../src/types/schemas/bookmark";
 
 // Mock console.error to suppress error logs during tests
 vi.spyOn(console, "error").mockImplementation(() => {});
@@ -24,11 +24,13 @@ describe("Bookmarks Validation", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     // Reset process.env to prevent cross-test bleed
     process.env = { ...originalEnv };
   });
 
   afterAll(() => {
+    vi.unstubAllEnvs();
     process.env = originalEnv;
     vi.restoreAllMocks();
   });
@@ -38,12 +40,14 @@ describe("Bookmarks Validation", () => {
     url,
     title,
     description: "A valid bookmark",
+    slug: id,
     tags: [],
     dateBookmarked: "2023-01-01T00:00:00Z",
-    createdAt: "2023-01-01T00:00:00Z",
+    sourceUpdatedAt: "2023-01-01T00:00:00Z",
+    dateCreated: "2023-01-01T00:00:00Z",
     modifiedAt: "2023-01-01T00:00:00Z",
     archived: false,
-    favourited: false,
+    isFavorite: false,
     taggingStatus: "complete",
     content: {
       type: "link",
@@ -61,12 +65,14 @@ describe("Bookmarks Validation", () => {
         url: "https://example.com",
         title: "Example",
         description: "An example bookmark",
+        slug: "example",
         tags: [],
         dateBookmarked: "2023-01-01T00:00:00Z",
-        createdAt: "2023-01-01T00:00:00Z",
+        sourceUpdatedAt: "2023-01-01T00:00:00Z",
+        dateCreated: "2023-01-01T00:00:00Z",
         modifiedAt: "2023-01-01T00:00:00Z",
         archived: false,
-        favourited: false,
+        isFavorite: false,
         taggingStatus: "complete",
         content: {
           type: "link",
@@ -81,12 +87,14 @@ describe("Bookmarks Validation", () => {
         url: "https://test.com",
         title: "Test Site",
         description: "A test site",
+        slug: "test-site",
         tags: [],
         dateBookmarked: "2023-01-02T00:00:00Z",
-        createdAt: "2023-01-02T00:00:00Z",
+        sourceUpdatedAt: "2023-01-02T00:00:00Z",
+        dateCreated: "2023-01-02T00:00:00Z",
         modifiedAt: "2023-01-02T00:00:00Z",
         archived: false,
-        favourited: false,
+        isFavorite: false,
         taggingStatus: "complete",
         content: {
           type: "link",
@@ -104,7 +112,7 @@ describe("Bookmarks Validation", () => {
   });
 
   test("should fall back to default minimum when MIN_BOOKMARKS_THRESHOLD is invalid", () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.MIN_BOOKMARKS_THRESHOLD = "invalid";
 
     const bookmarks = [
@@ -122,7 +130,7 @@ describe("Bookmarks Validation", () => {
   });
 
   test("should fall back to default minimum when MIN_BOOKMARKS_THRESHOLD is non-positive", () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.MIN_BOOKMARKS_THRESHOLD = "0";
 
     const bookmarks = [
@@ -143,7 +151,7 @@ describe("Bookmarks Validation", () => {
   });
 
   test("should respect a valid MIN_BOOKMARKS_THRESHOLD in production", () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.MIN_BOOKMARKS_THRESHOLD = "5";
 
     const bookmarks = [
@@ -165,12 +173,14 @@ describe("Bookmarks Validation", () => {
         url: "https://test.com",
         title: "Test Bookmark",
         description: "A test bookmark",
+        slug: "test-bookmark",
         tags: [],
         dateBookmarked: "2023-01-01T00:00:00Z",
-        createdAt: "2023-01-01T00:00:00Z",
+        sourceUpdatedAt: "2023-01-01T00:00:00Z",
+        dateCreated: "2023-01-01T00:00:00Z",
         modifiedAt: "2023-01-01T00:00:00Z",
         archived: false,
-        favourited: false,
+        isFavorite: false,
         taggingStatus: "complete",
         content: {
           type: "link",
@@ -194,12 +204,14 @@ describe("Bookmarks Validation", () => {
         url: "",
         title: "No URL Bookmark 1",
         description: "A bookmark without URL",
+        slug: "no-url-bookmark-1",
         tags: [],
         dateBookmarked: "2023-01-01T00:00:00Z",
-        createdAt: "2023-01-01T00:00:00Z",
+        sourceUpdatedAt: "2023-01-01T00:00:00Z",
+        dateCreated: "2023-01-01T00:00:00Z",
         modifiedAt: "2023-01-01T00:00:00Z",
         archived: false,
-        favourited: false,
+        isFavorite: false,
         taggingStatus: "complete",
         content: {
           type: "link",
@@ -214,12 +226,14 @@ describe("Bookmarks Validation", () => {
         url: "",
         title: "No URL Bookmark 2",
         description: "Another bookmark without URL",
+        slug: "no-url-bookmark-2",
         tags: [],
         dateBookmarked: "2023-01-02T00:00:00Z",
-        createdAt: "2023-01-02T00:00:00Z",
+        sourceUpdatedAt: "2023-01-02T00:00:00Z",
+        dateCreated: "2023-01-02T00:00:00Z",
         modifiedAt: "2023-01-02T00:00:00Z",
         archived: false,
-        favourited: false,
+        isFavorite: false,
         taggingStatus: "complete",
         content: {
           type: "link",
@@ -243,12 +257,14 @@ describe("Bookmarks Validation", () => {
         url: "https://example.com",
         title: "Valid Bookmark",
         description: "A valid bookmark",
+        slug: "valid-bookmark",
         tags: [],
         dateBookmarked: "2023-01-01T00:00:00Z",
-        createdAt: "2023-01-01T00:00:00Z",
+        sourceUpdatedAt: "2023-01-01T00:00:00Z",
+        dateCreated: "2023-01-01T00:00:00Z",
         modifiedAt: "2023-01-01T00:00:00Z",
         archived: false,
-        favourited: false,
+        isFavorite: false,
         taggingStatus: "complete",
         content: {
           type: "link",
@@ -263,12 +279,14 @@ describe("Bookmarks Validation", () => {
         url: "",
         title: "No URL Bookmark",
         description: "A bookmark without URL",
+        slug: "no-url-bookmark",
         tags: [],
         dateBookmarked: "2023-01-02T00:00:00Z",
-        createdAt: "2023-01-02T00:00:00Z",
+        sourceUpdatedAt: "2023-01-02T00:00:00Z",
+        dateCreated: "2023-01-02T00:00:00Z",
         modifiedAt: "2023-01-02T00:00:00Z",
         archived: false,
-        favourited: false,
+        isFavorite: false,
         taggingStatus: "complete",
         content: {
           type: "link",

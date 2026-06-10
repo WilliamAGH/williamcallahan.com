@@ -14,7 +14,11 @@ import {
   getBookmarkBySlugFromDatabase,
   getSlugMappingRowsFromDatabase,
 } from "@/lib/db/queries/bookmarks";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
+import type {
+  UnifiedBookmark,
+  BookmarkSlugMapping,
+  BookmarkSlugSource,
+} from "@/types/schemas/bookmark";
 import logger from "@/lib/utils/logger";
 import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
@@ -42,7 +46,7 @@ const logSlugEnvironmentOnce = (context: string): void => {
  * @returns Mapping with slugs, reverse lookup, and checksum
  * @throws Error if any bookmark cannot generate a slug
  */
-export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugMapping {
+export function generateSlugMapping(bookmarks: BookmarkSlugSource[]): BookmarkSlugMapping {
   const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
   const reverseMap: Record<string, string> = {};
 
@@ -126,7 +130,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
  * @param overwrite - Kept for API compatibility; ignored in DB mode
  */
 export async function saveSlugMapping(
-  bookmarks: UnifiedBookmark[],
+  bookmarks: BookmarkSlugSource[],
   overwrite = true,
 ): Promise<void> {
   void overwrite;

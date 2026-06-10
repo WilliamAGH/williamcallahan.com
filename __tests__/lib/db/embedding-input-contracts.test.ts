@@ -1,9 +1,5 @@
-import {
-  buildEmbeddingText,
-  EMBEDDING_FIELD_CONTRACTS,
-  type EmbeddingFieldSpec,
-} from "@/lib/db/embedding-input-contracts";
-import { CONTENT_EMBEDDING_DOMAINS } from "@/types/db/embeddings";
+import { buildEmbeddingText, EMBEDDING_FIELD_CONTRACTS } from "@/lib/db/embedding-input-contracts";
+import { CONTENT_EMBEDDING_DOMAINS, type EmbeddingFieldSpec } from "@/types/db/embeddings";
 
 /**
  * Words that are banned as standalone labels because they have multiple
@@ -25,54 +21,43 @@ describe("EMBEDDING_FIELD_CONTRACTS", () => {
     for (const domain of primaryDomains) {
       const fields = EMBEDDING_FIELD_CONTRACTS[domain as keyof typeof EMBEDDING_FIELD_CONTRACTS];
       const requiredFields = fields.filter((f: EmbeddingFieldSpec) => f.required);
-      expect(requiredFields.length).toBeGreaterThan(0, `Domain "${domain}" has no required fields`);
+      expect(requiredFields.length).toBeGreaterThan(0);
     }
   });
 
   it("verbose fields are always at the end of the field list", () => {
-    for (const [domain, fields] of Object.entries(EMBEDDING_FIELD_CONTRACTS)) {
+    for (const fields of Object.values(EMBEDDING_FIELD_CONTRACTS)) {
       let sawVerbose = false;
       for (const field of fields) {
-        expect(sawVerbose && !field.verboseField).toBe(
-          false,
-          `Domain "${domain}": non-verbose field "${field.label}" appears after ` +
-            `verbose field. Verbose fields must be last for truncation safety.`,
-        );
+        expect(sawVerbose && !field.verboseField).toBe(false);
         if (field.verboseField) sawVerbose = true;
       }
     }
   });
 
   it("no label uses a banned standalone word", () => {
-    for (const [domain, fields] of Object.entries(EMBEDDING_FIELD_CONTRACTS)) {
+    for (const fields of Object.values(EMBEDDING_FIELD_CONTRACTS)) {
       for (const field of fields) {
         const labelLower = field.label.toLowerCase();
         for (const banned of BANNED_STANDALONE_LABELS) {
-          expect(labelLower).not.toBe(
-            banned,
-            `Domain "${domain}": label "${field.label}" is a banned standalone ` +
-              `word. Qualify it (e.g. "Topic ${field.label}" or "Company ${field.label}").`,
-          );
+          expect(labelLower).not.toBe(banned);
         }
       }
     }
   });
 
   it("labels are unique within each domain", () => {
-    for (const [domain, fields] of Object.entries(EMBEDDING_FIELD_CONTRACTS)) {
+    for (const fields of Object.values(EMBEDDING_FIELD_CONTRACTS)) {
       const labels = fields.map((f: EmbeddingFieldSpec) => f.label);
       const unique = new Set(labels);
-      expect(unique.size).toBe(labels.length, `Domain "${domain}" has duplicate labels`);
+      expect(unique.size).toBe(labels.length);
     }
   });
 
   it("every field has a non-empty meaning", () => {
-    for (const [domain, fields] of Object.entries(EMBEDDING_FIELD_CONTRACTS)) {
+    for (const fields of Object.values(EMBEDDING_FIELD_CONTRACTS)) {
       for (const field of fields) {
-        expect(field.meaning.trim().length).toBeGreaterThan(
-          0,
-          `Domain "${domain}", field "${field.label}" has empty meaning`,
-        );
+        expect(field.meaning.trim().length).toBeGreaterThan(0);
       }
     }
   });

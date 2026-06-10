@@ -52,9 +52,12 @@ export async function hybridSearchInvestments(options: {
       WITH keyword_results AS (
         SELECT id,
           ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(name, ${trimmed}) AS trgm_score
+          similarity(name, ${trimmed}) AS trgm_score,
+          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+            + similarity(name, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
         FROM investments
         WHERE search_vector @@ ${tsQuery} OR name % ${trimmed}
+        ORDER BY keyword_score DESC, id DESC
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
@@ -103,13 +106,14 @@ export async function hybridSearchInvestments(options: {
     status: string;
     operating_status: string;
     location: string | null;
-    fts_score: number;
+    keyword_score: number;
   }>(sql`
     SELECT id, name, slug, description, category, stage, status, operating_status, location,
-      ts_rank_cd(search_vector, ${tsQuery}) AS fts_score
+      ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+        + similarity(name, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
     FROM investments
     WHERE search_vector @@ ${tsQuery} OR name % ${trimmed}
-    ORDER BY fts_score DESC LIMIT ${limit}
+    ORDER BY keyword_score DESC, id DESC LIMIT ${limit}
   `);
 
   return rows.map((r) => ({
@@ -122,7 +126,7 @@ export async function hybridSearchInvestments(options: {
     status: r.status,
     operatingStatus: r.operating_status,
     location: r.location,
-    score: Number(r.fts_score),
+    score: Number(r.keyword_score),
   }));
 }
 
@@ -157,9 +161,12 @@ export async function hybridSearchProjects(options: {
       WITH keyword_results AS (
         SELECT id,
           ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(name, ${trimmed}) AS trgm_score
+          similarity(name, ${trimmed}) AS trgm_score,
+          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+            + similarity(name, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
         FROM projects
         WHERE search_vector @@ ${tsQuery} OR name % ${trimmed}
+        ORDER BY keyword_score DESC, id DESC
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
@@ -205,13 +212,14 @@ export async function hybridSearchProjects(options: {
     url: string;
     image_key: string;
     tags: string[] | null;
-    fts_score: number;
+    keyword_score: number;
   }>(sql`
     SELECT id, name, slug, description, short_summary, url, image_key, tags,
-      ts_rank_cd(search_vector, ${tsQuery}) AS fts_score
+      ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+        + similarity(name, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
     FROM projects
     WHERE search_vector @@ ${tsQuery} OR name % ${trimmed}
-    ORDER BY fts_score DESC LIMIT ${limit}
+    ORDER BY keyword_score DESC, id DESC LIMIT ${limit}
   `);
 
   return rows.map((r) => ({
@@ -223,6 +231,6 @@ export async function hybridSearchProjects(options: {
     url: r.url,
     imageKey: r.image_key,
     tags: r.tags,
-    score: Number(r.fts_score),
+    score: Number(r.keyword_score),
   }));
 }

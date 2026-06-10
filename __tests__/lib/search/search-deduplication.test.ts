@@ -11,7 +11,7 @@ import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
-import type { SearchResult } from "@/types/search";
+import type { SearchResult } from "@/types/schemas/search";
 
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
   getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
@@ -49,11 +49,25 @@ afterEach(() => {
 
 // Test data
 const duplicateTestResults: SearchResult[] = [
-  { id: "1", type: "post", title: "Test 1", description: "Description 1", url: "/test1", score: 1 },
-  { id: "1", type: "post", title: "Test 1", description: "Description 1", url: "/test1", score: 1 }, // duplicate
+  {
+    id: "1",
+    type: "blog-post",
+    title: "Test 1",
+    description: "Description 1",
+    url: "/test1",
+    score: 1,
+  },
+  {
+    id: "1",
+    type: "blog-post",
+    title: "Test 1",
+    description: "Description 1",
+    url: "/test1",
+    score: 1,
+  }, // duplicate
   {
     id: "2",
-    type: "post",
+    type: "blog-post",
     title: "Test 2",
     description: "Description 2",
     url: "/test2",
@@ -62,10 +76,17 @@ const duplicateTestResults: SearchResult[] = [
 ];
 
 const edgeCaseResults: SearchResult[] = [
-  { id: "", type: "post", title: "Empty ID", description: "Description", url: "/empty", score: 1 },
+  {
+    id: "",
+    type: "blog-post",
+    title: "Empty ID",
+    description: "Description",
+    url: "/empty",
+    score: 1,
+  },
   {
     id: "null",
-    type: "post",
+    type: "blog-post",
     title: "Null-like ID",
     description: "Description",
     url: "/null",
@@ -74,7 +95,14 @@ const edgeCaseResults: SearchResult[] = [
 ];
 
 const searchResults: SearchResult[] = [
-  { id: "1", type: "post", title: "Post 1", description: "Description 1", url: "/post1", score: 1 },
+  {
+    id: "1",
+    type: "blog-post",
+    title: "Post 1",
+    description: "Description 1",
+    url: "/post1",
+    score: 1,
+  },
   {
     id: "2",
     type: "project",
@@ -85,7 +113,7 @@ const searchResults: SearchResult[] = [
   },
   {
     id: "3",
-    type: "post",
+    type: "blog-post",
     title: "Post 3",
     description: "Description 3",
     url: "/post3",

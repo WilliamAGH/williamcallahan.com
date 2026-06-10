@@ -62,5 +62,7 @@ export function needsKarakeepImageUpgrade(bookmark: UnifiedBookmark): boolean {
     bookmark.content?.imageAssetId || bookmark.content?.screenshotAssetId,
   );
   if (!hasKarakeepAsset) return false;
-  return !bookmark.ogImage || bookmark.ogImage.startsWith("/api/assets/");
+  const isContentImageFallback =
+    bookmark.content?.imageUrl !== undefined && bookmark.ogImage === bookmark.content.imageUrl;
+  return !bookmark.ogImage || bookmark.ogImage.startsWith("/api/assets/") || isContentImageFallback;
 }

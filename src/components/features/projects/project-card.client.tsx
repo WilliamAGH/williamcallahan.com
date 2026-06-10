@@ -32,7 +32,7 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
   const cdnImageUrl = resolveProjectCardImageUrl(imageKey, name);
 
   // Generate slug for internal detail page link
-  const projectSlug = generateProjectSlug(name, project.id);
+  const projectSlug = generateProjectSlug(name);
   const detailPageUrl = `/projects/${projectSlug}`;
 
   // External project URL (GitHub, website, etc.)

@@ -6,7 +6,7 @@
  */
 
 import { vi } from "vitest";
-import type { UnifiedBookmark, BookmarkContent } from "../../../src/types";
+import type { BookmarkContent, UnifiedBookmark } from "../../../src/types/schemas/bookmark";
 // Mock getBaseUrl at the top level with the correct path
 vi.mock("@/lib/utils/get-base-url", () => ({
   getBaseUrl: () => "http://localhost:3000",

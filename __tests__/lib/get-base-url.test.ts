@@ -15,6 +15,7 @@ describe("getBaseUrl", () => {
    * Clone environment before each test
    */
   beforeEach(() => {
+    vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV }; // clone
   });
 
@@ -22,6 +23,7 @@ describe("getBaseUrl", () => {
    * Restore original environment after all tests complete
    */
   afterAll(() => {
+    vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV }; // restore from snapshot
   });
 
@@ -49,7 +51,7 @@ describe("getBaseUrl", () => {
   it("falls back to NEXT_PUBLIC_SITE_URL if API_BASE_URL not set", async () => {
     process.env.API_BASE_URL = undefined;
     process.env.NEXT_PUBLIC_SITE_URL = "https://public.example.com/"; // with trailing slash
-    process.env.NODE_ENV = "production"; // Set to production to use NEXT_PUBLIC_SITE_URL
+    vi.stubEnv("NODE_ENV", "production"); // Set to production to use NEXT_PUBLIC_SITE_URL
     const { getBaseUrl } = await import("@/lib/utils/get-base-url");
     const result = getBaseUrl();
     expect(result).toBe("https://public.example.com"); // trailing slash removed

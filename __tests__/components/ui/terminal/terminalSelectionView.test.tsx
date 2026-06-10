@@ -9,10 +9,10 @@
 
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { SelectionView } from "@/components/ui/terminal/selection-view.client";
-import type { SelectionItem } from "@/types/terminal";
+import type { SelectionEntry } from "@/types/terminal";
 
 describe("SelectionView Component", () => {
-  const mockItems: SelectionItem[] = [
+  const mockItems: SelectionEntry[] = [
     {
       id: "option-1",
       label: "Option 1",

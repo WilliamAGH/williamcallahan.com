@@ -57,9 +57,9 @@ export interface DomainBookmarkContext {
  * @note - The slug can contain the tag and pagination info
  */
 export type BookmarkTagPageContext = {
-  params: {
+  params: Promise<{
     slug: string[];
-  };
+  }>;
 };
 
 /**

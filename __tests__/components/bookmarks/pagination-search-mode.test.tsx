@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
 import { vi } from "vitest";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Mock next/navigation's router
 vi.mock("next/navigation", () => ({

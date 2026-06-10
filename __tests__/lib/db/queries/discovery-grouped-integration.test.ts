@@ -1,7 +1,7 @@
 import {
   groupByPrimaryTag,
   filterRecentlyAdded,
-  type ScoredBookmarkRow,
+  type ScoredBookmark,
 } from "@/lib/db/queries/discovery-grouped";
 
 function makeRow(
@@ -9,7 +9,7 @@ function makeRow(
   primaryTag: { slug: string; name: string } | null,
   score: number,
   dateBookmarked: string,
-): ScoredBookmarkRow {
+): ScoredBookmark {
   return {
     bookmark: {
       id,
@@ -35,7 +35,7 @@ describe("discovery grouped integration", () => {
   afterEach(() => vi.useRealTimers());
 
   it("produces complete discover feed primitives from canonical tags", () => {
-    const rows: ScoredBookmarkRow[] = [
+    const rows: ScoredBookmark[] = [
       makeRow("1", { slug: "ai", name: "AI" }, 0.95, "2026-02-26T00:00:00Z"),
       makeRow("2", { slug: "ai", name: "AI" }, 0.85, "2026-02-25T00:00:00Z"),
       makeRow("3", { slug: "ai", name: "AI" }, 0.75, "2026-02-20T00:00:00Z"),

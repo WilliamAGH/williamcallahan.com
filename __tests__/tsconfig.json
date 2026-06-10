@@ -6,6 +6,7 @@
     "paths": {
       "@/data/*": ["../data/*"],
       "@/config/*": ["../config/*"],
+      "@/public/*": ["../public/*"],
       "@/types/*": ["../src/types/*"],
       "@/lib/*": ["../src/lib/*"],
       "@/components/*": ["../src/components/*"],
@@ -32,6 +33,9 @@
     "ignoreDeprecations": "5.0"
   },
   "include": [
+    "../next-env.d.ts",
+    "../config/**/*.ts",
+    "../src/*.ts",
     "../src/app/**/*.ts",
     "../src/app/**/*.tsx",
     "../src/lib/**/*.ts",

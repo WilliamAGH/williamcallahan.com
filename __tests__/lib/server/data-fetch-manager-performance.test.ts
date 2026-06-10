@@ -2,6 +2,7 @@ import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import type { MockedFunction } from "vitest";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Mock dependencies
 vi.mock("@/lib/data-access/investments");
@@ -18,6 +19,31 @@ vi.mock("@/data/education", () => ({
   recentCourses: [{ name: "Course A", website: "https://course-a.com" }],
 }));
 
+const fixtureDate = "2026-06-10T00:00:00.000Z";
+
+function makeBookmark(overrides: Partial<UnifiedBookmark>): UnifiedBookmark {
+  const url = overrides.url ?? "https://bookmark-a.com";
+  const title = overrides.title ?? "Bookmark A";
+  const description = overrides.description ?? "Description A";
+  return {
+    id: overrides.id ?? "bookmark-1",
+    url,
+    title,
+    description,
+    slug: overrides.slug ?? "bookmark-a",
+    tags: overrides.tags ?? [],
+    dateBookmarked: overrides.dateBookmarked ?? fixtureDate,
+    sourceUpdatedAt: overrides.sourceUpdatedAt ?? fixtureDate,
+    content: overrides.content ?? {
+      type: "link",
+      url,
+      title,
+      description,
+    },
+    ...overrides,
+  };
+}
+
 describe("DataFetchManager Performance Optimizations", () => {
   let mockGetInvestmentDomainsAndIds: MockedFunction<typeof getInvestmentDomainsAndIds>;
   let mockGetBookmarks: MockedFunction<typeof getBookmarks>;
@@ -31,21 +57,17 @@ describe("DataFetchManager Performance Optimizations", () => {
     mockGetBookmarks = getBookmarks as MockedFunction<typeof getBookmarks>;
 
     // Mock return values
-    mockGetInvestmentDomainsAndIds.mockResolvedValue([
-      ["investment-a.com", "inv-1"],
-      ["investment-b.com", "inv-2"],
-    ]);
+    mockGetInvestmentDomainsAndIds.mockResolvedValue(
+      new Map([
+        ["investment-a.com", "inv-1"],
+        ["investment-b.com", "inv-2"],
+      ]),
+    );
 
     mockGetBookmarks.mockResolvedValue([
-      {
-        id: "bookmark-1",
-        url: "https://bookmark-a.com",
-        title: "Bookmark A",
-        description: "Description A",
-        tags: [],
-        createdAt: new Date().toISOString(),
-        content: {},
-      },
+      makeBookmark({
+        domain: "bookmark-a.com",
+      }),
     ]);
 
     // DataFetchManager uses singleton pattern
@@ -60,23 +82,20 @@ describe("DataFetchManager Performance Optimizations", () => {
       mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
         callTimes.investments = Date.now() - startTime;
         await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
-        return [["investment-a.com", "inv-1"]];
+        return new Map([["investment-a.com", "inv-1"]]);
       });
 
       mockGetBookmarks.mockImplementation(async () => {
         callTimes.bookmarks = Date.now() - startTime;
         await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
         return [
-          {
+          makeBookmark({
             id: "bookmark-1",
             url: "https://bookmark-a.com",
             domain: "bookmark-a.com",
             title: "Bookmark A",
             description: "Description A",
-            tags: [],
-            createdAt: new Date().toISOString(),
-            content: {},
-          },
+          }),
         ];
       });
 
@@ -121,26 +140,21 @@ describe("DataFetchManager Performance Optimizations", () => {
     it("should handle invalid URLs gracefully", async () => {
       // Mock bookmarks with invalid URL
       mockGetBookmarks.mockResolvedValue([
-        {
+        makeBookmark({
           id: "bookmark-1",
           url: "not-a-valid-url",
-          domain: undefined,
           title: "Invalid Bookmark",
           description: "Description",
-          tags: [],
-          createdAt: new Date().toISOString(),
-          content: {},
-        },
-        {
+          slug: "invalid-bookmark",
+        }),
+        makeBookmark({
           id: "bookmark-2",
           url: "https://valid-bookmark.com",
           domain: "valid-bookmark.com",
           title: "Valid Bookmark",
           description: "Description",
-          tags: [],
-          createdAt: new Date().toISOString(),
-          content: {},
-        },
+          slug: "valid-bookmark",
+        }),
       ]);
 
       const dataFetchManager = new DataFetchManager();
@@ -153,16 +167,13 @@ describe("DataFetchManager Performance Optimizations", () => {
 
     it("should strip www prefix from domains", async () => {
       mockGetBookmarks.mockResolvedValue([
-        {
+        makeBookmark({
           id: "bookmark-1",
           url: "https://www.example.com",
           domain: "example.com",
           title: "Example",
           description: "Description",
-          tags: [],
-          createdAt: new Date().toISOString(),
-          content: {},
-        },
+        }),
       ]);
 
       const dataFetchManager4 = new DataFetchManager();
@@ -179,22 +190,19 @@ describe("DataFetchManager Performance Optimizations", () => {
       // Add delays to simulate real network/database calls
       mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
-        return [["investment-a.com", "inv-1"]];
+        return new Map([["investment-a.com", "inv-1"]]);
       });
 
       mockGetBookmarks.mockImplementation(async () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
         return [
-          {
+          makeBookmark({
             id: "bookmark-1",
             url: "https://bookmark-a.com",
             domain: "bookmark-a.com",
             title: "Bookmark A",
             description: "Description A",
-            tags: [],
-            createdAt: new Date().toISOString(),
-            content: {},
-          },
+          }),
         ];
       });
 

@@ -6,13 +6,30 @@
  * @module lib/bookmarks/normalize
  */
 
-import type { RawApiBookmark, UnifiedBookmark, BookmarkContent } from "@/types/schemas/bookmark";
+import {
+  unifiedBookmarkSchema,
+  type RawApiBookmark,
+  type UnifiedBookmark,
+  type BookmarkContent,
+} from "@/types/schemas/bookmark";
 import { envLogger } from "@/lib/utils/env-logger";
 import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
 import { extractDomainWithoutWww } from "@/lib/utils/url-utils";
 import { normalizeScrapedContentText } from "./scraped-content";
 
 const READING_SPEED_WPM = 200;
+
+export class BookmarkNormalizationError extends Error {
+  constructor(failures: Array<{ id: string; index: number }>) {
+    const rejected = failures
+      .map((failure) => `${failure.id} at index ${failure.index}`)
+      .join(", ");
+    super(
+      `[BookmarksNormalize] Refusing partial refresh; ${failures.length} bookmark(s) failed normalization: ${rejected}`,
+    );
+    this.name = "BookmarkNormalizationError";
+  }
+}
 
 function computeWordCount(text: string | null | undefined): number | undefined {
   if (typeof text !== "string" || text.trim().length === 0) return undefined;
@@ -57,7 +74,20 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
     const scrapedContentText = normalizeScrapedContentText(
       typeof rawHtml === "string" ? rawHtml : null,
     );
-    const bookmarkUrl = raw.content?.url || "";
+    const bookmarkUrlResult = unifiedBookmarkSchema.shape.url.safeParse(raw.content.url);
+    if (!bookmarkUrlResult.success) {
+      envLogger.log(
+        "Skipping bookmark with invalid URL",
+        {
+          index,
+          bookmarkId: raw.id,
+          issues: bookmarkUrlResult.error.issues,
+        },
+        { category: "BookmarksNormalize" },
+      );
+      return null;
+    }
+    const bookmarkUrl = bookmarkUrlResult.data;
     const domainCandidate = bookmarkUrl ? extractDomainWithoutWww(bookmarkUrl) : "";
     const domain = domainCandidate && domainCandidate !== bookmarkUrl ? domainCandidate : undefined;
     const wordCount = computeWordCount(scrapedContentText);
@@ -146,10 +176,25 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
  * Normalizes an array of raw bookmarks
  *
  * @param rawBookmarks - Array of raw bookmarks from API
- * @returns Array of normalized bookmarks (nulls filtered out)
+ * @returns Array of normalized bookmarks
+ * @throws BookmarkNormalizationError if any bookmark fails normalization
  */
 export function normalizeBookmarks(rawBookmarks: RawApiBookmark[]): UnifiedBookmark[] {
-  return rawBookmarks
-    .map((raw, index) => normalizeBookmark(raw, index))
-    .filter((bookmark): bookmark is UnifiedBookmark => bookmark !== null);
+  const normalizedBookmarks: UnifiedBookmark[] = [];
+  const failures: Array<{ id: string; index: number }> = [];
+
+  rawBookmarks.forEach((raw, index) => {
+    const bookmark = normalizeBookmark(raw, index);
+    if (bookmark) {
+      normalizedBookmarks.push(bookmark);
+    } else {
+      failures.push({ id: raw.id, index });
+    }
+  });
+
+  if (failures.length > 0) {
+    throw new BookmarkNormalizationError(failures);
+  }
+
+  return normalizedBookmarks;
 }

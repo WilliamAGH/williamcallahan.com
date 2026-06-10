@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchAllPagesFromApi } from "@/lib/bookmarks/refresh-helpers";
-import { normalizeBookmark } from "@/lib/bookmarks/normalize";
-import type { RawApiBookmark } from "@/types/bookmark";
+import {
+  EmptyBookmarksApiResponseError,
+  fetchAllPagesFromApi,
+} from "@/lib/bookmarks/refresh-helpers";
+import { normalizeBookmark, normalizeBookmarks } from "@/lib/bookmarks/normalize";
+import type { RawApiBookmark } from "@/types/schemas/bookmark";
 
 function makeRawBookmark(id: string, htmlContent: string | null): RawApiBookmark {
   return {
@@ -68,6 +71,22 @@ describe("Scraped content pipeline", () => {
     expect(normalized?.content).not.toHaveProperty("htmlContent");
   });
 
+  it("drops raw bookmarks with an empty source URL before persistence", () => {
+    const rawBookmark = makeRawBookmark("bookmark-empty-url", null);
+    rawBookmark.content.url = "";
+
+    expect(normalizeBookmark(rawBookmark, 0)).toBeNull();
+  });
+
+  it("aborts collection normalization when any bookmark has an invalid source URL", () => {
+    const invalidBookmark = makeRawBookmark("bookmark-empty-url", null);
+    invalidBookmark.content.url = "";
+
+    expect(() =>
+      normalizeBookmarks([makeRawBookmark("bookmark-valid", null), invalidBookmark]),
+    ).toThrow("Refusing partial refresh");
+  });
+
   it("requests includeContent=true on every paginated API fetch", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -100,5 +119,18 @@ describe("Scraped content pipeline", () => {
     expect(fetchSpy.mock.calls[1]?.[0]).toBe(
       "https://example.com/api/v1/lists/test-list/bookmarks?cursor=next-cursor&includeContent=true",
     );
+  });
+
+  it("rejects an empty API response instead of returning an empty refresh dataset", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      createJsonResponse({ bookmarks: [], nextCursor: null }),
+    );
+
+    await expect(
+      fetchAllPagesFromApi({
+        apiUrl: "https://example.com/api/v1/lists/test-list/bookmarks",
+        requestHeaders: { Accept: "application/json", Authorization: "Bearer token" },
+      }),
+    ).rejects.toBeInstanceOf(EmptyBookmarksApiResponseError);
   });
 });

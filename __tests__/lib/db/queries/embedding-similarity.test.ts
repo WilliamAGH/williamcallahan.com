@@ -8,12 +8,25 @@ vi.mock("@/lib/db/connection", () => ({
   },
 }));
 
+import { is, SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
+import { hybridSearchBooks } from "@/lib/db/queries/hybrid-search-books-blog";
+import { hybridSearchProjects } from "@/lib/db/queries/hybrid-search-investments";
 import {
   computeEmbeddingBlendScore,
   findRelatedBookmarkIdsForSeeds,
   findSimilarByEmbedding,
   rankEmbeddingCandidates,
 } from "@/lib/db/queries/embedding-similarity";
+
+function renderLastExecuteSql(): string {
+  const call = mockExecute.mock.calls.at(-1);
+  if (!call) throw new Error("Expected db.execute to be called");
+  const query = call[0];
+  if (!is(query, SQL)) throw new Error("Expected db.execute to receive a SQL query");
+  return new PgDialect().sqlToQuery(query).sql;
+}
 
 describe("embedding-similarity query helpers", () => {
   beforeEach(() => {
@@ -172,5 +185,46 @@ describe("embedding-similarity query helpers", () => {
     });
 
     expect(result).toEqual(["related-2", "related-1"]);
+  });
+});
+
+describe("hybrid search SQL ranking", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("orders keyword candidates before limiting embedding-mode project search", async () => {
+    mockExecute.mockResolvedValueOnce([]);
+    const embedding = Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0);
+
+    await hybridSearchProjects({ query: "aventure", embedding, limit: 5 });
+
+    const rendered = renderLastExecuteSql();
+    expect(rendered).toContain("AS keyword_score");
+    expect(rendered).toContain("ORDER BY keyword_score DESC, id DESC");
+    expect(rendered).toContain("LIMIT $");
+  });
+
+  it("uses trigram-weighted keyword score for book fallback search", async () => {
+    mockExecute.mockResolvedValueOnce([
+      {
+        id: "book-1",
+        title: "TypeScript Quickly",
+        slug: "typescript-quickly",
+        authors: ["Yakov Fain"],
+        description: null,
+        cover_url: null,
+        keyword_score: "0.25",
+      },
+    ]);
+
+    const results = await hybridSearchBooks({ query: "typescrip", limit: 1 });
+
+    const rendered = renderLastExecuteSql();
+    expect(rendered).toContain("similarity(title");
+    expect(rendered).toContain("AS keyword_score");
+    expect(rendered).toContain("OR title %");
+    expect(rendered).toContain("ORDER BY keyword_score DESC, id DESC");
+    expect(results[0]?.score).toBe(0.25);
   });
 });

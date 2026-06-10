@@ -186,4 +186,122 @@ describe("OpenGraph Metadata", () => {
       expect(result.success).toBe(false);
     });
   });
+
+  describe("external OpenGraph fetch", () => {
+    it("retries a 403 direct response with the Googlebot user agent", async () => {
+      vi.resetModules();
+      type FetchOptionsForTest = {
+        timeout?: number;
+        headers?: Record<string, string>;
+      };
+      type FetchWithTimeoutForTest = (
+        requestUrl: string,
+        options: FetchOptionsForTest,
+      ) => Promise<Response>;
+      type RetryOperation<T> = () => Promise<T>;
+      type OgMetadataForTest = Record<string, string | null>;
+
+      try {
+        const forbiddenResponse = new Response("", { status: 403, statusText: "Forbidden" });
+        const recoveredResponse = new Response(
+          '<html><head><meta property="og:title" content="Recovered title" /></head></html>',
+          { status: 200 },
+        );
+        Object.defineProperty(recoveredResponse, "url", {
+          value: "https://blocked.example/article",
+        });
+
+        const fetchWithTimeout = vi
+          .fn<FetchWithTimeoutForTest>()
+          .mockResolvedValueOnce(forbiddenResponse)
+          .mockResolvedValueOnce(recoveredResponse);
+
+        vi.doMock("@/lib/utils/http-client", () => ({
+          fetchWithTimeout,
+          getBrowserHeaders: () => ({
+            Accept: "text/html",
+            "User-Agent": "Browser UA",
+          }),
+        }));
+        vi.doMock("@/lib/services/unified-image-service", () => ({
+          getUnifiedImageService: () => ({
+            hasDomainFailedTooManyTimes: () => false,
+            markDomainAsFailed: vi.fn(),
+          }),
+        }));
+        vi.doMock("@/lib/persistence/jina-cache", () => ({
+          getCachedJinaHtml: () => Promise.resolve(null),
+          persistJinaHtmlInBackground: vi.fn(),
+        }));
+        vi.doMock("@/lib/persistence/image-persistence", () => ({
+          scheduleImagePersistence: vi.fn(),
+          persistImageAndGetS3Url: () => Promise.resolve(null),
+        }));
+        vi.doMock("@/lib/rate-limiter", () => ({
+          incrementAndPersist: () => false,
+          waitForPermit: () => Promise.resolve(),
+        }));
+        vi.doMock("@/lib/utils/opengraph-utils", () => ({
+          getDomainType: () => "blocked.example",
+          sanitizeOgMetadata: (metadata: OgMetadataForTest) => metadata,
+        }));
+        vi.doMock("@/lib/opengraph/parser", () => ({
+          extractOpenGraphTags: () => ({
+            title: "Recovered title",
+            description: null,
+            image: null,
+            twitterImage: null,
+            site: null,
+            type: null,
+            profileImage: null,
+            bannerImage: null,
+            url: "https://blocked.example/article",
+            siteName: null,
+          }),
+        }));
+        vi.doMock("@/lib/utils/retry", () => ({
+          RETRY_CONFIGS: { OPENGRAPH_FETCH: {} },
+          retryWithThrow: async <T>(operation: RetryOperation<T>): Promise<T> => operation(),
+        }));
+        vi.doMock("@/lib/constants", () => ({
+          JINA_FETCH_CONFIG: {},
+          JINA_FETCH_STORE_NAME: "jina",
+          JINA_FETCH_CONTEXT_ID: "jina-context",
+          JINA_FETCH_RATE_LIMIT_STORE_KEY: "jina-key",
+          OPENGRAPH_FETCH_CONFIG: { TIMEOUT: 1000 },
+          OPENGRAPH_FETCH_CONTEXT_ID: "opengraph-context",
+          OPENGRAPH_FETCH_STORE_NAME: "opengraph",
+          DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: {},
+          OPENGRAPH_IMAGES_S3_DIR: "opengraph",
+        }));
+
+        const { fetchExternalOpenGraphWithRetry } = await import("@/lib/opengraph/fetch");
+        const result = await fetchExternalOpenGraphWithRetry("https://blocked.example/article");
+
+        if (!result || "networkFailure" in result) {
+          throw new Error("Expected recovered OpenGraph metadata");
+        }
+        const firstCall = fetchWithTimeout.mock.calls.at(0);
+        const secondCall = fetchWithTimeout.mock.calls.at(1);
+        if (!firstCall || !secondCall) {
+          throw new Error("Expected browser fetch followed by Googlebot fetch");
+        }
+
+        expect(result.title).toBe("Recovered title");
+        expect(firstCall[1].headers?.["User-Agent"]).toBe("Browser UA");
+        expect(secondCall[1].headers?.["User-Agent"]).toContain("Googlebot/2.1");
+      } finally {
+        vi.doUnmock("@/lib/utils/http-client");
+        vi.doUnmock("@/lib/services/unified-image-service");
+        vi.doUnmock("@/lib/persistence/jina-cache");
+        vi.doUnmock("@/lib/persistence/image-persistence");
+        vi.doUnmock("@/lib/rate-limiter");
+        vi.doUnmock("@/lib/utils/opengraph-utils");
+        vi.doUnmock("@/lib/opengraph/parser");
+        vi.doUnmock("@/lib/utils/retry");
+        vi.doUnmock("@/lib/constants");
+        vi.resetModules();
+      }
+    });
+  });
 });

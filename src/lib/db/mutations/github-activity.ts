@@ -60,7 +60,7 @@ const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
   const isEmpty = !hasData && contributions <= 0;
   const isIncomplete = !hasData || !hasCount || !isDataComplete;
 
-  return { hasData, hasCount, contributions, isEmpty, isIncomplete };
+  return { hasData, hasCount, contributions, isEmpty, isIncomplete, isComplete: !isIncomplete };
 };
 
 /**
@@ -77,6 +77,13 @@ export async function writeGitHubActivityToDb(data: GitHubActivityApiResponse): 
     const existingIsHealthy = !!existing && !existingQ.isEmpty;
 
     if (existingIsHealthy) {
+      if (existingQ.isComplete) {
+        debugLog("Non-degrading write: Preserving complete GitHub activity dataset", "warn", {
+          newCount: Math.max(0, newQ.contributions),
+        });
+        return true;
+      }
+
       const existingContributions = Math.max(0, existingQ.contributions);
       const newContributions = Math.max(0, newQ.contributions);
 
