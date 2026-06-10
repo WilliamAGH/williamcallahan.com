@@ -144,7 +144,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     return notFound();
   }
 
-  const projectId = project.id ?? project.name;
+  const projectId = project.id;
   const path = `/projects/${slug}`;
 
   // Fetch cached AI analysis from PostgreSQL (runs in parallel with rendering prep)

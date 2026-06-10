@@ -27,7 +27,7 @@ export async function upsertProjects(data: Project[]): Promise<number> {
 
   let upserted = 0;
   for (const item of data) {
-    const id = item.id ?? projectToSlug(item.name);
+    const id = item.id;
     const slug = projectToSlug(item.name);
     await db
       .insert(projects)

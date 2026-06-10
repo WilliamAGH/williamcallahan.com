@@ -65,7 +65,7 @@ export function findProjectBySlug(slug: string, projects: Project[]): Project | 
   const projectSlugs = projects.map((project) => ({
     project,
     generated: generateProjectSlug(project.name, project.id),
-    idSlug: titleToSlug(project.id ?? project.name, 30),
+    idSlug: titleToSlug(project.id, 30),
     nameSlug: titleToSlug(project.name, 50),
   }));
 
