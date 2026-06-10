@@ -130,7 +130,7 @@ export async function withCacheFallback<T>(
   cachedFn: () => Promise<T>,
   fallbackFn: () => Promise<T>,
 ): Promise<T> {
-  if (isCliLikeCacheContext()) {
+  if (isCliProcessContext()) {
     return await fallbackFn();
   }
 

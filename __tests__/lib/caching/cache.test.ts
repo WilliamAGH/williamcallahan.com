@@ -70,18 +70,26 @@ describe("lib/cache", () => {
       expect(fallbackFn).toHaveBeenCalled();
     });
 
-    it("should use direct fallback during production build", async () => {
+    it("keeps cached functions active during production build so cache tags register", async () => {
       const previousPhase = process.env.NEXT_PHASE;
       process.env.NEXT_PHASE = "phase-production-build";
-      const cachedFn = vi.fn().mockResolvedValue("cached result");
+      mockCacheTag.mockClear();
+      mockCacheLife.mockClear();
+      const cachedFn = vi.fn(async () => {
+        cacheContextGuards.cacheTag("BuildCache", "build-tag");
+        cacheContextGuards.cacheLife("BuildCache", { revalidate: 120 });
+        return "cached result";
+      });
       const fallbackFn = vi.fn().mockResolvedValue("fallback result");
 
       try {
         const result = await withCacheFallback(cachedFn, fallbackFn);
 
-        expect(result).toBe("fallback result");
-        expect(cachedFn).not.toHaveBeenCalled();
-        expect(fallbackFn).toHaveBeenCalled();
+        expect(result).toBe("cached result");
+        expect(cachedFn).toHaveBeenCalled();
+        expect(fallbackFn).not.toHaveBeenCalled();
+        expect(mockCacheTag).toHaveBeenCalledWith("build-tag");
+        expect(mockCacheLife).toHaveBeenCalledWith({ revalidate: 120 });
       } finally {
         if (previousPhase === undefined) {
           delete process.env.NEXT_PHASE;
