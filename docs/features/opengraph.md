@@ -33,7 +33,7 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Retu
 - **`lib/data-access/opengraph-refresh.ts`**: Refresh workflow with in-flight dedupe
   - External fetch, S3 persistence, and fallback handling
 - **`lib/data-access/opengraph-cache-context.ts`**: Cache guard wrappers
-  - Safe wrappers for cache tags/lifetimes and CLI context detection
+  - Safe wrappers for cache tags/lifetimes; guards forward during build, skip only in CLI scripts
 
 ### OpenGraph Modules
 

@@ -75,13 +75,15 @@ Use path revalidation for high-value user routes when content freshness must be 
 
 ## Cache Safety Wrappers
 
-Server functions that can run in CLI/build contexts use guard wrappers before calling `cacheLife/cacheTag/revalidateTag` to avoid invalid runtime contexts.
+Server functions that can run in CLI contexts use `cacheContextGuards` before calling `cacheLife/cacheTag/revalidateTag` to avoid errors where no cache runtime exists (standalone scripts). Guards must stay active during `next build` prerendering so prerendered entries receive cache tags addressable by `revalidateTag` at runtime.
+
+- **CLI scripts** (`isCliProcessContext()`): skipped (no cache runtime)
+- **Build phase** (`NEXT_PHASE=phase-production-build`): forwarded (cache runtime exists for prerendering)
+- **Request time**: forwarded normally
 
 ```typescript
-const safeCacheTag = (...tags: string[]) => {
-  if (typeof cacheTag !== "function" || isCliLikeContext()) return;
-  for (const tag of new Set(tags)) cacheTag(tag);
-};
+cacheContextGuards.cacheTag("domain-tag");
+cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 });
 ```
 
 ## Static-to-Dynamic Safety (`cacheComponents`)
