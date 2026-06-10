@@ -22,17 +22,20 @@ export { CACHE_TTL, USE_NEXTJS_CACHE };
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 
-export const isCliLikeCacheContext = (): boolean => {
+/** True when running as a standalone CLI script (no Next.js cache runtime). */
+const isCliProcessContext = (): boolean => {
   const argv1 = process.argv[1] || "";
   const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
   return (
     inScriptsDir ||
     process.argv.includes("data-updater") ||
     process.argv.includes("reset-and-regenerate") ||
-    process.argv.includes("regenerate-content") ||
-    process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE
+    process.argv.includes("regenerate-content")
   );
 };
+
+export const isCliLikeCacheContext = (): boolean =>
+  isCliProcessContext() || process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 const logCacheError = (
   category: string,
@@ -41,7 +44,7 @@ const logCacheError = (
 ): void => {
   const message = error instanceof Error ? error.message : String(error);
   const isDevelopment = process.env.NODE_ENV === "development";
-  const isCliContext = isCliLikeCacheContext();
+  const isCliContext = isCliProcessContext();
 
   // Always log cache errors, but use appropriate level
   if (isDevelopment && !isCliContext && !process.env.SUPPRESS_CACHE_WARNINGS) {
@@ -73,9 +76,15 @@ const withGuard = <Args extends unknown[]>(
   };
 };
 
+// NOTE: these guards must stay active during `next build` prerendering.
+// cacheTag/cacheLife are valid inside any "use cache" scope at build time and
+// are the only way prerendered entries become addressable by revalidateTag
+// later (skipping them bakes untagged, uninvalidatable entries into the
+// static output). Only true CLI scripts — where no cache runtime exists and
+// the Next APIs throw — are excluded; withGuard logs those throws.
 export const cacheContextGuards = {
   cacheLife: withGuard("cacheLife", (category: string, profile: CacheDurationProfile) => {
-    if (typeof nextCacheLife === "function" && !isCliLikeCacheContext()) {
+    if (typeof nextCacheLife === "function" && !isCliProcessContext()) {
       // Next.js uses function overloads, not a union type, so we need to handle each case
       if (typeof profile === "string") {
         // Use a type assertion that's more specific than any
@@ -88,12 +97,12 @@ export const cacheContextGuards = {
     }
   }),
   cacheTag: withGuard("cacheTag", (_category: string, ...tags: string[]) => {
-    if (typeof nextCacheTag === "function" && !isCliLikeCacheContext()) {
+    if (typeof nextCacheTag === "function" && !isCliProcessContext()) {
       for (const tag of new Set(tags)) nextCacheTag(tag);
     }
   }),
   revalidateTag: withGuard("revalidateTag", (_category: string, ...tags: string[]) => {
-    if (typeof nextRevalidateTag === "function" && !isCliLikeCacheContext()) {
+    if (typeof nextRevalidateTag === "function" && !isCliProcessContext()) {
       for (const tag of new Set(tags)) nextRevalidateTag(tag, "max");
     }
   }),
