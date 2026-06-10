@@ -26,7 +26,7 @@ describe("EMBEDDING_FIELD_CONTRACTS", () => {
   });
 
   it("verbose fields are always at the end of the field list", () => {
-    for (const [domain, fields] of Object.entries(EMBEDDING_FIELD_CONTRACTS)) {
+    for (const fields of Object.values(EMBEDDING_FIELD_CONTRACTS)) {
       let sawVerbose = false;
       for (const field of fields) {
         expect(sawVerbose && !field.verboseField).toBe(false);
@@ -36,7 +36,7 @@ describe("EMBEDDING_FIELD_CONTRACTS", () => {
   });
 
   it("no label uses a banned standalone word", () => {
-    for (const [domain, fields] of Object.entries(EMBEDDING_FIELD_CONTRACTS)) {
+    for (const fields of Object.values(EMBEDDING_FIELD_CONTRACTS)) {
       for (const field of fields) {
         const labelLower = field.label.toLowerCase();
         for (const banned of BANNED_STANDALONE_LABELS) {
@@ -47,7 +47,7 @@ describe("EMBEDDING_FIELD_CONTRACTS", () => {
   });
 
   it("labels are unique within each domain", () => {
-    for (const [domain, fields] of Object.entries(EMBEDDING_FIELD_CONTRACTS)) {
+    for (const fields of Object.values(EMBEDDING_FIELD_CONTRACTS)) {
       const labels = fields.map((f: EmbeddingFieldSpec) => f.label);
       const unique = new Set(labels);
       expect(unique.size).toBe(labels.length);
@@ -55,7 +55,7 @@ describe("EMBEDDING_FIELD_CONTRACTS", () => {
   });
 
   it("every field has a non-empty meaning", () => {
-    for (const [domain, fields] of Object.entries(EMBEDDING_FIELD_CONTRACTS)) {
+    for (const fields of Object.values(EMBEDDING_FIELD_CONTRACTS)) {
       for (const field of fields) {
         expect(field.meaning.trim().length).toBeGreaterThan(0);
       }

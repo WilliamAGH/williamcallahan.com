@@ -14,7 +14,11 @@ import {
   getBookmarkBySlugFromDatabase,
   getSlugMappingRowsFromDatabase,
 } from "@/lib/db/queries/bookmarks";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
+import type {
+  UnifiedBookmark,
+  BookmarkSlugMapping,
+  BookmarkSlugSource,
+} from "@/types/schemas/bookmark";
 import logger from "@/lib/utils/logger";
 import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
@@ -23,9 +27,6 @@ import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 
 const formatSlugEnvironmentSnapshot = (): string =>
   `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;
-
-type BookmarkSlugSource = Pick<UnifiedBookmark, "id" | "url" | "title"> &
-  Partial<Pick<UnifiedBookmark, "slug">>;
 
 let hasLoggedSlugEnvironmentInfo = false;
 

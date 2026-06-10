@@ -121,7 +121,6 @@ export default async function ExperiencePage() {
 
         return { ...exp, logoData: resolvedLogoData };
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Unknown error";
         console.error("[ExperiencePage] Failed to resolve logo:", err);
         const fallbackLogo = domain ? await getLogoCdnData(domain) : null;
         return {

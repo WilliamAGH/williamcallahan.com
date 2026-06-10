@@ -161,6 +161,9 @@ export const unifiedBookmarkSchema = z.object({
 
 export type UnifiedBookmark = z.infer<typeof unifiedBookmarkSchema>;
 
+export type BookmarkSlugSource = Pick<UnifiedBookmark, "id" | "url" | "title"> &
+  Partial<Pick<UnifiedBookmark, "slug">>;
+
 /** Array schema for validating bookmark collections */
 export const unifiedBookmarksArraySchema = z.array(unifiedBookmarkSchema);
 
