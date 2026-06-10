@@ -81,11 +81,11 @@ For a route param `feature`, the server resolves configuration with this precede
    - `AI_DEFAULT_EMBEDDING_MODEL` (optional; endpoint-compatible `/v1/embeddings` model id)
    - `AI_DEFAULT_OPENAI_API_KEY` (optional)
    - `AI_DEFAULT_MAX_PARALLEL` (optional; default: 1)
-3. Built-in safe defaults (no secrets):
-   - `baseUrl = https://popos-sf7.com`
-   - `model = openai/gpt-oss-120b,openai/gpt-oss-20b`
-   - `maxParallel = 1`
-   - no API key
+ 3. Built-in safe defaults (no secrets):
+    - `baseUrl = https://api.llm-gateway.iocloudhost.net`
+    - `model = qwen3.6:onprem`
+    - `maxParallel = 1`
+    - no API key
 
 `<FEATURE>` is normalized server-side as: uppercase, non-alphanumerics replaced with `_`.
 
