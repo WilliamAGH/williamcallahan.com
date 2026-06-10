@@ -50,7 +50,6 @@ export const CSP_DIRECTIVES = {
     "https://*.x.com",
     ...CLERK_DOMAINS.scripts,
     "blob:",
-    "'unsafe-eval'",
     RAILWAY_TEST_DEPLOYMENTS,
   ],
   connectSrc: [

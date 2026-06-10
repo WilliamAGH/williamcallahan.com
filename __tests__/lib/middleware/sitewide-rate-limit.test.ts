@@ -22,6 +22,14 @@ describe("sitewideRateLimitMiddleware", () => {
       });
       expect(classifyProxyRequest(request)).toBe("document");
     });
+
+    it("classifies HEAD requests to pages as document", () => {
+      const request = new NextRequest("https://example.com/projects", {
+        method: "HEAD",
+        headers: { accept: "text/html,application/xhtml+xml" },
+      });
+      expect(classifyProxyRequest(request)).toBe("document");
+    });
   });
 
   it("does not rate limit health endpoints", () => {
@@ -59,6 +67,29 @@ describe("sitewideRateLimitMiddleware", () => {
     expect(blocked?.headers.get("Content-Type")).toContain("text/html");
     const body = await new Response(blocked?.body).text();
     expect(body).toContain("You've reached a rate limit. Please wait a few minutes and try again.");
+  });
+
+  it("blocks burst HEAD traffic for document routes", () => {
+    const storePrefix = `test-page-head-burst-${Date.now()}`;
+    const makeRequest = () =>
+      new NextRequest("https://example.com/projects", {
+        method: "HEAD",
+        headers: {
+          "x-forwarded-for": "203.0.113.21",
+          accept: "text/html,application/xhtml+xml",
+        },
+      });
+
+    const limit = PROFILES.page.burst.maxRequests;
+    for (let i = 0; i < limit; i++) {
+      const result = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
+      expect(result).toBeNull();
+    }
+
+    const blocked = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
+    expect(blocked).not.toBeNull();
+    expect(blocked?.status).toBe(429);
+    expect(blocked?.headers.get("Retry-After")).toBe("10");
   });
 
   it("blocks burst traffic for API routes with standardized JSON", async () => {

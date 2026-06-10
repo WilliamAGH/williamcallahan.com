@@ -115,7 +115,10 @@ async function buildCspHeader(): Promise<string> {
   // scripts rendered at runtime). To prevent unexpected CSP violations, we **only** merge style
   // hashes. Script hashes are deliberately omitted so that the `'unsafe-inline'` fallback remains
   // effective for all inline scripts generated at request-time by Next.js.
-  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc];
+  const scriptSrc =
+    process.env.NODE_ENV === "production"
+      ? [...CSP_DIRECTIVES.scriptSrc]
+      : [...CSP_DIRECTIVES.scriptSrc, "'unsafe-eval'"];
   const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc];
 
   const cspDirectives: typeof CSP_DIRECTIVES = {
