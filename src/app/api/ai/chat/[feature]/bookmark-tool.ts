@@ -15,6 +15,15 @@ export const TOOL_MAX_RESULTS_DEFAULT = 5;
 
 const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(([^)\n]+)\)/g;
 
+function escapeMarkdownLinkLabel(text: string): string {
+  return text
+    .replaceAll("\\", "\\\\")
+    .replaceAll("[", "\\[")
+    .replaceAll("]", "\\]")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+}
+
 /**
  * Reject protocol-relative and external URLs; accept only internal paths.
  *
@@ -50,7 +59,7 @@ export function formatBookmarkResultsAsLinks(
   const topResults = uniqueResults.slice(0, TOOL_MAX_RESULTS_DEFAULT);
   const lines = ["Here are the best matches I found:"];
   for (const result of topResults) {
-    lines.push(`- [${result.title}](${result.url})`);
+    lines.push(`- [${escapeMarkdownLinkLabel(result.title)}](${result.url})`);
   }
   return lines.join("\n");
 }
@@ -76,7 +85,7 @@ export function sanitizeBookmarkLinksAgainstAllowlist(params: {
       const normalizedUrl = normalizeInternalPath(rawUrl);
       if (normalizedUrl && allowedUrls.has(normalizedUrl)) {
         allowedLinkCount += 1;
-        return `[${title}](${normalizedUrl})`;
+        return `[${escapeMarkdownLinkLabel(title)}](${normalizedUrl})`;
       }
       hadDisallowedLink = true;
       return `${title} (link removed)`;

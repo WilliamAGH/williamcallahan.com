@@ -79,11 +79,11 @@ For a route param `feature`, the server resolves configuration with this precede
    - `AI_DEFAULT_OPENAI_BASE_URL`
    - `AI_DEFAULT_LLM_MODEL`
    - `AI_DEFAULT_EMBEDDING_MODEL` (optional; endpoint-compatible `/v1/embeddings` model id)
-   - `AI_DEFAULT_OPENAI_API_KEY` (optional)
+   - `AI_DEFAULT_OPENAI_API_KEY` (optional for config resolution; required before upstream calls when no feature key is set)
    - `AI_DEFAULT_MAX_PARALLEL` (optional; default: 1)
-3. Built-in safe defaults (no secrets):
-   - `baseUrl = https://popos-sf7.com`
-   - `model = openai/gpt-oss-120b,openai/gpt-oss-20b`
+3. Built-in non-secret defaults:
+   - `baseUrl = https://api.llm-gateway.iocloudhost.net`
+   - `model = qwen3.6:onprem`
    - `maxParallel = 1`
    - no API key
 
@@ -105,7 +105,7 @@ For a route param `feature`, the server resolves configuration with this precede
 
 - Dependency: `openai@6.18.0` from npm.
 - SDK base URL is normalized to include `/v1`, so both OpenAI and OpenAI-compatible providers (including LM Studio) can be configured with or without a trailing `/v1`.
-- If no API key is configured, the server uses a compatibility fallback token for SDK initialization (required by the SDK constructor) and logs a warning.
+- If no API key is configured, the server fails before constructing the SDK client; set `AI_DEFAULT_OPENAI_API_KEY` or a feature-specific key.
 - Streaming adapter:
   - Uses SDK stream helpers (`chat.completions.stream(...)` and `responses.stream(...)`) and finalizes each turn via `finalChatCompletion()` / `finalResponse()`.
   - Forwards real upstream token deltas through `onDelta` callbacks.

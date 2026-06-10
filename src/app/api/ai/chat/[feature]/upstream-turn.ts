@@ -11,6 +11,7 @@
 import "server-only";
 
 import {
+  assertOpenAiCompatibleResponsesSucceeded,
   callOpenAiCompatibleChatCompletions,
   callOpenAiCompatibleResponses,
   streamOpenAiCompatibleChatCompletions,
@@ -212,6 +213,8 @@ export async function executeResponsesTurn(
       },
     });
   }
+
+  assertOpenAiCompatibleResponsesSucceeded(response);
 
   const toolCalls = extractToolCallsFromResponseOutput(response.output);
   if (toolCalls.length === 0) {

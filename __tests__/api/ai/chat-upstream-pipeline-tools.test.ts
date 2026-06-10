@@ -11,6 +11,7 @@ import {
   resetPipelineMocks,
   searchQuery,
 } from "./upstream-pipeline-test-harness";
+import { formatBookmarkResultsAsLinks } from "@/app/api/ai/chat/[feature]/bookmark-tool";
 
 describe("AI Chat Upstream Pipeline Tools", () => {
   beforeEach(() => {
@@ -83,6 +84,20 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     expect(mockCallOpenAiCompatibleChatCompletions).toHaveBeenCalledTimes(2);
     expect(reply).toBe(allowlistedReply);
     expect(reply).not.toContain("Here are the best matches I found:");
+  });
+
+  it("escapes bookmark titles before rendering deterministic markdown links", () => {
+    const reply = formatBookmarkResultsAsLinks([
+      {
+        title: "Helpful](https://evil.example) [Injected",
+        url: "/bookmarks/safe-bookmark",
+      },
+    ]);
+
+    expect(reply).toContain(
+      "[Helpful\\](https://evil.example) \\[Injected](/bookmarks/safe-bookmark)",
+    );
+    expect(reply).not.toContain("[Helpful](https://evil.example)");
   });
 
   it("uses deterministic fallback when model returns empty content instead of required tool calls", async () => {
@@ -203,5 +218,19 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     expect(firstCallRequest?.tools?.[0]?.name).toBe("search_bookmarks");
     expect(mockedSearchBookmarks).toHaveBeenCalledWith(searchQuery);
     expect(reply).toContain(bookmarkLink);
+  });
+
+  it("surfaces Responses API failed status provider details", async () => {
+    mockCallOpenAiCompatibleResponses.mockResolvedValueOnce({
+      id: "response_failed",
+      status: "failed",
+      error: { code: "invalid_prompt", message: "Provider rejected the prompt" },
+      output_text: "",
+      output: [],
+    });
+
+    await expect(createPipeline({ apiMode: "responses" }).runUpstream()).rejects.toThrow(
+      "invalid_prompt: Provider rejected the prompt",
+    );
   });
 });

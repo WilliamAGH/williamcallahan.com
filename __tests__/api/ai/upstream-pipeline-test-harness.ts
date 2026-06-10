@@ -23,6 +23,22 @@ export const mockGetUpstreamRequestQueue = vi.fn().mockReturnValue({
 });
 
 vi.mock("@/lib/ai/openai-compatible/openai-compatible-client", () => ({
+  assertOpenAiCompatibleResponsesSucceeded: (response: {
+    id: string;
+    status?: string;
+    error?: { code: string; message: string } | null;
+  }) => {
+    if (response.status !== "failed") return;
+    const detail = response.error
+      ? `${response.error.code}: ${response.error.message}`
+      : "No provider error details returned.";
+    throw Object.assign(
+      new Error(
+        `[AI] Responses API returned status "${response.status}" for ${response.id}: ${detail}`,
+      ),
+      { name: "OpenAiCompatibleResponsesFailureError", status: 502 },
+    );
+  },
   callOpenAiCompatibleChatCompletions: (...args: unknown[]) =>
     mockCallOpenAiCompatibleChatCompletions(...args),
   callOpenAiCompatibleResponses: (...args: unknown[]) => mockCallOpenAiCompatibleResponses(...args),

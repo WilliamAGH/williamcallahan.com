@@ -144,12 +144,13 @@ async function executeToolCallBatch(
         });
         continue;
       }
+      const failed = typeof validated.data.error === "string";
       results.push({
         callId: call.callId,
         toolName: call.toolName,
-        failed: false,
+        failed,
         parsed: validated.data,
-        links: validated.data.results.map((r) => ({ title: r.title, url: r.url })),
+        links: failed ? [] : validated.data.results.map((r) => ({ title: r.title, url: r.url })),
       });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -244,14 +245,13 @@ export async function dispatchToolCallsByName(
   return { responseMessages, observedResults, failedCallIds };
 }
 
-/** Extract function_call items from Responses API output (any registered tool) */
+/** Extract function_call items from Responses API output */
 export function extractToolCallsFromResponseOutput(
   responseOutput: unknown[],
 ): OpenAiCompatibleResponsesFunctionCall[] {
   const toolCalls: OpenAiCompatibleResponsesFunctionCall[] = [];
   let functionCallItems = 0;
   let droppedInvalidSchema = 0;
-  let droppedUnknownTool = 0;
   for (const item of responseOutput) {
     if (!item || typeof item !== "object" || !("type" in item) || item.type !== "function_call") {
       continue;
@@ -265,23 +265,14 @@ export function extractToolCallsFromResponseOutput(
       });
       continue;
     }
-    if (!getToolByName(parsed.data.name)) {
-      droppedUnknownTool += 1;
-      logger.warn("[AI Chat] Ignoring unrecognized tool in response output", {
-        toolName: parsed.data.name,
-      });
-      continue;
-    }
     toolCalls.push(parsed.data);
   }
-  const droppedTotal = droppedInvalidSchema + droppedUnknownTool;
-  if (droppedTotal > 0) {
+  if (droppedInvalidSchema > 0) {
     logger.warn("[AI Chat] Dropped responses function_call items", {
       totalOutputItems: responseOutput.length,
       functionCallItems,
       acceptedFunctionCalls: toolCalls.length,
       droppedInvalidSchema,
-      droppedUnknownTool,
     });
   }
   return toolCalls;
