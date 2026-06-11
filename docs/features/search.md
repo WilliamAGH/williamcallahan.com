@@ -65,7 +65,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 1. **Server/Client Boundary**: API-based approach; terminal never imports server modules.
 
-2. **Type Consolidation**: Single `SearchResult` type in `types/search.ts`.
+2. **Type Consolidation**: Single `SearchResult` type in `types/schemas/search.ts`.
 
 3. **Generic Search**: `searchContent<T>` function used by all search implementations.
 
