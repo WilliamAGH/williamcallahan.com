@@ -577,12 +577,12 @@ File/Path Functionality Description
       - [x] **`[feature]`/`bookmark-tool.ts`** `ai-shared-services` - Bookmark-specific helpers: link formatting, URL sanitization, search pattern matching, query extraction
       - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field configuration metadata shared by validation helpers
       - [x] **`[feature]`/`analysis-output-validation.ts`** `ai-shared-services` - Structured analysis output parse/normalize/leakage validation and repair prompt builder
-  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
+  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (bearer auth)
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
     - [x] **refresh/`route.ts`** `github-activity` - Refresh GitHub activity API
   - [x] **health/`route.ts`** `log-error-debug-handling` - Health check API
-  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated health metrics API (force-dynamic)
+  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated health metrics API
   - [x] **ip/`route.ts`** `log-error-debug-handling` - IP address API
   - [x] **log-client-error/`route.ts`** `log-error-debug-handling` - API endpoint for logging client-side errors
   - [ ] **logo/**
@@ -591,14 +591,14 @@ File/Path Functionality Description
   - [x] **og/`[entity]`/`route.tsx`** `opengraph` - Unified dynamic OG image generator for all entity types (books, bookmarks, blog, projects, thoughts, collection)
   - [x] **og-image/`route.ts`** `opengraph` - Universal OpenGraph image endpoint (2025-06 rewrite)
   - [x] **related-content/**
-    - [x] `route.ts` `search` - Related content recommender (force-dynamic, request header aware)
-    - [x] **debug/`route.ts`** `search` - Related content scoring debugger (force-dynamic)
+    - [x] `route.ts` `search` - Related content recommender (connection() for request-time execution)
+    - [x] **debug/`route.ts`** `search` - Related content scoring debugger
   - [x] **posts/`route.ts`** `blog-article` - Posts API
   - [x] **search/**
-    - [x] **all/`route.ts`** `search` - Global search API (force-dynamic rate limiting)
-    - [x] **blog/`route.ts`** `search` - Blog search API (force-dynamic URL resolver)
-    - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (force-dynamic pagination)
-    - [x] **[scope]/`route.ts`** `search` - Scoped search API (force-dynamic)
+    - [x] **all/`route.ts`** `search` - Global search API (connection() for request-time execution)
+    - [x] **blog/`route.ts`** `search` - Blog search API (connection() for request-time execution)
+    - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (connection() for request-time execution)
+    - [x] **[scope]/`route.ts`** `search` - Scoped search API (connection() for request-time execution)
   - [x] **sentry-example-api/`route.ts`** `log-error-debug-handling` - Sentry example API (debug endpoint)
   - [x] **tunnel/`route.ts`** `log-error-debug-handling` - Sentry tunnel API
   - [x] **twitter-image/[...path]/`route.ts`** `blog-article` - Twitter image proxy API
