@@ -12,8 +12,11 @@ import { CSP_DIRECTIVES } from "@/config/csp";
  * Dynamically imports Content Security Policy (CSP) hashes from the auto-generated file.
  *
  * The csp-hashes.json file is created post-build by scripts/generate-csp-hashes.ts and contains SHA256
- * hashes of all inline scripts and styles found in the Next.js build output. These hashes enable a strict
- * CSP policy without using 'unsafe-inline'.
+ * hashes of inline scripts and styles found in the Next.js build output. Note the current policy still
+ * keeps 'unsafe-inline' in both script-src and style-src: buildCspHeader merges only the style hashes and
+ * intentionally omits the script hashes so the 'unsafe-inline' fallback stays effective for Next.js's
+ * request-time inline scripts. These hashes are therefore an enhancement layered on top of 'unsafe-inline',
+ * not a replacement for it.
  *
  * @returns Object containing arrays of CSP hash strings (scriptSrc, styleSrc).
  *
