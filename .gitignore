@@ -9,6 +9,7 @@ pnpm-debug.log*
 lerna-debug.log*
 .next
 node_modules
+dogfood-output/
 .jest-pre-compiled
 dist
 dist-ssr
