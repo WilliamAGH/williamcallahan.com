@@ -15,7 +15,7 @@
 // See: https://nextjs.org/docs/app/getting-started/proxy
 // Using `edge` here (not deprecated `experimental-edge`).
 
-import { CSP_DIRECTIVES } from "@/config/csp";
+import { buildCspHeader } from "@/lib/middleware/csp-header";
 import { NextResponse, type NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
 import { getClientIp } from "@/lib/utils/request-utils";
@@ -30,38 +30,6 @@ import type { ProxyFunction } from "@/types/middleware";
 const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 import type { RequestLog } from "@/types/lib";
-
-/**
- * Dynamically imports Content Security Policy (CSP) hashes from the auto-generated file.
- *
- * The csp-hashes.json file is created post-build by scripts/generate-csp-hashes.ts
- * and contains SHA256 hashes of all inline scripts and styles found in the Next.js
- * build output. These hashes enable a strict CSP policy without using 'unsafe-inline'.
- *
- * @returns {Promise<{scriptSrc: string[], styleSrc: string[]}>} Object containing arrays of CSP hash strings
- *          - scriptSrc: Array of SHA256 hashes for inline scripts (e.g., "'sha256-abc123...'")
- *          - styleSrc: Array of SHA256 hashes for inline styles
- *
- * @example
- * const hashes = await getCspHashes();
- * // Returns: { scriptSrc: ["'sha256-...'", "'sha256-...'"], styleSrc: ["'sha256-...'"] }
- *
- * @note The file may not exist during the first build, which is expected behavior.
- *       In this case, empty arrays are returned for both scriptSrc and styleSrc.
- */
-// Fallback when CSP hashes unavailable (first build, missing file). CSP still enforced via 'unsafe-inline'.
-const CSP_HASHES_FALLBACK = { scriptSrc: [] as string[], styleSrc: [] as string[] } as const;
-
-async function getCspHashes(): Promise<{ scriptSrc: string[]; styleSrc: string[] }> {
-  try {
-    const hashes = await import("../generated/csp-hashes.json");
-    return hashes.default;
-  } catch (error) {
-    // [RC1] Logged fallback: CSP still works via 'unsafe-inline', hashes are an enhancement
-    console.warn("[CSP] Using fallback (no hashes). Expected on first build:", error);
-    return CSP_HASHES_FALLBACK;
-  }
-}
 
 const NON_LOGGED_PATHS = new Set(["/favicon.ico", "/robots.txt", "/sitemap.xml"]);
 const NON_LOGGED_PREFIXES = ["/_next/", "/api/"] as const;
@@ -105,36 +73,6 @@ function setSecurityHeaders(response: NextResponse, ip: string): void {
     response.headers.set(header, value);
   }
   response.headers.set("X-Real-IP", ip);
-}
-
-async function buildCspHeader(): Promise<string> {
-  const cspHashes = await getCspHashes();
-
-  // Merging script hashes with 'unsafe-inline' causes browsers to ignore 'unsafe-inline' and block
-  // any inline scripts that do not have a matching hash (e.g., React server components bootstrap
-  // scripts rendered at runtime). To prevent unexpected CSP violations, we **only** merge style
-  // hashes. Script hashes are deliberately omitted so that the `'unsafe-inline'` fallback remains
-  // effective for all inline scripts generated at request-time by Next.js.
-  // Security-model note: production DOES serve 'unsafe-eval' (a deliberate reversal of the f694d075
-  // hardening), because the blog MDX renderer evaluates build-time, repo-owned compiled MDX with
-  // `new Function`. The directive — and the trust-boundary justification for accepting it as an interim
-  // posture pending the server-render migration — lives in the canonical CSP_DIRECTIVES.scriptSrc
-  // (single owner). prod and dev derive identical script sources here; no per-env subtraction.
-  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc];
-  const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc];
-
-  const cspDirectives: typeof CSP_DIRECTIVES = {
-    ...CSP_DIRECTIVES,
-    scriptSrc,
-    styleSrc,
-  };
-
-  return Object.entries(cspDirectives)
-    .map(([key, sources]) => {
-      const directive = key.replaceAll(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
-      return `${directive} ${sources.join(" ")}`;
-    })
-    .join("; ");
 }
 
 function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): void {

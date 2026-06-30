@@ -342,9 +342,10 @@ describe("randomString", () => {
     });
 
     // Render-path contract (intentional inversion of the prior "must NOT contain" assertion that shipped
-    // the 2026-06-29 outage). The blog MDX renderer hydrates posts with `new Function(compiledSource)`
-    // (src/components/features/blog/blog-article/mdx-content.client.tsx), which the browser blocks without
-    // 'unsafe-eval' — dropping it blanks every /blog article in production while dev stays green.
+    // the 2026-06-29 outage). The blog MDX renderer evaluates compiledSource through the Function
+    // constructor (`new Function`, via `Reflect.construct` in mdx-content.client.tsx), which the browser
+    // blocks without 'unsafe-eval' — dropping it now blanks every /blog article in every environment
+    // (proxy.ts no longer re-adds it in dev, so prod and dev fail identically).
     //
     // Acceptable because `compiledSource` is build-time, repo-owned MDX (data/blog/posts/*.mdx) compiled by
     // the server serializer — no user/request input reaches the eval, so the directive does not widen an
