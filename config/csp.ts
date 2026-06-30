@@ -39,10 +39,12 @@ export const CSP_DIRECTIVES = {
   scriptSrc: [
     "'self'",
     "'unsafe-inline'",
-    // 'unsafe-eval' — required by the blog MDX renderer, which hydrates each post with
-    // `new Function(compiledSource)` (next-mdx-remote v4 client model) in
+    // 'unsafe-eval' — required by the blog MDX renderer, which hydrates each post by evaluating
+    // compiledSource through the Function constructor (`new Function`, invoked via `Reflect.construct`) in
     // src/components/features/blog/blog-article/mdx-content.client.tsx. Browsers block runtime code-gen
-    // without it, so dropping this directive blanks every /blog article in production (dev is unaffected).
+    // without it, so dropping this directive blanks every /blog article in EVERY environment. (The original
+    // f694d075 outage hit production only because proxy.ts still re-added the directive in dev at request
+    // time; that per-env subtraction is gone now — prod and dev both derive script-src from this list.)
     //
     // Why this is an ACCEPTABLE interim posture (not just papering over the cause):
     //   Trust boundary — `compiledSource` is derived only from repo-owned, build-time MDX in
