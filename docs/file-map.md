@@ -511,6 +511,7 @@ File/Path Functionality Description
 ## Middleware Directory
 
 - [ ] **middleware/**
+  - [x] `csp-header.ts` `security` - CSP header construction (buildCspHeader, getCspHashes), extracted from proxy.ts for testability
   - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Navigation-first proxy throttling (only `document`/`api`) with deterministic 429 contracts and structured handled-event logs
 
 ## Root Directory

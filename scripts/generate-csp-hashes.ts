@@ -152,14 +152,14 @@ function generateHashes() {
   }
 
   // Write the hashes to generated/csp-hashes.json
-  // This file is imported by proxy.ts to apply CSP headers
+  // This file is imported by src/lib/middleware/csp-header.ts to build CSP headers
   writeFileSync(outputFile, JSON.stringify(output, null, 2));
 
   console.log(
     `${LOG_PREFIX} Successfully generated ${output.scriptSrc.length} script hashes and ${output.styleSrc.length} style hashes.`,
   );
   console.log(
-    `${LOG_PREFIX} Note: proxy.ts currently applies style hashes only; script hashes are generated for future CSP hardening.`,
+    `${LOG_PREFIX} Note: csp-header.ts currently applies style hashes only; script hashes are generated for future CSP hardening.`,
   );
   console.log(`${LOG_PREFIX} Hashes saved to ${outputFile}`);
 }
