@@ -9,8 +9,12 @@
  */
 
 import { buildCspHeader } from "@/lib/middleware/csp-header";
+import { CSP_DIRECTIVES } from "@/config/csp";
 
-/** Extracts a single directive's source list from a serialized CSP header string. */
+/**
+ * Returns the full serialized directive segment for `directive` — including the directive name, e.g.
+ * "script-src 'self' 'unsafe-inline' ..." — or "" when the directive is absent from the header.
+ */
 function getDirective(header: string, directive: string): string {
   const match = header.split("; ").find((part) => part.startsWith(`${directive} `));
   return match ?? "";
@@ -29,9 +33,10 @@ describe("buildCspHeader (emitted CSP header)", () => {
     const header = await buildCspHeader();
     const scriptSrc = getDirective(header, "script-src");
 
-    // Every canonical script source must appear in the served header; a regression that filters the list
-    // in proxy.ts (the original outage shape) would drop one and fail here.
-    for (const source of ["'self'", "'unsafe-inline'", "'unsafe-eval'"]) {
+    // Bind to the canonical owner ([SS1]): every source in CSP_DIRECTIVES.scriptSrc must appear in the
+    // served header. A regression that filters the list in the header builder (the original outage shape)
+    // would drop one and fail here, and sources added to the canonical list are covered automatically.
+    for (const source of CSP_DIRECTIVES.scriptSrc) {
       expect(scriptSrc).toContain(source);
     }
   });
