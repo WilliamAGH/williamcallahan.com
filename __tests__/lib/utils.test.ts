@@ -341,8 +341,20 @@ describe("randomString", () => {
       expect(CSP_DIRECTIVES.imgSrc).not.toContain("https:");
     });
 
-    it("does not include unsafe-eval in static script sources", () => {
-      expect(CSP_DIRECTIVES.scriptSrc).not.toContain("'unsafe-eval'");
+    // Render-path contract (intentional inversion of the prior "must NOT contain" assertion that shipped
+    // the 2026-06-29 outage). The blog MDX renderer hydrates posts with `new Function(compiledSource)`
+    // (src/components/features/blog/blog-article/mdx-content.client.tsx), which the browser blocks without
+    // 'unsafe-eval' — dropping it blanks every /blog article in production while dev stays green.
+    //
+    // Acceptable because `compiledSource` is build-time, repo-owned MDX (data/blog/posts/*.mdx) compiled by
+    // the server serializer — no user/request input reaches the eval, so the directive does not widen an
+    // attacker-controlled injection surface (see config/csp.ts for the full justification).
+    //
+    // Flip this back to `.not.toContain` ONLY after the blog migrates to server-rendered MDX
+    // (next-mdx-remote/rsc <MDXRemote>) and the client `new Function` is gone. Until then this guards the
+    // regression: removing 'unsafe-eval' must fail CI here.
+    it("includes unsafe-eval in script sources for blog MDX client hydration", () => {
+      expect(CSP_DIRECTIVES.scriptSrc).toContain("'unsafe-eval'");
     });
   });
 });

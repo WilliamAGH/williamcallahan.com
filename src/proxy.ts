@@ -115,10 +115,12 @@ async function buildCspHeader(): Promise<string> {
   // scripts rendered at runtime). To prevent unexpected CSP violations, we **only** merge style
   // hashes. Script hashes are deliberately omitted so that the `'unsafe-inline'` fallback remains
   // effective for all inline scripts generated at request-time by Next.js.
-  const scriptSrc =
-    process.env.NODE_ENV === "production"
-      ? [...CSP_DIRECTIVES.scriptSrc]
-      : [...CSP_DIRECTIVES.scriptSrc, "'unsafe-eval'"];
+  // Security-model note: production DOES serve 'unsafe-eval' (a deliberate reversal of the f694d075
+  // hardening), because the blog MDX renderer evaluates build-time, repo-owned compiled MDX with
+  // `new Function`. The directive — and the trust-boundary justification for accepting it as an interim
+  // posture pending the server-render migration — lives in the canonical CSP_DIRECTIVES.scriptSrc
+  // (single owner). prod and dev derive identical script sources here; no per-env subtraction.
+  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc];
   const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc];
 
   const cspDirectives: typeof CSP_DIRECTIVES = {

@@ -39,6 +39,22 @@ export const CSP_DIRECTIVES = {
   scriptSrc: [
     "'self'",
     "'unsafe-inline'",
+    // 'unsafe-eval' — required by the blog MDX renderer, which hydrates each post with
+    // `new Function(compiledSource)` (next-mdx-remote v4 client model) in
+    // src/components/features/blog/blog-article/mdx-content.client.tsx. Browsers block runtime code-gen
+    // without it, so dropping this directive blanks every /blog article in production (dev is unaffected).
+    //
+    // Why this is an ACCEPTABLE interim posture (not just papering over the cause):
+    //   Trust boundary — `compiledSource` is derived only from repo-owned, build-time MDX in
+    //   data/blog/posts/*.mdx via next-mdx-remote's server serializer. No request data, query param, or
+    //   user-submitted content reaches `new Function`, so this does not expand an attacker-controlled
+    //   injection surface. The grant is the blast radius of `'unsafe-eval'` site-wide; it does NOT make
+    //   the eval input untrusted.
+    //
+    // Durable fix (DEFERRED, intentionally): migrate blog MDX to server rendering
+    //   (next-mdx-remote/rsc <MDXRemote>) so no client `new Function` exists, then remove this directive.
+    //   Until that lands, this is load-bearing — do not remove. Pinned by __tests__/lib/utils.test.ts.
+    "'unsafe-eval'",
     "https://umami.iocloudhost.net",
     "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
