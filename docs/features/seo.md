@@ -51,24 +51,20 @@ Provides comprehensive search engine optimization through metadata generation, s
 
 All SEO images defined in `data/metadata.ts` via `SEO_IMAGES` constant:
 
-| Constant                       | Purpose                                                   | Path                              |
-| ------------------------------ | --------------------------------------------------------- | --------------------------------- |
-| `SEO_IMAGES.ogDefault`         | Site-wide default OpenGraph & Twitter card (1200×630 PNG) | `/images/og/default-og.png`       |
-| `SEO_IMAGES.ogLogo`            | Optional logo-only card                                   | `/images/og/logo-og.png`          |
-| `SEO_IMAGES.ogBookmarks`       | Bookmarks collection card                                 | `/images/og/bookmarks-og.png`     |
-| `SEO_IMAGES.ogProjects`        | Projects collection card                                  | `/images/og/projects-og.png`      |
-| `SEO_IMAGES.ogBlogIndex`       | Blog index card                                           | `/images/og/blog-og.png`          |
-| `SEO_IMAGES.ogDynamicFallback` | Fallback returned by `/api/og-image`                      | `/images/og/dynamic-fallback.png` |
-| `SEO_IMAGES.faviconIco`        | Favicon (ICO multi-size)                                  | `/favicon.ico`                    |
-| `SEO_IMAGES.faviconSvg`        | Favicon SVG (hi-DPI)                                      | `/favicon.svg`                    |
-| `SEO_IMAGES.appleTouch`        | Apple touch icon 180×180                                  | `/apple-touch-icon.png`           |
-| `SEO_IMAGES.android192`        | Android/manifest 192×192                                  | `/android-chrome-192x192.png`     |
-| `SEO_IMAGES.android512`        | Android/manifest 512×512                                  | `/android-chrome-512x512.png`     |
-
-**Missing Assets** (Build will warn):
-
-- `/images/og/dynamic-fallback.png` - TODO in `data/metadata.ts:89`
-- `/favicon.svg` - TODO in `data/metadata.ts:94`
+| Constant                   | Purpose                                      | Source path                                     |
+| -------------------------- | -------------------------------------------- | ----------------------------------------------- |
+| `SEO_IMAGES.ogDefault`     | Site-wide default OpenGraph and Twitter card | `/images/og/default-og.png`                     |
+| `SEO_IMAGES.ogBookmarks`   | Bookmarks collection card                    | `/images/og/bookmarks-og.png`                   |
+| `SEO_IMAGES.ogProjects`    | Projects collection card                     | `/images/og/projects-og.png`                    |
+| `SEO_IMAGES.ogBlogIndex`   | Blog index card                              | `/images/og/blog-og.png`                        |
+| `SEO_IMAGES.ogExperience`  | Experience and CV card                       | `/images/og/experience-og.png`                  |
+| `SEO_IMAGES.ogEducation`   | Education card                               | `/images/og/education-og.png`                   |
+| `SEO_IMAGES.ogInvestments` | Investments card                             | `/images/og/investments-og.png`                 |
+| `SEO_IMAGES.ogContact`     | Contact card                                 | `/images/og/contact-og.png`                     |
+| `SEO_IMAGES.faviconIco`    | Favicon (ICO multi-size)                     | `/images/favicons/favicon.ico`                  |
+| `SEO_IMAGES.appleTouch`    | Apple touch icon 180x180                     | `/images/favicons/apple-180x180-touch-icon.png` |
+| `SEO_IMAGES.android192`    | Android/manifest 192x192                     | `/images/favicons/android-chrome-192x192.png`   |
+| `SEO_IMAGES.android512`    | Android/manifest 512x512                     | `/images/favicons/android-chrome-512x512.png`   |
 
 **URL Processing**: All relative paths converted to absolute HTTPS URLs via `ensureAbsoluteUrl()` ensuring crawler compatibility.
 
@@ -286,10 +282,10 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
   - **Google Search Console**: Uses Webmasters API v3 with Service Account authentication
   - **Bing IndexNow**: Simple GET request with API key verification
   - Features:
-    - Production-only execution (checks `NODE_ENV` and `SITE_URL`)
-    - Rate limiting (1 second delay between submissions)
+    - Production-only execution (checks `NEXT_PUBLIC_SITE_URL`)
+    - Rate limiting (1-second delay between submissions)
     - Retry mechanism with exponential backoff
-    - Command line options: `--sitemaps-only`, `--individual-only`, `--all`
+    - Command line options: `--google-only`, `--indexnow-only`, `--debug`
 - **`scheduler/scheduler.ts`**: Orchestrates automated tasks
   - Bookmark refresh: Every 2 hours -> triggers sitemap submission
   - **Distributed-Lock Aware**: Before starting a refresh it attempts to acquire the `bookmarks/refresh-lock*.json` object in S3. If another
@@ -429,7 +425,7 @@ graph TD
 | `GOOGLE_SEARCH_INDEXING_SA_EMAIL`       | Service account email         | `sa@project.iam.gserviceaccount.com`                              | Google submission |
 | `GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY` | Full private key with headers | `"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"` | Google submission |
 | `INDEXNOW_KEY`                          | Bing IndexNow API key         | `abc123def456`                                                    | Bing submission   |
-| `SITE_URL`                              | Production site URL           | `https://williamcallahan.com`                                     | All submissions   |
+| `NEXT_PUBLIC_SITE_URL`                  | Production site URL           | `https://williamcallahan.com`                                     | All submissions   |
 | `NODE_ENV`                              | Environment indicator         | `production`                                                      | Production check  |
 
 ### Setup Requirements
@@ -451,7 +447,7 @@ graph TD
 
 1. **Trigger**: Scheduler runs bookmark refresh every 2 hours
 2. **Success Hook**: On successful refresh, triggers sitemap submission
-3. **Production Check**: Verifies `NODE_ENV=production` and valid `SITE_URL`
+3. **Production Check**: Verifies `NEXT_PUBLIC_SITE_URL` matches the canonical production URL
 4. **Rate Limiting**: 1-second delay between API calls
 5. **Submission**:
    - Google: POST to Webmasters API with sitemap URL
@@ -474,10 +470,10 @@ bun run build
 curl http://localhost:3000/sitemap.xml
 
 # Test submission (dry run)
-NODE_ENV=development bun run scheduler/submit-sitemap.ts
+NODE_ENV=development bun run submit-sitemap -- --debug
 
 # Force production submission (use with caution)
-NODE_ENV=production SITE_URL=https://williamcallahan.com bun run scheduler/submit-sitemap.ts --sitemaps-only
+FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com bun run submit-sitemap
 ```
 
 ### Common Issues
@@ -607,7 +603,7 @@ bun run scripts/validate-opengraph-clear-cache.ts
 bun run scripts/refresh-opengraph-images.ts
 
 # Force sitemap resubmission
-NODE_ENV=production bun run scheduler/submit-sitemap.ts --all
+NODE_ENV=production bun run submit-sitemap
 ```
 
 ## Performance Characteristics
@@ -665,12 +661,6 @@ NODE_ENV=production bun run scheduler/submit-sitemap.ts --all
    - Impact: No support for Product, Event, Recipe schemas
    - Fix: Add commonly needed schema types
 
-### Code Quality
-
-8. **Missing Image Assets** - `data/metadata.ts`
-   - `/images/og/dynamic-fallback.png` (line 89)
-   - `/favicon.svg` (line 94)
-
 ### VERIFIED SECURE
 
 - **Environment Variables**: All use server-only patterns
@@ -700,7 +690,7 @@ bun test __tests__/lib/seo/og-validation.test.ts
 bun run scripts/validate-opengraph-clear-cache.ts
 
 # Force sitemap resubmission
-NODE_ENV=production bun run scheduler/submit-sitemap.ts --all
+NODE_ENV=production bun run submit-sitemap
 
 # Refresh bookmark OpenGraph images
 bun run scripts/refresh-opengraph-images.ts
