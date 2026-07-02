@@ -45,7 +45,7 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 
 ```typescript
 // scheduler/scheduler.ts - Uses async spawn
-const updateProcess = spawn("bun", ["run", "update-data", "--", "--bookmarks"], {
+const updateProcess = spawn("node", ["--run", "update-data", "--", "--bookmarks"], {
   env: process.env,
   stdio: "inherit",
   detached: false,
@@ -68,31 +68,25 @@ export class DataFetchManager {
   }
 }
 
-export class DataFetchManagerCLI {
-  static async run(): Promise<void> {
-    // Parses command-line arguments
-    // Executes appropriate DataFetchManager methods
-    // Handles process exit codes
-  }
-}
+// scheduler/data-updater.ts parses CLI flags, invokes DataFetchManager,
+// and exits non-zero when any requested operation fails.
 ```
 
 ### Usage Examples
 
 ```bash
 # Update all data
-bun scheduler/data-updater.ts
+bun run update-data
 
 # Update specific data types
-bun scheduler/data-updater.ts --bookmarks
-bun scheduler/data-updater.ts --github --logos
+bun run update-data -- --bookmarks
+bun run update-data -- --github --logos
 
 # Prefetch for builds
-bun scheduler/data-updater.ts --prefetch-build  # Fast (S3 only)
-bun scheduler/data-updater.ts --prefetch-dev    # Full (all sources)
+bun run prefetch
 
 # Force refresh
-bun scheduler/data-updater.ts --force --bookmarks
+bun run update-data -- --force --bookmarks
 ```
 
 **Key Components:**
@@ -111,8 +105,6 @@ bun scheduler/data-updater.ts --force --bookmarks
   - `--bookmarks`: Update bookmarks only
   - `--github`: Update GitHub activity only
   - `--logos`: Update logos only
-  - `--prefetch-build`: Fast build prefetch (S3 only)
-  - `--prefetch-dev`: Full development prefetch
   - `--force`: Force refresh regardless of cache
 - **scripts/force-refresh-repo-stats.ts**: Manual GitHub stats refresh
 - **scripts/refresh-opengraph-images.ts**: OpenGraph image backfilling
@@ -266,7 +258,7 @@ curl http://localhost:3000/api/bookmarks/refresh
 bun run scheduler
 
 # Development
-bun run scheduler:dev
+NODE_ENV=development bun run scheduler
 ```
 
 ### Health Checks
