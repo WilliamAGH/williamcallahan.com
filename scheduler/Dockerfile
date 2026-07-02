@@ -92,7 +92,7 @@ USER nextjs
 
 # The scheduler exposes no HTTP server; healthy = cron process alive.
 HEALTHCHECK --interval=60s --timeout=5s --start-period=60s --retries=3 \
-  CMD pgrep -f "scheduler/scheduler.ts" > /dev/null || exit 1
+  CMD pgrep -f "[s]cheduler/scheduler.ts" > /dev/null || exit 1
 
 ENTRYPOINT ["/app/scheduler/entrypoint.sh"]
 CMD ["node", "--run", "scheduler"]
