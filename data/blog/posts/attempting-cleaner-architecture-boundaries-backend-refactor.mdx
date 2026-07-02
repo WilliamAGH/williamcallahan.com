@@ -26,7 +26,7 @@ I've been writing code with hygiene and type safety in mind for a while now (or 
 
 Principles of _modularity_ (e.g., in the 'lego blocks' or 'IKEA furniture' sense) and _abstraction_ always came more naturally to me, but for whatever reason the principles of clean _encapsulation_ and _inheritance_ (other pillars of Object-Oriented Programming) and their boundaries were less intuitive to me, so I find I have to pause and reflect a bit more about them to ensure they are well defined and enforced.
 
-> I first published this piece reaching for the textbook answer — a use-case layer, ports and adapters, DTOs at every seam, mappers to keep them in sync. Living with that design pushed me somewhere stricter and _simpler_, so I've rewritten the second half around where I actually landed: one canonical, strictly-typed data class owning the boundary, validated once, generating its own client schema. The "before" examples stay — they're still the villains; I only reversed the cure.
+> I first published this piece reaching for the textbook answer — a use-case layer, ports and adapters, DTOs at every seam, mappers to keep them in sync. Living with that design pushed me somewhere stricter and _simpler_, so I've rewritten the second half around where I actually landed: a small set of canonical, strictly-typed shapes owning the boundary — a read model and an all-nullable write model — each validated at that boundary and generating its own client schema. The "before" examples stay — they're still the villains; I only reversed the cure.
 
 ---
 
@@ -134,7 +134,7 @@ One field, four places to change by hand, and the compiler can't catch a single 
 
 ## So what went wrong, exactly?
 
-The issue truly was remembering the strict boundaries for each layer (knowing exactly where one ends and one should begin) — but underneath that, it was **letting untyped data cross those boundaries**. `Map<String, Object>` doesn't respect layers because it has no shape to respect. You can't see it from this blog post, but there _were/are_ a lot of clean boundaries in the codebase already; the examples above were some of the worst 'all-in-one' files that I should have put strict boundaries on right out of the gate.
+The issue truly was remembering the strict boundaries for each layer (knowing exactly where one ends and one should begin) — but underneath that, it was **letting untyped data cross those boundaries**. A `Map<String, Object>` carries no contract, so a boundary can look clean on the architecture diagram while nothing in the code actually enforces what crosses it. You can't see it from this blog post, but there _were/are_ a lot of clean boundaries in the codebase already; the examples above were some of the worst 'all-in-one' files that I should have put strict boundaries on right out of the gate.
 
 This leads to a particular kind of technical debt that's hard to spot early or measure objectively. It's also the dominant style of code I've often seen online and from AI/LLMs. It passes CI and looks fine in a quick review, and it stays a pain to read and change later.
 
@@ -156,11 +156,13 @@ That's when it clicked: I could just **delete the restatements** instead of buil
 
 My current belief — and it runs against a lot of mainstream Clean-Architecture and Spring/DDD advice, which argues for _more_ layers, not fewer — is that the cleanest model I've found is barely a "layered architecture" at all:
 
-> **One canonical, strictly-typed data class per concept, bound directly at the boundary, validated once, flowing unchanged through a Controller and a Service into typed SQL — and generating its own client schema for everyone downstream.**
+> **Per concept, a small fixed set of canonical types — a read model and an all-nullable write model — each bound and validated at the boundary instead of re-parsed at every layer, carried through the Controller and Service into typed SQL with no mapper reshaping it, and generating its own client schema for consumers downstream.**
 
-No DTOs, no command objects, no hand-written mappers, no per-aggregate repository ports — just a data class, a controller, and a service. What I was after was fewer types, held more strictly.
+No DTOs, no command objects, no hand-written mappers, no per-aggregate repository ports — a data class, a controller, a service, and a thin store. What I was after was fewer types, held more strictly.
 
-Binding the wire straight to the domain type is not free. It couples your API shape to your internal shape — so you can't evolve them independently — and it puts the burden on you to be deliberate about which fields are writable (the classic "mass-assignment" risk that DTOs exist to sidestep). For _this_ codebase the coupling is a feature: I want one shape, and I control the writable surface explicitly with the mutation type below. If I needed the public contract to stay stable while an unstable internal model churned underneath it, a DTO layer would earn its keep and I'd add it back.
+"Fewer types" isn't "one type" — it's no _redundant_ ones. The duplication I deleted was three types describing the same fields for the same operation, stitched together by a mapper. What's left is a small, fixed family with a real reason to differ: a non-null **read model** (`Entity`, what a fetch returns) and an all-nullable **write model** (`EntityMutation`, what create and update accept). Larger reads get an expanded variant of the read model. None restates another, and nothing maps between them — each is owned in one place and generated once.
+
+Binding the wire straight to the domain type couples your API shape to your internal shape — so you can't evolve them independently — and it puts the burden on you to be deliberate about which fields are writable (the classic "mass-assignment" risk that DTOs exist to sidestep). For _this_ codebase the coupling is a feature: I want the write path to bind to a single type, and I control the writable surface explicitly with that mutation type below. If I needed the public contract to stay stable while an unstable internal model churned underneath it, a DTO layer would earn its keep and I'd add it back.
 
 Here's the collapsed model I actually build to now:
 
@@ -173,7 +175,7 @@ Here's the collapsed model I actually build to now:
 
 Note what left the table since the first draft: the separate use-case class, the inbound port, the command object, and the DTO. The Service _is_ the use case. The data class _is_ the DTO and the domain model at once. That collapse is the whole point.
 
-That persistence-store row is the ideal, not an absolute. A few services still reach for `DSLContext` directly instead of routing every read through a store — a soft line I'm fine with, as long as the SQL stays typed jOOQ rather than sliding back toward stringly-typed queries.
+That persistence-store row leaks a little in practice: a few services reach for `DSLContext` directly instead of routing every read through a store. I'm fine with that, as long as the SQL stays typed jOOQ rather than sliding back toward stringly-typed queries.
 
 ### The data class is the contract
 
@@ -197,54 +199,49 @@ data class Entity(
 }
 ```
 
-The identity wrappers matter more than they look. A raw `UUID` and a raw `String` are the same type everywhere, so nothing stops you passing a person id where an entity id belongs, or a slug where a legal name belongs. `EntityId` parses and validates a `UUID` once, at the edge, and then the _type_ carries that guarantee inward. You stop writing `UUID.fromString(...)` all over the codebase because the boundary already did it.
+A raw `UUID` and a raw `String` are interchangeable everywhere, so nothing stops you passing a person id where an entity id belongs, or a slug where a legal name belongs. `EntityId` parses and validates a `UUID` once, at the edge, and then the _type_ carries that guarantee inward — a function that takes an `EntityId` cannot be handed a `PersonId` or a bare string by accident. You also stop scattering `UUID.fromString(...)` through the codebase, because the boundary already did the parsing.
 
 ### The controller only translates
 
-The controller binds the request straight to the domain type. There is no `EntityRequest` DTO to construct, and no mapper call:
+The controller binds each request body straight to the write model and returns the read model. There's no `EntityRequest` DTO to construct and no mapper call:
 
 ```kotlin
 @RestController
-@RequestMapping(produces = [MediaType.APPLICATION_JSON_VALUE])
-class EntityDetailMutationController(
-    private val entities: EntityDetailMutationService,
-    private val jsonMapper: JsonMapper,
+@RequestMapping("/v1/entities", produces = [MediaType.APPLICATION_JSON_VALUE])
+class EntityController(
+    private val entities: EntityService,
 ) {
-    @PostMapping("/v1/entities/detail", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    @PostMapping(consumes = [MediaType.APPLICATION_JSON_VALUE])
     @ResponseStatus(HttpStatus.CREATED)
-    fun create(@Valid @RequestBody body: EntityMutation): EntityDetail =
+    fun create(@Valid @RequestBody body: EntityMutation): Entity =
         entities.create(body)
 
-    @PatchMapping("/v1/entities/detail", consumes = ["application/merge-patch+json"])
-    fun patch(target: IdSlug, request: HttpServletRequest): EntityDetail {
-        val existing = entities.requireCore(target)
-        val merged = jsonMapper.applyMergePatch(EntityMutation.from(existing), request.inputStream)
-        return entities.update(target, merged)
-    }
+    @PutMapping("/{id}", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    fun update(@PathVariable id: EntityId, @Valid @RequestBody body: EntityMutation): Entity =
+        entities.update(id, body)
 }
 ```
 
-`@RequestBody body: EntityMutation` is the whole story: Spring + Jackson deserialize into the canonical type, `@Valid` runs the constraints declared on that type, and the return value is a domain type serialized straight back out. The controller knows about HTTP and nothing else.
+Each method is a single line: Spring and Jackson deserialize the body into `EntityMutation`, `@Valid` runs the constraints declared on that type, the service does the work, and the returned `Entity` is serialized straight back out. The controller knows about HTTP and nothing else — even `{id}` arrives already parsed into a typed `EntityId`.
 
 ### The service owns the rules and the transaction
 
 ```kotlin
 @Service
-class EntityDetailMutationService(
+class EntityService(
     private val store: EntityStore,               // owns the jOOQ DSLContext
     private val tx: WriteTransactionRunner,        // owns the transaction boundary
 ) {
-    fun update(target: IdSlug, input: EntityMutation): EntityDetail {
-        input.requireDistinctNames()               // a business rule, living on the type
-        val id = tx.execute { store.applyMutation(target.entityId(), input) }
-        return store.detail(id)
+    fun update(id: EntityId, input: EntityMutation): Entity {
+        input.requireDistinctNames()               // a business rule, on the type
+        return tx.execute { store.applyMutation(id, input) }
     }
 }
 ```
 
 Business rules live either on the data class (`requireDistinctNames()`, the `init` block) or in the service. The transaction boundary is explicit — the service opens it and owns it — rather than relying on scattered `@Transactional` annotations whose scope you have to infer. (The `WriteTransactionRunner` above is just my own thin wrapper over Spring's `TransactionTemplate` — what matters is that the boundary is visible and the service controls it, not the particular helper.) The service never sees JSON and never sees a `ResultSet`.
 
-Persistence is a thin store that owns the jOOQ `DSLContext` and speaks in typed `Field<T>` — no `Map<String, Object>`, no hand-rolled `ResultSet` loops, no string SQL:
+Persistence is a thin store that owns the jOOQ `DSLContext` and works in typed `Field<T>` columns rather than a `Map<String, Object>`, raw `ResultSet` loops, or string-built SQL:
 
 ```kotlin
 @Repository
@@ -283,7 +280,7 @@ data class EntityMutation(
 
 All-nullable patch types have a well-known catch: a nullable field on its own can't tell "the caller omitted this" apart from "the caller explicitly set it to `null`" — both arrive as `null` on the data class. Plain nullable Kotlin is two states, and merge-patch needs three.
 
-The way out is to not read presence from the data class at all. Before applying the patch I parse the raw JSON merge tree, where "absent" and "present-but-null" are still distinguishable; `from(existing)` rebuilds the current state as a baseline, the incoming tree is merged on top, and the result flows into the same `update()` path a full `PUT` would use. So the ergonomic win — one nullable type instead of a bespoke `PatchValue<T>` wrapper — is real, but it leans on that JSON-presence step; it isn't free from the type system alone. That leaves one write type handling create, update, and patch through a single code path, with the tri-state resolved at the layer where the JSON still knows the difference.
+The fix is to resolve presence at the HTTP boundary, not in the domain. For a merge-patch, the boundary reads the raw JSON — where "absent" and "present-but-null" are still distinguishable — and produces a plain `EntityMutation` plus a record of which fields were actually supplied. Everything past that point is typed: the service loads the current row and applies only the supplied fields, and a full `PUT` reuses the same `update()` path with every field supplied. The domain gets to work in one plain nullable type instead of a `PatchValue<T>` wrapper — but only because the boundary tracks presence for it. The type system won't do that part on its own.
 
 ### Validate once, generate once
 
@@ -308,9 +305,9 @@ export const EntitySchema = z.object({
 export type Entity = z.infer<typeof EntitySchema>;
 ```
 
-[Zod](https://zod.dev/) is my favorite validation + type-inference tool in TypeScript, and here I get it for free: the frontend and every downstream consumer import a generated, always-in-sync schema instead of hand-writing types that guess at the backend's shape. The slug regex, the required fields, the nullability — all of it flows from one Kotlin declaration.
+[Zod](https://zod.dev/) is my favorite validation + type-inference tool in TypeScript. The frontend and every downstream consumer import a generated schema — regenerated from the same Kotlin owner whenever it changes — instead of hand-writing types that guess at the backend's shape. The slug regex, the required fields, the nullability all come from that one Kotlin declaration.
 
-So go back to that "add `linkedinUrl`, touch four places" tax from the top. In this model, adding a field means adding _one property to one data class_; a build step then regenerates the OpenAPI component, the Zod schema, the TypeScript type, and the validation rules from it. That isn't a free property of the architecture, though — it's a code generator doing the fan-out I used to do by hand. The single source of truth only holds because something regenerates everyone else from it. Wire that pipeline up and the four-edit drift stops happening.
+So go back to that "add `linkedinUrl`, touch four places" tax from the top. Adding it to the _contract_ now means one property on the data class, from which a build step regenerates the OpenAPI component, the Zod schema, the TypeScript type, and the validation rules. The persistence side still takes work — a migration for the new column, a jOOQ regen, and the store's read and write updated to carry it — but the entire client-facing contract, which used to be three of those four hand-edited places, fans out from that single property. That fan-out is a code generator doing work I used to do by hand, so the single source of truth only holds while the pipeline actually runs.
 
 ### The mapper I didn't need
 
@@ -322,7 +319,7 @@ A lot of "clean architecture" machinery exists to manage duplication you introdu
 
 ### Standardizing the error contract
 
-Errors are the one boundary where a distinct response type earns its place — a `ProblemDetail` is a transport shape, not domain data, so it's the single exception to "one type per concept." I've moved ad-hoc error bodies onto [RFC 9457 Problem Details](https://blog.frankel.ch/problem-details-http-apis/), which makes client integration predictable, cuts false-alarm _Sentry_ noise, and maps straight from [Jakarta Bean Validation](https://beanvalidation.org/) failures — the same `@Valid` that runs on the data class. Spring gives it a built-in structure:
+Errors are the one boundary where a distinct response type earns its place — a `ProblemDetail` is a transport shape, not domain data, so it sits outside the read/write family as the one type that exists purely for transport. I've moved ad-hoc error bodies onto [RFC 9457 Problem Details](https://blog.frankel.ch/problem-details-http-apis/), which makes client integration predictable, cuts false-alarm _Sentry_ noise, and maps straight from [Jakarta Bean Validation](https://beanvalidation.org/) failures — the same `@Valid` that runs on the data class. Spring gives it a built-in structure:
 
 ```kotlin
 @RestControllerAdvice
