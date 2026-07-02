@@ -17,7 +17,8 @@ same environment variable set as the web app (`DATABASE_URL`, `S3_*`, `BOOKMARK_
 
 1. **Docker Compose buildpack** (preferred — carries CPU/memory limits): Base Directory `/`,
    Compose file `scheduler/docker-compose.yml`. The service caps at 1 CPU / 3G so batch
-   jobs can never saturate the 2-core host alongside the web app.
+   jobs can never saturate the 2-core host alongside the web app. Coolify invokes compose
+   with the repo root as `--project-directory`, so the compose build context must stay `.`.
 2. **Dockerfile buildpack**: Base Directory `/`, Dockerfile location `scheduler/Dockerfile`
    (set CPU/memory limits in the Coolify resource settings instead).
 
