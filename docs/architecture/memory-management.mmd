@@ -1,7 +1,7 @@
 graph TB
     subgraph "Request Pipeline"
         REQ[Incoming Request]
-        PROXY[proxy.ts<br/>auth + CSP + request controls]
+        PROXY[proxy.ts<br/>auth + request controls<br/>CSP via csp-header.ts]
         HANDLER[Route Handler / Server Function]
         REQ --> PROXY --> HANDLER
     end
