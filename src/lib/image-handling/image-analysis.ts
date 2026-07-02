@@ -256,8 +256,8 @@ export async function doesLogoNeedInversion(
   }
 }
 
-/** Legacy alias used elsewhere in the code-base. */
-export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
+/** Derive a logo's {@link LogoInversion} decisions (normalized brightness, dark/light inversion needs) from its raw analysis. */
+export async function analyzeLogoInversion(buffer: Buffer): Promise<LogoInversion> {
   try {
     const analysis = await analyzeLogo(buffer);
 
@@ -270,7 +270,7 @@ export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
       dimensions: analysis.dimensions,
     };
   } catch (error) {
-    console.error("[analyzeImage] Failed to analyze:", error);
+    console.error("[analyzeLogoInversion] Failed to analyze:", error);
     const meta = await extractBasicImageMeta(buffer);
     return {
       brightness: 0.5,
@@ -282,9 +282,6 @@ export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
     };
   }
 }
-
-export const invertImage = invertLogo;
-export const needsInversion = doesLogoNeedInversion;
 
 /**
  * Check if an image is likely blank or a placeholder
