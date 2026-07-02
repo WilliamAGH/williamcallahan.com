@@ -30,7 +30,7 @@
     "docker:build": "bash -c 'set -euo pipefail; if docker buildx version >/dev/null 2>&1; then echo \"[docker:build] Using docker buildx (BuildKit)\"; DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} docker buildx build --platform=linux/amd64 --build-arg NODE_ENV=production --build-arg NEXT_TELEMETRY_DISABLED=1 --load -t williamcallahan-web:latest .; else echo \"[docker:build] docker buildx not found; falling back to classic docker build\"; DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-0} docker build --build-arg NODE_ENV=production --build-arg NEXT_TELEMETRY_DISABLED=1 -t williamcallahan-web:latest .; fi'",
     "docker:start": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production williamcallahan-web:latest",
     "docker:build:scheduler": "docker buildx build --platform=linux/amd64 -f scheduler/Dockerfile --load -t williamcallahan-scheduler:latest .",
-    "docker:prefetch": "docker run --platform=linux/amd64 -e NODE_ENV=production -e CONTAINER=true williamcallahan-scheduler:latest npx tsx scheduler/data-updater.ts --bookmarks --github --logos",
+    "docker:prefetch": "docker run --platform=linux/amd64 -e NODE_ENV=production -e CONTAINER=true williamcallahan-scheduler:latest node --run update-data -- --bookmarks --github --logos",
     "monitor:status": "bun src/lib/health/status-monitor.server.ts",
     "deploy:verify": "bun scripts/verify-deployment-readiness.ts",
     "deploy:verify:dev": "bun scripts/verify-deployment-readiness.ts development",
