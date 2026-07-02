@@ -603,7 +603,7 @@ bun run scripts/validate-opengraph-clear-cache.ts
 bun run scripts/refresh-opengraph-images.ts
 
 # Force sitemap resubmission
-NODE_ENV=production bun run submit-sitemap
+FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com bun run submit-sitemap
 ```
 
 ## Performance Characteristics
@@ -684,13 +684,13 @@ NODE_ENV=production bun run submit-sitemap
 
 ```bash
 # Validate OpenGraph metadata
-bun test __tests__/lib/seo/og-validation.test.ts
+bun run test -- __tests__/lib/seo/og-validation.test.ts
 
 # Clear social media caches (Twitter/X)
 bun run scripts/validate-opengraph-clear-cache.ts
 
 # Force sitemap resubmission
-NODE_ENV=production bun run submit-sitemap
+FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com bun run submit-sitemap
 
 # Refresh bookmark OpenGraph images
 bun run scripts/refresh-opengraph-images.ts
