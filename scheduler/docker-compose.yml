@@ -1,0 +1,28 @@
+# Scheduler service for Coolify (docker-compose buildpack).
+# Coolify setup: Base Directory "/", Compose file "scheduler/docker-compose.yml".
+# Copy the web app's environment variables to this service (same Doppler/env set);
+# it reuses DATABASE_URL, S3_*, BOOKMARK_*/GITHUB_* secrets, and Google sitemap creds.
+#
+# The CPU limit is deliberate: the host has 2 cores, and unbounded batch jobs
+# (bookmark refresh + OpenGraph enrichment) previously pegged both cores daily
+# at midnight PT, degrading the web app. One core keeps batches off the hot path.
+services:
+  scheduler:
+    build:
+      context: ..
+      dockerfile: scheduler/Dockerfile
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 3G
+        reservations:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true

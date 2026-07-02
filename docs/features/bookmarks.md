@@ -105,10 +105,10 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 
 ### Scheduler / Cron Pipeline
 
-- `scripts/data-updater.ts` now accepts:
+- `scheduler/data-updater.ts` now accepts:
   - `--bookmark-tags`
   - `--bookmark-tags-retrofit`
-- `src/lib/server/scheduler.ts` schedules:
+- `scheduler/scheduler.ts` schedules:
   - `S3_BOOKMARK_TAGS_CRON` (default `30 */4 * * *`, every 4 hours)
   - `S3_BOOKMARK_TAGS_RETROFIT_CRON` (default `45 3 * * *`, daily at 3:45 AM PT)
 - Both tag alias cron jobs trigger bookmark cache revalidation via `/api/revalidate/bookmarks`.
@@ -349,7 +349,7 @@ This consolidates deployment details for bookmarks data population and scheduler
 ### Automatic Population on Container Startup
 
 - `scripts/entrypoint.sh` ensures slug mappings exist at boot:
-  - Runs `scripts/data-updater.ts --bookmarks --force` if missing
+  - Runs `scheduler/data-updater.ts --bookmarks --force` if missing
   - Starts scheduler and Next.js server
 
 ### Scheduler Cadence (Pacific Time)
@@ -372,7 +372,7 @@ This consolidates deployment details for bookmarks data population and scheduler
 
 ```bash
 # Force data update
-bun scripts/data-updater.ts --bookmarks --force
+bun scheduler/data-updater.ts --bookmarks --force
 
 # Check status
 bun scripts/debug-slug-mapping.ts

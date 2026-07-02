@@ -253,7 +253,6 @@ File/Path Functionality Description
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
-  - [x] `slug-shards.ts` `bookmarks` - S3 shard helpers for bookmark slugs
   - [x] **analysis/**
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
     - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
@@ -394,7 +393,6 @@ File/Path Functionality Description
 - [x] **server/**
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
-  - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
 - [ ] **services/**
   - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
@@ -649,16 +647,32 @@ File/Path Functionality Description
 - [x] `backfill-og-etags.node.mjs` `bookmarks` - Node runtime backfill for `og_image_etag` via HEAD requests to bookmark `og_image` URLs; also refreshes `og_image_last_fetched_at`
 - [x] `backfill-domain-embeddings.node.mjs` `data-access` - Node runtime backfill for Qwen3-Embedding-4B embeddings across `ai_analysis_latest`, `opengraph_metadata`, and `thoughts` tables
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
-- [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `data-updater.ts`
+- [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `scheduler/data-updater.ts`
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
-- [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
 - [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests
 - [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
-- [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
+- [x] `entrypoint.sh` `deployment` - Web container entrypoint (DB gate + Next.js server only)
+- [x] `entrypoint-db-gate.sh` `deployment` - Shared DATABASE_URL rewrite + readiness gate sourced by both container entrypoints
+
+## Scheduler Directory
+
+Standalone scheduler container source (`scheduler/Dockerfile` builds without `next build`; deployed as a separate Coolify service).
+
+- [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
+- [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
+- [x] `background-data-populator.ts` `batch-fetch-update` - Idempotent initial data population at scheduler container startup
+- [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
+- [x] `entrypoint.sh` `deployment` - Scheduler container entrypoint (DB gate, sitemap submission, populator, cron scheduler)
+- [x] `Dockerfile` `deployment` - Scheduler image (deps + tsx runtime, no Next.js build)
+- [x] `docker-compose.yml` `deployment` - Coolify compose service with 1-CPU / 3G limits
+- [x] `diagnose-scheduler.sh` `batch-fetch-update` - Scheduler diagnostic report script
+- [x] **lib/**
+  - [x] `google-indexing.ts` `seo` - Google Indexing API submission helpers
+  - [x] `indexnow-submit.ts` `seo` - IndexNow sitemap submission helper
 
 ## Styles Directory
 
