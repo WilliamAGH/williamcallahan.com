@@ -20,6 +20,7 @@
  */
 
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
 
 // Core constants - defined ONCE and used everywhere
 /**
@@ -33,11 +34,6 @@ export const SITE_NAME = "William Callahan";
  * @recommended Keep under 80 characters for optimal display in search results
  */
 export const SITE_TITLE = "William Callahan - San Francisco";
-
-/**
- * Shorter title optimized for OpenGraph (under 60 characters)
- */
-export const SITE_TITLE_SHORT = "William Callahan - San Francisco";
 
 /**
  * Primary site description
@@ -60,68 +56,10 @@ export const SITE_DESCRIPTION_SHORT =
 export const SITE_DESCRIPTION_OG =
   "Startup investor & Techstars founder sharing insights on technology, programming, Y Combinator, accelerators, and investment portfolio.";
 
-/**
- * Core site metadata
- * Used to generate all forms of metadata tags (meta, OpenGraph, Schema.org, etc.)
- */
-/**
- * Page-specific metadata configurations
- * @see {@link "https://schema.org/dateModified"} - Update dateModified whenever page content changes
- * @see {@link "https://schema.org/dateCreated"} - The date each page was first published
- */
-import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
-
-// -------- Auto-sized static OG assets (import exposes src/width/height) --------
-// We still import the files to obtain their intrinsic dimensions, but we will expose
-// *stable* public URLs ("/images/og/*.png") in SEO metadata to avoid hashed paths
-// that third-party scrapers (Twitter, Facebook) refuse to fetch.
-
-import ogDefaultImage from "@/public/images/og/default-og.png";
-import ogBookmarksImage from "@/public/images/og/bookmarks-og.png";
-import ogProjectsImage from "@/public/images/og/projects-og.png";
-import ogBlogIndexImage from "@/public/images/og/blog-og.png";
-import ogExperienceImage from "@/public/images/og/experience-og.png";
-import ogEducationImage from "@/public/images/og/education-og.png";
-import ogInvestmentsImage from "@/public/images/og/investments-og.png";
-import ogContactImage from "@/public/images/og/contact-og.png";
-import androidLogo512Image from "@/public/images/favicons/android-chrome-512x512.png";
-
-// Map *both* hashed build paths (ogXImage.src) and the stable public paths so that
-// width/height look-ups work regardless of which path the caller provides.
-
-export const LOCAL_OG_ASSETS = {
-  // Stable public paths
-  [getStaticImageUrl("/images/og/default-og.png")]: ogDefaultImage,
-  [getStaticImageUrl("/images/og/bookmarks-og.png")]: ogBookmarksImage,
-  [getStaticImageUrl("/images/og/projects-og.png")]: ogProjectsImage,
-  [getStaticImageUrl("/images/og/blog-og.png")]: ogBlogIndexImage,
-  [getStaticImageUrl("/images/og/experience-og.png")]: ogExperienceImage,
-  [getStaticImageUrl("/images/og/education-og.png")]: ogEducationImage,
-  [getStaticImageUrl("/images/og/investments-og.png")]: ogInvestmentsImage,
-  [getStaticImageUrl("/images/og/contact-og.png")]: ogContactImage,
-  [getStaticImageUrl("/images/favicons/android-chrome-512x512.png")]: androidLogo512Image,
-  // Next.js hashed paths (retained for internal use)
-  [ogDefaultImage.src]: ogDefaultImage,
-  [ogBookmarksImage.src]: ogBookmarksImage,
-  [ogProjectsImage.src]: ogProjectsImage,
-  [ogBlogIndexImage.src]: ogBlogIndexImage,
-  [ogExperienceImage.src]: ogExperienceImage,
-  [ogEducationImage.src]: ogEducationImage,
-  [ogInvestmentsImage.src]: ogInvestmentsImage,
-  [ogContactImage.src]: ogContactImage,
-  [androidLogo512Image.src]: androidLogo512Image,
-} as const;
-
-/**
- * Page-specific metadata configurations
- * @see {@link "https://schema.org/dateModified"} - Update dateModified whenever page content changes
- * @see {@link "https://schema.org/dateCreated"} - The date each page was first published
- */
+/** Canonical OpenGraph/Twitter/favicon image URLs, keyed by semantic role. */
 export const SEO_IMAGES = {
   /** Site-wide default OpenGraph/Twitter image */
   ogDefault: getStaticImageUrl("/images/og/default-og.png"),
-  /** Stand-alone logo card (optional) */
-  ogLogo: getStaticImageUrl("/images/favicons/android-chrome-512x512.png"),
   /** Collection pages */
   ogBookmarks: getStaticImageUrl("/images/og/bookmarks-og.png"),
   ogProjects: getStaticImageUrl("/images/og/projects-og.png"),
@@ -132,8 +70,6 @@ export const SEO_IMAGES = {
   ogEducation: getStaticImageUrl("/images/og/education-og.png"),
   ogInvestments: getStaticImageUrl("/images/og/investments-og.png"),
   ogContact: getStaticImageUrl("/images/og/contact-og.png"),
-  /** Fallback for dynamic /api/og-image route */
-  ogDynamicFallback: getStaticImageUrl("/images/og/default-og.png"),
   /** Favicons & touch icons */
   faviconIco: getStaticImageUrl("/images/favicons/favicon.ico"),
   appleTouch: getStaticImageUrl("/images/favicons/apple-180x180-touch-icon.png"),
@@ -141,6 +77,11 @@ export const SEO_IMAGES = {
   android512: getStaticImageUrl("/images/favicons/android-chrome-512x512.png"),
 } as const;
 
+/**
+ * Page-specific metadata configurations
+ * @see {@link "https://schema.org/dateModified"} - Update dateModified whenever page content changes
+ * @see {@link "https://schema.org/dateCreated"} - The date each page was first published
+ */
 export const PAGE_METADATA = {
   home: {
     title: SITE_TITLE,
@@ -246,46 +187,12 @@ export const PAGE_METADATA = {
 } as const;
 
 /**
- * Shared OpenGraph image dimensions
- * legacy → 1.91:1 ratio (1440×756) used by historical images & dynamic routes
- * modern → Larger 2100×1100 image used going forward when intentionally generated
+ * Canonical intrinsic dimensions for static OpenGraph images, keyed by stable public URL.
+ * Values must match the actual PNG files in public/images — no bundler image imports here,
+ * because this module is loaded by tsx runtime scripts (scheduler/data-updater) where
+ * Next.js static-image imports are unavailable.
  */
 export const OG_IMAGE_DIMENSIONS = {
-  legacy: {
-    width: 1440 as const,
-    height: 756 as const,
-  },
-  modern: {
-    width: 2100 as const,
-    height: 1100 as const,
-  },
-} as const;
-
-/**
- * Map each static page key to the OG image aspect it should use.
- * This ensures a single place to change sizing decisions without scattering
- * magic numbers throughout the codebase.
- */
-export const PAGE_OG_ASPECT: Record<keyof typeof PAGE_METADATA, keyof typeof OG_IMAGE_DIMENSIONS> =
-  {
-    home: "legacy",
-    experience: "legacy",
-    cv: "legacy",
-    investments: "modern",
-    education: "legacy",
-    bookmarks: "legacy", // collection page keeps legacy (1440×900 asset fits 1.91:1)
-    blog: "legacy",
-    projects: "modern",
-    contact: "legacy",
-    books: "modern",
-    thoughts: "modern",
-  } as const;
-
-/**
- * Fallback dimensions for OpenGraph images when Next.js imports don't provide them
- * Maps image URLs to their actual dimensions
- */
-export const OG_IMAGE_FALLBACK_DIMENSIONS = {
   [getStaticImageUrl("/images/og/default-og.png")]: { width: 2100, height: 1100 },
   [getStaticImageUrl("/images/og/bookmarks-og.png")]: { width: 2100, height: 1100 },
   [getStaticImageUrl("/images/og/projects-og.png")]: { width: 2100, height: 1100 },
@@ -294,7 +201,6 @@ export const OG_IMAGE_FALLBACK_DIMENSIONS = {
   [getStaticImageUrl("/images/og/education-og.png")]: { width: 2100, height: 1100 },
   [getStaticImageUrl("/images/og/investments-og.png")]: { width: 2100, height: 1100 },
   [getStaticImageUrl("/images/og/contact-og.png")]: { width: 2100, height: 1100 },
-  [getStaticImageUrl("/images/favicons/android-chrome-512x512.png")]: { width: 512, height: 512 },
 } as const;
 
 export const metadata = {
@@ -345,8 +251,8 @@ export const metadata = {
   /** Default image used for social sharing */
   defaultImage: {
     url: SEO_IMAGES.ogDefault,
-    width: OG_IMAGE_FALLBACK_DIMENSIONS[SEO_IMAGES.ogDefault]?.width,
-    height: OG_IMAGE_FALLBACK_DIMENSIONS[SEO_IMAGES.ogDefault]?.height,
+    width: OG_IMAGE_DIMENSIONS[SEO_IMAGES.ogDefault]?.width,
+    height: OG_IMAGE_DIMENSIONS[SEO_IMAGES.ogDefault]?.height,
     alt: `${SITE_NAME} on Finance, Startups, & Engineering in San Francisco`,
     type: "image/png",
   },
@@ -360,8 +266,8 @@ export const metadata = {
     images: [
       {
         url: SEO_IMAGES.ogDefault,
-        width: 2100,
-        height: 1100,
+        width: OG_IMAGE_DIMENSIONS[SEO_IMAGES.ogDefault]?.width,
+        height: OG_IMAGE_DIMENSIONS[SEO_IMAGES.ogDefault]?.height,
         alt: `${SITE_NAME} – default social image`,
         type: "image/png",
       },

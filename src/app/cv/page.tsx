@@ -47,7 +47,11 @@ export default async function CvPage(): Promise<React.JSX.Element> {
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
-  const imageDimensions = OG_IMAGE_DIMENSIONS["legacy"];
+  const ogImageUrl = getStaticImageUrl("/images/og/experience-og.png");
+  const imageDimensions = OG_IMAGE_DIMENSIONS[ogImageUrl as keyof typeof OG_IMAGE_DIMENSIONS];
+  if (!imageDimensions) {
+    throw new Error(`Missing canonical OG dimensions for ${ogImageUrl}`);
+  }
 
   const schemaParams = {
     path: CV_PAGE_PATH,
@@ -57,7 +61,7 @@ export default async function CvPage(): Promise<React.JSX.Element> {
     dateModified: formattedModified,
     type: "profile" as const,
     image: {
-      url: getStaticImageUrl("/images/og/experience-og.png"),
+      url: ogImageUrl,
       width: imageDimensions.width,
       height: imageDimensions.height,
     },
