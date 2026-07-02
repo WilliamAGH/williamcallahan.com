@@ -15,6 +15,15 @@ fi
 echo "🔑 [Entrypoint] Ensuring cache directory exists..."
 mkdir -p /app/cache/s3_data
 
+is_scheduler_command() {
+    [ "$#" -ge 3 ] && [ "$1" = "node" ] && [ "$2" = "--run" ] && [ "$3" = "scheduler" ]
+}
+
+if ! is_scheduler_command "$@"; then
+    echo "[Entrypoint] Running one-shot command: $*"
+    exec "$@"
+fi
+
 echo "🗺️  [Entrypoint] Submitting sitemap..."
 if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ]; then
     if node --run submit-sitemap; then
