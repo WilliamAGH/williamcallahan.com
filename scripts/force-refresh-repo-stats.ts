@@ -144,7 +144,7 @@ async function main() {
   }
   console.log("\n[Script] Forceful refresh process finished.");
   console.log(
-    "[Script] IMPORTANT: After running this script, trigger a full refresh (POST /api/github-activity/refresh or scripts/data-updater.ts) so summary and aggregated activity rows are recalculated from updated repository stats.",
+    "[Script] IMPORTANT: After running this script, trigger a full refresh (POST /api/github-activity/refresh or scheduler/data-updater.ts) so summary and aggregated activity rows are recalculated from updated repository stats.",
   );
 }
 

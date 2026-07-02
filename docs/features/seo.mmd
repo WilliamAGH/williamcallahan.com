@@ -43,8 +43,8 @@ graph TB
     end
     
     subgraph "Automated Operations"
-        SCHEDULER["src/lib/server/scheduler.ts<br/>node-cron 4.2.0<br/>2hr bookmark refresh"]
-        SUBMIT["scripts/submit-sitemap.ts<br/>Google & Bing submission<br/>Production only"]
+        SCHEDULER["scheduler/scheduler.ts<br/>node-cron 4.2.0<br/>2hr bookmark refresh"]
+        SUBMIT["scheduler/submit-sitemap.ts<br/>Google & Bing submission<br/>Production only"]
         VALCACHE["scripts/validate-opengraph-clear-cache.ts<br/>Twitter cache clearing<br/>5-10 min propagation"]
     end
     

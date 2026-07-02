@@ -5,7 +5,7 @@
 
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
 import { extractBasicImageMeta } from "@/lib/image-handling/image-metadata";
-import { analyzeImage } from "@/lib/image-handling/image-analysis";
+import { analyzeLogoInversion } from "@/lib/image-handling/image-analysis";
 import { processImageBuffer as sharedProcessImageBuffer } from "@/lib/image-handling/shared-image-processing";
 import { fetchWithTimeout } from "@/lib/utils/http-client";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
@@ -74,7 +74,7 @@ export class LogoValidators {
    * Analyze logo for inversion requirements
    */
   async analyzeLogo(buffer: Buffer, _url: string): Promise<LogoInversion> {
-    return analyzeImage(buffer);
+    return analyzeLogoInversion(buffer);
   }
 
   /**

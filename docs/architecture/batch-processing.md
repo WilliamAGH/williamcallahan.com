@@ -8,7 +8,7 @@ This document outlines the automated background refresh schedule and batch proce
 
 ## Overview
 
-The application uses a cron-based scheduler (`src/lib/server/scheduler.ts`) that runs continuously and triggers background data updates at optimized intervals. All scheduling is done in Pacific Time (America/Los_Angeles).
+The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs continuously and triggers background data updates at optimized intervals. All scheduling is done in Pacific Time (America/Los_Angeles).
 
 ## Architecture Decisions
 
@@ -16,7 +16,7 @@ The application uses a cron-based scheduler (`src/lib/server/scheduler.ts`) that
 
 2. **Runtime Logo Fetching**: Logos fetched on-demand at runtime with multi-tier caching (not at build time). `bun run build:full` available for complete prefetch if needed.
 
-3. **Centralized Data Fetching**: Single `lib/server/data-fetch-manager.ts` with CLI. Entry point: `scripts/data-updater.ts`.
+3. **Centralized Data Fetching**: Single `lib/server/data-fetch-manager.ts` with CLI. Entry point: `scheduler/data-updater.ts`.
 
 ## Refresh Frequencies
 
@@ -44,7 +44,7 @@ The application uses a cron-based scheduler (`src/lib/server/scheduler.ts`) that
 ### Scheduler Architecture
 
 ```typescript
-// src/lib/server/scheduler.ts - Uses async spawn
+// scheduler/scheduler.ts - Uses async spawn
 const updateProcess = spawn("bun", ["run", "update-data", "--", "--bookmarks"], {
   env: process.env,
   stdio: "inherit",
@@ -81,18 +81,18 @@ export class DataFetchManagerCLI {
 
 ```bash
 # Update all data
-bun scripts/data-updater.ts
+bun scheduler/data-updater.ts
 
 # Update specific data types
-bun scripts/data-updater.ts --bookmarks
-bun scripts/data-updater.ts --github --logos
+bun scheduler/data-updater.ts --bookmarks
+bun scheduler/data-updater.ts --github --logos
 
 # Prefetch for builds
-bun scripts/data-updater.ts --prefetch-build  # Fast (S3 only)
-bun scripts/data-updater.ts --prefetch-dev    # Full (all sources)
+bun scheduler/data-updater.ts --prefetch-build  # Fast (S3 only)
+bun scheduler/data-updater.ts --prefetch-dev    # Full (all sources)
 
 # Force refresh
-bun scripts/data-updater.ts --force --bookmarks
+bun scheduler/data-updater.ts --force --bookmarks
 ```
 
 **Key Components:**
@@ -106,8 +106,8 @@ bun scripts/data-updater.ts --force --bookmarks
 
 ### Script Layer
 
-- **lib/server/scheduler.ts**: Long-running process using node-cron
-- **scripts/data-updater.ts**: Unified CLI for all data operations
+- **scheduler/scheduler.ts**: Long-running process using node-cron
+- **scheduler/data-updater.ts**: Unified CLI for all data operations
   - `--bookmarks`: Update bookmarks only
   - `--github`: Update GitHub activity only
   - `--logos`: Update logos only
@@ -281,7 +281,7 @@ The scheduler process must remain running for automated updates. Monitor via:
 
 ### Common Issues
 
-1. **Scheduler not running**: Check if `src/lib/server/scheduler.ts` process is alive
+1. **Scheduler not running**: Check if `scheduler/scheduler.ts` process is alive
 2. **Authentication failures**: Verify environment secrets are set
 3. **External API failures**: Check rate limits and API availability
 4. **S3 connection issues**: Verify AWS credentials and bucket access

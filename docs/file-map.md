@@ -253,7 +253,6 @@ File/Path Functionality Description
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
-  - [x] `slug-shards.ts` `bookmarks` - S3 shard helpers for bookmark slugs
   - [x] **analysis/**
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
     - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
@@ -394,7 +393,6 @@ File/Path Functionality Description
 - [x] **server/**
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
-  - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
 - [ ] **services/**
   - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
@@ -511,6 +509,7 @@ File/Path Functionality Description
 ## Middleware Directory
 
 - [ ] **middleware/**
+  - [x] `csp-header.ts` `security` - CSP header construction (buildCspHeader, getCspHashes), extracted from proxy.ts for testability
   - [x] `sitewide-rate-limit.ts` `rate-limit-and-sanitize` - Navigation-first proxy throttling (only `document`/`api`) with deterministic 429 contracts and structured handled-event logs
 
 ## Root Directory
@@ -577,12 +576,12 @@ File/Path Functionality Description
       - [x] **`[feature]`/`bookmark-tool.ts`** `ai-shared-services` - Bookmark-specific helpers: link formatting, URL sanitization, search pattern matching, query extraction
       - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field configuration metadata shared by validation helpers
       - [x] **`[feature]`/`analysis-output-validation.ts`** `ai-shared-services` - Structured analysis output parse/normalize/leakage validation and repair prompt builder
-  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (force-dynamic bearer auth)
+  - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (bearer auth)
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
     - [x] **refresh/`route.ts`** `github-activity` - Refresh GitHub activity API
   - [x] **health/`route.ts`** `log-error-debug-handling` - Health check API
-  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated health metrics API (force-dynamic)
+  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated health metrics API
   - [x] **ip/`route.ts`** `log-error-debug-handling` - IP address API
   - [x] **log-client-error/`route.ts`** `log-error-debug-handling` - API endpoint for logging client-side errors
   - [ ] **logo/**
@@ -591,14 +590,14 @@ File/Path Functionality Description
   - [x] **og/`[entity]`/`route.tsx`** `opengraph` - Unified dynamic OG image generator for all entity types (books, bookmarks, blog, projects, thoughts, collection)
   - [x] **og-image/`route.ts`** `opengraph` - Universal OpenGraph image endpoint (2025-06 rewrite)
   - [x] **related-content/**
-    - [x] `route.ts` `search` - Related content recommender (force-dynamic, request header aware)
-    - [x] **debug/`route.ts`** `search` - Related content scoring debugger (force-dynamic)
+    - [x] `route.ts` `search` - Related content recommender (connection() for request-time execution)
+    - [x] **debug/`route.ts`** `search` - Related content scoring debugger
   - [x] **posts/`route.ts`** `blog-article` - Posts API
   - [x] **search/**
-    - [x] **all/`route.ts`** `search` - Global search API (force-dynamic rate limiting)
-    - [x] **blog/`route.ts`** `search` - Blog search API (force-dynamic URL resolver)
-    - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (force-dynamic pagination)
-    - [x] **[scope]/`route.ts`** `search` - Scoped search API (force-dynamic)
+    - [x] **all/`route.ts`** `search` - Global search API (connection() for request-time execution)
+    - [x] **blog/`route.ts`** `search` - Blog search API (connection() for request-time execution)
+    - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (connection() for request-time execution)
+    - [x] **[scope]/`route.ts`** `search` - Scoped search API (connection() for request-time execution)
   - [x] **sentry-example-api/`route.ts`** `log-error-debug-handling` - Sentry example API (debug endpoint)
   - [x] **tunnel/`route.ts`** `log-error-debug-handling` - Sentry tunnel API
   - [x] **twitter-image/[...path]/`route.ts`** `blog-article` - Twitter image proxy API
@@ -649,16 +648,32 @@ File/Path Functionality Description
 - [x] `backfill-og-etags.node.mjs` `bookmarks` - Node runtime backfill for `og_image_etag` via HEAD requests to bookmark `og_image` URLs; also refreshes `og_image_last_fetched_at`
 - [x] `backfill-domain-embeddings.node.mjs` `data-access` - Node runtime backfill for Qwen3-Embedding-4B embeddings across `ai_analysis_latest`, `opengraph_metadata`, and `thoughts` tables
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
-- [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `data-updater.ts`
+- [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `scheduler/data-updater.ts`
 - [x] `pre-build-checks.sh` `build` - Pre-build check script
-- [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
 - [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests
 - [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
-- [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
+- [x] `entrypoint.sh` `deployment` - Web container entrypoint (DB gate + Next.js server only)
+- [x] `entrypoint-db-gate.sh` `deployment` - Shared DATABASE_URL rewrite + readiness gate sourced by both container entrypoints
+
+## Scheduler Directory
+
+Standalone scheduler container source (`scheduler/Dockerfile` builds without `next build`; deployed as a separate Coolify service).
+
+- [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
+- [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
+- [x] `background-data-populator.ts` `batch-fetch-update` - Idempotent initial data population at scheduler container startup
+- [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
+- [x] `entrypoint.sh` `deployment` - Scheduler container entrypoint (DB gate, sitemap submission, populator, cron scheduler)
+- [x] `Dockerfile` `deployment` - Scheduler image (deps + tsx runtime, no Next.js build)
+- [x] `docker-compose.yml` `deployment` - Coolify compose service with 1-CPU / 3G limits
+- [x] `diagnose-scheduler.sh` `batch-fetch-update` - Scheduler diagnostic report script
+- [x] **lib/**
+  - [x] `google-indexing.ts` `seo` - Google Indexing API submission helpers
+  - [x] `indexnow-submit.ts` `seo` - IndexNow sitemap submission helper
 
 ## Styles Directory
 

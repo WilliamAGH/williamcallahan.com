@@ -20,12 +20,11 @@
 import type { Metadata } from "next";
 import {
   PAGE_METADATA,
-  LOCAL_OG_ASSETS,
   SITE_DESCRIPTION_SHORT,
   SITE_NAME,
   SITE_TITLE,
   SEO_IMAGES,
-  OG_IMAGE_FALLBACK_DIMENSIONS,
+  OG_IMAGE_DIMENSIONS,
   metadata as siteMetadata,
 } from "@/data/metadata";
 import type {
@@ -274,24 +273,10 @@ export function getStaticPageMetadata(
   let ogWidth: number = siteMetadata.defaultImage.width ?? 1200;
   let ogHeight: number = siteMetadata.defaultImage.height ?? 630;
 
-  // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
-  // image paths defined in data/metadata.ts. If the path exists, we can rely on
-  // Next.js-provided width/height for perfect accuracy.
-  const maybeLocal =
-    ogImagePath in LOCAL_OG_ASSETS
-      ? LOCAL_OG_ASSETS[ogImagePath as keyof typeof LOCAL_OG_ASSETS]
-      : undefined;
-  if (maybeLocal?.width && maybeLocal.height) {
-    ogWidth = maybeLocal.width;
-    ogHeight = maybeLocal.height;
-  } else {
-    // Fallback to predefined dimensions if Next.js import doesn't provide them
-    const fallbackDimensions =
-      OG_IMAGE_FALLBACK_DIMENSIONS[ogImagePath as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
-    if (fallbackDimensions) {
-      ogWidth = fallbackDimensions.width;
-      ogHeight = fallbackDimensions.height;
-    }
+  const staticDimensions = OG_IMAGE_DIMENSIONS[ogImagePath as keyof typeof OG_IMAGE_DIMENSIONS];
+  if (staticDimensions) {
+    ogWidth = staticDimensions.width;
+    ogHeight = staticDimensions.height;
   }
 
   // Use validation and preparation function for OG image URL

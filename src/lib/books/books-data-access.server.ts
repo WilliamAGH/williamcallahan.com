@@ -14,7 +14,11 @@
  * from "returning stale/empty data due to infrastructure failure."
  */
 
-import "server-only";
+// Runtime guard instead of the "server-only" package: this module is also loaded
+// by tsx runtime scripts (sitemap collectors → scheduler/submit-sitemap.ts), where
+// the package's bundler-condition export always throws.
+import { assertServerOnly } from "@/lib/utils/ensure-server-only";
+assertServerOnly();
 
 import { readBooksFromDb } from "@/lib/db/queries/books";
 import { envLogger } from "@/lib/utils/env-logger";

@@ -2,7 +2,7 @@
  * @file Sitemap submission to Google Search Console & IndexNow (Bing)
  * @description Submits sitemap.xml and URLs to search engines with rate limiting
  *
- * CLI: `bun scripts/submit-sitemap.ts [--google-only|--indexnow-only|--debug]`
+ * CLI: `bun scheduler/submit-sitemap.ts [--google-only|--indexnow-only|--debug]`
  * Override safety: `FORCE_SITEMAP_SUBMIT=true`
  *
  * Required env vars:

@@ -11,7 +11,7 @@ Core standards:
 
 # williamcallahan.com Agent Rules
 
-> **Next.js 16**: Middleware is `src/proxy.ts` (not `middleware.ts`). This file handles Clerk auth, CSP, and request logging.
+> **Next.js 16**: Middleware is `src/proxy.ts` (not `middleware.ts`). This file handles Clerk auth and request logging; CSP header construction is in `src/lib/middleware/csp-header.ts`.
 
 Structure: [ORG]; docs architecture: [DOC1]
 

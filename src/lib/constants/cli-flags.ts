@@ -2,8 +2,8 @@
  * CLI Flag Constants for Data Updater Operations
  *
  * Single source of truth for all CLI flags used by:
- * - scripts/data-updater.ts (CLI entrypoint)
- * - lib/server/scheduler.ts (cron scheduler)
+ * - scheduler/data-updater.ts (CLI entrypoint)
+ * - scheduler/scheduler.ts (cron scheduler)
  * - lib/server/data-fetch-manager.ts (orchestrator)
  *
  * CRITICAL: The scheduler spawns data-updater with these exact flags.

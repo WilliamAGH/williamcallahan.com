@@ -282,7 +282,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 
 #### Automated Submission
 
-- **`scripts/submit-sitemap.ts`**: Programmatically submits sitemaps to search engines
+- **`scheduler/submit-sitemap.ts`**: Programmatically submits sitemaps to search engines
   - **Google Search Console**: Uses Webmasters API v3 with Service Account authentication
   - **Bing IndexNow**: Simple GET request with API key verification
   - Features:
@@ -290,7 +290,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
     - Rate limiting (1 second delay between submissions)
     - Retry mechanism with exponential backoff
     - Command line options: `--sitemaps-only`, `--individual-only`, `--all`
-- **`src/lib/server/scheduler.ts`**: Orchestrates automated tasks
+- **`scheduler/scheduler.ts`**: Orchestrates automated tasks
   - Bookmark refresh: Every 2 hours -> triggers sitemap submission
   - **Distributed-Lock Aware**: Before starting a refresh it attempts to acquire the `bookmarks/refresh-lock*.json` object in S3. If another
     instance already holds the lock the scheduler skips this cycle to avoid double-refreshing and duplicate sitemap submissions.
@@ -400,12 +400,12 @@ graph TD
         B -->|Next.js Build| E[/sitemap.xml]
     end
 
-    subgraph "Scheduler (src/lib/server/scheduler.ts)"
+    subgraph "Scheduler (scheduler/scheduler.ts)"
         F[node-cron] -->|Every 2 hours| G[Bookmark Refresh]
         G -->|On Success| H[Submit Sitemap]
     end
 
-    subgraph "Submission (scripts/submit-sitemap.ts)"
+    subgraph "Submission (scheduler/submit-sitemap.ts)"
         H --> I{Production Check}
         I -->|Yes| J[Rate Limiter]
         J --> K[Google Client]
@@ -474,10 +474,10 @@ bun run build
 curl http://localhost:3000/sitemap.xml
 
 # Test submission (dry run)
-NODE_ENV=development bun run scripts/submit-sitemap.ts
+NODE_ENV=development bun run scheduler/submit-sitemap.ts
 
 # Force production submission (use with caution)
-NODE_ENV=production SITE_URL=https://williamcallahan.com bun run scripts/submit-sitemap.ts --sitemaps-only
+NODE_ENV=production SITE_URL=https://williamcallahan.com bun run scheduler/submit-sitemap.ts --sitemaps-only
 ```
 
 ### Common Issues
@@ -607,7 +607,7 @@ bun run scripts/validate-opengraph-clear-cache.ts
 bun run scripts/refresh-opengraph-images.ts
 
 # Force sitemap resubmission
-NODE_ENV=production bun run scripts/submit-sitemap.ts --all
+NODE_ENV=production bun run scheduler/submit-sitemap.ts --all
 ```
 
 ## Performance Characteristics
@@ -700,7 +700,7 @@ bun test __tests__/lib/seo/og-validation.test.ts
 bun run scripts/validate-opengraph-clear-cache.ts
 
 # Force sitemap resubmission
-NODE_ENV=production bun run scripts/submit-sitemap.ts --all
+NODE_ENV=production bun run scheduler/submit-sitemap.ts --all
 
 # Refresh bookmark OpenGraph images
 bun run scripts/refresh-opengraph-images.ts
