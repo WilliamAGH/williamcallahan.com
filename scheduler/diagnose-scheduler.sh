@@ -6,7 +6,7 @@ echo ""
 
 echo "1. PROCESS CHECK:"
 echo "   Checking for scheduler process..."
-SCHEDULER_PROCS=$(ps aux | grep -E "bun.*scheduler|node.*scheduler" | grep -v grep)
+SCHEDULER_PROCS=$(ps aux | grep -E "[s]cheduler/scheduler\.ts|[n]ode --run scheduler")
 if [ -n "$SCHEDULER_PROCS" ]; then
     echo "   ✅ Scheduler process found:"
     echo "$SCHEDULER_PROCS" | sed 's/^/      /'
@@ -16,13 +16,8 @@ fi
 echo ""
 
 echo "2. SCHEDULER LOG CHECK:"
-if [ -f /tmp/scheduler.log ]; then
-    echo "   ✅ Scheduler log exists at /tmp/scheduler.log"
-    echo "   Last 20 lines:"
-    tail -20 /tmp/scheduler.log | sed 's/^/      /'
-else
-    echo "   ❌ No scheduler log found at /tmp/scheduler.log"
-fi
+echo "   Scheduler logs are emitted to container stdout/stderr."
+echo "   Use the orchestrator or docker logs for startup and cron output."
 echo ""
 
 echo "3. ENVIRONMENT VARIABLES:"
@@ -47,9 +42,9 @@ echo "   Checking required files..."
 [ -d node_modules/node-cron ] && echo "   ✅ node-cron installed" || echo "   ❌ node-cron not installed"
 echo ""
 
-echo "6. BUN/NODE CHECK:"
-which bun > /dev/null 2>&1 && echo "   ✅ bun found at: $(which bun)" || echo "   ❌ bun not found"
+echo "6. NODE RUNTIME CHECK:"
 which node > /dev/null 2>&1 && echo "   ✅ node found at: $(which node)" || echo "   ❌ node not found"
+which npx > /dev/null 2>&1 && echo "   ✅ npx found at: $(which npx)" || echo "   ❌ npx not found"
 echo ""
 
 echo "7. RECENT S3 ACTIVITY:"
@@ -67,21 +62,16 @@ free -h 2>/dev/null || echo "   Memory info not available"
 echo ""
 
 echo "10. ATTEMPTING MANUAL SCHEDULER START:"
-echo "    Running: bun run scheduler --version"
-timeout 5 bun run scheduler --version 2>&1 | sed 's/^/      /' || echo "      Command timed out or failed"
+echo "    Verifying package script runner with: node --run update-data -- --help"
+timeout 5 node --run update-data -- --help 2>&1 | sed 's/^/      /' || echo "      Command timed out or failed"
 echo ""
 
 echo "=== DIAGNOSTIC RECOMMENDATIONS ==="
 if [ -z "$SCHEDULER_PROCS" ]; then
     echo "⚠️  Scheduler is not running. Try:"
-    echo "   1. Check /tmp/scheduler.log for startup errors"
-    echo "   2. Manually run: bun run scheduler"
+    echo "   1. Check container logs for startup errors"
+    echo "   2. Manually run: node --run scheduler"
     echo "   3. Check if required environment variables are set"
-fi
-
-if [ ! -f /tmp/scheduler.log ]; then
-    echo "⚠️  No scheduler log found. The scheduler may have never started."
-    echo "   Check the entrypoint script output during container startup."
 fi
 
 echo ""
