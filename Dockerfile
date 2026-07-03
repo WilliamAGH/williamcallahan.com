@@ -289,6 +289,8 @@ COPY --from=builder /app/tsconfig*.json ./
 COPY --from=builder /app/src/lib ./src/lib
 COPY --from=builder /app/src/types ./src/types
 COPY --from=builder /app/config ./config
+#    Ensure the sitemap generator used by copied verification scripts is available.
+COPY --from=builder /app/src/app/sitemap.ts ./src/app/sitemap.ts
 
 # 7. Scripts and package definitions (changes occasionally)
 #    All runtime scripts use tsx (Node.js + esbuild) for TLS compatibility with PostgreSQL.
