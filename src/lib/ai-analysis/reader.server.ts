@@ -35,10 +35,16 @@ assertServerOnly();
 // Private Cached Implementations
 // ─────────────────────────────────────────────────────────────────────────────
 
+const CACHE_MISS_PROFILE = { stale: 0, revalidate: 1, expire: 1 } as const;
+
 const applyCacheTags = (tags: string[]): void => {
   for (const tag of tags) {
     cacheContextGuards.cacheTag("AiAnalysis", tag);
   }
+};
+
+const applyAnalysisCacheLife = (analysisRecord: CachedAnalysis<unknown> | null): void => {
+  cacheContextGuards.cacheLife("AiAnalysis", analysisRecord ? "max" : CACHE_MISS_PROFILE);
 };
 
 /**
@@ -51,10 +57,10 @@ async function getCachedAnalysisInternal(
 ): Promise<CachedAnalysis<unknown> | null> {
   "use cache";
 
-  cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 }); // 24 hours
   applyCacheTags(buildAnalysisCacheTags(domain, id));
 
   const analysisRecord = await readLatestAnalysis(domain, id);
+  applyAnalysisCacheLife(analysisRecord);
 
   if (!analysisRecord) {
     envLogger.debug("No cached analysis found", { domain, id }, { category: "AiAnalysis" });
@@ -198,8 +204,9 @@ export async function listAnalysisVersions(
 export async function hasCachedAnalysis(domain: AnalysisDomain, id: string): Promise<boolean> {
   "use cache";
 
-  cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 }); // 24 hours
   applyCacheTags(buildAnalysisCacheTags(domain, id));
 
-  return hasAnalysisInDb(domain, id);
+  const hasAnalysis = await hasAnalysisInDb(domain, id);
+  cacheContextGuards.cacheLife("AiAnalysis", hasAnalysis ? "max" : CACHE_MISS_PROFILE);
+  return hasAnalysis;
 }

@@ -129,6 +129,11 @@ export const cacheContextGuards = {
       for (const tag of new Set(tags)) nextRevalidateTag(tag, "max");
     }
   }),
+  expireTag: withGuard("revalidateTag", (_category: string, ...tags: string[]) => {
+    if (typeof nextRevalidateTag === "function" && !isCliProcessContext()) {
+      for (const tag of new Set(tags)) nextRevalidateTag(tag, { expire: 0 });
+    }
+  }),
 };
 
 /** Cache profile TTL boundaries (seconds) */

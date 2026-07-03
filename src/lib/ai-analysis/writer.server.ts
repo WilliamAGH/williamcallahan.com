@@ -24,7 +24,7 @@ const revalidateAnalysisCache = (domain: AnalysisDomain, id: string): void => {
     ...buildAnalysisCacheTags(domain, id),
     ...buildAnalysisVersionsCacheTags(domain, id),
   ];
-  cacheContextGuards.revalidateTag("AiAnalysis", ...tags);
+  cacheContextGuards.expireTag("AiAnalysis", ...tags);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
