@@ -10,7 +10,6 @@ import { join } from "node:path";
 import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
 
 loadEnvironmentWithMultilineSupport();
-
 process.env.IS_DATA_UPDATER = "true";
 
 const args = process.argv.slice(2);

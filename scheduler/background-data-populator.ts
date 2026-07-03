@@ -7,7 +7,7 @@
  * in the background after the server has started. This prevents blocking
  * the server startup with S3 operations.
  *
- * @module scripts/background-data-populator
+ * @module scheduler/background-data-populator
  */
 
 import { existsSync, rmSync } from "node:fs";
@@ -41,8 +41,8 @@ async function runDataUpdater(): Promise<void> {
   return new Promise((resolve, reject) => {
     logger.info("[BackgroundPopulator] Starting data updater process...");
 
-    // Spawn the data updater as a child process using npx tsx for Node.js TLS compatibility
-    const child = spawn("npx", ["tsx", "scripts/data-updater.ts"], {
+    // Spawn the canonical update-data package script (Node.js runtime for TLS compatibility)
+    const child = spawn("node", ["--run", "update-data"], {
       env: {
         ...process.env,
         IS_DATA_UPDATER: "true",

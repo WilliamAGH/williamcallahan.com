@@ -3,7 +3,7 @@ import {
   analyzeLogo,
   invertLogo,
   doesLogoNeedInversion,
-  analyzeImage, // Include legacy export for coverage
+  analyzeLogoInversion,
 } from "@/lib/image-handling/image-analysis";
 import type { LogoBrightnessAnalysis, LogoInversion } from "@/types/logo";
 
@@ -23,7 +23,7 @@ const TEST_DATA = {
   STUB_HAS_TRANSPARENCY: false,
   STUB_FORMAT: "unknown",
   STUB_DIMENSIONS: { width: 0, height: 0 },
-  STUB_LEGACY_BRIGHTNESS: 240 / 255,
+  STUB_INVERSION_BRIGHTNESS: 240 / 255,
 } as const;
 
 describe("Logo Analysis Module", () => {
@@ -64,14 +64,14 @@ describe("Logo Analysis Module", () => {
     });
   });
 
-  describe("Legacy API Compatibility", () => {
-    it("should maintain backwards compatibility with analyzeImage", async () => {
+  describe("analyzeLogoInversion", () => {
+    it("should derive LogoInversion decisions from analysis", async () => {
       // TODO(wasm-image): This test expects stubbed values until WASM implementation
       const testBuffer = Buffer.from([0]);
-      const result: LogoInversion = await analyzeImage(testBuffer);
+      const result: LogoInversion = await analyzeLogoInversion(testBuffer);
 
-      // Assert the stubbed values from the legacy API
-      expect(result.brightness).toBe(TEST_DATA.STUB_LEGACY_BRIGHTNESS);
+      // Assert the stubbed values from the analysis
+      expect(result.brightness).toBe(TEST_DATA.STUB_INVERSION_BRIGHTNESS);
       expect(result.needsDarkInversion).toBe(false);
       expect(result.needsLightInversion).toBe(true);
       expect(result.hasTransparency).toBe(false);

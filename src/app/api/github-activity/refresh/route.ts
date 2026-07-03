@@ -19,11 +19,6 @@ import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import { getClientIp } from "@/lib/utils/request-utils";
 import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
 
-/**
- * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
- * @default 'force-dynamic'
- */
-
 const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
 const RATE_LIMIT_STORE_KEY = "rate-limits/github-refresh";

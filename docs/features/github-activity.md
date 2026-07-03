@@ -123,8 +123,8 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 
 ### Supporting Files
 
-- **`src/lib/server/scheduler.ts`**: Cron job scheduling
-- **`scripts/data-updater.ts`**: Data refresh script
+- **`scheduler/scheduler.ts`**: Cron job scheduling
+- **`scheduler/data-updater.ts`**: Data refresh script
 - **`src/types/github.ts`**: Type definitions
 
 ## Environment Variables

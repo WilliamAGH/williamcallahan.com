@@ -289,8 +289,6 @@ COPY --from=builder /app/tsconfig*.json ./
 COPY --from=builder /app/src/lib ./src/lib
 COPY --from=builder /app/src/types ./src/types
 COPY --from=builder /app/config ./config
-#    Ensure the sitemap generator used by runtime scripts is available.
-COPY --from=builder /app/src/app/sitemap.ts ./src/app/sitemap.ts
 
 # 7. Scripts and package definitions (changes occasionally)
 #    All runtime scripts use tsx (Node.js + esbuild) for TLS compatibility with PostgreSQL.
@@ -324,7 +322,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
   CMD curl -fsS --connect-timeout 2 --max-time 3 "http://127.0.0.1:${PORT:-3000}/api/health" \
     | grep -qE '"status"[[:space:]]*:[[:space:]]*"(healthy|degraded)"' || exit 1
 
-# Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
+# Entrypoint gates startup on database readiness, then serves traffic only.
+# Background data work runs in the scheduler container (scheduler/Dockerfile).
 ENTRYPOINT ["/app/entrypoint.sh"]
 # Run the package.json start script via Node.js (node --run reads package.json scripts natively)
 CMD ["node", "--run", "start"]

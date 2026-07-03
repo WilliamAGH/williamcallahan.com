@@ -392,8 +392,8 @@ export default function BookmarksPage() {
 3. **unstable_noStore() Deprecation Notice**
    - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/04-functions/unstable_noStore.mdx
    - **Status:** Deprecated for page components with cacheComponents
-   - **Migration:** Use `connection()` from 'next/server' or remove entirely
-   - **Exception:** API routes (`app/api/**/route.ts`) can still use it
+   - **Migration:** Page components: remove entirely (pages are dynamic by default). API routes: use `connection()` for request-time execution OR continue using `unstable_noStore()`.
+   - **Exception:** API routes (`app/api/**/route.ts`) can still use `unstable_noStore()` and `connection()`
 
 4. **Route Segment Config Incompatibility**
    - **URL:** https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/03-file-conventions/route-segment-config.mdx

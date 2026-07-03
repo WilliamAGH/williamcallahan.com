@@ -9,7 +9,7 @@
  * @remarks
  * **Dual-purpose module**: This file serves two roles:
  * 1. **Next.js route** - Compiled into `.next/` to serve `/sitemap.xml` endpoint
- * 2. **Runtime import** - Directly imported by `scripts/submit-sitemap.ts` and
+ * 2. **Runtime import** - Directly imported by `scheduler/submit-sitemap.ts` and
  *    `scripts/verify-no-404s.ts` which call `sitemap()` to get URLs for search
  *    engine submission and link validation
  *

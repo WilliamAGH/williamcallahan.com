@@ -10,7 +10,7 @@ Rate limiting operates at the proxy layer:
 
 Proxy request classes are derived in `src/lib/utils/request-utils.ts` using path + headers:
 
-- `document`: Browser document navigation (`Accept: text/html`, `GET`)
+- `document`: Browser document navigation (`Accept: text/html`, `GET` or `HEAD`)
 - `api`: `/api/*`
 - `rsc`: Flight requests (`_rsc` query, `rsc: 1`, or `text/x-component`)
 - `prefetch`: Next prefetch hints (`next-router-prefetch`, `purpose=prefetch`, `sec-purpose=prefetch`)

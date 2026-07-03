@@ -89,7 +89,7 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ## Security
 
-- CSP headers -> Handled by Next.js config
+- CSP headers -> Handled by `src/proxy.ts` (see [`csp-header.ts`](../../src/lib/middleware/csp-header.ts))
 - XSS prevention -> React's built-in protections
 - External links -> See [`interactive-containers.md`](./interactive-containers.md)
 - CORS -> Proper crossOrigin attributes on resource hints

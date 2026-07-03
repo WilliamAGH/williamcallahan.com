@@ -65,7 +65,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 1. **Server/Client Boundary**: API-based approach; terminal never imports server modules.
 
-2. **Type Consolidation**: Single `SearchResult` type in `types/search.ts`.
+2. **Type Consolidation**: Single `SearchResult` type in `types/schemas/search.ts`.
 
 3. **Generic Search**: `searchContent<T>` function used by all search implementations.
 
@@ -137,13 +137,10 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 ### Type Definitions
 
-- **`types/search.ts`**: Single source of truth for search types
+- **`types/schemas/search.ts`**: Single source of truth for schema-backed search result fields
   ```typescript
-  export interface SearchResult {
-    label: string;
-    description: string;
-    path: string;
-  }
+  export const searchResultSchema = z.object({ ... });
+  export type SearchResult = z.infer<typeof searchResultSchema>;
   ```
 
 ## Data Flow
@@ -281,7 +278,7 @@ Build-time index -> Static files -> Edge caching -> Instant search
 ### Breaking Changes
 
 - Terminal commands now use `/api/search/[scope]` endpoint
-- `SearchResult` type moved to `types/search.ts`
+- `SearchResult` type moved to `types/schemas/search.ts`
 - Query validation may reject previously valid queries
 
 ### Backward Compatibility

@@ -330,7 +330,6 @@ export const bookmarkSlugEntrySchema = z.object({
   url: z.url(),
   title: z.string(),
 });
-export type BookmarkSlugEntry = z.infer<typeof bookmarkSlugEntrySchema>;
 export const bookmarkSlugMappingSchema = z.object({
   version: z.string(),
   generated: z.iso.datetime(),

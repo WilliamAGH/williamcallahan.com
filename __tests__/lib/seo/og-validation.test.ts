@@ -19,7 +19,7 @@
  */
 
 import { validateOpenGraphMetadata, prepareOGImageUrl } from "@/lib/seo/og-validation";
-import { SEO_IMAGES, OG_IMAGE_FALLBACK_DIMENSIONS } from "@/data/metadata";
+import { SEO_IMAGES, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { adaptNextOpenGraphToOGMetadata } from "@/types/seo/validation";
 
@@ -136,21 +136,20 @@ describe("OpenGraph Validation", () => {
     /**
      * Test: Fallback dimensions exist for all OpenGraph images
      * @description Ensures that every OpenGraph image has corresponding fallback dimensions
-     * defined in OG_IMAGE_FALLBACK_DIMENSIONS. This is critical for proper social media
+     * defined in OG_IMAGE_DIMENSIONS. This is critical for proper social media
      * display when image dimensions cannot be automatically determined.
      */
     test("all OG images have fallback dimensions", () => {
       const ogImageKeys = Object.entries(SEO_IMAGES)
-        .filter(([key]) => key.startsWith("og") && key !== "ogDynamicFallback")
+        .filter(([key]) => key.startsWith("og"))
         .map(([key, url]) => ({ key, url }));
 
       ogImageKeys.forEach(({ url }) => {
-        const hasFallback = url in OG_IMAGE_FALLBACK_DIMENSIONS;
+        const hasFallback = url in OG_IMAGE_DIMENSIONS;
         expect(hasFallback).toBe(true);
 
         // Assert fallback exists (test will fail above if not)
-        const dimensions =
-          OG_IMAGE_FALLBACK_DIMENSIONS[url as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
+        const dimensions = OG_IMAGE_DIMENSIONS[url as keyof typeof OG_IMAGE_DIMENSIONS];
         expect(dimensions.width).toBeGreaterThan(0);
         expect(dimensions.height).toBeGreaterThan(0);
       });
@@ -167,7 +166,7 @@ describe("OpenGraph Validation", () => {
       const path = require("node:path");
 
       const ogImageKeys = Object.entries(SEO_IMAGES)
-        .filter(([key]) => key.startsWith("og") && key !== "ogDynamicFallback")
+        .filter(([key]) => key.startsWith("og"))
         .map(([key, url]) => ({ key, url }));
 
       ogImageKeys.forEach(({ key, url }) => {

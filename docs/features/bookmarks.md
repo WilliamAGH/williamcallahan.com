@@ -105,10 +105,10 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 
 ### Scheduler / Cron Pipeline
 
-- `scripts/data-updater.ts` now accepts:
+- `scheduler/data-updater.ts` now accepts:
   - `--bookmark-tags`
   - `--bookmark-tags-retrofit`
-- `src/lib/server/scheduler.ts` schedules:
+- `scheduler/scheduler.ts` schedules:
   - `S3_BOOKMARK_TAGS_CRON` (default `30 */4 * * *`, every 4 hours)
   - `S3_BOOKMARK_TAGS_RETROFIT_CRON` (default `45 3 * * *`, daily at 3:45 AM PT)
 - Both tag alias cron jobs trigger bookmark cache revalidation via `/api/revalidate/bookmarks`.
@@ -183,7 +183,7 @@ Client events → POST /api/engagement → content_engagement table
 
 ### Memory & Cache Management
 
-- **Health Monitoring**: `/api/health/deep` verifies shard lookups (`json/bookmarks/slug-shards*/`) resolve correctly, guaranteeing slug files and mapping stay in sync.
+- **Health Monitoring**: `/api/bookmarks/diagnostics` reports PostgreSQL bookmark/index-state health and slug mapping status.
 - **Next.js Cache Tags**: Bookmark lists/tag pages use `cacheTag("bookmarks")` plus slug-specific tags with 15–60 minute lifetimes. Detail routes tag `bookmark-${slug}`. Related content uses its own tags while reading PostgreSQL-backed content-graph artifacts.
 - **API Responses**: `/api/bookmarks`, `/api/search/*`, `/api/related-content*` call `unstable_noStore()` and return `Cache-Control: no-store` so they always read the freshest DB-backed bookmark state without joining the Cache Components layer.
 - **Legacy Map Cache**: Still used for metadata (slug lookups, stats) but never stores full bookmark arrays or buffers.
@@ -216,23 +216,9 @@ Core data model with fields for:
 - Content from Karakeep (screenshots, metadata)
 - Normalized scraped text (`scrapedContentText`) derived from Karakeep HTML content
 
-### S3 Storage Layout
+### Bookmark Slug Storage
 
-S3 is retained for slug mapping artifacts and shard lookups. Runtime bookmark list/page/tag/index reads and writes are PostgreSQL-backed.
-
-```
-json/bookmarks/
-├── slug-mapping-dev.json    # Aggregate slug mapping (env-suffixed)
-├── slug-shards-dev/         # Sharded slug->id lookups (per slug file)
-│   ├── aa/
-│   │   └── apple.json
-│   └── __/
-│       └── 404.json
-```
-
-Note: Bookmark arrays and index/tag pages are persisted in PostgreSQL. The centralized slug-mapping file
-(`slug-mapping*.json`) remains the integrity checkpoint, while `slug-shards*/**/*.json` provides O(1) slug lookups
-without reading the full mapping file.
+Bookmark arrays, list/page/tag indexes, and slug lookups are PostgreSQL-backed. Detail routes resolve the slug directly from the bookmarks table before falling back to the in-memory reverse map built from PostgreSQL rows.
 
 Embedded slugs are treated as the source of truth during refreshes; metadata-only updates preserve existing slugs
 to avoid URL churn when titles or OpenGraph descriptions change.
@@ -342,38 +328,16 @@ These operations only need metadata and can safely use `includeImageData: false`
 
 **Common regression**: Adding `includeImageData: false` to optimize build memory causes UI components to lose thumbnails. NEVER change `includeImageData` without checking all consumers.
 
-## Deployment & Automatic Data Population (Integrated)
+## Deployment & Automatic Data Population
 
-This consolidates deployment details for bookmarks data population and scheduler behavior.
-
-### Automatic Population on Container Startup
-
-- `scripts/entrypoint.sh` ensures slug mappings exist at boot:
-  - Runs `scripts/data-updater.ts --bookmarks --force` if missing
-  - Starts scheduler and Next.js server
-
-### Scheduler Cadence (Pacific Time)
-
-- Bookmarks refresh: every 2 hours
-- GitHub activity: daily at midnight
-- Logos: weekly on Sunday
-
-### Environment-Specific S3 Keys
-
-- Source of truth: `lib/config/environment.ts`. Suffixes: production `""`, test `"-test"`, dev/local `"-dev"` (e.g., `json/bookmarks/slug-mapping-dev.json`).
-- Local snapshots are not consumed at runtime; bookmark reads and writes are PostgreSQL-first.
-
-### Redundancy & Fallbacks
-
-- No redundancy or cross-environment fallbacks. `saveSlugMapping` writes only the primary env-specific path.
-- `loadSlugMapping` reads only the primary path and returns `null` when missing.
+Background population belongs to the scheduler container. The web entrypoint only gates database readiness and starts the Next.js server; `scheduler/entrypoint.sh` runs the initial populator and then starts cron scheduling.
 
 ### Manual Ops
 
 ```bash
 # Force data update
-bun scripts/data-updater.ts --bookmarks --force
+bun run update-data -- --bookmarks --force
 
 # Check status
-bun scripts/debug-slug-mapping.ts
+curl http://localhost:3000/api/bookmarks/diagnostics
 ```

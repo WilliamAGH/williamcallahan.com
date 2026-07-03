@@ -8,7 +8,7 @@ import { join } from "node:path";
 
 describe("Dotenv v17 Compatibility Test", () => {
   it("should use consistent dotenv import pattern across all scripts", () => {
-    const scriptsToCheck = ["scripts/submit-sitemap.ts"];
+    const scriptsToCheck = ["scheduler/submit-sitemap.ts"];
 
     const results: Record<string, string> = {};
 
@@ -28,6 +28,6 @@ describe("Dotenv v17 Compatibility Test", () => {
     }
 
     // Submit-sitemap should use custom env loader
-    expect(results["scripts/submit-sitemap.ts"]).toBe("custom env loader");
+    expect(results["scheduler/submit-sitemap.ts"]).toBe("custom env loader");
   });
 });
