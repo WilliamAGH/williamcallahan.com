@@ -233,7 +233,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 2. Create non-root user (never changes) - standard UID 1001 for Next.js containers
 #    Ensures consistent permissions with Coolify and other container orchestrators
 RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs
+    && useradd --system --uid 1001 --gid nodejs --create-home --home-dir /home/nextjs nextjs
 
 # 3. Static environment variables (rarely changes)
 ENV NODE_ENV=production
@@ -266,6 +266,7 @@ ENV S3_BUCKET=$S3_BUCKET \
     DEPLOYMENT_ENV=$DEPLOYMENT_ENV \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    XDG_CACHE_HOME=/home/nextjs/.cache \
     # Disable Next.js "use cache" in production runtime due to "Connection closed" instability
     USE_NEXTJS_CACHE=false
 
@@ -302,7 +303,9 @@ COPY --chown=nextjs:nodejs scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # 8. Create writable directories (after static copies, before dynamic content)
-RUN mkdir -p /app/cache/s3_data && chown -R nextjs:nodejs /app/cache
+RUN mkdir -p /app/cache/s3_data /home/nextjs/.cache/fontconfig /home/nextjs/.fontconfig /var/cache/fontconfig \
+    && fc-cache -f \
+    && chown -R nextjs:nodejs /app/cache /home/nextjs /var/cache/fontconfig
 
 # 9. Application build output (changes every build) - LAST for optimal caching
 #    Copy Next.js build output with ownership set to nextjs user
