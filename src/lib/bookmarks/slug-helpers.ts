@@ -5,7 +5,7 @@
  * by using pre-computed mappings instead of generating slugs on-the-fly.
  */
 
-import { getBookmarkBySlugFromDatabase } from "@/lib/db/queries/bookmarks";
+import { getBookmarkIdBySlug } from "@/lib/db/queries/bookmarks";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
 import { getSlugCacheTTL } from "@/config/related-content.config";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
@@ -224,9 +224,9 @@ async function loadReverseSlugMap(): Promise<Map<string, string> | null> {
 
 export async function resolveBookmarkIdFromSlug(slug: string): Promise<string | null> {
   if (slug.trim().length > 0) {
-    const bookmark = await getBookmarkBySlugFromDatabase(slug);
-    if (bookmark?.id) {
-      return bookmark.id;
+    const bookmarkId = await getBookmarkIdBySlug(slug);
+    if (bookmarkId) {
+      return bookmarkId;
     }
   }
 
