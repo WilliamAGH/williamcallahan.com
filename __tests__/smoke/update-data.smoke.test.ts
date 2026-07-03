@@ -2,6 +2,7 @@
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { execSync } from "node:child_process";
 import path from "node:path";
+import { createDataUpdaterStderrLogger } from "../../scheduler/background-data-populator";
 import type { GraphQLRepoNode } from "@/types/github";
 
 // Path to the script relative to the project root
@@ -190,6 +191,35 @@ describe("GitHub stats updater log severity", () => {
       vi.doUnmock("@/lib/data-access/github-storage");
       vi.doUnmock("@/lib/db/queries/github-activity");
       vi.doUnmock("@/lib/db/mutations/github-activity");
+    }
+  });
+});
+
+describe("background data populator stderr logging", () => {
+  it("classifies complete stderr lines after chunk boundaries", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      const stderrLogger = createDataUpdaterStderrLogger();
+      stderrLogger.write("[WARN] GitHub stats");
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+
+      stderrLogger.write(" pending\nUnexpected failure\n[Book");
+      expect(warnSpy).toHaveBeenCalledWith("[DataUpdater WARN] [WARN] GitHub stats pending");
+      expect(errorSpy).toHaveBeenCalledWith("[DataUpdater ERROR] Unexpected failure");
+
+      stderrLogger.write("marksDataAccess] Metadata-only refresh failed\nPartial failure");
+      stderrLogger.flush();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[DataUpdater WARN] [BookmarksDataAccess] Metadata-only refresh failed",
+      );
+      expect(errorSpy).toHaveBeenCalledWith("[DataUpdater ERROR] Partial failure");
+    } finally {
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
     }
   });
 });

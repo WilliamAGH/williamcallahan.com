@@ -40,19 +40,45 @@ const isMainModule = (): boolean => {
 const isDataUpdaterWarningLine = (line: string): boolean =>
   DATA_UPDATER_WARNING_PREFIXES.some((prefix) => line.startsWith(prefix));
 
-const logDataUpdaterStderr = (output: string): void => {
-  const lines = output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  for (const line of lines) {
-    if (isDataUpdaterWarningLine(line)) {
-      console.warn(`[DataUpdater WARN] ${line}`);
-    } else {
-      console.error(`[DataUpdater ERROR] ${line}`);
-    }
+const logDataUpdaterStderrLine = (line: string): void => {
+  const trimmedLine = line.trim();
+  if (!trimmedLine) {
+    return;
   }
+
+  if (isDataUpdaterWarningLine(trimmedLine)) {
+    console.warn(`[DataUpdater WARN] ${trimmedLine}`);
+  } else {
+    console.error(`[DataUpdater ERROR] ${trimmedLine}`);
+  }
+};
+
+export const createDataUpdaterStderrLogger = (): {
+  flush: () => void;
+  write: (output: string) => void;
+} => {
+  let pendingLine = "";
+
+  return {
+    flush: () => {
+      logDataUpdaterStderrLine(pendingLine);
+      pendingLine = "";
+    },
+    write: (output: string) => {
+      pendingLine += output;
+      const lines = pendingLine.split(/\r?\n/);
+      const nextPendingLine = lines.pop();
+      if (nextPendingLine === undefined) {
+        pendingLine = "";
+        return;
+      }
+      pendingLine = nextPendingLine;
+
+      for (const line of lines) {
+        logDataUpdaterStderrLine(line);
+      }
+    },
+  };
 };
 
 /**
@@ -73,6 +99,7 @@ async function runDataUpdater(): Promise<void> {
     });
 
     let stderr = "";
+    const stderrLogger = createDataUpdaterStderrLogger();
 
     child.stdout?.on("data", (data) => {
       const output = data.toString();
@@ -85,10 +112,12 @@ async function runDataUpdater(): Promise<void> {
     child.stderr?.on("data", (data) => {
       const output = data.toString();
       stderr += output;
-      logDataUpdaterStderr(output);
+      stderrLogger.write(output);
     });
 
     child.on("close", (code, signal) => {
+      stderrLogger.flush();
+
       if (code === 0) {
         logger.info("[BackgroundPopulator] Data updater completed successfully");
         resolve();
