@@ -13,7 +13,18 @@ Both entrypoints share the DATABASE_URL rewrite + readiness gate via `scripts/en
 
 The scheduler deploys as a **separate Coolify resource** on the same host, using the
 same environment variable set as the web app (`DATABASE_URL`, `S3_*`, `BOOKMARK_*`,
-`GITHUB_*`, `GOOGLE_SEARCH_INDEXING_*`, `NEXT_PUBLIC_SITE_URL`, ...). Two options:
+`GITHUB_*`, `GOOGLE_SEARCH_INDEXING_*`, `NEXT_PUBLIC_SITE_URL`, `API_BASE_URL`,
+`NEXT_PUBLIC_S3_CDN_URL`, ...). For the current Coolify scheduler resource:
+
+```text
+NEXT_PUBLIC_SITE_URL=https://williamcallahan.com
+API_BASE_URL=https://williamcallahan.com
+NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud
+INTERNAL_DATABASE_HOST=100.86.115.120
+INTERNAL_DATABASE_PORT=5438
+```
+
+Two options:
 
 1. **Docker Compose buildpack** (preferred — carries CPU/memory limits): Base Directory `/`,
    Compose file `scheduler/docker-compose.yml`. The service caps at 1 CPU / 3G so batch
@@ -99,3 +110,6 @@ When `NEXT_PUBLIC_SITE_URL=https://williamcallahan.com`, startup applies two saf
 
 1. `DATABASE_URL` is rewritten from the public proxy endpoint (`167.234.219.57:5438`) to the internal PostgreSQL service (`q0kks8ww044c0o4w4o4ok408:5432`).
 2. The app startup is gated until the resolved database endpoint is reachable.
+
+If PostgreSQL runs on another Tailscale-connected host, set `INTERNAL_DATABASE_HOST`
+and `INTERNAL_DATABASE_PORT`; those values replace the default internal service target.

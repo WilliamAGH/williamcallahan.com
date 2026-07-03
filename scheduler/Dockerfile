@@ -46,12 +46,12 @@ RUN mkdir -p generated/bookmarks \
     && bun scripts/init-csp-hashes.ts
 
 # ---------- Runtime stage ----------
-# Node.js 22 only (node --run + tsx from node_modules); libvips for Sharp.
+# Node.js 22 only (node --run + tsx from node_modules); libvips and fontconfig for image/PDF paths.
 FROM ${BASE_REGISTRY}/debian:bookworm-slim AS runner
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg libvips42 bash procps \
+    ca-certificates curl gnupg libvips42 bash procps fontconfig fonts-dejavu-core \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
@@ -60,11 +60,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs
+    && useradd --system --uid 1001 --gid nodejs --create-home --home-dir /home/nextjs nextjs
 
 ENV NODE_ENV=production
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
+ENV XDG_CACHE_HOME=/home/nextjs/.cache
 
 ARG GIT_SHA=unknown
 ENV GIT_SHA=${GIT_SHA}
@@ -86,7 +87,9 @@ COPY scripts ./scripts
 COPY --chown=nextjs:nodejs scheduler ./scheduler
 
 RUN chmod +x /app/scheduler/entrypoint.sh /app/scheduler/diagnose-scheduler.sh \
-    && mkdir -p /app/cache/s3_data && chown -R nextjs:nodejs /app/cache
+    && mkdir -p /app/cache/s3_data /home/nextjs/.cache/fontconfig /home/nextjs/.fontconfig /var/cache/fontconfig \
+    && fc-cache -f \
+    && chown -R nextjs:nodejs /app/cache /home/nextjs /var/cache/fontconfig
 
 USER nextjs
 

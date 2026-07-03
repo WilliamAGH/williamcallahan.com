@@ -23,6 +23,10 @@ const MAX_POPULATION_ATTEMPTS = 3; // Prevent infinite retry loops
 let populationAttempts = 0;
 let isRunning = false;
 const MAIN_MODULE_PATH = fileURLToPath(import.meta.url);
+const DATA_UPDATER_WARNING_PREFIXES = [
+  "[BookmarksDataAccess] Metadata-only refresh failed",
+  "[WARN]",
+] as const;
 
 const isMainModule = (): boolean => {
   const invokedPath = process.argv[1];
@@ -31,6 +35,50 @@ const isMainModule = (): boolean => {
   }
 
   return resolve(invokedPath) === resolve(MAIN_MODULE_PATH);
+};
+
+const isDataUpdaterWarningLine = (line: string): boolean =>
+  DATA_UPDATER_WARNING_PREFIXES.some((prefix) => line.startsWith(prefix));
+
+const logDataUpdaterStderrLine = (line: string): void => {
+  const trimmedLine = line.trim();
+  if (!trimmedLine) {
+    return;
+  }
+
+  if (isDataUpdaterWarningLine(trimmedLine)) {
+    console.warn(`[DataUpdater WARN] ${trimmedLine}`);
+  } else {
+    console.error(`[DataUpdater ERROR] ${trimmedLine}`);
+  }
+};
+
+export const createDataUpdaterStderrLogger = (): {
+  flush: () => void;
+  write: (output: string) => void;
+} => {
+  let pendingLine = "";
+
+  return {
+    flush: () => {
+      logDataUpdaterStderrLine(pendingLine);
+      pendingLine = "";
+    },
+    write: (output: string) => {
+      pendingLine += output;
+      const lines = pendingLine.split(/\r?\n/);
+      const nextPendingLine = lines.pop();
+      if (nextPendingLine === undefined) {
+        pendingLine = "";
+        return;
+      }
+      pendingLine = nextPendingLine;
+
+      for (const line of lines) {
+        logDataUpdaterStderrLine(line);
+      }
+    },
+  };
 };
 
 /**
@@ -51,6 +99,7 @@ async function runDataUpdater(): Promise<void> {
     });
 
     let stderr = "";
+    const stderrLogger = createDataUpdaterStderrLogger();
 
     child.stdout?.on("data", (data) => {
       const output = data.toString();
@@ -63,10 +112,12 @@ async function runDataUpdater(): Promise<void> {
     child.stderr?.on("data", (data) => {
       const output = data.toString();
       stderr += output;
-      console.error(`[DataUpdater ERROR] ${output.trim()}`);
+      stderrLogger.write(output);
     });
 
     child.on("close", (code, signal) => {
+      stderrLogger.flush();
+
       if (code === 0) {
         logger.info("[BackgroundPopulator] Data updater completed successfully");
         resolve();
