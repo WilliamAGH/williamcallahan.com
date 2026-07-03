@@ -3,26 +3,20 @@
  * @module data-access/github-csv-repair
  */
 
-/** GitHub API status codes */
-const HTTP_ACCEPTED = 202;
-const HTTP_FORBIDDEN = 403;
-
-import { waitForPermit } from "@/lib/rate-limiter";
 import { createHash } from "node:crypto";
 import { createCategorizedError } from "@/lib/utils/error-utils";
-import { retryWithDomainConfig } from "@/lib/utils/retry";
 import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
 import { repairCsvData, filterContributorStats } from "@/lib/data-access/github-processing";
 import { readRepoCsvChecksum } from "@/lib/db/queries/github-activity";
 import { writeRepoCsvChecksumToDb } from "@/lib/db/mutations/github-activity";
-import { ContributorStatsResponseSchema, type GraphQLRepoNode } from "@/types/github";
-import { GITHUB_API_RATE_LIMIT_CONFIG } from "@/lib/constants";
+import type { GraphQLRepoNode } from "@/types/github";
 import type { ChecksumCircuitState, CsvRepairResult } from "@/types/features/github-processing";
 import {
   fetchContributedRepositories,
-  getGitHubApiToken,
+  fetchContributorStats,
+  GitHubContributorStatsPendingError,
+  GitHubContributorStatsRateLimitError,
   getGitHubUsername,
-  githubHttpClient,
   isGitHubApiConfigured,
 } from "./github-api";
 import { readRepoWeeklyStatsRecord, writeRepoWeeklyStatsRecord } from "./github-storage";
@@ -136,40 +130,22 @@ async function updateRepoChecksum(
 }
 
 async function repairFromApi(repoOwner: string, repoName: string): Promise<boolean> {
-  const statsResponse = await retryWithDomainConfig(async () => {
-    await waitForPermit("github-rest", "github-api-call", GITHUB_API_RATE_LIMIT_CONFIG);
-    return await githubHttpClient(
-      `https://api.github.com/repos/${repoOwner}/${repoName}/stats/contributors`,
-      {
-        headers: {
-          Authorization: `Bearer ${getGitHubApiToken()}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-        timeout: 30000,
-        handle202Retry: true,
-      },
-    );
-  }, "GITHUB_API");
-
-  if (!statsResponse?.ok) {
-    if (statsResponse?.status === HTTP_ACCEPTED) {
+  let contributorStats;
+  try {
+    contributorStats = await fetchContributorStats(repoOwner, repoName);
+  } catch (error: unknown) {
+    if (error instanceof GitHubContributorStatsPendingError) {
       console.info(`[GitHub-CSV] Stats generating for ${repoOwner}/${repoName}`);
-    } else if (statsResponse?.status === HTTP_FORBIDDEN) {
+    } else if (error instanceof GitHubContributorStatsRateLimitError) {
       console.info(`[GitHub-CSV] Rate limited for ${repoOwner}/${repoName}`);
     } else {
-      console.warn(`[GitHub-CSV] API error for ${repoOwner}/${repoName}: ${statsResponse?.status}`);
+      const categorized = createCategorizedError(error, "github");
+      console.warn(`[GitHub-CSV] API error for ${repoOwner}/${repoName}:`, categorized.message);
     }
     return false;
   }
 
-  const contributorStatsResponse: unknown = await statsResponse.json();
-  const parsed = ContributorStatsResponseSchema.safeParse(contributorStatsResponse);
-  if (!parsed.success) {
-    console.warn(`[GitHub-CSV] Invalid stats for ${repoOwner}/${repoName}`);
-    return false;
-  }
-
-  const ownerStats = filterContributorStats(parsed.data, GITHUB_REPO_OWNER);
+  const ownerStats = filterContributorStats(contributorStats, GITHUB_REPO_OWNER);
   if (!ownerStats?.weeks?.length) {
     console.warn(`[GitHub-CSV] No user stats for ${repoOwner}/${repoName}`);
     return false;
