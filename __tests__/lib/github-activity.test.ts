@@ -40,7 +40,6 @@ describe("lib/data-access/github.ts functionality", () => {
     process.env.GITHUB_API_TOKEN = "";
     process.env.GITHUB_TOKEN = "";
     process.env.S3_BUCKET = "";
-    process.env.GITHUB_CRON_REFRESH_SECRET = "";
     process.env.BOOKMARK_CRON_REFRESH_SECRET = "";
     process.env.GITHUB_REFRESH_SECRET = "";
   });
@@ -208,7 +207,7 @@ describe("lib/data-access/github.ts functionality", () => {
 
     it("should prepare correct authentication headers", () => {
       const testSecret = "test-secret-123";
-      process.env.GITHUB_CRON_REFRESH_SECRET = testSecret;
+      process.env.BOOKMARK_CRON_REFRESH_SECRET = testSecret;
 
       const bearerHeaders = {
         "Content-Type": "application/json",
@@ -266,37 +265,6 @@ describe("lib/data-access/github.ts functionality", () => {
 
       const errorData = await response.json();
       expect(errorData.error).toBe("Authentication failed");
-    });
-  });
-
-  describe("authentication secret validation", () => {
-    it("should validate different authentication methods", () => {
-      const secrets = {
-        cronSecret: "cron-secret-123",
-        refreshSecret: "refresh-secret-456",
-      };
-
-      // Test cron secret
-      process.env.GITHUB_CRON_REFRESH_SECRET = secrets.cronSecret;
-      process.env.BOOKMARK_CRON_REFRESH_SECRET = "fallback-secret";
-
-      const cronSecret =
-        process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
-      expect(cronSecret).toBe(secrets.cronSecret);
-
-      // Test refresh secret
-      process.env.GITHUB_REFRESH_SECRET = secrets.refreshSecret;
-      expect(process.env.GITHUB_REFRESH_SECRET).toBe(secrets.refreshSecret);
-    });
-
-    it("should handle fallback authentication", () => {
-      // Clear primary secret, set fallback
-      process.env.GITHUB_CRON_REFRESH_SECRET = "";
-      process.env.BOOKMARK_CRON_REFRESH_SECRET = "fallback-secret";
-
-      const cronSecret =
-        process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
-      expect(cronSecret).toBe("fallback-secret");
     });
   });
 
