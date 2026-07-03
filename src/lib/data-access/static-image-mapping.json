@@ -56,5 +56,14 @@
   "/images/og/experience-og.png": "https://s3-storage.callahan.cloud/images/other/site-opengraph/experience-og_d6af20bb.png",
   "/images/og/education-og.png": "https://s3-storage.callahan.cloud/images/other/site-opengraph/education-og_84ed0364.png",
   "/images/og/blog-og.png": "https://s3-storage.callahan.cloud/images/other/site-opengraph/blog-og_4e900547.png",
-  "/images/social-banners/github.svg": "https://s3-storage.callahan.cloud/images/other/social-banners/github.svg"
+  "/images/social-banners/github.svg": "https://s3-storage.callahan.cloud/images/social-media/banners/github_87b6d92e.svg",
+  "/images/social-banners/twitter-x.svg": "https://s3-storage.callahan.cloud/images/social-media/banners/twitter-x_4830ec25.svg",
+  "/images/social-banners/linkedin.svg": "https://s3-storage.callahan.cloud/images/social-media/banners/linkedin_02a7ce76.svg",
+  "/images/social-banners/discord.svg": "https://s3-storage.callahan.cloud/images/social-media/banners/discord_783c1e2b.svg",
+  "/images/social-banners/bluesky.png": "https://s3-storage.callahan.cloud/images/social-media/banners/bluesky_9310c7f9.png",
+  "/images/social-pics/github.jpg": "https://s3-storage.callahan.cloud/images/social-media/profiles/github_72193247.jpg",
+  "/images/social-pics/x.jpg": "https://s3-storage.callahan.cloud/images/social-media/profiles/x_5469c2d0.jpg",
+  "/images/social-pics/linkedin.jpg": "https://s3-storage.callahan.cloud/images/social-media/profiles/linkedin_cd280279.jpg",
+  "/images/social-pics/discord.jpg": "https://s3-storage.callahan.cloud/images/social-media/profiles/discord_5a093069.jpg",
+  "/images/social-pics/bluesky.jpg": "https://s3-storage.callahan.cloud/images/social-media/profiles/bluesky_5a093069.jpg"
 }

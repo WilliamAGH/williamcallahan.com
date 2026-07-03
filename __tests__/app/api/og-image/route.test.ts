@@ -202,6 +202,30 @@ describe("OG-Image bookmark fallback validation", () => {
   });
 });
 
+describe("OpenGraph static fallbacks", () => {
+  it("resolves social fallback assets to CDN URLs without missing-mapping warnings", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { getDomainFallbackImage, getFallbackBannerForDomain } =
+      await import("@/lib/opengraph/fallback");
+
+    try {
+      expect(getFallbackBannerForDomain("X")).toContain(
+        "https://s3-storage.callahan.cloud/images/social-media/banners/twitter-x_",
+      );
+      expect(getDomainFallbackImage("GitHub")).toContain(
+        "https://s3-storage.callahan.cloud/images/social-media/profiles/github_",
+      );
+
+      const staticImageWarnings = warnSpy.mock.calls.filter(([message]) =>
+        String(message).includes("[StaticImages] No S3 mapping for:"),
+      );
+      expect(staticImageWarnings).toEqual([]);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});
+
 describe("Production URL Validation", () => {
   /**
    * @description Integration test that verifies getBaseUrl behavior
