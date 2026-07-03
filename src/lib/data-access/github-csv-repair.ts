@@ -9,7 +9,7 @@ import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
 import { repairCsvData, filterContributorStats } from "@/lib/data-access/github-processing";
 import { readRepoCsvChecksum } from "@/lib/db/queries/github-activity";
 import { writeRepoCsvChecksumToDb } from "@/lib/db/mutations/github-activity";
-import type { GraphQLRepoNode } from "@/types/github";
+import type { GithubContributorStatsEntry, GraphQLRepoNode } from "@/types/github";
 import type { ChecksumCircuitState, CsvRepairResult } from "@/types/features/github-processing";
 import {
   fetchContributedRepositories,
@@ -130,7 +130,7 @@ async function updateRepoChecksum(
 }
 
 async function repairFromApi(repoOwner: string, repoName: string): Promise<boolean> {
-  let contributorStats;
+  let contributorStats: GithubContributorStatsEntry[];
   try {
     contributorStats = await fetchContributorStats(repoOwner, repoName);
   } catch (error: unknown) {
