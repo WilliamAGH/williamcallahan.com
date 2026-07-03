@@ -21,17 +21,40 @@ export { CACHE_TTL, USE_NEXTJS_CACHE };
 
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
+const CLI_SCRIPT_DIRECTORIES = ["scheduler", "scripts"] as const;
+const CLI_SCRIPT_FILENAMES = new Set([
+  "background-data-populator.ts",
+  "data-updater.ts",
+  "scheduler.ts",
+  "submit-sitemap.ts",
+  "validate-opengraph-clear-cache.ts",
+]);
+
+const toSlashSeparatedCliPath = (value: string): string => value.replaceAll("\\", "/");
+
+const getFilename = (value: string): string => {
+  const slashSeparatedPath = toSlashSeparatedCliPath(value);
+  const filename = slashSeparatedPath.split("/").at(-1);
+  if (!filename) {
+    return "";
+  }
+  return filename;
+};
+
+const isCliScriptArgument = (value: string): boolean => {
+  const slashSeparatedPath = toSlashSeparatedCliPath(value);
+  return (
+    CLI_SCRIPT_DIRECTORIES.some(
+      (directory) =>
+        slashSeparatedPath.startsWith(`${directory}/`) ||
+        slashSeparatedPath.includes(`/${directory}/`),
+    ) || CLI_SCRIPT_FILENAMES.has(getFilename(value))
+  );
+};
 
 /** True when running as a standalone CLI script (no Next.js cache runtime). */
 const isCliProcessContext = (): boolean => {
-  const argv1 = process.argv[1] || "";
-  const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
-  return (
-    inScriptsDir ||
-    process.argv.includes("data-updater") ||
-    process.argv.includes("reset-and-regenerate") ||
-    process.argv.includes("regenerate-content")
-  );
+  return process.argv.some(isCliScriptArgument);
 };
 
 export const isCliLikeCacheContext = (): boolean =>

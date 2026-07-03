@@ -128,4 +128,51 @@ describe("lib/cache", () => {
       }
     });
   });
+
+  describe("cacheContextGuards in scheduler CLI processes", () => {
+    it("skips Next.js cache APIs for scheduler script entrypoints", () => {
+      const previousArgv = [...process.argv];
+      const nodePath = previousArgv[0];
+      if (!nodePath) {
+        throw new Error("Expected process.argv[0] to be set");
+      }
+      process.argv = [nodePath, "/app/scheduler/submit-sitemap.ts"];
+      mockCacheTag.mockClear();
+      mockCacheLife.mockClear();
+      mockRevalidateTag.mockClear();
+
+      try {
+        cacheContextGuards.cacheTag("BookmarksDataAccess", "bookmarks");
+        cacheContextGuards.cacheLife("BookmarksDataAccess", { revalidate: 120 });
+        cacheContextGuards.revalidateTag("BookmarksDataAccess", "bookmarks");
+
+        expect(mockCacheTag).not.toHaveBeenCalled();
+        expect(mockCacheLife).not.toHaveBeenCalled();
+        expect(mockRevalidateTag).not.toHaveBeenCalled();
+      } finally {
+        process.argv = previousArgv;
+      }
+    });
+
+    it("uses the fallback function for package-script data updater runs", async () => {
+      const previousArgv = [...process.argv];
+      const nodePath = previousArgv[0];
+      if (!nodePath) {
+        throw new Error("Expected process.argv[0] to be set");
+      }
+      process.argv = [nodePath, "/app/node_modules/.bin/tsx", "scheduler/data-updater.ts"];
+      const cachedFn = vi.fn().mockResolvedValue("cached result");
+      const fallbackFn = vi.fn().mockResolvedValue("fallback result");
+
+      try {
+        const result = await withCacheFallback(cachedFn, fallbackFn);
+
+        expect(result).toBe("fallback result");
+        expect(cachedFn).not.toHaveBeenCalled();
+        expect(fallbackFn).toHaveBeenCalled();
+      } finally {
+        process.argv = previousArgv;
+      }
+    });
+  });
 });

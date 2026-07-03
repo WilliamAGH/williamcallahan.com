@@ -23,6 +23,12 @@ const MAX_POPULATION_ATTEMPTS = 3; // Prevent infinite retry loops
 let populationAttempts = 0;
 let isRunning = false;
 const MAIN_MODULE_PATH = fileURLToPath(import.meta.url);
+const DATA_UPDATER_WARNING_PREFIXES = [
+  "[BookmarksDataAccess] Metadata-only refresh failed",
+  "[GitHub-CSV] Invalid stats",
+  "[GitHub-Repo] Stats generating",
+  "[WARN]",
+] as const;
 
 const isMainModule = (): boolean => {
   const invokedPath = process.argv[1];
@@ -31,6 +37,24 @@ const isMainModule = (): boolean => {
   }
 
   return resolve(invokedPath) === resolve(MAIN_MODULE_PATH);
+};
+
+const isDataUpdaterWarningLine = (line: string): boolean =>
+  DATA_UPDATER_WARNING_PREFIXES.some((prefix) => line.startsWith(prefix));
+
+const logDataUpdaterStderr = (output: string): void => {
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (isDataUpdaterWarningLine(line)) {
+      console.warn(`[DataUpdater WARN] ${line}`);
+    } else {
+      console.error(`[DataUpdater ERROR] ${line}`);
+    }
+  }
 };
 
 /**
@@ -63,7 +87,7 @@ async function runDataUpdater(): Promise<void> {
     child.stderr?.on("data", (data) => {
       const output = data.toString();
       stderr += output;
-      console.error(`[DataUpdater ERROR] ${output.trim()}`);
+      logDataUpdaterStderr(output);
     });
 
     child.on("close", (code, signal) => {
