@@ -25,8 +25,6 @@ let isRunning = false;
 const MAIN_MODULE_PATH = fileURLToPath(import.meta.url);
 const DATA_UPDATER_WARNING_PREFIXES = [
   "[BookmarksDataAccess] Metadata-only refresh failed",
-  "[GitHub-CSV] Invalid stats",
-  "[GitHub-Repo] Stats generating",
   "[WARN]",
 ] as const;
 

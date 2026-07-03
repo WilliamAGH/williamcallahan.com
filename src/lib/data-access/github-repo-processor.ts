@@ -134,11 +134,11 @@ export async function processSingleRepository({
     if (error instanceof GitHubContributorStatsPendingError) {
       status = "pending_202_from_api";
       dataComplete = false;
-      console.warn(`[GitHub-Repo] Stats generating for ${repoOwner}/${repoName}`);
+      console.info(`[GitHub-Repo] Stats generating for ${repoOwner}/${repoName}`);
     } else if (error instanceof GitHubContributorStatsRateLimitError) {
       status = "pending_rate_limit";
       dataComplete = false;
-      console.warn(`[GitHub-Repo] Rate limited for ${repoOwner}/${repoName}`);
+      console.info(`[GitHub-Repo] Rate limited for ${repoOwner}/${repoName}`);
     } else {
       const categorized = createCategorizedError(error, "github");
       console.warn(`[GitHub-Repo] Error for ${repoOwner}/${repoName}:`, categorized.message);
