@@ -16,6 +16,15 @@ vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
   hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
 }));
 
+const mockGetBooksIndex = vi.fn();
+vi.mock("@/lib/search/loaders/dynamic-content", () => ({
+  getBooksIndex: (...args: unknown[]) => mockGetBooksIndex(...args),
+}));
+
+vi.mock("@/lib/utils/env-logger", () => ({
+  envLogger: { log: vi.fn() },
+}));
+
 import { searchBooks } from "@/lib/search/searchers/dynamic-searchers";
 
 describe("Books Search", () => {
@@ -81,7 +90,7 @@ describe("Books Search", () => {
       expect(results[0]).toHaveProperty("score");
     });
 
-    it("should have type 'page' for book results", async () => {
+    it("should have type 'book' for book results", async () => {
       mockHybridSearchBooks.mockResolvedValueOnce([
         {
           id: "1",
@@ -95,7 +104,7 @@ describe("Books Search", () => {
       ]);
 
       const results = await searchBooks("test");
-      expect(results[0]?.type).toBe("page");
+      expect(results[0]?.type).toBe("book");
     });
 
     it("should have URL pointing to /books/ path", async () => {
@@ -139,6 +148,29 @@ describe("Books Search", () => {
 
       const results = await searchBooks("nonexistent");
       expect(results).toHaveLength(0);
+    });
+
+    it("should use indexed books fallback when hybrid search fails", async () => {
+      const search = vi.fn().mockReturnValue([
+        {
+          id: "li_nodepatterns",
+          title: "Node.js Patterns",
+          authors: ["Mario Casciaro"],
+          score: 0.5,
+        },
+      ]);
+      mockHybridSearchBooks.mockRejectedValueOnce(new Error("relation missing"));
+      mockGetBooksIndex.mockResolvedValueOnce({ search });
+
+      const results = await searchBooks("Node.js");
+
+      expect(search).toHaveBeenCalledWith("node js", { prefix: true, fuzzy: 0.2 });
+      expect(results[0]).toMatchObject({
+        type: "book",
+        title: "Node.js Patterns",
+        description: "Mario Casciaro",
+      });
+      expect(results[0]?.url).toContain("/books/node");
     });
 
     it("should not throw on concurrent searches", async () => {

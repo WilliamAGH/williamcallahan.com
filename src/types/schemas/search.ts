@@ -48,7 +48,14 @@ export const searchScopeSchema = z.enum([
 export type SearchScope = z.infer<typeof searchScopeSchema>;
 
 /** Search result type discriminator */
-export const searchResultTypeSchema = z.enum(["bookmark", "blog-post", "project", "page", "tag"]);
+export const searchResultTypeSchema = z.enum([
+  "bookmark",
+  "blog-post",
+  "project",
+  "page",
+  "tag",
+  "book",
+]);
 
 export type SearchResultType = z.infer<typeof searchResultTypeSchema>;
 
