@@ -47,6 +47,23 @@ const DEFAULT_UPLOAD_WINDOW_ID = "upload-window";
 const HTTP_SUCCESS_MIN = 200;
 const HTTP_SUCCESS_MAX = 300;
 
+function getUploadErrorMessage(responseText: string): string {
+  const trimmed = responseText.trim();
+  if (!trimmed) return "Upload failed";
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    const result = UploadResponseSchema.safeParse(parsed);
+    if (result.success && result.data.success === false && result.data.error) {
+      return result.data.error;
+    }
+  } catch (error) {
+    console.warn("[Upload] Failed to parse error response:", error);
+  }
+
+  return trimmed;
+}
+
 // =============================================================================
 // FILE TYPE SELECTOR
 // =============================================================================
@@ -477,7 +494,7 @@ function UploadWindowContentInner({
               reject(new Error("Server returned invalid response format"));
             }
           } else {
-            reject(new Error(xhr.responseText || "Upload failed"));
+            reject(new Error(getUploadErrorMessage(xhr.responseText)));
           }
         });
 
