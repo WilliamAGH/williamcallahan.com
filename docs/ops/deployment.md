@@ -33,6 +33,12 @@ Two options:
 2. **Dockerfile buildpack**: Base Directory `/`, Dockerfile location `scheduler/Dockerfile`
    (set CPU/memory limits in the Coolify resource settings instead).
 
+Keep the scheduler resource's Coolify Build Server option disabled. The compose
+resource has no registry image configured, and Coolify 4.1.2 must execute the
+helper/build path on `popos-sf1`; routing this resource through the global build
+server (`popos-sf5`) fails before the build phase when Coolify tries to `docker exec`
+the deployment helper.
+
 The scheduler image does **not** run `next build` — it installs dependencies and runs
 TypeScript directly via tsx, so its builds take minutes, not tens of minutes. No ports
 are exposed; health is a `pgrep` check on the scheduler process.
