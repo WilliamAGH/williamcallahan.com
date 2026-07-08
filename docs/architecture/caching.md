@@ -76,6 +76,8 @@ Common tag strategy:
 - `related-content`
 - `blog`
 - `github-activity`
+- `logos`, `logo-manifest`, `logo-{domain}`
+- `opengraph`, `opengraph-{urlHash}`
 - image-key specific tags where needed
 
 ### Path Revalidation
