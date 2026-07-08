@@ -66,6 +66,11 @@ export const ogTextParamsSchema = z.object({
 
 export type OgTextParams = z.infer<typeof ogTextParamsSchema>;
 
+/** Encoded payload params accepted by the OG image route */
+export const ogPayloadParamsSchema = z.record(z.string(), z.string());
+
+export type OgPayloadParams = z.infer<typeof ogPayloadParamsSchema>;
+
 /** Props for layout renderers that receive a fetched cover image */
 export const ogBookLayoutPropsSchema = ogBookParamsSchema.extend({
   coverDataUrl: z.string().nullable(),

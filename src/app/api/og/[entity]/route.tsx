@@ -22,6 +22,7 @@ import {
   ogBookParamsSchema,
   ogBookmarkParamsSchema,
   ogBlogParamsSchema,
+  ogPayloadParamsSchema,
   ogProjectParamsSchema,
   ogTextParamsSchema,
 } from "@/types/schemas/og-image";
@@ -44,8 +45,32 @@ import { renderTextLayout } from "@/lib/og-image/layouts/text-layout";
  * @see docs/standards/nextjs-framework.md for framework runtime guarantees
  */
 
+function decodePayload(
+  payload: string,
+): { success: true; params: Record<string, string> } | { success: false; message: string } {
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const bytes = Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    const result = ogPayloadParamsSchema.safeParse(parsed);
+    return result.success
+      ? { success: true, params: result.data }
+      : { success: false, message: result.error.message };
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 /** Parse search params into a plain object for Zod parsing */
 function searchParamsToRecord(searchParams: URLSearchParams): Record<string, string> {
+  const payload = searchParams.get("payload");
+  if (payload) {
+    const decoded = decodePayload(payload);
+    if (decoded.success) return decoded.params;
+    console.error("[OG-Image] Invalid payload query param:", decoded.message);
+  }
+
   const record: Record<string, string> = {};
   for (const [key, value] of searchParams.entries()) {
     record[key] = value;
