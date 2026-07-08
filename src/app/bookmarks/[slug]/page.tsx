@@ -7,6 +7,7 @@
  */
 
 import { Suspense } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
 import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { TIME_CONSTANTS } from "@/lib/constants";
@@ -114,11 +115,12 @@ async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | nu
     );
 
     return null;
-  } catch (error) {
-    console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, error);
-    // RC1a: error logged; null signals "not found" to caller
+  } catch (error: unknown) {
+    const capturedError = error instanceof Error ? error : new Error(String(error));
+    console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, capturedError);
+    Sentry.captureException(capturedError, { extra: { slug } });
+    throw capturedError;
   }
-  return null;
 }
 
 async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {

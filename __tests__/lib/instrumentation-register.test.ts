@@ -62,6 +62,29 @@ describe("instrumentation register", () => {
     const nodeModule = await import("../../src/instrumentation-node");
     expect(nodeModule.register).not.toHaveBeenCalled();
   });
+
+  it("forwards request error context to Sentry synchronously", async () => {
+    const captureRequestError = vi.fn();
+    vi.doMock("@sentry/nextjs", () => ({ captureRequestError }));
+    mockRuntimeModules();
+
+    const { onRequestError } = await import("@/instrumentation");
+    const error = new Error("render failed");
+    const request = {
+      path: "/books/node",
+      method: "GET",
+      headers: { host: "williamcallahan.com" },
+    } as const;
+    const context = {
+      routerKind: "App Router",
+      routePath: "/books/[book-slug]",
+      routeType: "render",
+    } as const;
+
+    onRequestError(error, request, context);
+
+    expect(captureRequestError).toHaveBeenCalledWith(error, request, context);
+  });
 });
 
 describe("node instrumentation register", () => {
