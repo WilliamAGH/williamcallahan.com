@@ -57,9 +57,21 @@ export async function refreshOpenGraphData(
 
       if (result && typeof result === "object" && "url" in result) {
         debug(`[OpenGraph Refresh] Successfully refreshed: ${normalizedUrl}`);
-        await writeOgMetadata(urlHash, normalizedUrl, result as OgResult);
-        debug(`[OpenGraph DB] Persisted refreshed metadata to DB: ${urlHash}`);
-        return result;
+        const refreshed = result as OgResult;
+        try {
+          await writeOgMetadata(urlHash, normalizedUrl, refreshed);
+          debug(`[OpenGraph DB] Persisted refreshed metadata to DB: ${urlHash}`);
+        } catch (persistError) {
+          envLogger.log(
+            "Failed to persist refreshed OpenGraph metadata; returning fetched metadata",
+            {
+              url: normalizedUrl,
+              error: persistError instanceof Error ? persistError.message : String(persistError),
+            },
+            { category: "OpenGraph" },
+          );
+        }
+        return refreshed;
       }
 
       if (result && typeof result === "object" && "networkFailure" in result) {

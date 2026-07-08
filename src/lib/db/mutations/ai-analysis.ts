@@ -68,42 +68,44 @@ export async function persistAnalysisToDb<T>(
   const payload = buildJsonbPayload(metadata, analysis);
   const contentHash = metadata.contentHash ?? null;
 
-  await db
-    .insert(aiAnalysisLatest)
-    .values({
-      domain,
-      entityId,
-      payload,
-      generatedAt: metadata.generatedAt,
-      modelVersion: metadata.modelVersion,
-      contentHash,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [aiAnalysisLatest.domain, aiAnalysisLatest.entityId],
-      set: {
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(aiAnalysisLatest)
+      .values({
+        domain,
+        entityId,
         payload,
         generatedAt: metadata.generatedAt,
         modelVersion: metadata.modelVersion,
         contentHash,
         updatedAt: now,
-      },
-    });
-
-  if (!options?.skipVersioning) {
-    await db
-      .insert(aiAnalysisVersions)
-      .values({
-        domain,
-        entityId,
-        generatedAt: metadata.generatedAt,
-        payload,
-        modelVersion: metadata.modelVersion,
-        contentHash,
-        createdAt: now,
       })
-      .onConflictDoNothing();
-  }
+      .onConflictDoUpdate({
+        target: [aiAnalysisLatest.domain, aiAnalysisLatest.entityId],
+        set: {
+          payload,
+          generatedAt: metadata.generatedAt,
+          modelVersion: metadata.modelVersion,
+          contentHash,
+          updatedAt: now,
+        },
+      });
+
+    if (!options?.skipVersioning) {
+      await tx
+        .insert(aiAnalysisVersions)
+        .values({
+          domain,
+          entityId,
+          generatedAt: metadata.generatedAt,
+          payload,
+          modelVersion: metadata.modelVersion,
+          contentHash,
+          createdAt: now,
+        })
+        .onConflictDoNothing();
+    }
+  });
 }
 
 /**
