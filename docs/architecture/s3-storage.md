@@ -48,7 +48,7 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 - **Deterministic Keys**: `hash-utils.ts` + `generateS3Key` produce predictable names; no overwrites unless `S3_FORCE_WRITE=true` (used only by sync scripts).
 - **Streaming**: `lib/services/image-streaming.ts` uses `@aws-sdk/lib-storage Upload` with timeouts and byte monitoring for large downloads; avoids buffering >5 MB in Node.
 - **Access Control**: All public assets get `x-amz-acl: public-read`; sensitive JSON lives under private prefixes and is never exposed through CDN.
-- **Retries**: AWS SDK retry strategy (configured in `lib/s3/client.ts`) is the only retry layer; no custom retry loops.
+- **Retries**: AWS SDK retry strategy (configured in `lib/s3/client.ts`) handles transient SDK errors; `S3Operations` in `lib/services/image/s3-operations.ts` adds an application-level upload retry queue for failed S3 puts.
 
 ## Environment Configuration
 
