@@ -273,6 +273,7 @@ describe("Cache Invalidation via API Routes", () => {
       expect(response.status).toBe(200);
       expect(data).toHaveProperty("status", "success");
       expect(data).toHaveProperty("message", "All Next.js caches cleared successfully");
+      expect(mockedRevalidateTag).toHaveBeenCalledWith("logo-manifest", "max");
 
       // Restore environment
       process.env.CACHE_API_KEY = originalApiKey;

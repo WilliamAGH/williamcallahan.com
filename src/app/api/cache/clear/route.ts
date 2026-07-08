@@ -47,6 +47,7 @@ export function POST(request: NextRequest): NextResponse {
       GITHUB_CACHE_TAGS.MAIN,
       "opengraph",
       "logos",
+      "logo-manifest",
       "search",
       "bookmarks",
       "education",
