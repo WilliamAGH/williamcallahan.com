@@ -19,6 +19,7 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { openGraphUrlSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
+import { detectImageContentType } from "@/lib/utils/content-type";
 import type { CdnConfig } from "@/types/s3-cdn";
 
 // Configure cache duration (1 year in seconds)
@@ -140,6 +141,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           );
         }
 
+        if (result.source === "s3") {
+          const buffer = Buffer.from(await upstream.arrayBuffer());
+          return new NextResponse(new Uint8Array(buffer), {
+            status: 200,
+            headers: {
+              "Content-Type": detectImageContentType(buffer),
+              "Cache-Control":
+                upstream.headers.get("cache-control") ??
+                `public, max-age=${CACHE_DURATION}, immutable`,
+              "X-Source": "cdn",
+              ...IMAGE_CDN_CACHE_HEADERS,
+              ...IMAGE_SECURITY_HEADERS,
+            },
+          });
+        }
+
         const passthroughHeaders = new Headers({
           "Content-Type":
             upstream.headers.get("content-type") ??
@@ -171,9 +188,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // If we have a buffer, return it
     if (result.buffer && bufferLength > 0) {
       const cacheHitSources = new Set(["cache", "s3"]);
+      const contentType = cacheHitSources.has(result.source)
+        ? detectImageContentType(result.buffer)
+        : result.contentType;
       return new NextResponse(new Uint8Array(result.buffer), {
         headers: {
-          "Content-Type": result.contentType,
+          "Content-Type": contentType,
           "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
           "X-Cache": cacheHitSources.has(result.source) ? "HIT" : "MISS",
           "X-Source": result.source,
