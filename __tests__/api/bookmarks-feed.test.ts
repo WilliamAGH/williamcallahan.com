@@ -180,6 +180,7 @@ describe("RSS feed route", () => {
   });
 
   it("uses the bounded bookmark page query and escapes XML-safe output", async () => {
+    const controlChar = String.fromCharCode(1);
     mockGetAllPostsMeta.mockResolvedValue([
       createPost("alpha", "2026-02-28T10:00:00.000Z", {
         title: "AI ]]> Notes & Learnings",
@@ -189,9 +190,9 @@ describe("RSS feed route", () => {
     mockGetBookmarksPage.mockResolvedValue([
       createBookmark("bookmark-1", "2026-02-27T10:00:00.000Z", {
         url: "https://example.com/bookmark-1?x=1&y=2",
-        title: "Bookmark ]]> Title",
+        title: `Bookmark ${controlChar}]]> Title`,
         description: "",
-        summary: "Bookmark summary ]]> <xml> & more",
+        summary: `Bookmark summary ${controlChar}]]> <xml> & more`,
       }),
     ]);
 
@@ -212,6 +213,7 @@ describe("RSS feed route", () => {
     expect(xml).toContain(
       "<description><![CDATA[Bookmark summary ]]]]><![CDATA[> <xml> & more]]></description>",
     );
+    expect(xml).not.toContain(controlChar);
   });
 
   it("skips entries with invalid dates instead of silently defaulting them", async () => {

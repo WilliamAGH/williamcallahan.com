@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { getAllPostsMeta } from "@/lib/blog";
 import { getBookmarksPage } from "@/lib/bookmarks/service.server";
 import { metadata } from "@/data/metadata";
+import { sanitizeControlChars } from "@/lib/utils/sanitize";
 
 const MAX_FEED_ITEMS = 100;
 
 const escapeXml = (value: string): string =>
-  value
+  sanitizeControlChars(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -14,7 +15,7 @@ const escapeXml = (value: string): string =>
     .replaceAll("'", "&apos;");
 
 const wrapCdata = (value: string): string =>
-  `<![CDATA[${value.replaceAll("]]>", "]]]]><![CDATA[>")}]]>`;
+  `<![CDATA[${sanitizeControlChars(value).replaceAll("]]>", "]]]]><![CDATA[>")}]]>`;
 
 const pickDescription = (...values: Array<string | null | undefined>): string | null => {
   for (const value of values) {

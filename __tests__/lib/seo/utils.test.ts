@@ -8,6 +8,7 @@
  */
 
 import { ensureAbsoluteUrl, getImageTypeFromUrl } from "@/lib/seo/url-utils";
+import { gradientTruncate } from "@/lib/seo/text-truncation";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { isPacificDateString } from "@/types/seo";
 
@@ -57,6 +58,21 @@ describe("SEO Utilities", () => {
 
     it("should handle URLs with fragments", () => {
       expect(getImageTypeFromUrl("photo.jpg#preview")).toBe("image/jpeg");
+    });
+  });
+
+  describe("gradientTruncate", () => {
+    it("should not ellipsize text exactly at the hard limit", () => {
+      const text = "a".repeat(180);
+      const result = gradientTruncate(text, {
+        softLimit: 160,
+        hardLimit: 180,
+        ellipsis: "...",
+        contentType: "description",
+      });
+
+      expect(result.text).toBe(text);
+      expect(result.wasTruncated).toBe(false);
     });
   });
 
