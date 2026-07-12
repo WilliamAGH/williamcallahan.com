@@ -4,7 +4,7 @@
  */
 
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
-import { validateCloudflareHeaders } from "@/lib/utils/request-utils";
+import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-utils";
 
 describe("Cloudflare header enforcement", () => {
   const ORIGINAL_ENV = { ...process.env };
@@ -28,6 +28,26 @@ describe("Cloudflare header enforcement", () => {
     const validation = validateCloudflareHeaders(headers);
     expect(validation.isValid).toBe(true);
     expect(validation.reasons).toEqual([]);
+  });
+
+  it("prefers and normalizes the Cloudflare connecting IP", () => {
+    const headers = new Headers({
+      "cf-connecting-ip": "203.0.113.5, 10.0.0.1",
+      "true-client-ip": "198.51.100.2",
+      "x-forwarded-for": "192.0.2.3, 10.0.0.2",
+    });
+
+    expect(getClientIp(headers)).toBe("203.0.113.5");
+  });
+
+  it("rejects malformed candidates and normalizes fallback proxy headers", () => {
+    const headers = new Headers({
+      "cf-connecting-ip": "not-an-ip",
+      "true-client-ip": "also-invalid",
+      "x-forwarded-for": "192.0.2.3, 10.0.0.2",
+    });
+
+    expect(getClientIp(headers)).toBe("192.0.2.3");
   });
 
   it("flags missing cf-ray", () => {

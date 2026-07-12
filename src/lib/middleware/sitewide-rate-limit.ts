@@ -64,7 +64,12 @@ function getProfileForRequest(
   name: RateLimitProfileName;
   config: RateLimitProfile;
 } | null {
-  if (requestClass === "document") {
+  if (
+    requestClass === "document" ||
+    requestClass === "rsc" ||
+    requestClass === "prefetch" ||
+    requestClass === "image"
+  ) {
     return { name: "page", config: PROFILES.page };
   }
   if (requestClass !== "api") {
@@ -134,10 +139,6 @@ export function sitewideRateLimitMiddleware(
   if (isHealthCheckPath(pathname)) return null;
 
   const requestClass = classifyProxyRequest(request);
-  if (requestClass === "rsc" || requestClass === "prefetch" || requestClass === "image") {
-    return null;
-  }
-
   const profileEntry = getProfileForRequest(pathname, requestClass);
   if (!profileEntry) return null;
 

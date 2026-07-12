@@ -73,8 +73,8 @@ Example schemas:
 - AI upstream pipeline tests are split by responsibility (streaming, tools, analysis validation) and share a dedicated harness module for DRY fixture/mocking (`__tests__/api/ai/upstream-pipeline-test-harness.ts`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
 - Sitemap generation is split into domain-specific collectors under `src/lib/sitemap/` (blog, bookmarks, books/thoughts, constants, date-utils) with `src/app/sitemap.ts` as a thin orchestrator owning only the runtime cache and static-page entries.
-- Navigation-first throttle policy: rate limiter only blocks `document` and `api` classes; `rsc`/`prefetch`/`_next/image` are not independently throttled to prevent partial renders (`src/lib/utils/request-utils.ts`, `src/lib/middleware/sitewide-rate-limit.ts`).
-- Deterministic throttle/load-shed contracts: document requests return HTML `429/503`, API requests return standardized JSON `RATE_LIMITED|SERVICE_UNAVAILABLE` payloads with `Retry-After` + `Cache-Control: no-store` (`src/lib/utils/api-utils.ts`, `src/types/schemas/api.ts`).
+- Bounded subrequest throttle policy: `document`, `rsc`, `prefetch`, and `image` classes share the `page` profile, while `api` requests use API-specific profiles (`src/lib/utils/request-utils.ts`, `src/lib/middleware/sitewide-rate-limit.ts`).
+- Deterministic throttle/load-shed contracts: document requests return HTML `429/503`; API and framework subrequests return standardized JSON `RATE_LIMITED|SERVICE_UNAVAILABLE` payloads with `Retry-After` + `Cache-Control: no-store` (`src/lib/utils/api-utils.ts`, `src/types/schemas/api.ts`).
 
 ## Core Architectural Patterns
 

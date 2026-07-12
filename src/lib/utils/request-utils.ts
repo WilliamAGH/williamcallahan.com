@@ -15,7 +15,7 @@ import type { ProxyRequestClass } from "@/types/middleware";
  * Standard IP header precedence order.
  * Cloudflare headers are prioritized, followed by standard proxy headers.
  */
-const IP_HEADERS = ["True-Client-IP", "CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"] as const;
+const IP_HEADERS = ["CF-Connecting-IP", "True-Client-IP", "X-Forwarded-For", "X-Real-IP"] as const;
 
 const CLOUDFLARE_REQUIRED_HEADERS = ["CF-Ray"] as const;
 const CLOUDFLARE_IP_HEADERS = ["CF-Connecting-IP", "True-Client-IP"] as const;
@@ -39,8 +39,7 @@ export function getFirstIpFromHeader(headerValue: string | null): string | null 
 
 /**
  * Extracts the client IP address from HTTP headers.
- * Checks standard proxy headers in precedence order: True-Client-IP, CF-Connecting-IP,
- * X-Forwarded-For (first IP), X-Real-IP.
+ * Checks proxy headers in precedence order and accepts only one valid IP address.
  *
  * @param headers - The Headers object from the request
  * @param options - Configuration options
@@ -60,14 +59,8 @@ export function getClientIp(
   const { headerPrecedence = IP_HEADERS, fallback = "unknown" } = options;
 
   for (const header of headerPrecedence) {
-    const value = headers.get(header);
-    // For X-Forwarded-For, extract first IP from comma-separated list
-    if (header === "X-Forwarded-For") {
-      const ip = getFirstIpFromHeader(value);
-      if (ip) return ip;
-    } else if (value) {
-      return value.trim();
-    }
+    const ip = getFirstIpFromHeader(headers.get(header));
+    if (ip && isIP(ip) !== 0) return ip;
   }
 
   return fallback;

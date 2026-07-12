@@ -17,12 +17,63 @@ import type { RateLimitEntry } from "@/types/schemas/rate-limit";
  * or a fixed string like 'opengraph_fetches' for global outgoing request limiting).
  * The outer key is a 'namespace' or 'storeName' to keep different limiters separate.
  */
-const rateLimitStores: Record<string, Record<string, RateLimitEntry>> = {};
+export const RATE_LIMIT_STORE_MAX_ENTRIES = 10_000;
+
+const RATE_LIMIT_STORE_CLEANUP_INTERVAL = 64;
+const RATE_LIMIT_STORE_CLEANUP_BATCH_SIZE = 64;
+
+function createRateLimitStore() {
+  const entries = new Map<string, RateLimitEntry>();
+  return {
+    entries,
+    cleanupCursor: entries.entries(),
+    operationsUntilCleanup: RATE_LIMIT_STORE_CLEANUP_INTERVAL,
+  };
+}
+
+const rateLimitStores = new Map<string, ReturnType<typeof createRateLimitStore>>();
 
 /**
  * Circuit breaker state for each store/context combination
  */
 const circuitBreakerStates: Record<string, Record<string, CircuitBreakerState>> = {};
+
+function getRateLimitStore(storeName: string): ReturnType<typeof createRateLimitStore> {
+  const existingStore = rateLimitStores.get(storeName);
+  if (existingStore) return existingStore;
+
+  const store = createRateLimitStore();
+  rateLimitStores.set(storeName, store);
+  return store;
+}
+
+function cleanExpiredEntries(store: ReturnType<typeof createRateLimitStore>, now: number): void {
+  store.operationsUntilCleanup--;
+  if (store.operationsUntilCleanup > 0) return;
+
+  store.operationsUntilCleanup = RATE_LIMIT_STORE_CLEANUP_INTERVAL;
+  for (let scanned = 0; scanned < RATE_LIMIT_STORE_CLEANUP_BATCH_SIZE; scanned++) {
+    const candidate = store.cleanupCursor.next();
+    if (candidate.done) {
+      store.cleanupCursor = store.entries.entries();
+      return;
+    }
+
+    const [contextId, record] = candidate.value;
+    if (now > record.resetAt) {
+      store.entries.delete(contextId);
+    }
+  }
+}
+
+function evictEarliestEntryAtCapacity(store: ReturnType<typeof createRateLimitStore>): void {
+  if (store.entries.size < RATE_LIMIT_STORE_MAX_ENTRIES) return;
+
+  const oldestEntry = store.entries.keys().next();
+  if (!oldestEntry.done) {
+    store.entries.delete(oldestEntry.value);
+  }
+}
 
 /**
  * Checks if an operation is allowed for a given context and configuration,
@@ -50,26 +101,21 @@ export function isOperationAllowed(
     throw new Error(`Invalid windowMs: ${config.windowMs}. Must be greater than 0.`);
   }
 
-  if (!rateLimitStores[storeName]) {
-    rateLimitStores[storeName] = {};
-  }
-  const store = rateLimitStores[storeName];
+  const store = getRateLimitStore(storeName);
   const now = getMonotonicTime();
+  cleanExpiredEntries(store, now);
 
-  // Clean up expired entries to prevent unbounded memory growth
-  for (const [key, record] of Object.entries(store)) {
-    if (now > record.resetAt) {
-      delete store[key];
-    }
-  }
-
-  const record = store[contextId];
+  const record = store.entries.get(contextId);
 
   if (!record || now > record.resetAt) {
-    store[contextId] = {
+    if (record) {
+      store.entries.delete(contextId);
+    }
+    evictEarliestEntryAtCapacity(store);
+    store.entries.set(contextId, {
       count: 1,
       resetAt: now + config.windowMs,
-    };
+    });
     return true;
   }
 
@@ -125,8 +171,7 @@ export async function waitForPermit(
     }
 
     // Calculate wait time - prefer sleeping until reset for long windows
-    const store = rateLimitStores[storeName];
-    const record = store?.[contextId];
+    const record = rateLimitStores.get(storeName)?.entries.get(contextId);
     let waitTime = effectivePollInterval;
 
     if (record && record.resetAt > loopNow && record.count >= config.maxRequests) {

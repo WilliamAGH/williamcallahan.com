@@ -118,48 +118,63 @@ describe("sitewideRateLimitMiddleware", () => {
     });
   });
 
-  it("does not independently throttle next/image requests", () => {
-    const storePrefix = `test-next-image-${Date.now()}`;
+  it.each([
+    ["next/image", "https://example.com/_next/image?url=%2Ffoo.png&w=256&q=75", {}],
+    ["RSC", "https://example.com/projects?_rsc=1abc", {}],
+    ["prefetch", "https://example.com/projects", { "next-router-prefetch": "1" }],
+  ])("blocks burst traffic for %s requests with standardized JSON", async (name, url, headers) => {
+    const storePrefix = `test-${name}-${Date.now()}`;
     const makeRequest = () =>
-      new NextRequest("https://example.com/_next/image?url=%2Ffoo.png&w=256&q=75", {
-        headers: { "x-forwarded-for": "203.0.113.40" },
+      new NextRequest(url, {
+        headers: { ...headers, "x-forwarded-for": "203.0.113.40" },
       });
 
-    const attempts = PROFILES.page.burst.maxRequests * 2;
-    for (let i = 0; i < attempts; i++) {
+    const limit = PROFILES.page.burst.maxRequests;
+    for (let i = 0; i < limit; i++) {
       const result = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
       expect(result).toBeNull();
     }
+
+    const blocked = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
+    expect(blocked?.status).toBe(429);
+    expect(blocked?.headers.get("Retry-After")).toBe("10");
+    expect(blocked?.headers.get("Content-Type")).toContain("application/json");
+    await expect(blocked?.json()).resolves.toMatchObject({
+      code: "RATE_LIMITED",
+      retryAfterSeconds: 10,
+      status: 429,
+    });
   });
 
-  it("does not independently throttle _rsc requests", () => {
-    const storePrefix = `test-rsc-${Date.now()}`;
-    const makeRequest = () =>
+  it("counts spoofable page request classes in one shared profile", () => {
+    const storePrefix = `test-shared-page-${Date.now()}`;
+    const requests = [
+      new NextRequest("https://example.com/projects", {
+        headers: { "x-forwarded-for": "203.0.113.50", accept: "text/html" },
+      }),
       new NextRequest("https://example.com/projects?_rsc=1abc", {
-        headers: { "x-forwarded-for": "203.0.113.41" },
-      });
-
-    const attempts = PROFILES.page.burst.maxRequests * 2;
-    for (let i = 0; i < attempts; i++) {
-      const result = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
-      expect(result).toBeNull();
-    }
-  });
-
-  it("does not independently throttle prefetch requests", () => {
-    const storePrefix = `test-prefetch-${Date.now()}`;
-    const makeRequest = () =>
+        headers: { "x-forwarded-for": "203.0.113.50" },
+      }),
       new NextRequest("https://example.com/projects", {
         headers: {
-          "x-forwarded-for": "203.0.113.42",
+          "x-forwarded-for": "203.0.113.50",
           "next-router-prefetch": "1",
         },
-      });
+      }),
+      new NextRequest("https://example.com/_next/image?url=%2Ffoo.png&w=256&q=75", {
+        headers: { "x-forwarded-for": "203.0.113.50" },
+      }),
+    ];
 
-    const attempts = PROFILES.page.burst.maxRequests * 2;
-    for (let i = 0; i < attempts; i++) {
-      const result = sitewideRateLimitMiddleware(makeRequest(), { storePrefix });
-      expect(result).toBeNull();
+    const limit = PROFILES.page.burst.maxRequests;
+    for (let i = 0; i < limit; i++) {
+      const request = requests[i % requests.length];
+      if (!request) throw new Error("Expected a page request fixture");
+      expect(sitewideRateLimitMiddleware(request, { storePrefix })).toBeNull();
     }
+
+    const rscRequest = requests[1];
+    if (!rscRequest) throw new Error("Expected an RSC request fixture");
+    expect(sitewideRateLimitMiddleware(rscRequest, { storePrefix })?.status).toBe(429);
   });
 });
