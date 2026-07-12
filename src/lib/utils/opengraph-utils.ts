@@ -12,6 +12,7 @@
 import { generateHash, getBufferHash } from "./hash-utils";
 import { stripWwwPrefix } from "./url-utils";
 import type { ValidatedOgMetadata } from "@/types/seo/opengraph";
+import { openGraphUrlSchema } from "@/types/schemas/url";
 
 /**
  * Validates a URL for OpenGraph fetching.
@@ -20,16 +21,7 @@ import type { ValidatedOgMetadata } from "@/types/seo/opengraph";
  * @returns True if the URL is valid, false otherwise
  */
 export function validateOgUrl(url: string): boolean {
-  if (!url) {
-    return false;
-  }
-  try {
-    const urlObj = new URL(url);
-    // Allow http and https protocols
-    return ["http:", "https:"].includes(urlObj.protocol);
-  } catch {
-    return false;
-  }
+  return openGraphUrlSchema.safeParse(url).success;
 }
 
 /**
@@ -179,11 +171,14 @@ export function getImageExtension(url: string): string {
 export function getDomainType(url: string): string {
   if (!url) return "Website";
   try {
-    const domain = new URL(url).hostname;
-    if (domain.includes("github.com")) return "GitHub";
-    if (domain.includes("x.com") || domain.includes("twitter.com")) return "X";
-    if (domain.includes("linkedin.com")) return "LinkedIn";
-    if (domain.includes("bsky.app")) return "Bluesky";
+    const hostname = new URL(url).hostname.toLowerCase();
+    const isDomain = (domain: string): boolean =>
+      hostname === domain || hostname.endsWith(`.${domain}`);
+
+    if (isDomain("github.com")) return "GitHub";
+    if (isDomain("x.com") || isDomain("twitter.com")) return "X";
+    if (isDomain("linkedin.com")) return "LinkedIn";
+    if (isDomain("bsky.app")) return "Bluesky";
     return "Website";
   } catch {
     return "Website";

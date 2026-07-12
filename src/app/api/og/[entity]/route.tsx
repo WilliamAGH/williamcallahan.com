@@ -68,7 +68,9 @@ function searchParamsToRecord(searchParams: URLSearchParams): Record<string, str
   if (payload) {
     const decoded = decodePayload(payload);
     if (decoded.success) return decoded.params;
-    console.error("[OG-Image] Invalid payload query param:", decoded.message);
+    if ("message" in decoded) {
+      console.error("[OG-Image] Invalid payload query param:", decoded.message);
+    }
   }
 
   const record: Record<string, string> = {};
@@ -78,62 +80,33 @@ function searchParamsToRecord(searchParams: URLSearchParams): Record<string, str
   return record;
 }
 
-/**
- * Derive the public-facing origin from request headers.
- *
- * On reverse-proxy deployments (Railway, Vercel, etc.) `request.nextUrl.origin`
- * may resolve to an internal address (e.g. `http://0.0.0.0:PORT`) because the
- * framework reconstructs the URL from the raw socket, not the proxy headers.
- * This breaks self-referential fetches to sibling API routes like `/api/assets/`.
- *
- * The `Host` header always reflects the public hostname the client connected to,
- * and `x-forwarded-proto` carries the original protocol from the TLS-terminating
- * proxy. Together they give the correct public origin for resolving relative URLs.
- */
-function getPublicOrigin(request: NextRequest): string {
-  const host = request.headers.get("host");
-  if (!host) return request.nextUrl.origin;
-
-  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  if (forwardedProto) return `${forwardedProto}://${host}`;
-
-  const isLocal =
-    host.startsWith("localhost") || host.startsWith("127.") || host.startsWith("[::1]");
-  return `${isLocal ? "http" : "https"}://${host}`;
-}
-
 /** Render the appropriate layout based on entity type */
 async function renderEntity(
   entity: OgEntity,
   params: Record<string, string>,
-  origin: string,
 ): Promise<React.ReactElement> {
   switch (entity) {
     case "books": {
       const parsed = ogBookParamsSchema.parse(params);
-      const coverDataUrl = parsed.coverUrl
-        ? await fetchImageAsDataUrl(parsed.coverUrl, origin)
-        : null;
+      const coverDataUrl = parsed.coverUrl ? await fetchImageAsDataUrl(parsed.coverUrl) : null;
       return renderBookLayout({ ...parsed, coverDataUrl });
     }
     case "bookmarks": {
       const parsed = ogBookmarkParamsSchema.parse(params);
       const screenshotDataUrl = parsed.screenshotUrl
-        ? await fetchImageAsDataUrl(parsed.screenshotUrl, origin)
+        ? await fetchImageAsDataUrl(parsed.screenshotUrl)
         : null;
       return renderBookmarkLayout({ ...parsed, screenshotDataUrl });
     }
     case "blog": {
       const parsed = ogBlogParamsSchema.parse(params);
-      const coverDataUrl = parsed.coverUrl
-        ? await fetchImageAsDataUrl(parsed.coverUrl, origin)
-        : null;
+      const coverDataUrl = parsed.coverUrl ? await fetchImageAsDataUrl(parsed.coverUrl) : null;
       return renderBlogLayout({ ...parsed, coverDataUrl });
     }
     case "projects": {
       const parsed = ogProjectParamsSchema.parse(params);
       const screenshotDataUrl = parsed.screenshotUrl
-        ? await fetchImageAsDataUrl(parsed.screenshotUrl, origin)
+        ? await fetchImageAsDataUrl(parsed.screenshotUrl)
         : null;
       return renderProjectLayout({ ...parsed, screenshotDataUrl });
     }
@@ -157,11 +130,10 @@ export async function GET(
   }
 
   const { searchParams } = request.nextUrl;
-  const origin = getPublicOrigin(request);
   const queryParams = searchParamsToRecord(searchParams);
 
   try {
-    const jsx = await renderEntity(entityResult.data, queryParams, origin);
+    const jsx = await renderEntity(entityResult.data, queryParams);
     return new ImageResponse(jsx, {
       width: OG_LAYOUT.width,
       height: OG_LAYOUT.height,

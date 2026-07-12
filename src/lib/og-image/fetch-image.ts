@@ -12,6 +12,7 @@
  * - Pixel cap: Prevents decompression bombs via sharp limitInputPixels
  * - Protocol restriction: Only http/https via ensureAbsoluteUrl
  * - Host validation: Blocks private/internal IPs via isPrivateHost
+ * - Redirect rejection: Prevents a public URL from redirecting to a private host
  *
  * Defense-in-depth notes:
  * - DNS-to-private bypass: The isPrivateHost check validates hostnames, not resolved IPs.
@@ -33,16 +34,14 @@ import {
  * Fetch an image URL and convert it to a base64 PNG data URL.
  * Returns null on any failure (network, validation, size, format).
  */
-export async function fetchImageAsDataUrl(
-  url: string,
-  requestOrigin: string,
-): Promise<string | null> {
+export async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   try {
-    const absoluteUrl = ensureAbsoluteUrl(url, requestOrigin);
+    const absoluteUrl = ensureAbsoluteUrl(url);
     const response = await fetch(absoluteUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; OG-Image-Bot/1.0)",
       },
+      redirect: "error",
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 

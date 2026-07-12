@@ -9,6 +9,7 @@ import { preventCaching, createErrorResponse } from "@/lib/utils/api-utils";
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import type { OgImageApiResponse } from "@/types/features/social";
+import { openGraphUrlSchema } from "@/types/schemas/url";
 
 export async function GET(request: NextRequest) {
   preventCaching();
@@ -20,16 +21,14 @@ export async function GET(request: NextRequest) {
     return createErrorResponse("URL parameter is required", 400);
   }
 
-  try {
-    // Validate URL without side effects
-    if (!URL.canParse(url)) throw new Error("invalid");
-  } catch {
-    return createErrorResponse("Invalid URL format", 400);
+  const urlValidation = openGraphUrlSchema.safeParse(url);
+  if (!urlValidation.success) {
+    return createErrorResponse("Invalid or unsafe URL format", 400);
   }
 
   try {
     // Fetch OpenGraph data with caching and S3 persistence
-    const ogData = await getOpenGraphData(url);
+    const ogData = await getOpenGraphData(urlValidation.data);
 
     if (!ogData) {
       return createErrorResponse("Failed to fetch OpenGraph data", 404);

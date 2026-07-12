@@ -268,3 +268,27 @@ describe("Logo API Route Validation", () => {
     expect(payload.error).toMatch(/Company fallback requires a domain/i);
   });
 });
+
+describe("OG-Data API URL validation", () => {
+  it("rejects private URLs before OpenGraph data access", async () => {
+    vi.resetModules();
+    const getOpenGraphData = vi.fn();
+    vi.doMock("@/lib/data-access/opengraph", () => ({ getOpenGraphData }));
+
+    try {
+      const { GET } = await import("@/app/api/og-data/route");
+      const request = new NextRequest(
+        `https://williamcallahan.com/api/og-data?url=${encodeURIComponent("http://127.0.0.1/private")}`,
+      );
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "Invalid or unsafe URL format" });
+      expect(getOpenGraphData).not.toHaveBeenCalled();
+    } finally {
+      vi.doUnmock("@/lib/data-access/opengraph");
+      vi.resetModules();
+    }
+  });
+});
