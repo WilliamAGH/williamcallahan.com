@@ -755,16 +755,45 @@ describe("OpenAI-Compatible AI Utilities", () => {
     });
 
     it("reports successful analysis persistence", async () => {
-      const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(Response.json({ success: true, persisted: true }, { status: 200 }));
       vi.stubGlobal("fetch", fetchMock);
 
       const result = await persistAnalysis("bookmarks", "bookmark-1", { summary: "ok" });
 
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, persisted: true });
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/ai/analysis/bookmarks/bookmark-1",
         expect.objectContaining({ method: "POST" }),
       );
+    });
+
+    it("reports successful read-only analysis persistence skips", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(Response.json({ success: true, persisted: false }, { status: 200 })),
+      );
+
+      await expect(persistAnalysis("bookmarks", "bookmark-1", { summary: "ok" })).resolves.toEqual({
+        success: true,
+        persisted: false,
+      });
+    });
+
+    it("rejects malformed successful persistence responses", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(Response.json({ success: true }, { status: 200 })),
+      );
+
+      await expect(persistAnalysis("bookmarks", "bookmark-1", { summary: "ok" })).resolves.toEqual({
+        success: false,
+        message: "Invalid analysis persistence response",
+        status: 200,
+      });
     });
 
     it("returns failed persistence details without hiding the API error", async () => {

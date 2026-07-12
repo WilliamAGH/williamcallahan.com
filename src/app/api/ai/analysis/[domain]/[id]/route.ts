@@ -12,6 +12,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod/v4";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { persistAnalysis } from "@/lib/ai-analysis/writer.server";
+import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { bookmarkAiAnalysisResponseSchema } from "@/types/schemas/bookmark-ai-analysis";
 import { bookAiAnalysisResponseSchema } from "@/types/schemas/book-ai-analysis";
 import { projectAiAnalysisResponseSchema } from "@/types/schemas/project-ai-analysis";
@@ -152,6 +153,24 @@ export async function POST(
     return createErrorResponse("Invalid analysis data", 400);
   }
 
+  const databaseAccess = resolveDatabaseAccessMode();
+  if (!databaseAccess.allowWrites) {
+    envLogger.log(
+      "Analysis persistence skipped in read-only environment",
+      {
+        domain,
+        id,
+        environment: databaseAccess.environment,
+        source: databaseAccess.source,
+      },
+      { category: "AiAnalysis" },
+    );
+    return NextResponse.json(
+      { success: true, persisted: false },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
+  }
+
   // Persist to PostgreSQL
   try {
     await persistAnalysis(validDomain, id, analysisResult.data, {
@@ -161,7 +180,7 @@ export async function POST(
     envLogger.log("Analysis persisted successfully", { domain, id }, { category: "AiAnalysis" });
 
     return NextResponse.json(
-      { success: true, domain, id },
+      { success: true, persisted: true },
       { status: 200, headers: NO_STORE_HEADERS },
     );
   } catch (error: unknown) {

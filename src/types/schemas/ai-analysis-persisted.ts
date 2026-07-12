@@ -97,3 +97,11 @@ export const persistAnalysisRequestSchema = z.object({
 });
 
 export type PersistAnalysisRequest = z.infer<typeof persistAnalysisRequestSchema>;
+
+/** Successful persistence endpoint result, including intentional read-only skips. */
+export const persistAnalysisSuccessResponseSchema = z.object({
+  success: z.literal(true),
+  persisted: z.boolean(),
+});
+
+export type PersistAnalysisSuccessResponse = z.infer<typeof persistAnalysisSuccessResponseSchema>;
