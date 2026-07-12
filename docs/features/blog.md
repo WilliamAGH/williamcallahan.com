@@ -37,6 +37,7 @@ The "blog" functionality encompasses components and utilities that manage the di
 - The blog functionality is designed for performance with server-side rendering and ISR, combined with client-side interactivity for a seamless user experience.
 - Individual blog detail routes (`app/blog/[slug]/page.tsx`) now provide `generateStaticParams()` from `getAllPostsMeta()` so slugs are prerendered during `next build`, while `RelatedContent` remains request-time via `<Suspense>` to preserve dynamic recommendations.
 - The blog detail page owns a server-rendered article shell; only interactive author, image, and MDX leaves cross client boundaries, preventing PPR hydration of the full streamed article subtree.
+- Detail metadata and full-post lookups use route-scoped `use cache` functions. The page renders its Suspense boundary before awaiting route params, so Docker's globally disabled optional cache wrapper cannot postpone the entire article shell.
 - Build stability: both detail and tag routes include a safe placeholder static param fallback to satisfy Cache Components requirements when datasets are temporarily empty.
 - Blog tag routes (`app/blog/tags/[tagSlug]/page.tsx`) now provide `generateStaticParams()` from `getAllTags()` and still render the “Discover More” related-content section sourced from the first post on the page, with the active tag excluded from recommendations.
 - Components are modular, allowing reuse across different views, with special attention to accessibility and responsive design as seen in features like collapsible background info boxes.

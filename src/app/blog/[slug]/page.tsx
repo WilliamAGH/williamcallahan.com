@@ -8,6 +8,7 @@
  */
 
 import { Suspense } from "react";
+import { cacheLife, cacheTag } from "next/cache";
 import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 // Import blog post retrieval utilities from the main blog library
 import { getAllPostsMeta, getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
@@ -24,6 +25,22 @@ import { RelatedContent } from "@/components/features/related-content/related-co
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 
 const BLOG_STATIC_PARAM_PLACEHOLDER = "__placeholder__";
+
+async function getCachedBlogPost(slug: string) {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("blog");
+  cacheTag(`blog-post-${slug}`);
+  return getPostBySlug(slug);
+}
+
+async function getCachedBlogPostMetadata(slug: string) {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("blog");
+  cacheTag(`blog-post-${slug}`);
+  return getPostMetaBySlug(slug);
+}
 
 export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
   const posts = await getAllPostsMeta();
@@ -79,7 +96,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
     };
   }
   // Use getPostMetaBySlug for lightweight metadata (skips MDX compilation + blur generation)
-  const post = await getPostMetaBySlug(slug);
+  const post = await getCachedBlogPostMetadata(slug);
 
   if (!post) {
     console.warn(`[generateMetadata] Post not found for slug: ${slug}. Returning empty metadata.`);
@@ -163,8 +180,15 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
  * Note: We use JsonLdScript directly in the component to ensure the schema data is
  * injected into the page at render time, which can help with immediate indexing
  */
-export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  // params is already resolved here by Next.js
+export default function BlogPostPage({ params }: BlogPostPageProps) {
+  return (
+    <Suspense fallback={null}>
+      <BlogPostContent params={params} />
+    </Suspense>
+  );
+}
+
+async function BlogPostContent({ params }: BlogPostPageProps) {
   const { slug } = await params;
   if (slug === BLOG_STATIC_PARAM_PLACEHOLDER) {
     notFound();
@@ -172,7 +196,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   try {
     // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
-    const post = await getPostBySlug(slug);
+    const post = await getCachedBlogPost(slug);
 
     // If post not found, use Next.js built-in 404 page
     if (!post) {

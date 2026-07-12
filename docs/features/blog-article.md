@@ -38,6 +38,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 - **app/blog/[slug]/page.tsx**: Individual blog post page
   - Implements ISR with 1-hour revalidation
   - Special handling for software-related posts
+  - Owns route-scoped metadata/content caches and establishes Suspense before awaiting params
 - **app/blog/tags/[tagSlug]/page.tsx**: Tag filtering page
 
 ### Content Files
