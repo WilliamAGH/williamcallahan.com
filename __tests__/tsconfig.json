@@ -52,7 +52,8 @@
     "**/*.jsx",
     "../src/types/**/*.ts",
     "../src/types/**/*.tsx",
-    "../src/test-utils/**/*.ts"
+    "../src/test-utils/**/*.ts",
+    "../scheduler/background-data-populator.ts"
   ],
   "exclude": ["node_modules", ".next", "out", "dist"]
 }

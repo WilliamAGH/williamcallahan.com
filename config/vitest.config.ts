@@ -22,8 +22,8 @@ export default defineConfig({
       "next/cache": resolve(rootDir, "__tests__/__mocks__/next/cache.ts"),
       "next-themes": resolve(rootDir, "__tests__/__mocks__/next-themes.ts"),
       "@sentry/nextjs": resolve(rootDir, "__tests__/__mocks__/sentry.ts"),
-      "@clerk/nextjs": resolve(rootDir, "__tests__/__mocks__/@clerk/nextjs.ts"),
       "@clerk/nextjs/server": resolve(rootDir, "__tests__/__mocks__/@clerk/nextjs-server.ts"),
+      "@clerk/nextjs": resolve(rootDir, "__tests__/__mocks__/@clerk/nextjs.ts"),
       // Lib mocks
       cheerio: resolve(rootDir, "__tests__/__mocks__/lib/cheerio.ts"),
       "next-mdx-remote": resolve(rootDir, "__tests__/__mocks__/lib/next-mdx-remote.ts"),
