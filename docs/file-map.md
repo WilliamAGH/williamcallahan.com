@@ -253,6 +253,7 @@ File/Path Functionality Description
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
+  - [x] `slug-helpers.ts` `bookmarks` - Indexed slug and bookmark-ID resolution
   - [x] **analysis/**
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
     - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
@@ -379,7 +380,7 @@ File/Path Functionality Description
   - [x] `config.ts` `s3-object-storage` - S3 configuration validation
   - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
   - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
-  - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer helpers
+  - [x] `stream.ts` `s3-object-storage` - Bounded stream-to-buffer conversion with premature-close cleanup
 - [x] **seo/**
   - [x] `constants.ts` `seo` - SEO constants
   - [x] `dynamic-metadata.ts` `seo` - Dynamic title generation with length limits
@@ -394,7 +395,7 @@ File/Path Functionality Description
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
 - [ ] **services/**
-  - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
+  - [x] `image-streaming.ts` `image-handling` - Error-propagating streaming pipeline for image uploads
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
   - [x] **image/**
     - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
@@ -413,8 +414,8 @@ File/Path Functionality Description
   - [x] `formatters.ts` `string-manipulation` - Data formatting functions
   - [x] `image-s3-utils.ts` `s3-object-storage` - Image-specific S3 utilities
   - [x] `logger.ts` `log-error-debug-handling` - Shared logger utility
-  - [x] `opengraph-utils.ts` `opengraph` - OpenGraph utility functions (URL validation, image selection, etc.)
-  - [x] `retry.ts` `log-error-debug-handling` - Retry logic for async operations
+  - [x] `opengraph-utils.ts` `opengraph` - Canonical-schema URL validation and OpenGraph domain/image utilities
+  - [x] `retry.ts` `log-error-debug-handling` - Result-based retry execution that preserves root errors
   - [x] `revalidate-path.ts` `caching` - Next.js path revalidation helper
   - [x] `runtime-guards.ts` `overview` - Runtime type guards
   - [x] `svg-transform-fix.ts` `image-handling` - SVG transform fix utility
@@ -524,7 +525,7 @@ File/Path Functionality Description
 - [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
-- [x] `instrumentation.ts` `log-error-debug-handling` - Server-side instrumentation setup
+- [x] `instrumentation.ts` `log-error-debug-handling` - Runtime instrumentation dispatch and request-error header redaction
 - [x] `src/proxy.ts` `middleware` - Next.js Proxy (middleware) entrypoint (Next.js 16)
 - [x] `next-env.d.ts` `config` - Next.js environment type definitions
 - [x] `next.config.ts` `config` - Next.js configuration
