@@ -22,7 +22,7 @@ export function resetS3Client(): void {
 
 export function getS3Client(): S3Client {
   const config = getS3Config();
-  const configKey = `${config.bucket}|${config.region}|${config.endpoint ?? "default"}|${config.accessKeyId}`;
+  const configKey = `${config.bucket}|${config.region}|${config.endpoint ?? "default"}|${config.accessKeyId}|${config.secretAccessKey}`;
 
   if (s3ClientInstance && cachedConfigKey === configKey) {
     return s3ClientInstance;

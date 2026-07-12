@@ -13,14 +13,11 @@ import type {
   CreateResultParams,
 } from "@/types/seo";
 
-/** Truncation strategy thresholds */
 const LIGHT_OVERAGE_RATIO = 0.3;
 const MEDIUM_OVERAGE_RATIO = 0.7;
 
-/** Separator-based truncation minimum available chars */
 const MIN_AVAILABLE_MAIN_CHARS = 10;
 
-/** Part count for separator split */
 const SEPARATOR_PART_COUNT = 2;
 
 /**
@@ -156,7 +153,6 @@ export function gradientTruncate(
 ): TruncationResult {
   const startTime = performance.now();
 
-  // Handle empty/null input
   if (!text || typeof text !== "string") {
     return createResult({
       original: "",
@@ -172,11 +168,9 @@ export function gradientTruncate(
     });
   }
 
-  // Normalize and create safe string
   const normalized = text.normalize("NFC").trim();
   const safeString = new SafeString(normalized, options.locale);
 
-  // No truncation needed
   if (safeString.length <= options.softLimit) {
     return createResult({
       original: normalized,
@@ -192,35 +186,37 @@ export function gradientTruncate(
     });
   }
 
-  // Calculate overage
   const overage = safeString.length - options.softLimit;
   const hardLimit = options.hardLimit ?? options.softLimit + 20;
+  if (safeString.length === hardLimit) {
+    return createResult({
+      original: normalized,
+      text: normalized,
+      wasTruncated: false,
+      strategy: "none",
+      originalLength: safeString.length,
+      overage,
+      startTime,
+      unicodeAware: safeString.isUnicodeAware,
+      softLimit: options.softLimit,
+      hardLimit,
+    });
+  }
   const overageRatio = Math.min(overage / Math.max(hardLimit - options.softLimit, 1e-6), 1);
 
-  let truncated: string;
-  let method: TruncationResult["strategy"];
-
-  // Choose truncation method based on overage ratio
-  if (safeString.length >= hardLimit) {
-    // Hard limit exceeded - must truncate
-    truncated = hardTruncate(safeString, hardLimit, options);
-    method = "hard";
-  } else if (overageRatio < LIGHT_OVERAGE_RATIO) {
-    // Light truncation (0-30% over)
-    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
-    truncated = lightTruncate(safeString, options) ?? hardTruncatedResult;
-    method = truncated === hardTruncatedResult ? "hard" : "filler-word";
-  } else if (overageRatio < MEDIUM_OVERAGE_RATIO) {
-    // Medium truncation (30-70% over)
-    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
-    truncated = mediumTruncate(safeString, options) ?? hardTruncatedResult;
-    method = truncated === hardTruncatedResult ? "hard" : "parenthetical";
-  } else {
-    // Heavy truncation (70-100% over)
-    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
-    truncated = heavyTruncate(safeString, options) ?? hardTruncatedResult;
-    method = truncated === hardTruncatedResult ? "hard" : "keyword";
-  }
+  const hardTruncated = hardTruncate(safeString, hardLimit, options);
+  const attempted =
+    safeString.length > hardLimit
+      ? { text: hardTruncated, strategy: "hard" as const }
+      : overageRatio < LIGHT_OVERAGE_RATIO
+        ? { text: lightTruncate(safeString, options), strategy: "filler-word" as const }
+        : overageRatio < MEDIUM_OVERAGE_RATIO
+          ? { text: mediumTruncate(safeString, options), strategy: "parenthetical" as const }
+          : { text: heavyTruncate(safeString, options), strategy: "keyword" as const };
+  const selected = attempted.text;
+  const usedSelected = selected !== null && selected.length > 0;
+  const truncated = usedSelected ? selected : hardTruncated;
+  const method = usedSelected ? attempted.strategy : "hard";
 
   return createResult({
     original: normalized,
@@ -236,9 +232,6 @@ export function gradientTruncate(
   });
 }
 
-/**
- * Light truncation - removes filler words
- */
 function lightTruncate(text: SafeString, options: TruncationOptions): string | null {
   const words = text.words();
   const important = new Set(options.importantKeywords?.map((k) => k.toLowerCase()) || []);
@@ -254,9 +247,6 @@ function lightTruncate(text: SafeString, options: TruncationOptions): string | n
   return resultLength <= options.softLimit ? result : null;
 }
 
-/**
- * Medium truncation - removes parentheticals and less important content
- */
 function mediumTruncate(text: SafeString, options: TruncationOptions): string | null {
   let result = text.toString();
 
@@ -289,9 +279,6 @@ function mediumTruncate(text: SafeString, options: TruncationOptions): string | 
   return null;
 }
 
-/**
- * Heavy truncation - preserves only essential content
- */
 function heavyTruncate(text: SafeString, options: TruncationOptions): string | null {
   const ellipsis = options.ellipsis || "...";
 
@@ -316,9 +303,6 @@ function heavyTruncate(text: SafeString, options: TruncationOptions): string | n
   return null;
 }
 
-/**
- * Hard truncation - cuts at word boundary when possible
- */
 function hardTruncate(text: SafeString, limit: number, options: TruncationOptions): string {
   const ellipsis = options.ellipsis || "...";
   const maxLength = limit - ellipsis.length;
@@ -332,9 +316,6 @@ function hardTruncate(text: SafeString, limit: number, options: TruncationOption
   return text.slice(0, cutPoint).trim() + ellipsis;
 }
 
-/**
- * Create a truncation result object
- */
 function createResult(opts: CreateResultParams): TruncationResult {
   const { softLimit, hardLimit, unicodeAware = true } = opts;
   const metrics: TruncationMetrics = {

@@ -111,6 +111,7 @@ const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.VITEST 
 export function invalidateLogoCache(): void {
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("logos");
+    safeRevalidateTag("logo-manifest");
     if (!isTestEnvironment) {
       console.info("[Logos] Cache invalidated for all logos");
     }

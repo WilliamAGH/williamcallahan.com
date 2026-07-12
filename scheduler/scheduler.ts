@@ -233,7 +233,7 @@ scheduleCronJob(
   githubCron,
   DATA_UPDATER_FLAGS.GITHUB,
   "/api/revalidate/github-activity",
-  "GITHUB_CRON_REFRESH_SECRET",
+  "BOOKMARK_CRON_REFRESH_SECRET",
 );
 
 scheduleCronJob("Logos", logosCron, DATA_UPDATER_FLAGS.LOGOS);

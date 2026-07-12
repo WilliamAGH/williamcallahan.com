@@ -1,11 +1,25 @@
 const mockCacheTag = vi.fn();
 const mockCacheLife = vi.fn();
 const mockRevalidateTag = vi.fn();
+const mockPersistAnalysisToDb = vi.fn();
+const mockReadLatestAnalysis = vi.fn();
+const mockHasAnalysisInDb = vi.fn();
 
 vi.mock("next/cache", () => ({
   cacheTag: (...args: unknown[]) => mockCacheTag(...args),
   cacheLife: (...args: unknown[]) => mockCacheLife(...args),
   revalidateTag: (...args: unknown[]) => mockRevalidateTag(...args),
+}));
+
+vi.mock("@/lib/db/mutations/ai-analysis", () => ({
+  persistAnalysisToDb: (...args: unknown[]) => mockPersistAnalysisToDb(...args),
+}));
+
+vi.mock("@/lib/db/queries/ai-analysis", () => ({
+  readLatestAnalysis: (...args: unknown[]) => mockReadLatestAnalysis(...args),
+  hasAnalysisInDb: (...args: unknown[]) => mockHasAnalysisInDb(...args),
+  listAnalysisItemIdsFromDb: vi.fn(),
+  listAnalysisVersionsFromDb: vi.fn(),
 }));
 
 import {
@@ -15,6 +29,8 @@ import {
   withCacheFallback,
   USE_NEXTJS_CACHE,
 } from "@/lib/cache";
+import { getCachedAnalysis, hasCachedAnalysis } from "@/lib/ai-analysis/reader.server";
+import { persistAnalysis as persistServerAnalysis } from "@/lib/ai-analysis/writer.server";
 
 describe("lib/cache", () => {
   describe("CACHE_TTL constants", () => {
@@ -127,6 +143,83 @@ describe("lib/cache", () => {
         }
       }
     });
+
+    it("expires tags immediately for read-your-writes cache refreshes", () => {
+      mockRevalidateTag.mockClear();
+
+      cacheContextGuards.expireTag("AiAnalysis", "ai-analysis-bookmarks-abc");
+
+      expect(mockRevalidateTag).toHaveBeenCalledWith("ai-analysis-bookmarks-abc", { expire: 0 });
+    });
+  });
+
+  describe("AI analysis cache persistence", () => {
+    const cachedAnalysis = {
+      metadata: { generatedAt: "2026-07-03T00:00:00.000Z", modelVersion: "v1" },
+      analysis: {
+        summary: "Persisted forever.",
+        category: "Technology",
+        highlights: ["Stored in PostgreSQL."],
+        contextualDetails: {
+          primaryDomain: "Programming",
+          format: "Article",
+          accessMethod: "Free",
+        },
+        relatedResources: [],
+        targetAudience: "Developers",
+      },
+    };
+
+    beforeEach(() => {
+      mockCacheLife.mockClear();
+      mockCacheTag.mockClear();
+      mockRevalidateTag.mockClear();
+      mockPersistAnalysisToDb.mockReset();
+      mockReadLatestAnalysis.mockReset();
+      mockHasAnalysisInDb.mockReset();
+    });
+
+    it("keeps persisted analysis cached with a non-expiring profile", async () => {
+      mockReadLatestAnalysis.mockResolvedValue(cachedAnalysis);
+
+      await expect(getCachedAnalysis("bookmarks", "bookmark-1")).resolves.toBe(cachedAnalysis);
+
+      expect(mockCacheTag).toHaveBeenCalledWith("ai-analysis-bookmarks-bookmark-1");
+      expect(mockCacheLife).toHaveBeenCalledWith("max");
+    });
+
+    it("keeps missing analysis cache entries short lived", async () => {
+      mockReadLatestAnalysis.mockResolvedValue(null);
+
+      await expect(getCachedAnalysis("bookmarks", "bookmark-1")).resolves.toBeNull();
+
+      expect(mockCacheLife).toHaveBeenCalledWith({ stale: 0, revalidate: 1, expire: 1 });
+    });
+
+    it("uses matching existence cache lifetimes for cached-analysis probes", async () => {
+      mockHasAnalysisInDb.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      await expect(hasCachedAnalysis("bookmarks", "bookmark-1")).resolves.toBe(true);
+      await expect(hasCachedAnalysis("bookmarks", "bookmark-2")).resolves.toBe(false);
+
+      expect(mockCacheLife).toHaveBeenNthCalledWith(1, "max");
+      expect(mockCacheLife).toHaveBeenNthCalledWith(2, { stale: 0, revalidate: 1, expire: 1 });
+    });
+
+    it("immediately expires analysis cache tags after a successful database write", async () => {
+      mockPersistAnalysisToDb.mockResolvedValue(undefined);
+
+      await persistServerAnalysis("bookmarks", "bookmark-1", cachedAnalysis.analysis);
+
+      expect(mockRevalidateTag).toHaveBeenCalledWith("ai-analysis", { expire: 0 });
+      expect(mockRevalidateTag).toHaveBeenCalledWith("ai-analysis-bookmarks", { expire: 0 });
+      expect(mockRevalidateTag).toHaveBeenCalledWith("ai-analysis-bookmarks-bookmark-1", {
+        expire: 0,
+      });
+      expect(mockRevalidateTag).toHaveBeenCalledWith("ai-analysis-versions-bookmarks-bookmark-1", {
+        expire: 0,
+      });
+    });
   });
 
   describe("cacheContextGuards in scheduler CLI processes", () => {
@@ -145,6 +238,7 @@ describe("lib/cache", () => {
         cacheContextGuards.cacheTag("BookmarksDataAccess", "bookmarks");
         cacheContextGuards.cacheLife("BookmarksDataAccess", { revalidate: 120 });
         cacheContextGuards.revalidateTag("BookmarksDataAccess", "bookmarks");
+        cacheContextGuards.expireTag("BookmarksDataAccess", "bookmarks");
 
         expect(mockCacheTag).not.toHaveBeenCalled();
         expect(mockCacheLife).not.toHaveBeenCalled();

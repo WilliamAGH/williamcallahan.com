@@ -180,6 +180,9 @@ export class S3Operations {
             if (result?.cdnUrl) {
               this.uploadRetryQueue.delete(key);
               logger.info(`[S3Operations] Retry successful for ${key}`);
+            } else {
+              this.uploadRetryQueue.delete(key);
+              logger.error("[S3Operations] Retries exhausted without CDN URL", { key });
             }
             return undefined;
           })

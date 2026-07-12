@@ -23,11 +23,11 @@ import { IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
 import type { ProxyFunction } from "@/types/middleware";
 
-/**
- * Check if Clerk is configured (publishable key available)
- * This must be checked before importing Clerk modules to avoid runtime errors
- */
-const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const hasEnvValue = (key: string): boolean => Boolean(process.env[key]?.trim());
+const hasClerkPublishableKey = hasEnvValue("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY");
+const hasClerkSecretKey = hasEnvValue("CLERK_SECRET_KEY");
+const isClerkConfigured = hasClerkPublishableKey && hasClerkSecretKey;
+const isClerkPartiallyConfigured = hasClerkPublishableKey !== hasClerkSecretKey;
 
 import type { RequestLog } from "@/types/lib";
 
@@ -205,8 +205,13 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
 
 /** Create the proxy handler - conditionally wraps with Clerk if configured. */
 async function createProxy(): Promise<ProxyFunction> {
+  if (isClerkPartiallyConfigured) {
+    throw new Error(
+      "[Proxy] Clerk is partially configured; both NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY are required.",
+    );
+  }
+
   if (!isClerkConfigured) {
-    // No Clerk - just run the proxy handler directly
     return (request: NextRequest) => proxyHandler(request);
   }
 

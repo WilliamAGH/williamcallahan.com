@@ -12,6 +12,9 @@ import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { hybridSearchBookmarks } from "@/lib/db/queries/hybrid-search";
 import { hybridSearchBooks } from "@/lib/db/queries/hybrid-search-books-blog";
+import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { getBooksIndex } from "@/lib/search/loaders/dynamic-content";
+import { envLogger } from "@/lib/utils/env-logger";
 
 const SEARCH_LIMIT = 50;
 
@@ -42,6 +45,21 @@ export async function searchBookmarks(
   }));
 }
 
+async function searchBooksIndex(query: string): Promise<SearchResult[]> {
+  const index = await getBooksIndex();
+  return index
+    .search(query, { prefix: true, fuzzy: 0.2 })
+    .slice(0, SEARCH_LIMIT)
+    .map((result) => ({
+      id: result.id,
+      type: "book" as const,
+      title: result.title,
+      description: result.authors?.join(", "),
+      url: `/books/${generateBookSlug(result.title, result.id, result.authors)}`,
+      score: result.score,
+    }));
+}
+
 /**
  * Search books via hybrid PostgreSQL (FTS + trigram + pgvector).
  */
@@ -52,12 +70,23 @@ export async function searchBooks(
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBooks]", context);
-  const rows = await hybridSearchBooks({ query: sanitizedQuery, embedding, limit: SEARCH_LIMIT });
+  let rows: Awaited<ReturnType<typeof hybridSearchBooks>>;
+  try {
+    const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBooks]", context);
+    rows = await hybridSearchBooks({ query: sanitizedQuery, embedding, limit: SEARCH_LIMIT });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    envLogger.log(
+      "[searchBooks] Hybrid book search failed; using indexed fallback",
+      { error: message },
+      { category: "Search" },
+    );
+    return searchBooksIndex(sanitizedQuery);
+  }
 
   return rows.map((r) => ({
     id: r.id,
-    type: "page" as const,
+    type: "book" as const,
     title: r.title,
     description: r.authors?.join(", "),
     url: `/books/${r.slug}`,

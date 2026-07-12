@@ -12,6 +12,15 @@
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import type { OgEntity } from "@/types/schemas/og-image";
 
+function encodePayload(params: Record<string, string>): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(params));
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 /**
  * Build an absolute URL for the OG image generation endpoint.
  * Filters out undefined/empty params and URL-encodes values.
@@ -24,15 +33,16 @@ export function buildOgImageUrl(
   entity: OgEntity,
   params: Record<string, string | undefined>,
 ): string {
-  const searchParams = new URLSearchParams();
+  const payloadParams: Record<string, string> = {};
 
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") {
-      searchParams.set(key, value);
+      payloadParams[key] = value;
     }
   }
 
-  const query = searchParams.toString();
-  const path = query ? `/api/og/${entity}?${query}` : `/api/og/${entity}`;
+  const payload =
+    Object.keys(payloadParams).length > 0 ? encodeURIComponent(encodePayload(payloadParams)) : "";
+  const path = payload ? `/api/og/${entity}?payload=${payload}` : `/api/og/${entity}`;
   return ensureAbsoluteUrl(path);
 }

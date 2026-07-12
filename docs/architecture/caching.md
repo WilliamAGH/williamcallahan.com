@@ -14,12 +14,13 @@ See `docs/architecture/caching.mmd` for the current write/read/supporting flow.
 
 ### Domain Responsibilities
 
-| Domain                   | Source of truth                                             | Cached read path                                   | Invalidation                                                                               |
-| ------------------------ | ----------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Bookmarks                | PostgreSQL read model (`src/lib/db/*`)                      | `"use cache"` functions + tag-labeled RSC reads    | `invalidateNextJsBookmarksCache()` (dataset, slug, and tag caches), slug/tag-specific tags |
-| Blog + Related Content   | Repository content + PostgreSQL content-graph artifacts     | Server read functions with `cacheLife/cacheTag`    | `revalidateTag("blog")`, `revalidateTag("related-content")`                                |
-| GitHub Activity          | PostgreSQL `github_activity_store` (JSON payload documents) | RSC summaries/pages using cache tags               | `revalidateTag("github-activity")`                                                         |
-| Images/Logos/OG metadata | S3 objects + manifests                                      | Cache-tagged server accessors and manifest loaders | tag invalidation + key-level refresh                                                       |
+| Domain                   | Source of truth                                             | Cached read path                                            | Invalidation                                                                                         |
+| ------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Bookmarks                | PostgreSQL read model (`src/lib/db/*`)                      | `"use cache"` functions + tag-labeled RSC reads             | `invalidateNextJsBookmarksCache()` (dataset, slug, and tag caches), slug/tag-specific tags           |
+| AI Analysis              | PostgreSQL `ai_analysis_latest` + `ai_analysis_versions`    | Durable rows use `cacheLife("max")`; misses are short-lived | Successful analysis writes immediately expire analysis tags with `revalidateTag(..., { expire: 0 })` |
+| Blog + Related Content   | Repository content + PostgreSQL content-graph artifacts     | Server read functions with `cacheLife/cacheTag`             | `revalidateTag("blog")`, `revalidateTag("related-content")`                                          |
+| GitHub Activity          | PostgreSQL `github_activity_store` (JSON payload documents) | RSC summaries/pages using cache tags                        | `revalidateTag("github-activity")`                                                                   |
+| Images/Logos/OG metadata | S3 objects + manifests                                      | Cache-tagged server accessors and manifest loaders          | tag invalidation + key-level refresh                                                                 |
 
 ### Route Policy
 
@@ -55,6 +56,14 @@ export function invalidateDomainData() {
 - Refresh jobs write durable state first (PostgreSQL/S3).
 - After successful writes, tags and route paths are revalidated.
 - Revalidation is authenticated for operational endpoints.
+- AI analysis writes use immediate tag expiration rather than stale-while-revalidate so the post-persist `router.refresh()` reads the just-written PostgreSQL row.
+
+### AI Analysis Cache Contract
+
+- `ai_analysis_latest` and `ai_analysis_versions` are the durable source of truth; rows have no application TTL.
+- Present analysis rows use `cacheLife("max")` so cached AI content does not expire by time.
+- Missing analysis reads use a one-second cache profile so absence does not become durable content.
+- Successful analysis writes expire root, domain, entity, and version tags immediately.
 
 ### Tag Granularity
 
@@ -75,15 +84,16 @@ Use path revalidation for high-value user routes when content freshness must be 
 
 ## Cache Safety Wrappers
 
-Server functions that can run in CLI contexts use `cacheContextGuards` before calling `cacheLife/cacheTag/revalidateTag` to avoid errors where no cache runtime exists (standalone scripts). Guards must stay active during `next build` prerendering so prerendered entries receive cache tags addressable by `revalidateTag` at runtime.
+Server functions that can run in CLI contexts use `cacheContextGuards` before calling `cacheLife/cacheTag/revalidateTag/expireTag` to avoid errors where no cache runtime exists (standalone scripts). Guards must stay active during `next build` prerendering so prerendered entries receive cache tags addressable by `revalidateTag` at runtime.
 
 - **CLI scripts** (`isCliProcessContext()`): skipped (no cache runtime)
 - **Build phase** (`NEXT_PHASE=phase-production-build`): forwarded (cache runtime exists for prerendering)
 - **Request time**: forwarded normally
 
 ```typescript
-cacheContextGuards.cacheTag("domain-tag");
-cacheContextGuards.cacheLife("AiAnalysis", { revalidate: 86400 });
+cacheContextGuards.cacheTag("AiAnalysis", "domain-tag");
+cacheContextGuards.cacheLife("AiAnalysis", "max");
+cacheContextGuards.expireTag("AiAnalysis", "ai-analysis-bookmarks-abc");
 ```
 
 ## Static-to-Dynamic Safety (`cacheComponents`)

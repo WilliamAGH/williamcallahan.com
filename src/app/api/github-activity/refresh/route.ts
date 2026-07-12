@@ -76,15 +76,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Check for cron job authentication first
   const headerStore = request.headers;
   const authorizationHeader = headerStore.get("authorization");
-  const cronRefreshSecret =
-    process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  const cronRefreshSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
   let isCronJob = false;
 
   if (cronRefreshSecret && authorizationHeader && authorizationHeader.startsWith("Bearer ")) {
     const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
     if (token === cronRefreshSecret) {
       isCronJob = true;
-      envLogger.log("Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET", undefined, {
+      envLogger.log("Authenticated as cron job via BOOKMARK_CRON_REFRESH_SECRET", undefined, {
         category: "GitHubActivityRefresh",
       });
     }

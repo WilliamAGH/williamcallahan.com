@@ -15,8 +15,8 @@ import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 /**
  * POST - Invalidate GitHub activity caches
  *
- * Requires Bearer token authentication using GITHUB_CRON_REFRESH_SECRET
- * or BOOKMARK_CRON_REFRESH_SECRET (fallback for shared secret environments).
+ * Requires Bearer token authentication using BOOKMARK_CRON_REFRESH_SECRET
+ * (the shared cron secret used by all scheduler revalidation calls).
  *
  * @param request - Incoming Next.js request
  * @returns JSON response indicating success or failure
@@ -28,11 +28,10 @@ export function POST(request: NextRequest): NextResponse {
 
   // Verify authorization
   const authHeader = request.headers.get("authorization");
-  const expectedToken =
-    process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  const expectedToken = process.env.BOOKMARK_CRON_REFRESH_SECRET;
 
   if (!expectedToken) {
-    console.error("[Cache Invalidation] GITHUB_CRON_REFRESH_SECRET not configured");
+    console.error("[Cache Invalidation] BOOKMARK_CRON_REFRESH_SECRET not configured");
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
 
@@ -93,7 +92,7 @@ export function GET(): NextResponse {
       status: "ready",
       endpoint: "/api/revalidate/github-activity",
       method: "POST",
-      authentication: "Bearer token required (GITHUB_CRON_REFRESH_SECRET)",
+      authentication: "Bearer token required (BOOKMARK_CRON_REFRESH_SECRET)",
     },
     { status: 200 },
   );

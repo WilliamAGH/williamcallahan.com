@@ -102,19 +102,34 @@ function resolveModelConfig() {
 }
 
 function slugifyTag(value) {
-  return value
+  if (!value) return "";
+
+  let cleanTag = value
     .trim()
-    .toLowerCase()
-    .normalize("NFKD")
+    .split("")
+    .filter((char) => {
+      const code = char.charCodeAt(0);
+      return !(code <= 31 || (code >= 127 && code <= 159));
+    })
+    .join("")
+    .replace(/\+\+/g, "-plus-plus")
+    .replace(/\+/g, "-plus")
+    .replace(/&/g, "-and-")
+    .replace(/#/g, "-sharp")
+    .replace(/@/g, "-at-");
+
+  if (cleanTag.startsWith(".")) cleanTag = `dot${cleanTag.substring(1)}`;
+  cleanTag = cleanTag.replace(/\.(?=[a-zA-Z])/g, "dot");
+
+  return cleanTag
+    .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\+\+/g, " plus plus ")
-    .replace(/\+/g, " plus ")
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9\s-]/g, " ")
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/_/g, "-")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 100);
+    .replace(/^-|-$/g, "");
 }
 
 function extractTagNames(rawTags) {

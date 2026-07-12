@@ -33,6 +33,7 @@ vi.mock("@vercel/og", () => ({
 }));
 
 import { GET } from "@/app/api/og/[entity]/route";
+import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 
 function createMockRequest(url: string) {
   const fullUrl = new URL(url, "https://williamcallahan.com");
@@ -65,6 +66,24 @@ describe("GET /api/og/[entity]", () => {
     });
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/png");
+  });
+
+  it("decodes encoded payload params without raw entity-like query keys", async () => {
+    const imageUrl = buildOgImageUrl("books", {
+      title: "Copyright",
+      author: "Author",
+      coverUrl: "https://example.com/cover.png?copy=1",
+    });
+    const parsedUrl = new URL(imageUrl);
+    const request = createMockRequest(`${parsedUrl.pathname}${parsedUrl.search}`);
+
+    const response = await GET(request, {
+      params: Promise.resolve({ entity: "books" }),
+    });
+
+    expect(imageUrl).not.toContain("&copy=");
+    expect(parsedUrl.searchParams.has("payload")).toBe(true);
+    expect(response.status).toBe(200);
   });
 
   it("renders bookmarks entity", async () => {

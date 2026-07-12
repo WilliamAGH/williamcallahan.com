@@ -194,6 +194,14 @@ describe("Search API: GET /api/search/all", () => {
       expect(data.meta).toHaveProperty("scope", "all");
       expect(data.meta).toHaveProperty("count");
       expect(data.meta).toHaveProperty("timestamp");
+      expect(data.results).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "book",
+            title: expect.stringContaining("[Books]"),
+          }),
+        ]),
+      );
 
       // Each result should have the required fields
       for (const result of data.results) {
