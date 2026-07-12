@@ -145,7 +145,8 @@ export class S3Operations {
    * Process the retry queue for failed uploads
    */
   private processRetryQueue(): void {
-    if (!this.getLogo) return;
+    const getLogo = this.getLogo;
+    if (!getLogo) return;
 
     const now = getDeterministicTimestamp();
     for (const [key, retry] of this.uploadRetryQueue.entries()) {
@@ -158,9 +159,10 @@ export class S3Operations {
         // Use retryWithOptions for consistent retry behavior
         void retryWithOptions(
           async () => {
-            const result = await this.getLogo!(retry.sourceUrl);
+            const result = await getLogo(retry.sourceUrl);
             if (!result.cdnUrl) {
-              throw new Error(result.error || "Logo fetch failed");
+              if (result.error) throw new Error(result.error);
+              throw new Error("Logo fetch completed without a CDN URL");
             }
             return result;
           },
@@ -177,12 +179,11 @@ export class S3Operations {
           },
         )
           .then((result) => {
-            if (result?.cdnUrl) {
-              this.uploadRetryQueue.delete(key);
+            this.uploadRetryQueue.delete(key);
+            if (result.success) {
               logger.info(`[S3Operations] Retry successful for ${key}`);
             } else {
-              this.uploadRetryQueue.delete(key);
-              logger.error("[S3Operations] Retries exhausted without CDN URL", { key });
+              logger.error("[S3Operations] All retries failed", result.error, { key });
             }
             return undefined;
           })

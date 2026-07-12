@@ -26,6 +26,7 @@ import {
   type GithubContributorStatsEntry,
 } from "@/types/github";
 import { GITHUB_API_RATE_LIMIT_CONFIG } from "@/lib/constants";
+import type { Result } from "@/types/lib";
 // GitHub API configuration
 const GITHUB_API_TOKEN =
   process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH ||
@@ -286,7 +287,7 @@ export function getGitHubApiToken(): string | undefined {
 export async function fetchWithAdvancedRetry<T>(
   operation: () => Promise<T>,
   context: string,
-): Promise<T | null> {
+): Promise<Result<T>> {
   return retryWithOptions(operation, {
     ...RETRY_CONFIGS.GITHUB_API,
     onRetry: (error: unknown, attempt: number) => {

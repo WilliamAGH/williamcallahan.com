@@ -8,7 +8,7 @@
  *
  * === CLEAR INCLUSION RULES ===
  * ✅ DO ADD:
- *   - Generic utility function return types (e.g., RetryResult<T>)
+ *   - Generic utility function return types
  *   - Shared configuration types (e.g., CacheOptions, RetryOptions)
  *   - Infrastructure types (async operations, job queues, rate limiting)
  *   - Hook return/config types that are domain-agnostic
@@ -109,12 +109,6 @@ export interface RetryConfig {
   onRetry?: (error: unknown, attempt: number) => void;
   /** Whether to log debug messages */
   debug?: boolean;
-}
-
-/** Extended result that includes retry information */
-export interface RetryResult<T> extends OperationResult<T> {
-  /** Number of attempts made */
-  attempts: number;
 }
 
 // =============================================================================
