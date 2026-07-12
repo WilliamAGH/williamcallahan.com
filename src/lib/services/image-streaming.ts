@@ -9,6 +9,7 @@
 
 import { Upload, type Progress } from "@aws-sdk/lib-storage";
 import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import type { StreamToS3Options, StreamingResult } from "@/types/s3-cdn";
 import { guessImageContentType } from "../utils/content-type";
 
@@ -71,14 +72,16 @@ export async function streamToS3(
   let nodeStream: Readable | null = null;
   let timeoutId: NodeJS.Timeout | null = null;
   let upload: Upload | null = null;
-  let timeoutError: Error | null = null;
 
   const abortStreamingResources = async (): Promise<void> => {
     if (upload) {
       try {
         await upload.abort();
       } catch (abortError) {
-        console.warn("[ImageStreaming] Failed to abort S3 upload after timeout:", abortError);
+        console.warn(
+          "[ImageStreaming] Failed to abort S3 upload after streaming failure:",
+          abortError,
+        );
       }
     }
     if (nodeStream && !nodeStream.destroyed) {
@@ -107,7 +110,7 @@ export async function streamToS3(
       params: {
         Bucket: options.bucket,
         Key: options.key,
-        Body: nodeStream.pipe(monitor),
+        Body: monitor,
         ContentType: options.contentType,
         CacheControl: "public, max-age=31536000, immutable",
         ACL: "public-read",
@@ -130,22 +133,16 @@ export async function streamToS3(
       }
     });
 
-    const uploadDone = upload.done();
-    uploadDone.catch((error: unknown) => {
-      if (timeoutError) {
-        console.warn("[ImageStreaming] Upload rejected after timeout cleanup:", error);
-      }
-    });
-
     const timeoutPromise = new Promise<never>((_resolve, reject) => {
       timeoutId = setTimeout(() => {
-        timeoutError = new Error(`[ImageStreaming] Stream timeout after ${STREAM_TIMEOUT_MS}ms`);
-        console.error(timeoutError.message);
-        reject(timeoutError);
+        reject(new Error(`[ImageStreaming] Stream timeout after ${STREAM_TIMEOUT_MS}ms`));
       }, STREAM_TIMEOUT_MS);
     });
 
-    const result = await Promise.race([uploadDone, timeoutPromise]);
+    const [result] = await Promise.race([
+      Promise.all([upload.done(), pipeline(nodeStream, monitor)]),
+      timeoutPromise,
+    ]);
 
     if (!result?.Location) {
       throw new Error("S3 upload finished without returning a location.");
@@ -157,11 +154,8 @@ export async function streamToS3(
       bytesStreamed: monitor.getBytesStreamed(),
     };
   } catch (error: unknown) {
-    const reportedError =
-      timeoutError ?? (error instanceof Error ? error : new Error(String(error)));
-    if (timeoutError) {
-      await abortStreamingResources();
-    }
+    const reportedError = error instanceof Error ? error : new Error(String(error));
+    await abortStreamingResources();
     console.error(`[ImageStreaming] Failed to stream to S3:`, reportedError);
     return {
       success: false,
@@ -174,13 +168,12 @@ export async function streamToS3(
       clearTimeout(timeoutId);
     }
 
-    // Ensure stream is properly closed
+    // Ensure streams are closed if setup did not reach the pipeline.
     if (nodeStream && !nodeStream.destroyed) {
-      try {
-        nodeStream.destroy();
-      } catch (cleanupError) {
-        console.warn("[ImageStreaming] Error during stream cleanup:", cleanupError);
-      }
+      nodeStream.destroy();
+    }
+    if (!monitor.destroyed) {
+      monitor.destroy();
     }
   }
 }

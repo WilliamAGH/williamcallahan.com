@@ -72,7 +72,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 1. `selectBestImage` (bookmarks) or `selectBestOpenGraphImage` (OG fetch path) chooses between CDN hashes, Karakeep `imageAssetId`, `screenshotAssetId`, or standard OG URLs.
 2. `/api/assets/[assetId]` (Karakeep proxy) validates UUID, resolves S3 keys by canonical `assetId + extension`, and writes missing assets using `createMonitoredStream` + `writeBinaryS3`.
-3. `/api/og-image` handles S3 keys, asset IDs, direct URLs, and bookmark fallbacks. It uses `openGraphUrlSchema`, `sanitizePath`, `IMAGE_SECURITY_HEADERS`, and `getUnifiedImageService().getImage()` for external fetches.
+3. `/api/og-image` handles S3 keys, asset IDs, direct URLs, and bookmark fallbacks. It uses `openGraphUrlSchema`, `sanitizePath`, `IMAGE_SECURITY_HEADERS`, and `getUnifiedImageService().getImage()` for external fetches. Generic image requests preserve the supplied URL; only explicit `getLogo()` calls start domain-level logo discovery.
 4. `<OptimizedCardImage>` uses Next/Image to render whichever URL results. If the URL points to `/api/assets` or `/api/og-image`, the API response returns a CDN redirect or raw bytes with 1-year TTLs.
 
 ### Social / Twitter Proxy
@@ -110,7 +110,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 ## Security & Reliability Invariants
 
-1. **SSRF Defense** – `openGraphUrlSchema`, `assetIdSchema`, `sanitizePath`, `isLogoUrl`, and `url-utils` block private IP ranges, non-HTTP schemes, credentials, suspicious ports.
+1. **SSRF Defense** – `safeUrlSchema`, inherited by `openGraphUrlSchema` and `logoUrlSchema`, blocks private IP ranges, non-HTTP schemes, credentials, and suspicious ports. `sanitizePath` separately validates local paths.
 2. **Hostname Allowing** – All remote origins must appear in `CALLAHAN_IMAGE_HOSTS` or explicit `remotePatterns`. CDN URL validation compares parsed host + base path to prevent prefix spoofing before proxying requests. Adding a CDN requires updating env vars + `next.config.ts`.
 3. **Bounded IO Paths** – large fetch/upload flows use explicit size/time boundaries and streaming fallback paths.
 4. **Streaming Re-fetch** – When a streaming upload consumes the response body and fails, the image service re-fetches before buffering; Response bodies are single-use, so buffering must use a fresh fetch.
