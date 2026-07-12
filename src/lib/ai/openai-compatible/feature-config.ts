@@ -7,7 +7,7 @@ import type {
 import { requireEmbeddingSpaceIdForProviderModelId } from "@/lib/ai/embeddings/embedding-space-registry";
 
 const DEFAULT_BASE_URL = "https://api.llm-gateway.iocloudhost.net";
-const DEFAULT_MODEL = "qwen3.6:onprem";
+const DEFAULT_MODEL = "gemma-4-26b-a4b";
 const DEFAULT_MAX_PARALLEL = 1;
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-qwen3-embedding-4b";
 

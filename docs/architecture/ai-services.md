@@ -83,7 +83,7 @@ For a route param `feature`, the server resolves configuration with this precede
    - `AI_DEFAULT_MAX_PARALLEL` (optional; default: 1)
 3. Built-in non-secret defaults:
    - `baseUrl = https://api.llm-gateway.iocloudhost.net`
-   - `model = qwen3.6:onprem`
+   - `model = gemma-4-26b-a4b`
    - `maxParallel = 1`
    - no API key
 
