@@ -13,7 +13,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
-import Script from "next/script";
 import "./globals.css";
 // Import our custom code block styling
 import "./code-blocks.css";
@@ -136,72 +135,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           This is important for modern browsers to respect user's theme preference.
         */}
         <meta name="color-scheme" content="light dark" />
-
-        {/* Legacy fix – only apply when the native push is non-writable */}
-        {/*
-         * ────────────────────────────────────────────────────────────────────────────
-         * Router-patch micro-task rationale (Next.js 15 / React 19)
-         *
-         * We intentionally queue the second `patchPush()` run inside
-         * `Promise.resolve().then()` *inside* the inline script below.  This ensures
-         * the patch executes **after**
-         *   1. React hydration has completed, and
-         *   2. Next.js’ own router initialisation has monkey-patched
-         *      `window.history.pushState/replaceState`.
-         *
-         * Removing that micro-task can create non-deterministic race conditions
-         * (especially with streaming hydration) and is **not** recommended by the
-         * current React 19 and Next.js 15 docs.  If you are tempted to simplify it
-         * to a direct call, please first read:
-         *   – https://react.dev/reference/react/useEffect#avoiding-hydration-mismatches
-         *   – https://nextjs.org/docs/app/building-your-application/optimizing#post-hydration-scripts
-         *
-         * @internal  Guard against future “optimisation” PRs that remove the
-         *            micro-task.  Tests relying on client routing will fail.
-         */}
-        <Script id="webpack-readonly-push-fix" strategy="beforeInteractive">
-          {`(() => {
-  const root = typeof self !== 'undefined' ? self : window;
-
-  /**
-   * Attempt to make webpackChunk_N_E.push writable (or add it) in a way that
-   * never throws and runs at least twice: once immediately and once after the
-   * Webpack runtime has executed.  This guards against timing races in Safari
-   * where the non-writable own property sometimes appears *after* our first
-   * check.
-   */
-  function patchPush() {
-    try {
-      const arr = root["webpackChunk_N_E"];
-      if (!Array.isArray(arr)) return; // nothing to fix yet
-
-      const desc = Object.getOwnPropertyDescriptor(arr, "push");
-
-      // If push is missing OR non-writable *and* still configurable, replace it.
-      if (!desc || (desc.writable === false && desc.configurable !== false)) {
-        Object.defineProperty(arr, "push", {
-          configurable: true,
-          enumerable: false,
-          writable: true,
-          value: Array.prototype.push.bind(arr),
-        });
-      }
-    } catch {
-      /* silence – defensive patch only */
-    }
-  }
-
-  // First attempt immediately.
-  patchPush();
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', patchPush, { once: true });
-  } else {
-    // keep micro-task
-    Promise.resolve().then(patchPush);
-  }
-})();`}
-        </Script>
       </head>
       <body className={`${inter.className} overflow-x-hidden`} suppressHydrationWarning>
         <Providers>
