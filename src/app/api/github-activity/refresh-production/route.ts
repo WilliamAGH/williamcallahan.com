@@ -8,6 +8,7 @@
  * authentication and only works from non-production environments.
  */
 
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getErrorMessage } from "@/types/api-responses";
@@ -34,6 +35,12 @@ export async function POST(): Promise<NextResponse> {
       { message: "This endpoint is only available in non-production environments" },
       { status: 403 },
     );
+  }
+
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // Get the production refresh secret

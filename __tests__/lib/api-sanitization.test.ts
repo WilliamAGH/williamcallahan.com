@@ -13,6 +13,8 @@ import {
   sanitizeUrl,
 } from "@/lib/utils/api-sanitization";
 import type { BlogPost } from "@/types/blog";
+import { NextRequest } from "next/server";
+import { validateAuthSecret } from "@/lib/utils/api-utils";
 
 describe("API Sanitization Utilities", () => {
   describe("sanitizeBlogPost", () => {
@@ -313,5 +315,29 @@ describe("API Sanitization Utilities", () => {
 
       expect(sanitized).toBe(url);
     });
+  });
+});
+
+describe("API secret validation", () => {
+  const requestWithAuthorization = (authorization?: string): NextRequest =>
+    new NextRequest("https://williamcallahan.com/api/health/metrics", {
+      headers: authorization ? { authorization } : undefined,
+    });
+
+  it.each(["health-secret", "Bearer health-secret"])("accepts %s", (authorization) => {
+    expect(validateAuthSecret(requestWithAuthorization(authorization), "health-secret")).toBe(true);
+  });
+
+  it.each([undefined, "wrong", "Bearer wrong", "health-secret-extra", "héalth-secret"])(
+    "rejects a missing or mismatched authorization value",
+    (authorization) => {
+      expect(validateAuthSecret(requestWithAuthorization(authorization), "health-secret")).toBe(
+        false,
+      );
+    },
+  );
+
+  it("rejects a missing configured secret", () => {
+    expect(validateAuthSecret(requestWithAuthorization("health-secret"), undefined)).toBe(false);
   });
 });

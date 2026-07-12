@@ -10,6 +10,14 @@
 import * as Sentry from "@sentry/nextjs";
 import type { Instrumentation } from "next";
 
+const SENSITIVE_REQUEST_HEADERS = new Set([
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "proxy-authorization",
+  "x-api-key",
+]);
+
 export async function register() {
   // Skip all instrumentation in development to reduce memory overhead
   if (process.env.NODE_ENV === "development") {
@@ -29,5 +37,17 @@ export async function register() {
 }
 
 export const onRequestError: Instrumentation.onRequestError = (error, request, context) => {
-  Sentry.captureRequestError(error, request, context);
+  Sentry.captureRequestError(
+    error,
+    {
+      ...request,
+      headers: Object.fromEntries(
+        Object.entries(request.headers).map(([name, value]) => [
+          name,
+          SENSITIVE_REQUEST_HEADERS.has(name.toLowerCase()) ? "[REDACTED]" : value,
+        ]),
+      ),
+    },
+    context,
+  );
 };

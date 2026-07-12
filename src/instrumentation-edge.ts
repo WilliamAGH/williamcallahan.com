@@ -16,51 +16,6 @@ let sentryInitialized = false;
 
 import { resolveSentryEnvironment } from "@/lib/sentry/resolve-environment";
 
-const SENSITIVE_HEADER_NAMES = new Set([
-  "authorization",
-  "cookie",
-  "set-cookie",
-  "proxy-authorization",
-  "x-api-key",
-]);
-
-function redactSensitiveHeaders(
-  headers: Record<string, string | string[] | undefined>,
-): Record<string, string | string[] | undefined> {
-  return Object.fromEntries(
-    Object.entries(headers).map(([name, value]) => [
-      name,
-      SENSITIVE_HEADER_NAMES.has(name.toLowerCase()) ? "[REDACTED]" : value,
-    ]),
-  );
-}
-
-function buildRedactedRequest(request: {
-  path: string;
-  method: string;
-  headers: Record<string, string | string[] | undefined>;
-}): { path: string; method: string; headers: Record<string, string | string[] | undefined> } {
-  return {
-    ...request,
-    headers: redactSensitiveHeaders(request.headers),
-  };
-}
-
-function normalizeRequestErrorForCapture(error: unknown, routePath: string): unknown {
-  if (!(error instanceof Error)) {
-    return error;
-  }
-
-  if (error.message.trim().length > 0) {
-    return error;
-  }
-
-  const normalized = new Error(`Request error with empty message (route: ${routePath})`);
-  normalized.name = error.name;
-  normalized.stack = error.stack;
-  return normalized;
-}
-
 function resolveEdgeDsn(): string | null {
   const privateDsn = process.env.SENTRY_DSN?.trim();
   if (privateDsn && privateDsn.length > 0) {
@@ -135,37 +90,4 @@ export async function register(): Promise<void> {
   });
 
   sentryInitialized = true;
-}
-
-/*
- * onRequestError(): capture request-scoped errors in Edge runtime.
- */
-export function onRequestError(
-  error: unknown,
-  request: { path: string; method: string; headers: Record<string, string | string[] | undefined> },
-  context: { routerKind: string; routePath: string; routeType: string },
-): void {
-  const redactedRequest = buildRedactedRequest(request);
-  const captureError = normalizeRequestErrorForCapture(error, context.routePath);
-
-  if (!sentryInitialized) {
-    console.error(
-      "[EdgeInstrumentation] Sentry SDK not initialized; logging edge request error to console.",
-      error,
-      { request: redactedRequest, context },
-    );
-    return;
-  }
-
-  if (typeof Sentry.captureRequestError === "function") {
-    Sentry.captureRequestError(captureError, request, context);
-    return;
-  }
-
-  Sentry.captureException(captureError, {
-    extra: {
-      request: redactedRequest,
-      context,
-    },
-  });
 }
