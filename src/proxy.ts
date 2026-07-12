@@ -205,12 +205,13 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
 
 /** Create the proxy handler - conditionally wraps with Clerk if configured. */
 async function createProxy(): Promise<ProxyFunction> {
+  if (isClerkPartiallyConfigured) {
+    throw new Error(
+      "[Proxy] Clerk is partially configured; both NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY are required.",
+    );
+  }
+
   if (!isClerkConfigured) {
-    if (isClerkPartiallyConfigured) {
-      console.warn(
-        "[Proxy] Clerk is partially configured; skipping clerkMiddleware until both publishable and secret keys are present.",
-      );
-    }
     return (request: NextRequest) => proxyHandler(request);
   }
 

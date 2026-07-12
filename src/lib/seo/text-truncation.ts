@@ -213,8 +213,10 @@ export function gradientTruncate(
         : overageRatio < MEDIUM_OVERAGE_RATIO
           ? { text: mediumTruncate(safeString, options), strategy: "parenthetical" as const }
           : { text: heavyTruncate(safeString, options), strategy: "keyword" as const };
-  const truncated = attempted.text ?? hardTruncated;
-  const method = attempted.text ? attempted.strategy : "hard";
+  const selected = attempted.text;
+  const usedSelected = selected !== null && selected.length > 0;
+  const truncated = usedSelected ? selected : hardTruncated;
+  const method = usedSelected ? attempted.strategy : "hard";
 
   return createResult({
     original: normalized,

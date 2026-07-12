@@ -91,7 +91,7 @@ Server functions that can run in CLI contexts use `cacheContextGuards` before ca
 - **Request time**: forwarded normally
 
 ```typescript
-cacheContextGuards.cacheTag("domain-tag");
+cacheContextGuards.cacheTag("AiAnalysis", "domain-tag");
 cacheContextGuards.cacheLife("AiAnalysis", "max");
 cacheContextGuards.expireTag("AiAnalysis", "ai-analysis-bookmarks-abc");
 ```

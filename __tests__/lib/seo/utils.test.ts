@@ -74,6 +74,23 @@ describe("SEO Utilities", () => {
       expect(result.text).toBe(text);
       expect(result.wasTruncated).toBe(false);
     });
+
+    it.each([
+      ["the a", { softLimit: 4, hardLimit: 24 }],
+      ["(abc)", { softLimit: 3, hardLimit: 6 }],
+    ])(
+      "uses the hard fallback when a truncation strategy returns an empty string",
+      (text, limits) => {
+        const result = gradientTruncate(text, {
+          ...limits,
+          ellipsis: "...",
+          contentType: "description",
+        });
+
+        expect(result.text).not.toBe("");
+        expect(result.strategy).toBe("hard");
+      },
+    );
   });
 
   describe("formatSeoDate", () => {
