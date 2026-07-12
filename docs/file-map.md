@@ -67,8 +67,8 @@ File/Path Functionality Description
     - [x] `standard-tweet-embed.client.tsx` `blog-article` - Standard tweet embedding component
     - [x] `tweet-embed.tsx` `blog-article` - Embeds tweets using react-tweet and an image proxy
   - [x] **blog-article/**
-    - [x] `blog-article.client.tsx` `blog-article` - Renders article content and metadata
-    - [x] `blog-wrapper.tsx` `blog-article` - Dynamic import wrapper for hydration
+    - [x] `blog-article.client.tsx` `blog-article` - Server-owned article shell; interactive leaves retain client boundaries
+    - [x] `blog-wrapper.tsx` `blog-article` - Legacy unreferenced dynamic wrapper outside the active detail route
     - [x] `index.ts` `blog-article` - Removed; import blog article components from concrete files
     - [x] `mdx-content.tsx` `blog-article` - Server wrapper for the MDX renderer, now delegating to a React 19-safe cached evaluator instead of `next-mdx-remote`
     - [x] `software-schema.tsx` `terminal` - Inserts SoftwareApplication schema.org metadata

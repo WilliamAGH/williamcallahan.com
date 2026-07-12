@@ -10,8 +10,8 @@ The "blog-article" functionality encompasses components and utilities that manag
 
 - **components/features/blog/standard-tweet-embed.client.tsx**: A component for embedding tweets in blog articles using a standard approach.
 - **components/features/blog/tweet-embed.tsx**: Embeds tweets using react-tweet with an image proxy for enhanced display in blog content.
-- **components/features/blog/blog-article/blog-article.client.tsx**: Client-side component for rendering article content and metadata.
-- **components/features/blog/blog-article/blog-wrapper.tsx**: Dynamic import wrapper for hydration optimization of blog articles.
+- **components/features/blog/blog-article/blog-article.client.tsx**: Server-owned article shell for content and metadata; interactive descendants retain focused client boundaries.
+- **components/features/blog/blog-article/blog-wrapper.tsx**: Legacy unreferenced dynamic wrapper; it is not part of the blog detail route.
 - **components/features/blog/blog-article/\***: Blog article components are imported directly from concrete files (barrel removed).
 - **components/features/blog/blog-article/mdx-content.tsx**: MDX renderer with styled elements for blog article content. Uses an internal, cached evaluator (not `next-mdx-remote`'s hook-driven renderer) so React 19 server renders don't trip the `useState` dispatcher error.
 - **components/features/blog/blog-article/software-schema.tsx**: Inserts SoftwareApplication schema.org metadata for SEO in blog articles.
@@ -62,7 +62,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 
 ## Logic Flow and Interactions
 
-- Blog article content starts with **blog-wrapper.tsx** for optimized loading, delegating rendering to **blog-article.client.tsx** for client-side interactivity and metadata display.
+- Blog article content starts in **app/blog/[slug]/page.tsx**, which renders the server-owned **blog-article.client.tsx** shell. Author, image, and MDX leaves retain their focused client boundaries.
 - Content is processed through **mdx-content.tsx** for styled MDX rendering. It uses components from the `interactive-containers` functionality (e.g., `CollapseDropdown`) to create dynamic sections within the article. It also uses specialized components like **mdx-table.server.tsx** for server-side table rendering.
 - Social media integration is handled by **standard-tweet-embed.client.tsx** and **tweet-embed.tsx**, with image proxying supported by the API route **twitter-image/\[...path]/route.ts**.
 - SEO is enhanced with structured data via **software-schema.tsx** for specific content types within articles.
