@@ -157,17 +157,17 @@ describe("OpenAI-Compatible AI Utilities", () => {
   });
 
   describe("upstream-request-queue", () => {
-    it("updates maxParallel when re-requested for the same key", async () => {
+    it("keeps maxParallel immutable for a shared upstream", async () => {
       vi.resetModules();
       const { getUpstreamRequestQueue } =
         await import("@/lib/ai/openai-compatible/upstream-request-queue");
       const first = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 1 });
       expect(first.snapshot.maxParallel).toBe(1);
-      const increased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 5 });
-      expect(increased).toBe(first);
-      expect(increased.snapshot.maxParallel).toBe(5);
-      const decreased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 2 });
-      expect(decreased.snapshot.maxParallel).toBe(2);
+      expect(getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 1 })).toBe(first);
+      expect(() => getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 5 })).toThrow(
+        "Conflicting maxParallel values for shared upstream test-upstream: 1 and 5",
+      );
+      expect(first.snapshot.maxParallel).toBe(1);
     });
 
     it("rejects result when aborting a running task", async () => {

@@ -5,11 +5,14 @@ import {
   reasoningEffortSchema,
 } from "@/types/schemas/ai-openai-compatible";
 
-export const aiFeatureIdentifierSchema = z
-  .string()
-  .min(1)
-  .max(50)
-  .regex(/^[a-z0-9_-]+$/);
+export const aiFeatureIdentifierSchema = z.enum([
+  "terminal_chat",
+  "bookmark-analysis",
+  "book-analysis",
+  "project-analysis",
+]);
+
+export type AiFeatureIdentifier = z.infer<typeof aiFeatureIdentifierSchema>;
 
 export const requestBodySchema = z
   .object({

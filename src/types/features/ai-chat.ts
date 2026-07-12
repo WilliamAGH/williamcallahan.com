@@ -1,6 +1,10 @@
 import type { NextRequest } from "next/server";
 import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import type { ParsedRequestBody, SearchToolResult } from "@/types/schemas/ai-chat";
+import type {
+  AiFeatureIdentifier,
+  ParsedRequestBody,
+  SearchToolResult,
+} from "@/types/schemas/ai-chat";
 import type {
   AiUpstreamApiMode,
   OpenAiCompatibleChatMessage,
@@ -132,7 +136,7 @@ export type UpstreamTurnOutcome =
     };
 
 /** Feature identifiers that have structured analysis output schemas */
-export type AnalysisFeatureId = "bookmark-analysis" | "book-analysis" | "project-analysis";
+export type AnalysisFeatureId = Exclude<AiFeatureIdentifier, "terminal_chat">;
 
 /** Configuration bag passed to createUpstreamRunner */
 export type UpstreamRunnerConfig = {

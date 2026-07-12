@@ -10,6 +10,7 @@ import { isAbortError } from "@/app/api/ai/chat/[feature]/upstream-error";
 import { persistAnalysis as writeAnalysis } from "@/lib/ai-analysis/writer.server";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { isOperationAllowed } from "@/lib/rate-limiter";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
 
 vi.mock("@/lib/ai/rag", () => ({
   buildContextForQuery: vi.fn().mockImplementation((query: string) =>
@@ -68,6 +69,11 @@ function buildAnalysisPersistRequest(origin: string): NextRequest {
 describe("AI Chat RAG Helpers", () => {
   beforeEach(() => {
     mockedBuildContextForQuery.mockClear();
+  });
+
+  it("rejects unsupported feature keys at the route boundary", () => {
+    expect(aiFeatureIdentifierSchema.safeParse("terminal_chat").success).toBe(true);
+    expect(aiFeatureIdentifierSchema.safeParse("attacker-controlled").success).toBe(false);
   });
 
   it("expands anaphoric follow-up queries using previous user context", async () => {

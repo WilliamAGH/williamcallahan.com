@@ -16,23 +16,14 @@ import type {
   AiChatBookmarkContext,
   LogChatMessageParams,
 } from "@/types/schemas/ai-chat-message-log";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
 
 /**
  * Categorizes the feature string into a known source type
  */
 function categorizeSource(feature: string): AiChatSource {
-  switch (feature) {
-    case "terminal_chat":
-      return "terminal_chat";
-    case "bookmark-analysis":
-      return "bookmark-analysis";
-    case "book-analysis":
-      return "book-analysis";
-    case "project-analysis":
-      return "project-analysis";
-    default:
-      return "unknown";
-  }
+  const parsed = aiFeatureIdentifierSchema.safeParse(feature);
+  return parsed.success ? parsed.data : "unknown";
 }
 
 /**
