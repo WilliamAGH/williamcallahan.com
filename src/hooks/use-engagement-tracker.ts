@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
+import { PRODUCTION_HOSTNAME } from "@/lib/config/site-identity";
 import type { EngagementContentType, EngagementEvent } from "@/types/schemas/engagement";
 
 const ENGAGEMENT_ENDPOINT = "/api/engagement";
@@ -40,10 +41,10 @@ function getNowMs(): number {
 
 export function useEngagementTracker() {
   const impressionsRef = useRef<EngagementEvent[]>([]);
-  const dntEnabledRef = useRef(false);
+  const trackingDisabledRef = useRef(false);
 
   const flushImpressions = useCallback(() => {
-    if (dntEnabledRef.current || impressionsRef.current.length === 0) {
+    if (trackingDisabledRef.current || impressionsRef.current.length === 0) {
       return;
     }
 
@@ -53,9 +54,10 @@ export function useEngagementTracker() {
   }, []);
 
   useEffect(() => {
-    dntEnabledRef.current = typeof navigator !== "undefined" && navigator.doNotTrack === "1";
+    trackingDisabledRef.current =
+      location.hostname !== PRODUCTION_HOSTNAME || navigator.doNotTrack === "1";
 
-    if (dntEnabledRef.current) {
+    if (trackingDisabledRef.current) {
       return;
     }
 
@@ -83,7 +85,7 @@ export function useEngagementTracker() {
   }, [flushImpressions]);
 
   const trackImpression = useCallback((contentType: EngagementContentType, contentId: string) => {
-    if (dntEnabledRef.current) {
+    if (trackingDisabledRef.current) {
       return;
     }
 
@@ -95,7 +97,7 @@ export function useEngagementTracker() {
   }, []);
 
   const trackDwell = useCallback((contentType: EngagementContentType, contentId: string) => {
-    if (dntEnabledRef.current) {
+    if (trackingDisabledRef.current) {
       return () => {};
     }
 
@@ -141,7 +143,7 @@ export function useEngagementTracker() {
 
   const trackExternalClick = useCallback(
     (contentType: EngagementContentType, contentId: string) => {
-      if (dntEnabledRef.current) {
+      if (trackingDisabledRef.current) {
         return;
       }
 

@@ -145,6 +145,9 @@ Client events → POST /api/engagement → content_engagement table
                         Client SWR receives ranked bookmarks
 ```
 
+Engagement collection runs only on the canonical production hostname. Development and preview
+deployments remain read-only and do not send engagement requests.
+
 **Engagement Events** (validated by Zod schema in `types/schemas/engagement.ts`):
 
 - `impression`: Bookmark enters viewport (IntersectionObserver)

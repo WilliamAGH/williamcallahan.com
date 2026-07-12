@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
+import { PRODUCTION_HOSTNAME } from "@/lib/config/site-identity";
 import { engagementBatchSchema } from "@/types/schemas/engagement";
 
 function parseBeaconPayload(rawPayload: unknown) {
@@ -14,6 +15,7 @@ describe("useEngagementTracker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    vi.stubGlobal("location", { hostname: PRODUCTION_HOSTNAME });
 
     Object.defineProperty(window.navigator, "doNotTrack", {
       configurable: true,
@@ -30,6 +32,7 @@ describe("useEngagementTracker", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("disables tracking when doNotTrack is enabled", () => {
@@ -48,6 +51,22 @@ describe("useEngagementTracker", () => {
     });
 
     act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(sendBeaconMock).not.toHaveBeenCalled();
+  });
+
+  it("disables tracking outside the production hostname", () => {
+    vi.stubGlobal("location", { hostname: "dev.williamcallahan.com" });
+
+    const { result } = renderHook(() => useEngagementTracker());
+
+    act(() => {
+      result.current.trackImpression("bookmark", "abc");
+      result.current.trackExternalClick("bookmark", "abc");
+      const cleanup = result.current.trackDwell("bookmark", "abc");
+      cleanup();
       vi.advanceTimersByTime(30_000);
     });
 
