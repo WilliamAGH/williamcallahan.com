@@ -218,7 +218,7 @@ Core data model with fields for:
 
 ### Bookmark Slug Storage
 
-Bookmark arrays, list/page/tag indexes, and slug lookups are PostgreSQL-backed. Detail routes resolve the slug directly from the bookmarks table before falling back to the in-memory reverse map built from PostgreSQL rows.
+Bookmark arrays, list/page/tag indexes, and slug lookups are PostgreSQL-backed. Detail routes resolve a slug with one indexed lookup, then check the same value as a bookmark ID with a second indexed lookup.
 
 Embedded slugs are treated as the source of truth during refreshes; metadata-only updates preserve existing slugs
 to avoid URL churn when titles or OpenGraph descriptions change.
