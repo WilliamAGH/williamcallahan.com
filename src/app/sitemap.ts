@@ -69,11 +69,8 @@ let inFlightSitemapBuild: Promise<MetadataRoute.Sitemap> | null = null;
 const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
   const siteUrl = siteMetadata.site.url;
 
-  // Blog collector is synchronous (filesystem reads); call directly.
-  const blogData = collectBlogSitemapData(siteUrl);
-
-  // Async collectors run in parallel.
-  const [bookmarkData, tagData, bookData, thoughtData] = await Promise.all([
+  const [blogData, bookmarkData, tagData, bookData, thoughtData] = await Promise.all([
+    collectBlogSitemapData(siteUrl),
     collectBookmarkSitemapData(siteUrl),
     collectTagSitemapData(siteUrl),
     collectBookSitemapData(siteUrl),
