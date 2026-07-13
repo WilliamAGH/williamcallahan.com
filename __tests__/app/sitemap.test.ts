@@ -6,6 +6,7 @@
 
 import type { MockedFunction } from "vitest";
 import sitemap from "@/app/sitemap";
+import { getAllPostsMeta } from "@/lib/blog";
 import {
   getBookmarksIndex,
   getBookmarksPage,
@@ -39,22 +40,6 @@ vi.mock("@/data/education", () => ({ education: [], updatedAt: "2024-01-01" }));
 vi.mock("@/data/experience", () => ({ experience: [], updatedAt: "2024-01-01" }));
 vi.mock("@/data/investments", () => ({ investments: [], updatedAt: "2024-01-01" }));
 vi.mock("@/data/projects", () => ({ projects: [], updatedAt: "2024-01-01" }));
-
-vi.mock("fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("fs")>();
-  return {
-    ...actual,
-    readdirSync: vi.fn(() => ["test-post.mdx"]),
-    readFileSync: vi.fn(
-      () => `---
-title: Test Post
-publishedAt: '2024-01-01'
-updatedAt: '2024-01-02'
----
-Content`,
-    ),
-  };
-});
 
 const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
 const mockGetBookmarksPage = getBookmarksPage as MockedFunction<typeof getBookmarksPage>;
@@ -306,12 +291,17 @@ describe("Sitemap Generation", () => {
   });
 
   describe("Static Page Entries", () => {
-    it("includes all static pages with metadata", async () => {
+    it("includes static pages and frontmatter-canonical blog URLs with metadata", async () => {
       mockGetBookmarksIndex.mockResolvedValue(
         buildBookmarksIndex({ count: 0, totalPages: 0, lastModified: undefined }),
       );
 
       const sitemapEntries = await sitemap();
+      const sitemapUrls = sitemapEntries.map((entry) => entry.url);
+      const posts = await getAllPostsMeta();
+      const canonicalBlogUrls = posts.map(
+        (post) => `https://williamcallahan.com/blog/${post.slug}`,
+      );
       const expectedPages = [
         "https://williamcallahan.com/",
         "https://williamcallahan.com/blog",
@@ -328,6 +318,8 @@ describe("Sitemap Generation", () => {
         expect(entry?.changeFrequency).toBeDefined();
         expect(entry?.priority).toBeDefined();
       }
+
+      expect(sitemapUrls).toEqual(expect.arrayContaining(canonicalBlogUrls));
     });
   });
 });

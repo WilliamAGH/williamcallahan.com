@@ -1,27 +1,23 @@
 /**
  * Routes Module Tests
  *
- * Tests HTTP status codes for:
- * 1. Static Page Routes
- *    - Verifies all main site pages return 200 OK
- *    - Tests root and all top-level pages
- *
- * 2. Blog Post Routes
+ * Tests route contracts for:
+ * 1. Blog Post Routes
  *    - Verifies all blog post URLs return 200 OK
- *    - Uses actual MDX filenames as slugs
+ *    - Uses canonical frontmatter slugs
  *    - Tests each post in /data/blog/posts/
  *
- * 3. Sitemap URL Validation
+ * 2. Sitemap URL Validation
  *    - Verifies ALL URLs in sitemap.xml return 200 OK
  *    - Tests bookmarks, pagination, and all dynamic routes
  *    - Comprehensive smoke test to prevent 404 regressions
  */
 
-import fs from "node:fs";
 import path from "node:path";
-import { vi, type MockedFunction } from "vitest";
 import type { MetadataRoute } from "next";
+import { vi, type MockedFunction } from "vitest";
 import sitemap from "../../src/app/sitemap";
+import { getAllPostsMeta, getPostMetaBySlug } from "../../src/lib/blog";
 import {
   getBookmarksIndex,
   getBookmarksPage,
@@ -83,13 +79,6 @@ global.fetch = mockFetch as unknown as typeof fetch; // Assert type for assignme
 
 // Constants for test configuration
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-const BLOG_POSTS_DIR = path.join(process.cwd(), "data", "blog", "posts");
-
-// Helper to get all blog post slugs from MDX files
-const getBlogSlugs = (): string[] => {
-  const files = fs.readdirSync(BLOG_POSTS_DIR);
-  return files.filter((file) => file.endsWith(".mdx")).map((file) => file.replace(".mdx", ""));
-};
 
 describe("Routes Module", () => {
   // Reset mocks before each test
@@ -159,61 +148,39 @@ describe("Routes Module", () => {
     });
   });
 
-  describe("Static Page Routes", () => {
-    /**
-     * Test: Main Page Routes Status
-     *
-     * Verifies:
-     * 1. Each main page route returns 200 OK
-     * 2. Tests all top-level pages in the site
-     *
-     * Expected Behavior:
-     * - All routes should return HTTP 200
-     * - No redirects or errors
-     */
-    const routes = ["/", "/blog", "/bookmarks", "/education", "/experience", "/investments"];
-
-    test.each(routes)("route %s returns 200", async (route) => {
-      // Mock 200 response for existing routes
-      mockFetch.mockImplementationOnce(() =>
-        Promise.resolve({
-          status: 200,
-          ok: true,
-        }),
-      );
-
-      const response = await fetch(`${SITE_URL}${route}`);
-      expect(response.status).toBe(200);
-      expect(mockFetch).toHaveBeenCalledWith(`${SITE_URL}${route}`);
-    });
-  });
-
   describe("Blog Post Routes", () => {
     /**
      * Test: Blog Post Routes Status
      *
      * Verifies:
      * 1. Each blog post URL returns 200 OK
-     * 2. Tests using actual MDX filenames as slugs
+     * 2. Tests using canonical MDX frontmatter slugs
      *
      * Expected Behavior:
-     * - All blog post URLs should return HTTP 200
+     * - All canonical blog post URLs should return HTTP 200
      * - No missing or invalid routes
      */
-    const slugs = getBlogSlugs();
+    it("returns 200 for every canonical blog post URL", async () => {
+      for (const post of await getAllPostsMeta()) {
+        mockFetch.mockResolvedValueOnce({ status: 200, ok: true });
+        const url = `${SITE_URL}/blog/${post.slug}`;
+        const response = await fetch(url);
+        expect(response.status).toBe(200);
+        expect(mockFetch).toHaveBeenCalledWith(url);
+      }
+    });
 
-    test.each(slugs)("blog post %s returns 200", async (slug) => {
-      // Mock 200 response for existing blog posts
-      mockFetch.mockImplementationOnce(() =>
-        Promise.resolve({
-          status: 200,
-          ok: true,
-        }),
+    it("resolves a canonical slug whose MDX filename differs", async () => {
+      const posts = await getAllPostsMeta();
+      const mismatchedPost = posts.find(
+        (post) => post.filePath && path.basename(post.filePath, ".mdx") !== post.slug,
       );
+      if (!mismatchedPost)
+        throw new Error("Expected a post whose canonical slug differs from its filename.");
 
-      const response = await fetch(`${SITE_URL}/blog/${slug}`);
-      expect(response.status).toBe(200);
-      expect(mockFetch).toHaveBeenCalledWith(`${SITE_URL}/blog/${slug}`);
+      const resolvedPost = await getPostMetaBySlug(mismatchedPost.slug);
+      expect(resolvedPost?.slug).toBe(mismatchedPost.slug);
+      expect(resolvedPost?.filePath).toBe(mismatchedPost.filePath);
     });
   });
 
