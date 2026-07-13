@@ -19,6 +19,7 @@
  * @see {@link "https://developer.twitter.com/en/docs/twitter-for-websites/cards"} - Twitter Cards
  */
 
+import { updatedAt as educationUpdatedAt } from "@/data/education";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
 
@@ -130,7 +131,7 @@ export const PAGE_METADATA = {
     title: `Education & Certifications - ${SITE_NAME}`,
     description: `Learn about ${SITE_NAME}'s educational background, certifications, and continuous learning journey.`,
     dateCreated: "2025-02-10T12:42:00",
-    dateModified: "2025-11-04T12:42:00",
+    dateModified: educationUpdatedAt,
     bio: "Lifelong learner with a focus on technology, engineering, and finance.",
     interactionStats: {
       follows: 150,

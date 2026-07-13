@@ -21,27 +21,10 @@ Components:
 - **Client-Side Interactivity**: Search/filter/sort at `education.client.tsx:74-127` without re-fetching logos
 - **CV Flagging**: `data/education.ts` applies `cvFeatured` to surface a curated subset on the curriculum vitae page.
 
-## Data Structures
+## Data Validation
 
-```typescript
-// types/education.ts:12-27
-interface EducationBase {
-  id: string;
-  institution: string;
-  year: number;
-  website: string;
-  location: string;
-  logo?: string; // Static logo path fallback
-  logoScale?: number;
-  cvFeatured?: boolean; // Highlighted on the /cv page when true
-}
-
-// types/education.ts:62-65
-export interface EducationLogoData {
-  url: string; // Always CDN URL when available
-  source: string | null; // "s3-store" | "external" | "placeholder"
-}
-```
+`src/types/schemas/education.ts` is the canonical schema and validation owner;
+`data/education.ts` validates each exported static array through that module.
 
 ## Design Decisions
 

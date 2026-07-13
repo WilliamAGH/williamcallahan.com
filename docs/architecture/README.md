@@ -57,6 +57,7 @@ Example schemas:
 - OpenGraph data access delegates Next.js cache and refresh workflows to focused modules (`opengraph-next-cache.ts`, `opengraph-refresh.ts`) with shared cache guards (`opengraph-cache-context.ts`) (see `features/opengraph.md`).
 - Dynamic OG image generation uses a unified `/api/og/[entity]` route with per-entity layout renderers in `lib/og-image/layouts/`, SSRF-protected image fetching, and shared design tokens. All page `generateMetadata()` functions use `buildOgImageUrl()` from `lib/og-image/build-og-url.ts` (see `features/opengraph.md`).
 - Route protections: `src/proxy.ts` applies sitewide rate limiting for matched traffic.
+- `/api/health` returns only a lightweight public status/timestamp payload; raw system telemetry is available only through bearer-authenticated `/api/health/metrics`, with no `/status` page.
 - Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).
 - Image manifest warm-up is startup-critical in production: request-path logo lookups skip lazy S3 manifest fetches when warm-up fails to avoid cache-components prerender IO bailouts (see `image-handling.md`).

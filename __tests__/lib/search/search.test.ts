@@ -1,12 +1,3 @@
-/**
- * Search Function Tests
- *
- * Tests the search functions exported from lib/search.ts
- * Note: These tests use mocked data modules. MiniSearch behavior may differ
- * from expectations due to fuzzy matching and index building.
- */
-
-// Mock the imported data modules BEFORE imports
 vi.mock("@/data/investments", () => ({
   investments: [
     {
@@ -48,22 +39,26 @@ vi.mock("@/data/experience", () => ({
   ],
 }));
 
-vi.mock("@/data/education", () => ({
-  education: [
-    {
-      id: "1",
-      institution: "Test University",
-      degree: "Computer Science",
-    },
-  ],
-  certifications: [
-    {
-      id: "2",
-      institution: "Tech Cert",
-      name: "Advanced Programming",
-    },
-  ],
-}));
+vi.mock("@/data/education", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/education")>();
+  return {
+    ...actual,
+    education: [
+      {
+        id: "1",
+        institution: "Test University",
+        degree: "Computer Science",
+      },
+    ],
+    certifications: [
+      {
+        id: "2",
+        institution: "Tech Cert",
+        name: "Advanced Programming",
+      },
+    ],
+  };
+});
 
 vi.mock("@/data/projects", () => ({
   projects: [
@@ -88,7 +83,6 @@ vi.mock("@/data/projects", () => ({
   ],
 }));
 
-// Mock DB-backed search index artifacts to force in-memory index build with mocked data.
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
   getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
 }));
@@ -105,7 +99,6 @@ vi.mock("@/lib/ai/openai-compatible/feature-config", async (importOriginal) => {
   };
 });
 
-// Mock DB-backed hybrid search for investments and projects
 const mockHybridSearchInvestments = vi.fn();
 const mockHybridSearchProjects = vi.fn();
 vi.mock("@/lib/db/queries/hybrid-search-investments", () => ({
@@ -113,7 +106,6 @@ vi.mock("@/lib/db/queries/hybrid-search-investments", () => ({
   hybridSearchProjects: (...args: unknown[]) => mockHybridSearchProjects(...args),
 }));
 
-// Mock query embedding (requires AI endpoint not available in tests)
 vi.mock("@/lib/db/queries/query-embedding", () => ({
   buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
 }));

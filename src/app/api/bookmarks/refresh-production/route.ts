@@ -10,6 +10,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getErrorMessage } from "@/types/api-responses";
@@ -21,14 +22,11 @@ import { productionRefreshResponseSchema } from "@/types/schemas/api";
  */
 export async function POST(): Promise<NextResponse> {
   // Check if we're in a non-production environment
-  const isProduction =
-    process.env.DEPLOYMENT_ENV === "production" ||
-    process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
-
-  if (isProduction) {
+  const databaseAccess = resolveDatabaseAccessMode();
+  if (databaseAccess.allowWrites) {
     envLogger.log(
       "Production refresh endpoint called from production environment - not allowed",
-      undefined,
+      { environment: databaseAccess.environment, source: databaseAccess.source },
       {
         category: "BookmarksRefresh",
       },

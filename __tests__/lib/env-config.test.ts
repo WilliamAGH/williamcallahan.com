@@ -275,19 +275,18 @@ describe("Environment Variable Configuration", () => {
       expect(() => assertDatabaseWriteAllowed("test-operation")).not.toThrow();
     });
 
-    it("blocks writes when deployment environment is not production", async () => {
-      vi.stubEnv("NODE_ENV", "development");
-      process.env.DEPLOYMENT_ENV = "testing";
-      // Clear site URL so DEPLOYMENT_ENV fallback is exercised
-      Reflect.deleteProperty(process.env, "NEXT_PUBLIC_SITE_URL");
+    it("keeps the development site read-only when deployment environment is stale", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      process.env.DEPLOYMENT_ENV = "production";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://dev.williamcallahan.com";
 
       const { resolveDatabaseAccessMode, assertDatabaseWriteAllowed } =
         await import("@/lib/db/connection");
 
       expect(resolveDatabaseAccessMode()).toEqual({
         allowWrites: false,
-        environment: "test",
-        source: "DEPLOYMENT_ENV",
+        environment: "development",
+        source: "NEXT_PUBLIC_SITE_URL",
       });
       expect(() => assertDatabaseWriteAllowed("test-operation")).toThrow(
         'Blocked PostgreSQL write "test-operation"',

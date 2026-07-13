@@ -12,6 +12,7 @@
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { FocusTrap } from "@/components/ui/focusTrap.client";
 import { SocialIcons } from "@/components/ui/social-icons/social-icons.client";
 import { ExpandableNavItem } from "./expandable-nav-item.client";
 import { NavigationLink } from "./navigation-link.client";
@@ -32,6 +33,8 @@ export function Navigation() {
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           aria-label="Toggle menu"
+          aria-expanded={isMenuOpen}
+          aria-controls={isMenuOpen ? "mobile-menu" : undefined}
         >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -57,46 +60,49 @@ export function Navigation() {
 
       {/* Mobile Navigation Menu */}
       {isMenuOpen && (
-        <div
-          data-testid="mobile-menu"
-          className="sm:hidden absolute top-full left-0 right-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 z-[1005]"
-        >
-          {navigationLinks.map((link) => {
-            // Override responsive settings for Contact in mobile menu
-            const mobileProps =
-              link.path === "/contact" ? { ...link, responsive: undefined } : link;
+        <FocusTrap active={isMenuOpen} onEscape={handleMobileMenuClose}>
+          <div
+            id="mobile-menu"
+            data-testid="mobile-menu"
+            className="sm:hidden absolute top-full left-0 right-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 z-[1005]"
+          >
+            {navigationLinks.map((link) => {
+              // Override responsive settings for Contact in mobile menu
+              const mobileProps =
+                link.path === "/contact" ? { ...link, responsive: undefined } : link;
 
-            // Render expandable items for links with children
-            if (link.children && link.children.length > 0) {
+              // Render expandable items for links with children
+              if (link.children && link.children.length > 0) {
+                return (
+                  <ExpandableNavItem
+                    key={link.path}
+                    link={mobileProps}
+                    currentPath={pathname}
+                    isMobile={true}
+                    onLinkClick={handleMobileMenuClose}
+                  />
+                );
+              }
+
               return (
-                <ExpandableNavItem
+                <NavigationLink
                   key={link.path}
-                  link={mobileProps}
                   currentPath={pathname}
-                  isMobile={true}
-                  onLinkClick={handleMobileMenuClose}
+                  {...mobileProps}
+                  className="block w-full px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={handleMobileMenuClose}
                 />
               );
-            }
+            })}
 
-            return (
-              <NavigationLink
-                key={link.path}
-                currentPath={pathname}
-                {...mobileProps}
-                className="block w-full px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={handleMobileMenuClose}
-              />
-            );
-          })}
-
-          {/* Mobile menu social icons */}
-          <div className="px-4 pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-center">
-              <SocialIcons excludePlatforms={["discord", "bluesky"]} />
+            {/* Mobile menu social icons */}
+            <div className="px-4 pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-center">
+                <SocialIcons excludePlatforms={["discord", "bluesky"]} />
+              </div>
             </div>
           </div>
-        </div>
+        </FocusTrap>
       )}
     </nav>
   );

@@ -7,6 +7,20 @@
 
 import { z } from "zod/v4";
 
+export const githubActivityRefreshSuccessResponseSchema = z.discriminatedUnion("dataFetched", [
+  z.object({
+    message: z.string(),
+    dataFetched: z.literal(false),
+    readOnly: z.literal(true),
+  }),
+  z.object({
+    message: z.string(),
+    dataFetched: z.literal(true),
+    trailingYearCommits: z.number().int().nonnegative(),
+    allTimeCommits: z.number().int().nonnegative(),
+  }),
+]);
+
 export const contributionDaySchema = z.object({
   date: z.string(),
   count: z.number(),

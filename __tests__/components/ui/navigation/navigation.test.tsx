@@ -248,6 +248,21 @@ describe("Navigation", () => {
       expect(nav.querySelector('[data-testid="mobile-menu"]')).not.toBeInTheDocument();
     });
 
+    it("closes the menu with Escape and restores focus to the toggle", () => {
+      render(
+        <TerminalProvider>
+          <Navigation />
+        </TerminalProvider>,
+      );
+      const menuButton = screen.getByRole("button", { name: "Toggle menu" });
+      menuButton.focus();
+      fireEvent.click(menuButton);
+      expect(screen.getByTestId("mobile-menu")).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.queryByTestId("mobile-menu")).not.toBeInTheDocument();
+      expect(menuButton).toHaveFocus();
+    });
+
     it("shows correct icon based on menu state", () => {
       // Wrap with Provider
       render(
@@ -283,6 +298,23 @@ describe("Navigation", () => {
       );
       const button = screen.getByRole("button", { name: "Toggle menu" });
       expect(button).toHaveAttribute("aria-label", "Toggle menu");
+    });
+
+    it("reports the menu state and controlled menu", () => {
+      render(
+        <TerminalProvider>
+          <Navigation />
+        </TerminalProvider>,
+      );
+      const button = screen.getByRole("button", { name: "Toggle menu" });
+      expect(button).toHaveAttribute("aria-expanded", "false");
+      expect(button).not.toHaveAttribute("aria-controls");
+
+      fireEvent.click(button);
+
+      expect(button).toHaveAttribute("aria-expanded", "true");
+      expect(button).toHaveAttribute("aria-controls", "mobile-menu");
+      expect(screen.getByTestId("mobile-menu")).toHaveAttribute("id", "mobile-menu");
     });
 
     it("marks current page link with aria-current attribute", () => {
