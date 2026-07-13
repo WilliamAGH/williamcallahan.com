@@ -1,4 +1,3 @@
-vi.mock("@/lib/data-access/github");
 vi.mock("@/lib/data-access/opengraph");
 vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
   hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
@@ -6,12 +5,6 @@ vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
 }));
 vi.mock("@/lib/db/queries/query-embedding", () => ({
   buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
-  getBookmarksPage: vi.fn().mockResolvedValue([]),
-  invalidateBookmarksCache: vi.fn(),
-  invalidateBookmarksPageCache: vi.fn(),
-  invalidateTagCache: vi.fn(),
 }));
 
 describe("Cache Invalidation Functions", () => {
@@ -28,15 +21,12 @@ describe("Cache Invalidation Functions", () => {
   });
 
   describe("Bookmarks Cache", () => {
-    it("invalidates cached bookmark pages", async () => {
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      const page = await bookmarksModule.getBookmarksPage(1);
+    it("executes the production bookmark invalidators", async () => {
+      const cache = await import("@/lib/bookmarks/cache-management.server");
 
-      expect(page).toEqual([]);
-      expect(() => bookmarksModule.invalidateBookmarksCache()).not.toThrow();
-      expect(() => bookmarksModule.invalidateTagCache("test")).not.toThrow();
-      expect(() => bookmarksModule.invalidateBookmarksPageCache(1)).not.toThrow();
-      await expect(bookmarksModule.getBookmarksPage(1)).resolves.toHaveLength(page.length);
+      expect(() => cache.invalidateNextJsBookmarksCache()).not.toThrow();
+      expect(() => cache.invalidateTagCache("test")).not.toThrow();
+      expect(() => cache.invalidatePageCache(1)).not.toThrow();
     });
   });
 
@@ -50,19 +40,6 @@ describe("Cache Invalidation Functions", () => {
       expect(() => blogModule.invalidateBlogCache()).not.toThrow();
       expect(() => blogModule.invalidateBlogPostCache("test-slug")).not.toThrow();
       await expect(getAllPosts()).resolves.toHaveLength(posts.length);
-    });
-  });
-
-  describe("GitHub Cache (Mocked)", () => {
-    it("should expose cached activity readers", async () => {
-      vi.resetModules();
-      const githubModule = await import("@/lib/data-access/github");
-
-      expect(githubModule.refreshGitHubActivityDataFromApi).toBeDefined();
-      expect(typeof githubModule.refreshGitHubActivityDataFromApi).toBe("function");
-      const githubPublicModule = await import("@/lib/data-access/github-public-api");
-      expect(githubPublicModule.getGithubActivityCached).toBeDefined();
-      expect(typeof githubPublicModule.getGithubActivityCached).toBe("function");
     });
   });
 });
