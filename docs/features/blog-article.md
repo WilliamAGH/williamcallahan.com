@@ -59,7 +59,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 - **lib/blog/mdx.ts**: MDX processing utilities
   - Excellent caching strategy with file modification checks
   - Robust error handling with fallbacks
-- **lib/blog/validation.ts**: Canonical slug guard and frontmatter validation
+- **lib/blog/validation.ts**: Canonical route/cache lookup eligibility guard (`isValidBlogSlug`) and `BlogPost` object validator (`validatePost`); MDX frontmatter checks remain in **lib/blog/mdx.ts**.
 - **lib/utils/tag-utils.ts**: A suite of utility functions for formatting, normalizing, and sanitizing tags, including functions to convert tags to URL-friendly slugs (`tagToSlug`) and back (`slugToTagDisplay`).
 
 ## Logic Flow and Interactions
