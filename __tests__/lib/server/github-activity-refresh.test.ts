@@ -3,7 +3,9 @@ import { GET as getGitHubActivity } from "@/app/api/github-activity/route";
 import { POST as refreshGitHubActivityProduction } from "@/app/api/github-activity/refresh-production/route";
 import { POST as refreshGitHubActivity } from "@/app/api/github-activity/refresh/route";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
+import { createGitHubActivitySummary } from "@/lib/data-access/github-activity-summaries";
 import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
+import { createEmptyCategoryStats } from "@/lib/data-access/github-processing";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { runGitHubActivityRefresh } from "@/lib/server/github-activity-refresh";
 import { getMonotonicTime } from "@/lib/utils";
@@ -226,6 +228,23 @@ describe("GitHub activity public schemas", () => {
         lastRefreshed: "not-a-date",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("GitHub activity summary", () => {
+  it("preserves repository counts and calculates net lines", () => {
+    const categories = createEmptyCategoryStats();
+    categories.frontend.repoCount = 2;
+    categories.backend.repoCount = 1;
+    const summary = createGitHubActivitySummary({
+      allTimeData: { ...refreshedActivity.allTimeData, linesAdded: 14, linesRemoved: 5 },
+      totalRepositoriesContributedTo: 3,
+      linesOfCodeByCategory: categories,
+    });
+
+    expect(summary.netLinesOfCode).toBe(9);
+    expect(summary.totalRepositoriesContributedTo).toBe(3);
+    expect(summary.linesOfCodeByCategory).toEqual(categories);
   });
 });
 

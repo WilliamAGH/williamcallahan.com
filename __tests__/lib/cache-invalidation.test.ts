@@ -1,12 +1,27 @@
 vi.mock("@/lib/data-access/github-public-api");
 
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { createGitHubActivitySummary } from "@/lib/data-access/github-activity-summaries";
+import { createEmptyCategoryStats } from "@/lib/data-access/github-processing";
 import type { GraphQLRepoNode } from "@/types/github";
 import {
+  GITHUB_ACTIVITY_WRITE_INTENTS,
+  aggregatedWeeklyActivityArraySchema,
+  gitHubActivityApiResponseSchema,
+  gitHubActivitySummarySchema,
   publicPriorYearCommitSummarySchema,
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
+  type GitHubActivityWriteIntent,
   type PriorYearCommitSummary,
 } from "@/types/schemas/github-storage";
+
+const GITHUB_ACTIVITY_LOCK_EVENT =
+  "select pg_advisory_xact_lock(hashtext($1)) [github-activity-refresh-global]";
+const GITHUB_ACTIVITY_READ_TRACE = [GITHUB_ACTIVITY_LOCK_EVENT, "read"];
+const GITHUB_ACTIVITY_WRITE_TRACE = [...GITHUB_ACTIVITY_READ_TRACE, "write"];
+const pgDialect = new PgDialect();
 
 const buildGitHubSegment = (
   overrides: Partial<GitHubActivitySegment> = {},
@@ -19,6 +34,82 @@ const buildGitHubSegment = (
   dataComplete: true,
   ...overrides,
 });
+
+const buildGitHubActivity = (
+  overrides: Partial<GitHubActivitySegment> = {},
+): GitHubActivityApiResponse => ({
+  trailingYearData: buildGitHubSegment(overrides),
+  cumulativeAllTimeData: buildGitHubSegment(overrides),
+});
+
+const createRefreshSummary = (activity: GitHubActivityApiResponse, repositoryCount: number) =>
+  createGitHubActivitySummary({
+    allTimeData: activity.cumulativeAllTimeData,
+    totalRepositoriesContributedTo: repositoryCount,
+    linesOfCodeByCategory: createEmptyCategoryStats(),
+  });
+
+const loadGitHubActivityWriter = async (
+  initialActivity: GitHubActivityApiResponse,
+  rejectInsert = false,
+) => {
+  vi.resetModules();
+  const initialRefresh = {
+    activity: initialActivity,
+    summary: createRefreshSummary(initialActivity, 4),
+    aggregatedActivity: [{ weekStartDate: "2026-06-02", linesAdded: 90, linesRemoved: 20 }],
+  };
+  let storedRefresh = initialRefresh;
+  const transactionEvents: string[] = [];
+  const transactionExecutor = {
+    execute: (query: SQL) => {
+      const renderedQuery = pgDialect.sqlToQuery(query);
+      transactionEvents.push(`${renderedQuery.sql} [${renderedQuery.params.join(",")}]`);
+      return Promise.resolve();
+    },
+    select: () => {
+      transactionEvents.push("read");
+      return {
+        from: () => ({
+          where: () => ({ limit: async () => [{ payload: storedRefresh.activity }] }),
+        }),
+      };
+    },
+    insert: () => {
+      transactionEvents.push("write");
+      return {
+        values: (records: Array<{ dataType: string; payload: unknown }>) => ({
+          onConflictDoUpdate: async () => {
+            if (rejectInsert) throw new Error("atomic insert failed");
+            const payloads = Object.fromEntries(
+              records.map(({ dataType, payload }) => [dataType, payload]),
+            );
+            storedRefresh = {
+              activity: gitHubActivityApiResponseSchema.parse(payloads.activity),
+              summary: gitHubActivitySummarySchema.parse(payloads.summary),
+              aggregatedActivity: aggregatedWeeklyActivityArraySchema.parse(
+                payloads["aggregated-weekly"],
+              ),
+            };
+          },
+        }),
+      };
+    },
+  };
+  vi.doMock("@/lib/db/connection", () => ({
+    assertDatabaseWriteAllowed: vi.fn(),
+    db: {
+      transaction: (callback: (executor: typeof transactionExecutor) => Promise<boolean>) =>
+        callback(transactionExecutor),
+    },
+  }));
+  const { writeGitHubActivityRefreshToDb } = await import("@/lib/db/mutations/github-activity");
+  const publishActivity = (
+    activity: GitHubActivityApiResponse,
+    intent: GitHubActivityWriteIntent,
+  ) => writeGitHubActivityRefreshToDb(activity, createRefreshSummary(activity, 0), [], intent);
+  return { initialRefresh, publishActivity, storedRefresh: () => storedRefresh, transactionEvents };
+};
 
 const readGithubActivityView = async (record: GitHubActivityApiResponse, lastModified?: Date) => {
   vi.resetModules();

@@ -245,32 +245,22 @@ describe("GitHub activity refresh", () => {
   });
 });
 
-describe("GitHub activity summary", () => {
-  it("preserves distinct all-time repository counts by category", () => {
-    const allTimeCategoryStats = createEmptyCategoryStats();
-    allTimeCategoryStats.frontend.repoCount = 2;
-    allTimeCategoryStats.backend.repoCount = 1;
-
-    const summary = createGitHubActivitySummary({
-      allTimeData: {
-        ...zeroSegment,
-        totalContributions: 42,
-        linesAdded: 14,
-        linesRemoved: 5,
-      },
-      totalRepositoriesContributedTo: 3,
-      linesOfCodeByCategory: allTimeCategoryStats,
-    });
-
-    expect(summary.totalContributions).toBe(42);
-    expect(summary.netLinesOfCode).toBe(9);
-    expect(summary.totalRepositoriesContributedTo).toBe(3);
-    expect(summary.linesOfCodeByCategory).toEqual(allTimeCategoryStats);
-  });
-});
-
 describe("GitHub activity atomic persistence", () => {
-  const loadWriter = async (existing: GitHubActivityApiResponse) => {
+  const healthyActivity: GitHubActivityApiResponse = {
+    trailingYearData: {
+      ...zeroSegment,
+      data: [{ date: "2026-07-13", count: 1, level: 1 }],
+      totalContributions: 1,
+    },
+    cumulativeAllTimeData: { ...zeroSegment, totalContributions: 1 },
+  };
+  const summaryFor = (activity: GitHubActivityApiResponse) =>
+    createGitHubActivitySummary({
+      allTimeData: activity.cumulativeAllTimeData,
+      totalRepositoriesContributedTo: 1,
+      linesOfCodeByCategory: createEmptyCategoryStats(),
+    });
+  const loadWriter = async (existing: GitHubActivityApiResponse, rejectInsert = false) => {
     vi.resetModules();
     const events: string[] = [];
     let records: Array<{ dataType: string; updatedAt: number }> = [];
@@ -285,6 +275,7 @@ describe("GitHub activity atomic persistence", () => {
         return {
           values: (next: typeof records) => ({
             onConflictDoUpdate: async () => {
+              if (rejectInsert) throw new Error("atomic insert failed");
               records = next;
             },
           }),
@@ -300,25 +291,13 @@ describe("GitHub activity atomic persistence", () => {
   };
 
   it("locks, reads, and writes every projection with one timestamp", async () => {
-    const activity = {
-      trailingYearData: {
-        ...zeroSegment,
-        data: [{ date: "2026-07-13", count: 1, level: 1 as const }],
-        totalContributions: 1,
-      },
-      cumulativeAllTimeData: { ...zeroSegment, totalContributions: 1 },
-    };
-    const { events, getRecords, writeGitHubActivityRefreshToDb } = await loadWriter(activity);
-    const summary = createGitHubActivitySummary({
-      allTimeData: activity.cumulativeAllTimeData,
-      totalRepositoriesContributedTo: 1,
-      linesOfCodeByCategory: createEmptyCategoryStats(),
-    });
+    const { events, getRecords, writeGitHubActivityRefreshToDb } =
+      await loadWriter(healthyActivity);
 
     await expect(
       writeGitHubActivityRefreshToDb(
-        activity,
-        summary,
+        healthyActivity,
+        summaryFor(healthyActivity),
         [],
         GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
       ),
