@@ -153,10 +153,10 @@ S3_LOGOS_CRON="0 1 * * 0"
 
 ### Environment Detection
 
-The system detects the environment in this order:
+The refresh endpoints use `resolveDatabaseAccessMode()` (from `src/lib/db/connection.ts`) which detects the environment in this order:
 
-1. `DEPLOYMENT_ENV` env var
-2. URL detection (`API_BASE_URL` / `NEXT_PUBLIC_SITE_URL`)
+1. `NEXT_PUBLIC_SITE_URL` (with `NODE_ENV` dual-check for production)
+2. `DEPLOYMENT_ENV` env var
 3. `NODE_ENV`
 
 ### Staggered Execution
