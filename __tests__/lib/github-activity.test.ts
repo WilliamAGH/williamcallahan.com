@@ -260,10 +260,14 @@ describe("GitHub activity atomic persistence", () => {
       totalRepositoriesContributedTo: 1,
       linesOfCodeByCategory: createEmptyCategoryStats(),
     });
-  const loadWriter = async (existing: GitHubActivityApiResponse, rejectInsert = false) => {
+  const loadWriter = async (existing: unknown, rejectInsert = false) => {
     vi.resetModules();
     const events: string[] = [];
     let records: Array<{ dataType: string; updatedAt: number }> = [];
+    const captureMessage = vi.fn(() => {
+      events.push("integrity");
+      return "integrity-event";
+    });
     const tx = {
       execute: () => (events.push("lock"), Promise.resolve()),
       select: () => (
@@ -282,24 +286,25 @@ describe("GitHub activity atomic persistence", () => {
         };
       },
     };
+    vi.doMock("@sentry/nextjs", () => ({ captureMessage }));
     vi.doMock("@/lib/db/connection", () => ({
       assertDatabaseWriteAllowed: vi.fn(),
-      db: { transaction: (callback: (executor: typeof tx) => Promise<boolean>) => callback(tx) },
+      db: {
+        select: tx.select,
+        transaction: (callback: (executor: typeof tx) => Promise<boolean>) => callback(tx),
+      },
     }));
     const { writeGitHubActivityRefreshToDb } = await import("@/lib/db/mutations/github-activity");
-    return { events, getRecords: () => records, writeGitHubActivityRefreshToDb };
+    const { readGitHubActivityFromDb } = await import("@/lib/db/queries/github-activity");
+    const publish = (
+      activity = healthyActivity,
+      intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+    ) => writeGitHubActivityRefreshToDb(activity, summaryFor(activity), [], intent);
+    return { captureMessage, events, getRecords: () => records, publish, readGitHubActivityFromDb };
   };
   it("locks, reads, and writes every projection with one timestamp", async () => {
-    const { events, getRecords, writeGitHubActivityRefreshToDb } =
-      await loadWriter(healthyActivity);
-    await expect(
-      writeGitHubActivityRefreshToDb(
-        healthyActivity,
-        summaryFor(healthyActivity),
-        [],
-        GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
-      ),
-    ).resolves.toBe(true);
+    const { events, getRecords, publish } = await loadWriter(healthyActivity);
+    await expect(publish()).resolves.toBe(true);
     expect(events).toEqual(["lock", "read", "write"]);
     const records = getRecords();
     const dataTypes = records.map(({ dataType }) => dataType).toSorted();
@@ -312,36 +317,34 @@ describe("GitHub activity atomic persistence", () => {
       trailingYearData: { ...healthyActivity.trailingYearData, dataComplete: false },
     };
     const refused = await loadWriter(healthyActivity);
-    await expect(
-      refused.writeGitHubActivityRefreshToDb(
-        incomplete,
-        summaryFor(incomplete),
-        [],
-        GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
-      ),
-    ).resolves.toBe(false);
+    await expect(refused.publish(incomplete)).resolves.toBe(false);
     expect(refused.events).toEqual(["lock", "read"]);
     const invalid = await loadWriter(healthyActivity);
     await expect(
-      invalid.writeGitHubActivityRefreshToDb(
+      invalid.publish(
         healthyActivity,
-        summaryFor(healthyActivity),
-        [],
         GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
       ),
     ).rejects.toThrow("complete, zero-contribution activity data");
     expect(invalid.events).toEqual(["lock", "read"]);
   });
+  it("keeps ordinary reads strict while a locked refresh repairs malformed activity", async () => {
+    const writer = await loadWriter({ legacy: "must-not-be-logged" });
+    await expect(writer.readGitHubActivityFromDb()).rejects.toMatchObject({ name: "ZodError" });
+    expect(writer.events).toEqual(["read"]);
+    writer.events.length = 0;
+    await expect(writer.publish()).resolves.toBe(true);
+    expect(writer.events).toEqual(["lock", "read", "integrity", "write"]);
+    expect(writer.getRecords()).toHaveLength(3);
+    expect(writer.captureMessage).toHaveBeenCalledExactlyOnceWith(
+      "Stored GitHub activity payload failed schema validation",
+      expect.objectContaining({ level: "error" }),
+    );
+    expect(JSON.stringify(writer.captureMessage.mock.calls)).not.toContain("must-not-be-logged");
+  });
   it("leaves projections untouched when the atomic insert fails", async () => {
     const writer = await loadWriter(healthyActivity, true);
-    await expect(
-      writer.writeGitHubActivityRefreshToDb(
-        healthyActivity,
-        summaryFor(healthyActivity),
-        [],
-        GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
-      ),
-    ).rejects.toThrow("atomic insert failed");
+    await expect(writer.publish()).rejects.toThrow("atomic insert failed");
     expect(writer.getRecords()).toEqual([]);
   });
 });

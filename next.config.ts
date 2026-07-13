@@ -1,6 +1,8 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import os from "node:os";
+import { PHASE_PRODUCTION_SERVER } from "next/constants";
 import packageJson from "./package.json" with { type: "json" };
 
 const VALID_DEPLOYMENT_ID = /^[A-Za-z0-9_-]+$/;
@@ -14,12 +16,13 @@ function requireUrlSafeReleaseId(value: string, source: string): string {
   return value;
 }
 
-function resolveProductionReleaseId(): string | null {
+function resolveProductionReleaseId(phase: string): string | null {
   if (process.env.NODE_ENV !== "production") return null;
 
   const deploymentId = process.env.NEXT_DEPLOYMENT_ID?.trim();
   if (deploymentId) return requireUrlSafeReleaseId(deploymentId, "NEXT_DEPLOYMENT_ID");
 
+  let gitError: unknown;
   try {
     const gitHead = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
       encoding: "utf8",
@@ -28,20 +31,40 @@ function resolveProductionReleaseId(): string | null {
     console.warn("[next.config] NEXT_DEPLOYMENT_ID is unset; using local git HEAD.");
     return releaseId;
   } catch (error) {
+    gitError = error;
+  }
+
+  if (phase !== PHASE_PRODUCTION_SERVER) {
     throw new Error(
       "[next.config] Production builds require a URL-safe NEXT_DEPLOYMENT_ID or local git HEAD.",
-      { cause: error },
+      { cause: gitError },
+    );
+  }
+
+  try {
+    const buildId = readFileSync(".next/BUILD_ID", "utf8").trim();
+    const releaseId = requireUrlSafeReleaseId(buildId, "existing .next/BUILD_ID");
+    console.warn("[next.config] Reusing the existing .next/BUILD_ID for production startup.");
+    return releaseId;
+  } catch (buildIdError: unknown) {
+    const gitMessage = gitError instanceof Error ? gitError.message : String(gitError);
+    const buildIdMessage =
+      buildIdError instanceof Error ? buildIdError.message : String(buildIdError);
+    throw new Error(
+      `[next.config] Production requires NEXT_DEPLOYMENT_ID, local git HEAD, or an existing .next/BUILD_ID. Git failed: ${gitMessage}. BUILD_ID failed: ${buildIdMessage}.`,
+      { cause: buildIdError },
     );
   }
 }
 
-const releaseId = resolveProductionReleaseId();
 process.env.NEXT_PUBLIC_APP_VERSION = packageJson.version;
-if (releaseId) {
-  // Next 16 reads this value for `?dpl=`; generateBuildId uses the same identity.
-  process.env.NEXT_DEPLOYMENT_ID = releaseId;
-  process.env.NEXT_PUBLIC_GIT_HASH = releaseId;
-  process.env.SENTRY_RELEASE = releaseId;
+function applyReleaseEnvironment(releaseId: string | null): void {
+  if (releaseId) {
+    // Next 16 reads this value for `?dpl=`; generateBuildId uses the same identity.
+    process.env.NEXT_DEPLOYMENT_ID = releaseId;
+    process.env.NEXT_PUBLIC_GIT_HASH = releaseId;
+    process.env.SENTRY_RELEASE = releaseId;
+  }
 }
 
 const telemetryBundledPackages = [
@@ -109,126 +132,134 @@ function resolveStaticGenerationMaxConcurrency(): number {
   }
 }
 
-const nextConfig = {
-  typescript: { ignoreBuildErrors: true },
-  outputFileTracingIncludes: { "/": ["./data/**/*"] },
-  turbopack: {
-    rules: { "*.svg": { loaders: ["@svgr/webpack"], as: "*.js" } },
-    resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],
-    resolveAlias: {
-      swr$: "./node_modules/swr/dist/index/index.js",
-      "swr/infinite": "./node_modules/swr/infinite/dist/index.js",
-      "swr/_internal": "./node_modules/swr/_internal/dist/index.js",
-      "hoist-non-react-statics$":
-        "./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js",
-      "@opentelemetry/api": {
-        browser: "./src/lib/edge-polyfills/opentelemetry.ts",
-        edge: "./src/lib/edge-polyfills/opentelemetry.ts",
-      },
-      ...(process.env.NODE_ENV === "development" && process.env.S3_FORCE_WRITE !== "true"
-        ? { "@aws-sdk/client-s3": "./src/lib/stubs/aws-s3-stub.ts" }
-        : {}),
-    },
-  },
-  transpilePackages,
-  async redirects() {
-    return [
-      {
-        source: "/bookmarks/page/:pageNumber(\\d+)",
-        destination: "/bookmarks",
-        permanent: true,
-      },
-    ];
-  },
-  // `null` delegates development build IDs to Next; production always has releaseId.
-  generateBuildId: async () => releaseId,
-  poweredByHeader: false,
-  reactStrictMode: true,
-  productionBrowserSourceMaps: false,
-  cacheComponents: true,
-  serverExternalPackages: ["@chroma-core/default-embed", "chromadb"],
-  experimental: {
-    taint: true,
-    serverMinification: process.env.NODE_ENV === "production",
-    proxyClientMaxBodySize: "100mb",
-    serverActions: { bodySizeLimit: "100mb" },
-    preloadEntriesOnStart: false,
-    serverSourceMaps: false,
-    optimizePackageImports:
-      process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
-    optimizeCss: true,
-    staticGenerationMaxConcurrency: resolveStaticGenerationMaxConcurrency(),
-    optimizeServerReact: true,
-  },
-  images: {
-    dangerouslyAllowSVG: true,
-    contentDispositionType: "inline",
-    formats: ["image/webp", "image/avif"],
-    qualities: [75, 80, 85, 90, 100],
-    minimumCacheTTL: 60 * 60 * 24 * 30,
-    path: "/_next/image",
-    localPatterns: [
-      { pathname: "/images/**" },
-      { pathname: "/api/assets/**" },
-      { pathname: "/api/cache/images" },
-      { pathname: "/api/books/cover/**" },
-      { pathname: "/api/logo" },
-      { pathname: "/api/logo/invert" },
-      { pathname: "/api/og-image" },
-    ],
-    remotePatterns: [
-      ...CDN_REMOTE_PATTERNS,
-      { protocol: "https", hostname: "cdn.discordapp.com" },
-      { protocol: "https", hostname: "media.discordapp.net" },
-      { protocol: "https", hostname: "avatars.githubusercontent.com" },
-      { protocol: "https", hostname: "github.githubassets.com" },
-      { protocol: "https", hostname: "raw.githubusercontent.com" },
-      { protocol: "https", hostname: "pbs.twimg.com" },
-      { protocol: "https", hostname: "abs.twimg.com" },
-      { protocol: "https", hostname: "media.licdn.com" },
-      { protocol: "https", hostname: "static.licdn.com" },
-      { protocol: "https", hostname: "cdn.bsky.app" },
-      { protocol: "https", hostname: "cdn.bsky.social" },
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "icons.duckduckgo.com" },
-      { protocol: "https", hostname: "www.google.com" },
-      { protocol: "https", hostname: "external-content.duckduckgo.com" },
-      { protocol: "https", hostname: "plausible.iocloudhost.net" },
-      { protocol: "https", hostname: "*.iocloudhost.net" },
-      { protocol: "https", hostname: "*.popos-sf1.com" },
-      { protocol: "https", hostname: "*.popos-sf2.com" },
-      { protocol: "https", hostname: "*.popos-sf3.com" },
-      { protocol: "https", hostname: "*.popos-sf4.com" },
-      { protocol: "https", hostname: "*.popos-sf5.com" },
-      { protocol: "https", hostname: "*.popos-sf6.com" },
-      { protocol: "https", hostname: "*.popos-sf7.com" },
-    ],
-    deviceSizes: [640, 750, 800, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [48, 64, 96, 128, 256, 384],
-  },
-  ...(process.env.NODE_ENV === "production" ? { cacheMaxMemorySize: 0 } : {}),
-  staticPageGenerationTimeout: 300,
-};
-
-const sentryWebpackPluginOptions = {
-  silent: true,
-  org: "williamcallahan-com",
-  project: "williamcallahan-com",
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  useRunAfterProductionCompileHook: false,
-  applicationKey: "williamcallahan-com",
-  ...(releaseId ? { release: { name: releaseId, deploy: { env: process.env.NODE_ENV } } } : {}),
-  dryRun: process.env.NODE_ENV === "development",
-  ...(process.env.NODE_ENV === "development"
-    ? { sourcemaps: { disable: true } }
-    : {
-        widenClientFileUpload: true,
-        sourcemaps: {
-          assets: ["./**/*.js", "./**/*.js.map"],
-          ignore: ["./node_modules/**"],
-          filesToDeleteAfterUpload: ["./**/*.js.map"],
+function createNextConfig(releaseId: string | null) {
+  return {
+    typescript: { ignoreBuildErrors: true },
+    outputFileTracingIncludes: { "/": ["./data/**/*"] },
+    turbopack: {
+      rules: { "*.svg": { loaders: ["@svgr/webpack"], as: "*.js" } },
+      resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],
+      resolveAlias: {
+        swr$: "./node_modules/swr/dist/index/index.js",
+        "swr/infinite": "./node_modules/swr/infinite/dist/index.js",
+        "swr/_internal": "./node_modules/swr/_internal/dist/index.js",
+        "hoist-non-react-statics$":
+          "./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js",
+        "@opentelemetry/api": {
+          browser: "./src/lib/edge-polyfills/opentelemetry.ts",
+          edge: "./src/lib/edge-polyfills/opentelemetry.ts",
         },
-      }),
-};
+        ...(process.env.NODE_ENV === "development" && process.env.S3_FORCE_WRITE !== "true"
+          ? { "@aws-sdk/client-s3": "./src/lib/stubs/aws-s3-stub.ts" }
+          : {}),
+      },
+    },
+    transpilePackages,
+    async redirects() {
+      return [
+        {
+          source: "/bookmarks/page/:pageNumber(\\d+)",
+          destination: "/bookmarks",
+          permanent: true,
+        },
+      ];
+    },
+    // `null` delegates development build IDs to Next; production always has releaseId.
+    generateBuildId: async () => releaseId,
+    poweredByHeader: false,
+    reactStrictMode: true,
+    productionBrowserSourceMaps: false,
+    cacheComponents: true,
+    serverExternalPackages: ["@chroma-core/default-embed", "chromadb"],
+    experimental: {
+      taint: true,
+      serverMinification: process.env.NODE_ENV === "production",
+      proxyClientMaxBodySize: "100mb",
+      serverActions: { bodySizeLimit: "100mb" },
+      preloadEntriesOnStart: false,
+      serverSourceMaps: false,
+      optimizePackageImports:
+        process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
+      optimizeCss: true,
+      staticGenerationMaxConcurrency: resolveStaticGenerationMaxConcurrency(),
+      optimizeServerReact: true,
+    },
+    images: {
+      dangerouslyAllowSVG: true,
+      contentDispositionType: "inline",
+      formats: ["image/webp", "image/avif"],
+      qualities: [75, 80, 85, 90, 100],
+      minimumCacheTTL: 60 * 60 * 24 * 30,
+      path: "/_next/image",
+      localPatterns: [
+        { pathname: "/images/**" },
+        { pathname: "/api/assets/**" },
+        { pathname: "/api/cache/images" },
+        { pathname: "/api/books/cover/**" },
+        { pathname: "/api/logo" },
+        { pathname: "/api/logo/invert" },
+        { pathname: "/api/og-image" },
+      ],
+      remotePatterns: [
+        ...CDN_REMOTE_PATTERNS,
+        { protocol: "https", hostname: "cdn.discordapp.com" },
+        { protocol: "https", hostname: "media.discordapp.net" },
+        { protocol: "https", hostname: "avatars.githubusercontent.com" },
+        { protocol: "https", hostname: "github.githubassets.com" },
+        { protocol: "https", hostname: "raw.githubusercontent.com" },
+        { protocol: "https", hostname: "pbs.twimg.com" },
+        { protocol: "https", hostname: "abs.twimg.com" },
+        { protocol: "https", hostname: "media.licdn.com" },
+        { protocol: "https", hostname: "static.licdn.com" },
+        { protocol: "https", hostname: "cdn.bsky.app" },
+        { protocol: "https", hostname: "cdn.bsky.social" },
+        { protocol: "https", hostname: "images.unsplash.com" },
+        { protocol: "https", hostname: "icons.duckduckgo.com" },
+        { protocol: "https", hostname: "www.google.com" },
+        { protocol: "https", hostname: "external-content.duckduckgo.com" },
+        { protocol: "https", hostname: "plausible.iocloudhost.net" },
+        { protocol: "https", hostname: "*.iocloudhost.net" },
+        { protocol: "https", hostname: "*.popos-sf1.com" },
+        { protocol: "https", hostname: "*.popos-sf2.com" },
+        { protocol: "https", hostname: "*.popos-sf3.com" },
+        { protocol: "https", hostname: "*.popos-sf4.com" },
+        { protocol: "https", hostname: "*.popos-sf5.com" },
+        { protocol: "https", hostname: "*.popos-sf6.com" },
+        { protocol: "https", hostname: "*.popos-sf7.com" },
+      ],
+      deviceSizes: [640, 750, 800, 828, 1080, 1200, 1920, 2048, 3840],
+      imageSizes: [48, 64, 96, 128, 256, 384],
+    },
+    ...(process.env.NODE_ENV === "production" ? { cacheMaxMemorySize: 0 } : {}),
+    staticPageGenerationTimeout: 300,
+  };
+}
 
-export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);
+function createSentryWebpackPluginOptions(releaseId: string | null) {
+  return {
+    silent: true,
+    org: "williamcallahan-com",
+    project: "williamcallahan-com",
+    authToken: process.env.SENTRY_AUTH_TOKEN,
+    useRunAfterProductionCompileHook: false,
+    applicationKey: "williamcallahan-com",
+    ...(releaseId ? { release: { name: releaseId, deploy: { env: process.env.NODE_ENV } } } : {}),
+    dryRun: process.env.NODE_ENV === "development",
+    ...(process.env.NODE_ENV === "development"
+      ? { sourcemaps: { disable: true } }
+      : {
+          widenClientFileUpload: true,
+          sourcemaps: {
+            assets: ["./**/*.js", "./**/*.js.map"],
+            ignore: ["./node_modules/**"],
+            filesToDeleteAfterUpload: ["./**/*.js.map"],
+          },
+        }),
+  };
+}
+
+export default function configureNext(phase: string) {
+  const releaseId = resolveProductionReleaseId(phase);
+  applyReleaseEnvironment(releaseId);
+  return withSentryConfig(createNextConfig(releaseId), createSentryWebpackPluginOptions(releaseId));
+}

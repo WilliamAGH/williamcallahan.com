@@ -1,5 +1,4 @@
 // @vitest-environment node
-
 import { execFileSync } from "node:child_process";
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-utils";
@@ -16,6 +15,7 @@ import {
   isRewrite,
   unstable_doesMiddlewareMatch,
 } from "next/experimental/testing/server";
+import { PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER } from "next/constants";
 import { NextRequest, NextResponse } from "next/server";
 
 const originalRewrite = Object.getOwnPropertyDescriptor(NextResponse, "rewrite");
@@ -27,19 +27,17 @@ const createRewriteResponse: typeof NextResponse.rewrite = (destination, init) =
 };
 function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
   const request = new NextRequest(url, { method });
-  if (!Reflect.set(request, "nextUrl", new URL(url))) {
-    throw new Error("Could not set NextRequest.nextUrl for proxy behavior test");
-  }
+  Object.defineProperty(request, "nextUrl", { value: new URL(url) });
   return request;
 }
-async function loadNextConfig() {
+async function loadNextConfig(phase = PHASE_PRODUCTION_BUILD) {
   vi.resetModules();
   vi.doMock("@sentry/nextjs", () => ({
     withSentryConfig: <T>(nextConfig: T): T => nextConfig,
   }));
   const configPath = "../../next.config";
   const configModule = await import(configPath);
-  return configModule.default;
+  return configModule.default(phase);
 }
 function responseAt(url: string, body: string, contentType: string): Response {
   const response = new Response(body, { headers: { "content-type": contentType } });
@@ -52,7 +50,6 @@ function investmentResponses(releaseId: string): Response[] {
 }
 describe("Cloudflare header enforcement", () => {
   const ORIGINAL_ENV = { ...process.env };
-
   beforeEach(() => {
     vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
@@ -65,9 +62,7 @@ describe("Cloudflare header enforcement", () => {
   afterEach(() => {
     if (originalRewrite) {
       Object.defineProperty(NextResponse, "rewrite", originalRewrite);
-      return;
-    }
-    if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
+    } else if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
       throw new Error("Could not remove NextResponse.rewrite test implementation");
     }
   });
@@ -207,7 +202,7 @@ describe("Cloudflare header enforcement", () => {
   );
   describe("next.config release identity", () => {
     afterEach(() => {
-      vi.doUnmock("@sentry/nextjs");
+      for (const id of ["@sentry/nextjs", "node:child_process", "node:fs"]) vi.doUnmock(id);
       vi.resetModules();
     });
     it("delegates development build identity to Next", async () => {
@@ -230,15 +225,27 @@ describe("Cloudflare header enforcement", () => {
         "[next.config] NEXT_DEPLOYMENT_ID may contain only letters, numbers, hyphens, and underscores.",
       );
     });
-    it("uses local Git HEAD when a production deployment ID is missing", async () => {
+    it("uses local Git or the built identity when the deployment ID is missing", async () => {
       clearDeploymentId();
       vi.stubEnv("NODE_ENV", "production");
-      const expectedReleaseId = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
-        encoding: "utf8",
-      }).trim();
+      const expectedReleaseId = execFileSync("git", ["rev-parse", "--short", "HEAD"])
+        .toString()
+        .trim();
       const nextConfig = await loadNextConfig();
       await expect(nextConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
       expect(process.env.NEXT_DEPLOYMENT_ID).toBe(expectedReleaseId);
+      vi.doMock("node:child_process", () => ({ execFileSync: () => execFileSync("git-missing") }));
+      vi.doMock("node:fs", () => ({ readFileSync: () => `${expectedReleaseId}\n` }));
+      clearDeploymentId();
+      const runtimeConfig = await loadNextConfig(PHASE_PRODUCTION_SERVER);
+      await expect(runtimeConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
+    });
+    it("keeps production builds fail-closed without an explicit or Git identity", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "production");
+      vi.doMock("node:child_process", () => ({ execFileSync: () => execFileSync("git-missing") }));
+      vi.doMock("node:fs", () => ({ readFileSync: () => "stale-build" }));
+      await expect(loadNextConfig()).rejects.toThrow("Production builds require");
     });
   });
   describe("production deployment verification", () => {
@@ -320,21 +327,16 @@ describe("Cloudflare header enforcement", () => {
     });
     it("validates cache-rule defaults, ranges, uniqueness, and nonempty rules before deployment", () => {
       const validationScript = `
-        import assert from "node:assert/strict";
-        import { readFileSync } from "node:fs";
-        import Ajv from "ajv";
+        import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; import Ajv from "ajv";
         import { validateCacheRulesConfig } from "./scripts/deploy-cf-cache-rules.node.mjs";
         const schema = JSON.parse(readFileSync("./infra/cloudflare/cache-rules.schema.json", "utf8"));
         assert.equal(new Ajv().validateSchema(schema), true);
         const readConfig = () => JSON.parse(readFileSync("./infra/cloudflare/cache-rules.json", "utf8"));
-        const openRange = readConfig();
-        openRange.rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 400 };
+        const openRange = readConfig(); openRange.rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 400 };
         const [invalidRange, missingDefault, invalidDefault, unknownProperty, duplicate] = Array.from({ length: 5 }, readConfig);
         invalidRange.rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 599, to: 400 };
-        delete missingDefault.rules[2].action_parameters.edge_ttl.default;
-        invalidDefault.rules[2].action_parameters.edge_ttl.default = -1;
-        unknownProperty.rules[0].action_parameters.edge_tll = {};
-        duplicate.rules[1].description = duplicate.rules[0].description;
+        delete missingDefault.rules[2].action_parameters.edge_ttl.default; invalidDefault.rules[2].action_parameters.edge_ttl.default = -1;
+        unknownProperty.rules[0].action_parameters.edge_tll = {}; duplicate.rules[1].description = duplicate.rules[0].description;
         assert.throws(() => validateCacheRulesConfig({ rules: [] }));
         for (const config of [invalidRange, missingDefault, invalidDefault, unknownProperty]) assert.throws(() => validateCacheRulesConfig(config));
         assert.throws(() => validateCacheRulesConfig(duplicate), /rule descriptions must be unique/);

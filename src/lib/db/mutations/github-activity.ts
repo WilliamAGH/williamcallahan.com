@@ -5,7 +5,7 @@ import {
   GITHUB_ACTIVITY_DATA_TYPES,
   GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
 } from "@/lib/db/schema/github-activity";
-import { readGitHubActivityFromDb } from "@/lib/db/queries/github-activity";
+import { readGitHubActivityRefreshPreconditionFromDb } from "@/lib/db/queries/github-activity";
 import { debugLog } from "@/lib/utils/debug";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
@@ -135,7 +135,7 @@ export async function writeGitHubActivityRefreshToDb(
   assertDatabaseWriteAllowed("writeGitHubActivityRefreshToDb");
   const published = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${GITHUB_ACTIVITY_REFRESH_LOCK}))`);
-    const existingActivity = await readGitHubActivityFromDb(tx);
+    const existingActivity = await readGitHubActivityRefreshPreconditionFromDb(tx);
     if (!canPublishGitHubActivity(activity, intent, existingActivity)) {
       return false;
     }

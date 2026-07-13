@@ -5,9 +5,11 @@
  */
 
 import type { MockedFunction } from "vitest";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { getBookmarksIndex, listBookmarkTagSlugs } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { bookmarkDetailSlugSchema, bookmarkTagSchema } from "@/types/schemas/bookmark";
 import {
   collectBookmarkSitemapData,
   collectTagSitemapData,
@@ -32,6 +34,28 @@ const mockLoadSlugMapping = loadSlugMapping as MockedFunction<typeof loadSlugMap
 
 describe("Sitemap URL Generation", () => {
   const siteUrl = "https://williamcallahan.com";
+
+  describe("Bookmark Detail URLs", () => {
+    it("accepts unreserved detail slugs and keeps tag slug validation independent", () => {
+      expect(bookmarkDetailSlugSchema.safeParse("example.com~article_v2").success).toBe(true);
+      expect(
+        bookmarkTagSchema.safeParse({ id: "topic", name: "Topic", slug: "topic/segment" }).success,
+      ).toBe(true);
+    });
+
+    it.each([".", "..", "nested/route", "with?query", "with#fragment"])(
+      "rejects %j as a detail slug",
+      (slug) => {
+        expect(bookmarkDetailSlugSchema.safeParse(slug).success).toBe(false);
+      },
+    );
+
+    it("encodes one bookmark detail route segment", () => {
+      expect(buildBookmarkPath("nested/route?query#fragment")).toBe(
+        "/bookmarks/nested%2Froute%3Fquery%23fragment",
+      );
+    });
+  });
 
   describe("Bookmark Tag URLs", () => {
     it("should generate valid URLs for tags with special characters", () => {

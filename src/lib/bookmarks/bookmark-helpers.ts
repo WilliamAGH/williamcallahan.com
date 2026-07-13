@@ -14,7 +14,7 @@ import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
 /** Build the canonical internal route for a bookmark detail page. */
 export function buildBookmarkPath(slug: string): string {
-  return `/bookmarks/${slug}`;
+  return `/bookmarks/${encodeURIComponent(slug)}`;
 }
 
 /**
