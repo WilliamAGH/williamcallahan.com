@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
 import { BookmarksWithOptions } from "@/components/features/bookmarks/bookmarks-with-options.client";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { vi } from "vitest";
 import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 
@@ -119,6 +120,6 @@ describe("BookmarksWithOptions internal routes", () => {
     );
 
     const title = screen.getByRole("heading", { name: "URL-less bookmark" });
-    expect(title.closest("a")).toHaveAttribute("href", "/bookmarks/url-less-bookmark");
+    expect(title.closest("a")).toHaveAttribute("href", buildBookmarkPath(urlLessBookmark.slug));
   });
 });

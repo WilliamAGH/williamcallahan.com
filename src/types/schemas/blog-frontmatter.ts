@@ -16,7 +16,7 @@ export const blogFrontmatterSchema = z
     publishedAt: blogDateSchema,
     updatedAt: blogDateSchema.optional(),
     excerpt: trimmedTextSchema,
-    tags: z.array(z.string()).default([]),
+    tags: z.array(trimmedTextSchema),
     readingTime: z.number().optional(),
     coverImage: trimmedTextSchema.optional(),
     draft: z.boolean().optional(),

@@ -162,6 +162,8 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
       expect(container.querySelector(`a[href="${internalHref}"]`)).not.toBeInTheDocument();
       expect(title).toBeVisible();
       expect(screen.getByAltText("Test Bookmark")).toBeVisible();
+      expect(title.parentElement).toHaveClass("text-gray-900");
+      expect(container.querySelector(".aspect-video > div.absolute.inset-0.block")).toBeVisible();
       expect(container.querySelector(".aspect-video > span > div")).not.toBeInTheDocument();
       expect(title.parentElement?.tagName).not.toBe("SPAN");
     },

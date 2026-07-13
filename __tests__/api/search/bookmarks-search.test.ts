@@ -1,5 +1,6 @@
 import { GET } from "@/app/api/search/bookmarks/route";
 import { endpointCompatibleEmbeddingConfigSchema } from "@/types/schemas/ai-openai-compatible";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 import { bookmarkSearchResponseSchema } from "@/types/schemas/search";
 import { NextRequest } from "next/server";
@@ -98,7 +99,7 @@ describe("Bookmarks Search API", () => {
         type: "bookmark",
         title: "SDK for Claude Code (CLI)",
         description: "CLI tool",
-        url: "/bookmarks/sdk-for-claude-code",
+        url: buildBookmarkPath("sdk-for-claude-code"),
         score: 1,
       },
       {
@@ -106,7 +107,7 @@ describe("Bookmarks Search API", () => {
         type: "bookmark",
         title: "Another SDK article",
         description: "Docs",
-        url: "/bookmarks/another-sdk-article",
+        url: buildBookmarkPath("another-sdk-article"),
         score: 0.9,
       },
     ]);
@@ -119,7 +120,7 @@ describe("Bookmarks Search API", () => {
           id: "bk-1",
           type: "bookmark",
           title: "Bookmark",
-          url: "/bookmarks/bk-1",
+          url: buildBookmarkPath("bk-1"),
           score: 1,
           metadata: { scrapedContentText: "private" },
         },

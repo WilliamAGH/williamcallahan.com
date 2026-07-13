@@ -4,7 +4,7 @@ import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils
 import { formatDate as utilFormatDate } from "@/lib/utils";
 import { Calendar, Clock, ExternalLink as LucideExternalLinkIcon, Star } from "lucide-react";
 import Link from "next/link";
-import { Fragment, type JSX } from "react";
+import type { JSX } from "react";
 import { getDisplayHostname, safeExternalHref } from "@/lib/utils/url-utils";
 import { ExternalLink } from "../../ui/external-link.client";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +45,11 @@ function BookmarkCardLink({
     );
   }
 
-  return <Fragment>{children}</Fragment>;
+  return (
+    <div title={title} className={className}>
+      {children}
+    </div>
+  );
 }
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {

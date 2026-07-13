@@ -14,7 +14,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
 import { getMDXPost } from "../../src/lib/blog/mdx";
-import { findBlogPostFilePath } from "@/lib/blog/validation";
+import { clearBlogPostFilePathIndex, findBlogPostFilePath } from "@/lib/blog/validation";
 import { blogFrontmatterSchema } from "@/types/schemas/blog-frontmatter";
 
 const POSTS_DIR = path.join(process.cwd(), "data/blog/posts");
@@ -26,6 +26,7 @@ const validFrontmatter = {
   author: "william-callahan",
   publishedAt: "2026-01-01",
   excerpt: "Frontmatter contract excerpt.",
+  tags: ["Testing"],
 };
 
 describe("Blog frontmatter schema", () => {
@@ -69,6 +70,14 @@ describe("Blog frontmatter schema", () => {
     expect(
       blogFrontmatterSchema.safeParse({ ...validFrontmatter, coverImage: " \n " }).success,
     ).toBe(false);
+    expect(blogFrontmatterSchema.safeParse({ ...validFrontmatter, tags: [" "] }).success).toBe(
+      false,
+    );
+  });
+
+  it("requires the canonical tags field", () => {
+    const { tags: _tags, ...frontmatterWithoutTags } = validFrontmatter;
+    expect(blogFrontmatterSchema.safeParse(frontmatterWithoutTags).success).toBe(false);
   });
 });
 
@@ -119,6 +128,19 @@ Content`;
   it("resolves canonical frontmatter slugs when filenames differ", async () => {
     const filePath = await findBlogPostFilePath("how-to-add-a-symlink-file-from-one-to-another");
     expect(filePath).toBe(path.join(POSTS_DIR, "how-to-add-a-symlink-file.mdx"));
+  });
+
+  it("propagates filesystem failures while indexing frontmatter slugs", async () => {
+    clearBlogPostFilePathIndex();
+    const readError = new Error("Blog post read failed");
+    const readFileSpy = vi.spyOn(fs, "readFile").mockRejectedValueOnce(readError);
+
+    try {
+      await expect(findBlogPostFilePath(validFrontmatter.slug)).rejects.toBe(readError);
+    } finally {
+      readFileSpy.mockRestore();
+      clearBlogPostFilePathIndex();
+    }
   });
 
   it("compiles and produces no nested <p> in references", async () => {

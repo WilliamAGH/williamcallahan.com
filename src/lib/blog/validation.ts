@@ -36,24 +36,20 @@ async function getBlogPostFilePathIndex(): Promise<Map<string, string>> {
       if (!fileName.endsWith(".mdx")) continue;
 
       const filePath = path.join(BLOG_POSTS_DIRECTORY, fileName);
-      try {
-        const document = parseBlogMdxDocument(await fs.readFile(filePath, "utf8"));
-        if (!document) {
-          console.warn(`[blog] Invalid frontmatter in ${fileName}; skipping slug index entry.`);
-          continue;
-        }
-
-        if (pathsBySlug.has(document.frontmatter.slug)) {
-          console.warn(
-            `[blog] Duplicate frontmatter slug "${document.frontmatter.slug}" in ${fileName}.`,
-          );
-          continue;
-        }
-
-        pathsBySlug.set(document.frontmatter.slug, filePath);
-      } catch (error) {
-        console.error(`[blog] Failed to index ${fileName}:`, error);
+      const document = parseBlogMdxDocument(await fs.readFile(filePath, "utf8"));
+      if (!document) {
+        console.warn(`[blog] Invalid frontmatter in ${fileName}; skipping slug index entry.`);
+        continue;
       }
+
+      if (pathsBySlug.has(document.frontmatter.slug)) {
+        console.warn(
+          `[blog] Duplicate frontmatter slug "${document.frontmatter.slug}" in ${fileName}.`,
+        );
+        continue;
+      }
+
+      pathsBySlug.set(document.frontmatter.slug, filePath);
     }
 
     return pathsBySlug;

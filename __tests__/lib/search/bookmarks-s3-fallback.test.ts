@@ -17,6 +17,7 @@ vi.mock("@/lib/db/queries/hybrid-search", () => ({
 }));
 
 import { searchBookmarks } from "@/lib/search/searchers/dynamic-searchers";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 
 describe("searchBookmarks - hybrid PostgreSQL search", () => {
   beforeEach(() => {
@@ -46,7 +47,7 @@ describe("searchBookmarks - hybrid PostgreSQL search", () => {
     expect(results).toHaveLength(1);
     expect(results[0]?.id).toBe("bk-1");
     expect(results[0]?.title).toBe("SDK for Claude Code");
-    expect(results[0]?.url).toBe("/bookmarks/sdk-for-claude-code");
+    expect(results[0]?.url).toBe(buildBookmarkPath("sdk-for-claude-code"));
     expect(results[0]?.type).toBe("bookmark");
     expect(results[0]?.score).toBe(0.92);
   });

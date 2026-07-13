@@ -16,6 +16,7 @@ import {
 } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import {
   buildBookmark,
   buildBookmarksIndex,
@@ -170,12 +171,14 @@ describe("Sitemap Generation", () => {
 
       expect(
         sitemapEntries.some(
-          (entry) => entry.url === "https://williamcallahan.com/bookmarks/example-com-article",
+          (entry) =>
+            entry.url === `https://williamcallahan.com${buildBookmarkPath("example-com-article")}`,
         ),
       ).toBe(true);
       expect(
         sitemapEntries.some(
-          (entry) => entry.url === "https://williamcallahan.com/bookmarks/another-com-post",
+          (entry) =>
+            entry.url === `https://williamcallahan.com${buildBookmarkPath("another-com-post")}`,
         ),
       ).toBe(true);
       expect(mockGetBookmarksPage).not.toHaveBeenCalled();
@@ -210,12 +213,14 @@ describe("Sitemap Generation", () => {
 
       expect(
         bookmarkEntries.some(
-          (entry) => entry.url === "https://williamcallahan.com/bookmarks/example-com-article",
+          (entry) =>
+            entry.url === `https://williamcallahan.com${buildBookmarkPath("example-com-article")}`,
         ),
       ).toBe(true);
       expect(
         bookmarkEntries.some(
-          (entry) => entry.url === "https://williamcallahan.com/bookmarks/another-com-post",
+          (entry) =>
+            entry.url === `https://williamcallahan.com${buildBookmarkPath("another-com-post")}`,
         ),
       ).toBe(true);
     });
@@ -241,7 +246,8 @@ describe("Sitemap Generation", () => {
 
       expect(
         sitemapEntries.some(
-          (entry) => entry.url === "https://williamcallahan.com/bookmarks/example-com-article",
+          (entry) =>
+            entry.url === `https://williamcallahan.com${buildBookmarkPath("example-com-article")}`,
         ),
       ).toBe(true);
       expect(mockGetBookmarksPage).toHaveBeenCalledWith(1);
