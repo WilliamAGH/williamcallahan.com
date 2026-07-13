@@ -3,7 +3,7 @@
  */
 
 // Remember to update this date whenever the education data or the Education page design changes
-export const updatedAt = "2025-11-07";
+export const updatedAt = "2026-07-13";
 
 import {
   type Certification,
@@ -198,7 +198,7 @@ const recentCoursesData: Class[] = [
   {
     id: "creighton-advanced-financial-analysis",
     institution: "Creighton University",
-    name: "Financial StatementAnalysis - Advanced Topics",
+    name: "Financial Statement Analysis - Advanced Topics",
     website: "https://www.creighton.edu",
     location: "Omaha, Nebraska",
     year: 2016,
