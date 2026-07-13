@@ -16,6 +16,7 @@ const SENSITIVE_REQUEST_HEADERS = new Set([
   "set-cookie",
   "proxy-authorization",
   "x-api-key",
+  "x-refresh-secret",
 ]);
 
 export async function register() {

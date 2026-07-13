@@ -78,6 +78,7 @@ describe("instrumentation register", () => {
         Authorization: "Bearer secret",
         cookie: "session=secret",
         "X-API-Key": "secret-key",
+        "x-refresh-secret": "refresh-secret",
       },
     } as const;
     const context = {
@@ -98,6 +99,7 @@ describe("instrumentation register", () => {
           Authorization: "[REDACTED]",
           cookie: "[REDACTED]",
           "X-API-Key": "[REDACTED]",
+          "x-refresh-secret": "[REDACTED]",
         },
       },
       context,
