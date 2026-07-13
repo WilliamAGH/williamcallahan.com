@@ -38,7 +38,7 @@ export function generateMetadata(): Metadata {
  * freshness comes from the bookmark data fetches that opt into `no-store` semantics instead of build-time snapshots.
  */
 
-export default async function BookmarksPage({
+async function BookmarksContent({
   searchParams,
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const params = await searchParams;
@@ -47,18 +47,43 @@ export default async function BookmarksPage({
   const hasTagFilter = Boolean(tagParam && tagParam.trim().length > 0);
   const initialTag = hasTagFilter ? tagParam?.trim() : undefined;
 
+  if (feedMode === "discover" && !hasTagFilter) {
+    return (
+      <DiscoverFeedWrapper
+        sectionPage={1}
+        sectionsPerPage={INITIAL_DISCOVER_SECTIONS_PER_PAGE}
+        recencyDays={90}
+      />
+    );
+  }
+
   const pageMetadata = PAGE_METADATA.bookmarks;
 
-  // Generate JSON-LD schema for the bookmarks page
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  return (
+    <div className="max-w-5xl mx-auto">
+      <BookmarksServer
+        title={pageMetadata.title}
+        description={pageMetadata.description}
+        initialPage={1}
+        includeImageData={true}
+        initialTag={initialTag}
+        tag={initialTag}
+        feedMode={feedMode === "latest" || hasTagFilter ? "latest" : undefined}
+      />
+    </div>
+  );
+}
 
+export default function BookmarksPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
+  const pageMetadata = PAGE_METADATA.bookmarks;
   const schemaParams = {
     path: "/bookmarks",
     title: pageMetadata.title,
     description: pageMetadata.description,
-    datePublished: formattedCreated,
-    dateModified: formattedModified,
+    datePublished: formatSeoDate(pageMetadata.dateCreated),
+    dateModified: formatSeoDate(pageMetadata.dateModified),
     type: "collection" as const,
     image: {
       url: getStaticImageUrl("/images/og/bookmarks-og.png"),
@@ -71,37 +96,12 @@ export default async function BookmarksPage({
     ],
   };
 
-  const jsonLdData = generateSchemaGraph(schemaParams);
-
-  if (feedMode === "discover" && !hasTagFilter) {
-    return (
-      <>
-        <JsonLdScript data={jsonLdData} />
-        <Suspense fallback={<DiscoverFeedSkeleton />}>
-          <DiscoverFeedWrapper
-            sectionPage={1}
-            sectionsPerPage={INITIAL_DISCOVER_SECTIONS_PER_PAGE}
-            recencyDays={90}
-          />
-        </Suspense>
-      </>
-    );
-  }
-
   return (
     <>
-      <JsonLdScript data={jsonLdData} />
-      <div className="max-w-5xl mx-auto">
-        <BookmarksServer
-          title={pageMetadata.title}
-          description={pageMetadata.description}
-          initialPage={1}
-          includeImageData={true}
-          initialTag={initialTag}
-          tag={initialTag}
-          feedMode={feedMode === "latest" || hasTagFilter ? "latest" : undefined}
-        />
-      </div>
+      <JsonLdScript data={generateSchemaGraph(schemaParams)} />
+      <Suspense fallback={<DiscoverFeedSkeleton />}>
+        <BookmarksContent searchParams={searchParams} />
+      </Suspense>
     </>
   );
 }
