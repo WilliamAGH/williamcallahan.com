@@ -21,6 +21,11 @@ SHA-256 in Node's
 unsupported architectures. Do not replace that stage with a floating NodeSource
 `node_*.x` channel or application-level compatibility code.
 
+Coolify exposes build-time variables as BuildKit secrets. The web Dockerfile mounts
+public build configuration as canonical files under `/run/secrets/build`, then promotes
+only present values before `bun run build`. This preserves ordinary `--build-arg` values
+when the corresponding optional secret is absent.
+
 The pin fixes production failures with
 `controller[kState].transformAlgorithm is not a function`. Node
 [issue #62036](https://github.com/nodejs/node/issues/62036) identifies the Web

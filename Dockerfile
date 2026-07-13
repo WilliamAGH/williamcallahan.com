@@ -202,20 +202,26 @@ RUN bash -c 'set -euo pipefail \
 # Build orchestration runs through Bun scripts, but Next.js build runs on Node.
 # This keeps cacheComponents timer semantics aligned with Next.js expectations.
 #
-# BuildKit credentials are mounted directly as environment variables using the
-# idiomatic --mount=type=secret,env= syntax (requires dockerfile:1 syntax
-# directive). Public build configuration remains on ARG/ENV so an absent optional
-# secret cannot shadow it during generateStaticParams().
+# Credentials are mounted directly as environment variables. Public Coolify
+# values use canonical secret filenames and only replace ARG/ENV values when
+# present, so absent optional secrets cannot erase build arguments.
 # S3_SESSION_TOKEN is mirrored to AWS_SESSION_TOKEN for SDK compatibility.
 # Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
 RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false \
     --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=false \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN,required=false \
     --mount=type=secret,id=DATABASE_URL,env=DATABASE_URL,required=false \
+    --mount=type=secret,id=S3_BUCKET,target=/run/secrets/build/S3_BUCKET,required=false \
+    --mount=type=secret,id=S3_SERVER_URL,target=/run/secrets/build/S3_SERVER_URL,required=false \
+    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,target=/run/secrets/build/NEXT_PUBLIC_S3_CDN_URL,required=false \
+    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,target=/run/secrets/build/NEXT_PUBLIC_SITE_URL,required=false \
+    --mount=type=secret,id=NEXT_PUBLIC_UMAMI_WEBSITE_ID,target=/run/secrets/build/NEXT_PUBLIC_UMAMI_WEBSITE_ID,required=false \
+    --mount=type=secret,id=DEPLOYMENT_ENV,target=/run/secrets/build/DEPLOYMENT_ENV,required=false \
     --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN,required=false \
     --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN,required=false \
     --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN,required=false \
     bash -c 'set -euo pipefail \
+      && for secret_path in /run/secrets/build/*; do if [ -f "${secret_path}" ]; then name="${secret_path##*/}"; value="$(cat "${secret_path}")"; if [ -n "${value}" ]; then export "${name}=${value}"; fi; fi; done \
       && if [ -n "${S3_SESSION_TOKEN:-}" ]; then export AWS_SESSION_TOKEN="${S3_SESSION_TOKEN}"; fi \
       && bun run build \
       && (find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true)'

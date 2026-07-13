@@ -181,7 +181,11 @@ describe("Scheduler and data-updater flag consistency", () => {
     const dockerfile = await fs.readFile("Dockerfile", "utf8");
 
     expect(dockerfile).toContain("ARG NEXT_PUBLIC_S3_CDN_URL");
-    expect(dockerfile).not.toContain("--mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL");
+    expect(dockerfile).toContain(
+      "id=NEXT_PUBLIC_S3_CDN_URL,target=/run/secrets/build/NEXT_PUBLIC_S3_CDN_URL",
+    );
+    expect(dockerfile).not.toContain("id=NEXT_PUBLIC_S3_CDN_URL,env=NEXT_PUBLIC_S3_CDN_URL");
+    expect(dockerfile).toContain("for secret_path in /run/secrets/build/*");
     expect(dockerfile).not.toContain("ARG S3_SECRET_ACCESS_KEY");
     expect(dockerfile).toContain("--mount=type=secret,id=S3_SECRET_ACCESS_KEY");
   });
