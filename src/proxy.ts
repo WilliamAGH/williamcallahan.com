@@ -18,7 +18,7 @@
 import { buildCspHeader } from "@/lib/middleware/csp-header";
 import { NextResponse, type NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
-import { getClientIp } from "@/lib/utils/request-utils";
+import { getClientIp, shouldApplyHtmlCachePolicy } from "@/lib/utils/request-utils";
 import { IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
 import type { ProxyFunction } from "@/types/middleware";
@@ -119,7 +119,7 @@ function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): v
     return;
   }
 
-  if (url === "/" || !url.includes(".")) {
+  if (shouldApplyHtmlCachePolicy(url)) {
     // HTML (SSR / SSG) pages – absolutely never cache at CDN level.
     response.headers.set("Cache-Control", NO_CACHE_VALUE);
     response.headers.set("CDN-Cache-Control", NO_CACHE_VALUE);

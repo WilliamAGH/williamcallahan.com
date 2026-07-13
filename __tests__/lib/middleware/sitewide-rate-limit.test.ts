@@ -1,9 +1,15 @@
 import { NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware, PROFILES } from "@/lib/middleware/sitewide-rate-limit";
-import { classifyProxyRequest } from "@/lib/utils/request-utils";
+import { classifyProxyRequest, shouldApplyHtmlCachePolicy } from "@/lib/utils/request-utils";
 
 describe("sitewideRateLimitMiddleware", () => {
   describe("request classification", () => {
+    it("keeps API cache policy under route ownership", () => {
+      expect(shouldApplyHtmlCachePolicy("/api/cache/images")).toBe(false);
+      expect(shouldApplyHtmlCachePolicy("/api/posts")).toBe(false);
+      expect(shouldApplyHtmlCachePolicy("/blog/article")).toBe(true);
+    });
+
     it("classifies _rsc query requests as rsc", () => {
       const request = new NextRequest("https://example.com/projects?_rsc=abc123");
       expect(classifyProxyRequest(request)).toBe("rsc");

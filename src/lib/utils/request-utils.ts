@@ -174,3 +174,8 @@ export function classifyProxyRequest(
 
   return "other";
 }
+
+/** True when the proxy must prevent browser/CDN caching for an HTML route. */
+export function shouldApplyHtmlCachePolicy(pathname: string): boolean {
+  return !pathname.startsWith("/api/") && (pathname === "/" || !pathname.includes("."));
+}

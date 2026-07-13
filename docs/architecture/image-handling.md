@@ -190,6 +190,7 @@ Per Next.js docs: without `sizes`, the browser assumes the image is viewport-wid
 
 - **`next.config.ts` is the source of truth.** `images.localPatterns` lists `/images/**`, `/api/assets`, `/api/cache/images`, `/api/logo`, `/api/logo/invert`, `/api/og-image`. Real CDN hostnames live in `images.remotePatterns`.
 - **API routes stream bytes.** `/api/cache/images` resolves CDN redirects server-side, decodes double-encoded `url` params, and streams the body so `_next/image` never receives a 302.
+- **API routes own cache policy.** `src/proxy.ts` adds security headers but does not replace `/api/*` cache headers; `/api/cache/images` therefore retains its route-owned immutable browser and CDN policy.
 - **Placeholders stay static.** Anything under `/images/**` in `public/` is imported statically so Next infers width/height.
 - **Tracking pixels use plain `<img>`.** Noscript analytics pixels (1x1 GIFs from domains not in `remotePatterns` like `simpleanalyticscdn.com`, `getclicky.com`) must use `<img>` to avoid failed optimizer requests.
 
