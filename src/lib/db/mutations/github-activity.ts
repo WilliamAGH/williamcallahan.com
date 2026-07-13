@@ -5,10 +5,10 @@ import {
   GITHUB_ACTIVITY_DATA_TYPES,
   GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
 } from "@/lib/db/schema/github-activity";
+import { readGitHubActivityFromDb } from "@/lib/db/queries/github-activity";
 import { debugLog } from "@/lib/utils/debug";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
-  gitHubActivityApiResponseSchema,
   type AggregatedWeeklyActivity,
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
@@ -135,19 +135,7 @@ export async function writeGitHubActivityRefreshToDb(
   assertDatabaseWriteAllowed("writeGitHubActivityRefreshToDb");
   const published = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${GITHUB_ACTIVITY_REFRESH_LOCK}))`);
-    const existingRows = await tx
-      .select({ payload: githubActivityStore.payload })
-      .from(githubActivityStore)
-      .where(
-        and(
-          eq(githubActivityStore.dataType, "activity"),
-          eq(githubActivityStore.qualifier, GITHUB_ACTIVITY_GLOBAL_QUALIFIER),
-        ),
-      )
-      .limit(1);
-    const existingPayload = existingRows[0]?.payload;
-    const existingActivity =
-      existingPayload === undefined ? null : gitHubActivityApiResponseSchema.parse(existingPayload);
+    const existingActivity = await readGitHubActivityFromDb(tx);
     if (!canPublishGitHubActivity(activity, intent, existingActivity)) {
       return false;
     }

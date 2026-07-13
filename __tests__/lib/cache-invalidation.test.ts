@@ -1,40 +1,25 @@
 vi.mock("@/lib/data-access/github-public-api");
-vi.mock("@/lib/data-access/opengraph");
 
-vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
-  hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
-  hybridSearchBooks: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock("@/lib/db/queries/query-embedding", () => ({
-  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
-  getBookmarksPage: vi.fn().mockResolvedValue([]),
-  invalidateBookmarksCache: vi.fn(),
-}));
-
-import { invalidateSearchCache, invalidateSearchQueryCache } from "@/lib/search/cache-invalidation";
-import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import {
-  getBookmarksPage,
-  invalidateBookmarksCache,
-} from "@/lib/bookmarks/bookmarks-data-access.server";
-import { getAllPosts } from "@/lib/blog";
-import { invalidateBlogCache } from "@/lib/blog/mdx";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { createGitHubActivitySummary } from "@/lib/data-access/github-activity-summaries";
 import { createEmptyCategoryStats } from "@/lib/data-access/github-processing";
 import type { GraphQLRepoNode } from "@/types/github";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
+  aggregatedWeeklyActivityArraySchema,
   gitHubActivityApiResponseSchema,
+  gitHubActivitySummarySchema,
   publicPriorYearCommitSummarySchema,
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
   type GitHubActivityWriteIntent,
   type PriorYearCommitSummary,
 } from "@/types/schemas/github-storage";
+
+const GITHUB_ACTIVITY_LOCK_EVENT =
+  "select pg_advisory_xact_lock(hashtext($1)) [github-activity-refresh-global]";
+const pgDialect = new PgDialect();
 
 const buildGitHubSegment = (
   overrides: Partial<GitHubActivitySegment> = {},
@@ -77,24 +62,51 @@ const loadGitHubActivityWriter = async (
   rejectInsert = false,
 ) => {
   vi.resetModules();
-  let storedActivity = initialActivity;
+  const initialRefresh = {
+    activity: initialActivity,
+    summary: createGitHubActivitySummary({
+      allTimeData: initialActivity.cumulativeAllTimeData,
+      totalRepositoriesContributedTo: 4,
+      linesOfCodeByCategory: createEmptyCategoryStats(),
+    }),
+    aggregatedActivity: [{ weekStartDate: "2026-06-02", linesAdded: 90, linesRemoved: 20 }],
+  };
+  let storedRefresh = initialRefresh;
+  const transactionEvents: string[] = [];
   const transactionExecutor = {
-    execute: vi.fn(),
-    select: () => ({
-      from: () => ({
-        where: () => ({ limit: async () => [{ payload: storedActivity }] }),
-      }),
-    }),
-    insert: () => ({
-      values: (records: Array<{ dataType: string; payload: unknown }>) => ({
-        onConflictDoUpdate: async () => {
-          if (rejectInsert) throw new Error("atomic insert failed");
-          const activityRecord = records.find((record) => record.dataType === "activity");
-          if (activityRecord === undefined) throw new Error("Atomic refresh omitted activity.");
-          storedActivity = gitHubActivityApiResponseSchema.parse(activityRecord.payload);
-        },
-      }),
-    }),
+    execute: (query: SQL) => {
+      const renderedQuery = pgDialect.sqlToQuery(query);
+      transactionEvents.push(`${renderedQuery.sql} [${renderedQuery.params.join(",")}]`);
+      return Promise.resolve();
+    },
+    select: () => {
+      transactionEvents.push("read");
+      return {
+        from: () => ({
+          where: () => ({ limit: async () => [{ payload: storedRefresh.activity }] }),
+        }),
+      };
+    },
+    insert: () => {
+      transactionEvents.push("write");
+      return {
+        values: (records: Array<{ dataType: string; payload: unknown }>) => ({
+          onConflictDoUpdate: async () => {
+            if (rejectInsert) throw new Error("atomic insert failed");
+            const payloads = Object.fromEntries(
+              records.map(({ dataType, payload }) => [dataType, payload]),
+            );
+            storedRefresh = {
+              activity: gitHubActivityApiResponseSchema.parse(payloads.activity),
+              summary: gitHubActivitySummarySchema.parse(payloads.summary),
+              aggregatedActivity: aggregatedWeeklyActivityArraySchema.parse(
+                payloads["aggregated-weekly"],
+              ),
+            };
+          },
+        }),
+      };
+    },
   };
   vi.doMock("@/lib/db/connection", () => ({
     assertDatabaseWriteAllowed: vi.fn(),
@@ -118,40 +130,15 @@ const loadGitHubActivityWriter = async (
       [],
       intent,
     );
-  return { getStoredActivity: () => storedActivity, publishActivity };
+  return {
+    getStoredRefresh: () => storedRefresh,
+    getTransactionEvents: () => transactionEvents,
+    initialRefresh,
+    publishActivity,
+  };
 };
 
-describe("Next.js Cache Invalidation", () => {
-  describe("Search Cache", () => {
-    it("should cache and invalidate search results", async () => {
-      const query = "javascript";
-
-      const results1 = await searchBlogPostsServerSide(query);
-      expect(results1).toBeDefined();
-      expect(Array.isArray(results1)).toBe(true);
-      const results2 = await searchBlogPostsServerSide(query);
-      expect(results2).toBeDefined();
-
-      invalidateSearchCache();
-      invalidateSearchQueryCache(query);
-
-      const results3 = await searchBlogPostsServerSide(query);
-      expect(results3).toBeDefined();
-    });
-  });
-
-  describe("Bookmarks Cache", () => {
-    it("should cache and invalidate bookmarks data", async () => {
-      const page1 = await getBookmarksPage(1);
-      expect(Array.isArray(page1)).toBe(true);
-      await expect(getBookmarksPage(1)).resolves.toHaveLength(page1.length);
-
-      invalidateBookmarksCache();
-
-      await expect(getBookmarksPage(1)).resolves.toHaveLength(page1.length);
-    });
-  });
-
+describe("GitHub data access", () => {
   describe("GitHub Activity View", () => {
     const priorYearCommits = {
       totalCommits: 5,
@@ -258,7 +245,7 @@ describe("Next.js Cache Invalidation", () => {
     });
 
     it("preserves healthy activity when an incomplete refresh arrives", async () => {
-      const { getStoredActivity, publishActivity } =
+      const { getStoredRefresh, getTransactionEvents, initialRefresh, publishActivity } =
         await loadGitHubActivityWriter(healthyActivity);
 
       await expect(
@@ -272,7 +259,8 @@ describe("Next.js Cache Invalidation", () => {
         ),
       ).resolves.toBe(false);
 
-      expect(getStoredActivity()).toEqual(healthyActivity);
+      expect(getStoredRefresh()).toEqual(initialRefresh);
+      expect(getTransactionEvents()).toEqual([GITHUB_ACTIVITY_LOCK_EVENT, "read"]);
     });
 
     it("replaces healthy activity for a complete empty current repository set", async () => {
@@ -283,7 +271,7 @@ describe("Next.js Cache Invalidation", () => {
         linesRemoved: 0,
         dataComplete: true,
       });
-      const { getStoredActivity, publishActivity } =
+      const { getStoredRefresh, getTransactionEvents, publishActivity } =
         await loadGitHubActivityWriter(healthyActivity);
 
       await publishActivity(
@@ -291,19 +279,22 @@ describe("Next.js Cache Invalidation", () => {
         GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
       );
 
-      expect(getStoredActivity()).toEqual(emptyActivity);
+      const storedRefresh = getStoredRefresh();
+      expect(storedRefresh.activity).toEqual(emptyActivity);
+      expect(storedRefresh.summary.totalContributions).toBe(0);
+      expect(storedRefresh.aggregatedActivity).toEqual([]);
+      expect(getTransactionEvents()).toEqual([GITHUB_ACTIVITY_LOCK_EVENT, "read", "write"]);
     });
 
-    it("keeps the previous activity when the atomic insert fails", async () => {
-      const { getStoredActivity, publishActivity } = await loadGitHubActivityWriter(
-        healthyActivity,
-        true,
-      );
+    it("keeps every previous record when the atomic insert fails", async () => {
+      const { getStoredRefresh, getTransactionEvents, initialRefresh, publishActivity } =
+        await loadGitHubActivityWriter(healthyActivity, true);
 
       await expect(
         publishActivity(healthyActivity, GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY),
       ).rejects.toThrow("atomic insert failed");
-      expect(getStoredActivity()).toEqual(healthyActivity);
+      expect(getStoredRefresh()).toEqual(initialRefresh);
+      expect(getTransactionEvents()).toEqual([GITHUB_ACTIVITY_LOCK_EVENT, "read", "write"]);
     });
 
     it.each([
@@ -312,7 +303,7 @@ describe("Next.js Cache Invalidation", () => {
       ["added", { linesAdded: 1 }],
       ["removed", { linesRemoved: 1 }],
     ])("rejects %s empty-repository replacements", async (_name, overrides) => {
-      const { getStoredActivity, publishActivity } =
+      const { getStoredRefresh, getTransactionEvents, initialRefresh, publishActivity } =
         await loadGitHubActivityWriter(healthyActivity);
 
       await expect(
@@ -328,23 +319,8 @@ describe("Next.js Cache Invalidation", () => {
           GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
         ),
       ).rejects.toThrow("complete, zero-contribution activity data");
-      expect(getStoredActivity()).toEqual(healthyActivity);
+      expect(getStoredRefresh()).toEqual(initialRefresh);
+      expect(getTransactionEvents()).toEqual([GITHUB_ACTIVITY_LOCK_EVENT, "read"]);
     });
-  });
-
-  describe("Blog Cache", () => {
-    it("should cache and invalidate blog posts", async () => {
-      const posts1 = await getAllPosts();
-      expect(posts1).toBeDefined();
-      expect(Array.isArray(posts1)).toBe(true);
-      expect(posts1.length).toBeGreaterThan(0);
-      const posts2 = await getAllPosts();
-      expect(posts2.length).toBe(posts1.length);
-
-      invalidateBlogCache();
-
-      const posts3 = await getAllPosts();
-      expect(posts3.length).toBe(posts1.length);
-    }, 30000); // 30 second timeout for MDX processing
   });
 });

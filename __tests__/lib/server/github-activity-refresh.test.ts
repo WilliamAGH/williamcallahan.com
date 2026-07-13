@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { GET as getGitHubActivity } from "@/app/api/github-activity/route";
+import { POST as refreshGitHubActivityProduction } from "@/app/api/github-activity/refresh-production/route";
+import { POST as refreshGitHubActivity } from "@/app/api/github-activity/refresh/route";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
@@ -9,6 +11,9 @@ import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import { createUnavailableUserActivityView } from "@/types/schemas/github-storage";
 import { connection, NextRequest } from "next/server";
 
+const mockedAuth = vi.hoisted(() => vi.fn((userId: string | null = null) => ({ userId })));
+
+vi.mock("@clerk/nextjs/server", () => ({ auth: mockedAuth }));
 vi.mock("@/lib/data-access/github", () => ({
   refreshGitHubActivityDataFromApi: vi.fn(),
 }));
@@ -36,6 +41,7 @@ const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
 const mockedGetMonotonicTime = vi.mocked(getMonotonicTime);
 const mockedInvalidateAllGitHubCaches = vi.mocked(invalidateAllGitHubCaches);
 const mockedCaptureException = vi.mocked(Sentry.captureException);
+const relayFetch = vi.fn();
 
 const refreshedActivity = {
   trailingYearData: {
@@ -64,6 +70,120 @@ function expectNoStoreResponse(response: Response, status: number): void {
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   expect(connection).toHaveBeenCalledOnce();
 }
+
+describe("GitHub activity refresh routes", () => {
+  beforeEach(() => {
+    relayFetch.mockReset();
+    mockedAuth.mockClear();
+    mockedRefreshGitHubActivityDataFromApi.mockReset();
+    mockedResolveDatabaseAccessMode.mockReset();
+    mockedResolveDatabaseAccessMode.mockReturnValue({
+      allowWrites: false,
+      environment: "development",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
+    vi.stubGlobal("fetch", relayFetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("returns an explicit read-only result without refreshing GitHub data", async () => {
+    const response = await refreshGitHubActivity(
+      new NextRequest("http://localhost:3000/api/github-activity/refresh", { method: "POST" }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ dataFetched: false, readOnly: true });
+    expect(mockedRefreshGitHubActivityDataFromApi).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 before relaying when optional Clerk authentication is unavailable", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+    mockedAuth.mockRejectedValueOnce(
+      new Error("Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware()."),
+    );
+
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(401);
+    expect(relayFetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 before relaying without a Clerk user", async () => {
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(401);
+    expect(relayFetch).not.toHaveBeenCalled();
+  });
+
+  it("surfaces unexpected Clerk failures", async () => {
+    mockedAuth.mockRejectedValueOnce(new Error("Clerk authentication service unavailable"));
+
+    await expect(refreshGitHubActivityProduction()).rejects.toThrow(
+      "Clerk authentication service unavailable",
+    );
+    expect(relayFetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 in production without relaying", async () => {
+    mockedResolveDatabaseAccessMode.mockReturnValueOnce({
+      allowWrites: true,
+      environment: "production",
+      source: "DEPLOYMENT_ENV",
+    });
+
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(403);
+    expect(relayFetch).not.toHaveBeenCalled();
+  });
+
+  it("relays an authenticated refresh with the production endpoint header", async () => {
+    vi.stubEnv("GITHUB_REFRESH_SECRET", "github-refresh-secret");
+    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    relayFetch.mockResolvedValueOnce(
+      Response.json({
+        message: "GitHub activity data refresh completed successfully.",
+        dataFetched: true,
+        trailingYearCommits: 365,
+        allTimeCommits: 1_000,
+      }),
+    );
+
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(200);
+    expect(relayFetch).toHaveBeenCalledWith(
+      "https://williamcallahan.com/api/github-activity/refresh",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "x-refresh-secret": "github-refresh-secret" }),
+      }),
+    );
+  });
+
+  it.each([
+    [
+      "a read-only result",
+      Response.json({ message: "Read-only", dataFetched: false, readOnly: true }),
+      "Production did not perform the GitHub activity refresh",
+    ],
+    ["invalid JSON", new Response("not-json"), "Production returned invalid response format"],
+  ])("rejects %s from production", async (_case, productionResponse, message) => {
+    vi.stubEnv("GITHUB_REFRESH_SECRET", "github-refresh-secret");
+    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    relayFetch.mockResolvedValueOnce(productionResponse);
+
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ message });
+  });
+});
 
 describe("GET /api/github-activity", () => {
   it("returns no-store after calling connection on activity data", async () => {

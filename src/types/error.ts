@@ -18,16 +18,6 @@
  * @see lib/utils/error-utils.ts for runtime error handling helpers
  */
 
-/**
- * AWS SDK Error interface with metadata
- */
-export interface AWSError extends Error {
-  /** AWS SDK metadata containing HTTP status codes and other info */
-  $metadata?: {
-    httpStatusCode?: number;
-  };
-}
-
 // =============================================================================
 // ERROR CATEGORIZATION TYPES
 // =============================================================================
@@ -63,26 +53,4 @@ export interface CategorizedError extends Error {
   context?: Record<string, unknown>;
   originalError?: unknown;
   statusCode?: number;
-}
-
-// =============================================================================
-// ERROR COMPONENT & PAGE TYPES
-// =============================================================================
-
-/**
- * Props for global error handlers
- */
-export interface GlobalErrorProps {
-  /** The error that occurred with optional digest */
-  error: Error & { digest?: string };
-}
-
-/**
- * Props for error boundaries that handle component-level errors
- */
-export interface ErrorBoundaryComponentProps {
-  /** The error that occurred */
-  error: Error;
-  /** Function to reset the error boundary */
-  reset: () => void;
 }
