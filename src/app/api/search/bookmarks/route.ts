@@ -2,9 +2,7 @@
  * Bookmarks-only Search API Route
  *
  * GET /api/search/bookmarks?q=<query>
- * Returns dual payload shapes for compatibility:
- * - `data`: hydrated `UnifiedBookmark[]` for bookmark-focused consumers
- * - `results`: normalized `SearchResult[]` for terminal scoped-search parsing
+ * Returns compact `SearchResult[]` projections for terminal scoped-search parsing.
  *
  * In production: hybrid search (FTS + trigram + pgvector semantic similarity).
  * Fallback: FTS-only search when hybrid is unavailable.
@@ -18,7 +16,7 @@ import {
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarkFtsSearchHit, BookmarkFtsSearchPageResult } from "@/types/db/bookmarks";
-import type { SearchResult } from "@/types/schemas/search";
+import type { BookmarkSearchResponse, SearchResult } from "@/types/schemas/search";
 import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
@@ -44,30 +42,27 @@ const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: tr
 
 /** Build the standard bookmark search response payload. */
 function buildBookmarkSearchResponse(params: {
-  data: UnifiedBookmark[];
   results: SearchResult[];
   totalCount: number;
   hasMore: boolean;
   query: string;
-  buildPhase?: boolean;
-}): NextResponse {
-  const { data, results, totalCount, hasMore, query, buildPhase } = params;
-  return NextResponse.json(
-    {
-      data,
-      results,
-      totalCount,
-      hasMore,
-      meta: {
-        query,
-        scope: "bookmarks",
-        count: results.length,
-        timestamp: new Date().toISOString(),
-        ...(buildPhase ? { buildPhase: true } : {}),
-      },
+  buildPhase?: true;
+}): NextResponse<BookmarkSearchResponse> {
+  const { results, totalCount, hasMore, query, buildPhase } = params;
+  const response = {
+    results,
+    totalCount,
+    hasMore,
+    meta: {
+      query,
+      scope: "bookmarks",
+      count: results.length,
+      timestamp: new Date().toISOString(),
+      ...(buildPhase === true ? { buildPhase } : {}),
     },
-    { headers: withNoStoreHeaders() },
-  );
+  } satisfies BookmarkSearchResponse;
+
+  return NextResponse.json(response, { headers: withNoStoreHeaders() });
 }
 
 /** Map a ranked bookmark row into a normalized SearchResult. */
@@ -153,7 +148,6 @@ export async function GET(request: NextRequest) {
   preventCaching();
   if (isProductionBuildPhase()) {
     return buildBookmarkSearchResponse({
-      data: [],
       results: [],
       totalCount: 0,
       hasMore: false,
@@ -182,7 +176,6 @@ export async function GET(request: NextRequest) {
     const query = validation.sanitized;
     if (query.length === 0) {
       return buildBookmarkSearchResponse({
-        data: [],
         results: [],
         totalCount: 0,
         hasMore: false,
@@ -208,7 +201,6 @@ export async function GET(request: NextRequest) {
     const start = (page - 1) * limit;
 
     return buildBookmarkSearchResponse({
-      data: allItems.items.map((item) => item.bookmark),
       results: allItems.items.map((item) => toBookmarkSearchResult(item.bookmark, item.score)),
       totalCount: allItems.totalCount,
       hasMore: start + limit < allItems.totalCount,

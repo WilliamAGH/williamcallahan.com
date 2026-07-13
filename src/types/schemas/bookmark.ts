@@ -255,10 +255,6 @@ export const bookmarksIndexSchema = z.object({
 });
 
 export type BookmarksIndex = z.infer<typeof bookmarksIndexSchema>;
-export const bookmarksSearchResponseSchema = z.object({
-  data: z.array(unifiedBookmarkSchema),
-});
-export type BookmarksSearchResponse = z.infer<typeof bookmarksSearchResponseSchema>;
 export const bookmarksRefreshResponseSchema = z.object({
   data: z.array(unifiedBookmarkSchema),
   internalHrefs: z.record(z.string(), z.string()).optional(),

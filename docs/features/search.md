@@ -114,7 +114,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
   - Maintained for backward compatibility
   - Routes through server-side search and shares `applySearchGuards()` protections
 - **`app/api/search/bookmarks/route.ts`**: Bookmarks-only search
-  - Preserves MiniSearch relevance ordering when returning hydrated bookmarks
+  - Returns only compact ranked `SearchResult` projections; full bookmark records stay server-side
   - Shares `applySearchGuards()` protections
 
 ### Caching Layer

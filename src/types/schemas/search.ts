@@ -235,6 +235,26 @@ export const searchResultsSchema = z.array(searchResultSchema);
 
 export type SearchResults = z.infer<typeof searchResultsSchema>;
 
+/** Compact response returned by the paginated bookmark search API. */
+export const bookmarkSearchResponseSchema = z
+  .object({
+    results: searchResultsSchema,
+    totalCount: z.number().int().min(0),
+    hasMore: z.boolean(),
+    meta: z
+      .object({
+        query: z.string(),
+        scope: z.literal("bookmarks"),
+        count: z.number().int().min(0),
+        timestamp: z.string(),
+        buildPhase: z.literal(true).optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export type BookmarkSearchResponse = z.infer<typeof bookmarkSearchResponseSchema>;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MiniSearch Internal Types
 // ─────────────────────────────────────────────────────────────────────────────
