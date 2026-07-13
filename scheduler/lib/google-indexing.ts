@@ -5,8 +5,12 @@
 
 import { JWT } from "google-auth-library";
 import { GaxiosError } from "gaxios";
-import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
-import type { UrlNotification, IndexingApiResponse } from "@/types/api";
+import {
+  googleIndexingErrorResponseSchema,
+  googleIndexingPublishResponseSchema,
+  googleIndexingUrlNotificationSchema,
+  type GoogleIndexingUrlNotificationMetadata,
+} from "@/types/schemas/api";
 
 const LOG_PREFIX = "[Google]";
 
@@ -142,15 +146,18 @@ export async function notifyGoogle(
   type: "URL_UPDATED" | "URL_DELETED",
 ): Promise<GoogleIndexingUrlNotificationMetadata> {
   try {
-    const response = await client.request<IndexingApiResponse>({
+    const request = googleIndexingUrlNotificationSchema.parse({ url, type });
+    const response = await client.request({
       url: "https://indexing.googleapis.com/v3/urlNotifications:publish",
       method: "POST",
-      data: { url, type } as UrlNotification,
+      data: request,
     });
 
-    if (response.data?.urlNotificationMetadata) {
-      return response.data.urlNotificationMetadata as GoogleIndexingUrlNotificationMetadata;
+    const parsedResponse = googleIndexingPublishResponseSchema.safeParse(response.data);
+    if (parsedResponse.success) {
+      return parsedResponse.data.urlNotificationMetadata;
     }
+
     console.error(`${LOG_PREFIX} Unexpected response format for ${url}:`, response.data);
     throw new Error(`Unexpected response format from Google Indexing API for ${url}`);
   } catch (err: unknown) {
@@ -158,7 +165,11 @@ export async function notifyGoogle(
       console.error(
         `${LOG_PREFIX} Error submitting ${url}: ${err.response?.status} ${err.response?.statusText}`,
       );
-      console.error(`${LOG_PREFIX} Error details:`, err.response?.data);
+      const parsedError = googleIndexingErrorResponseSchema.safeParse(err.response?.data);
+      console.error(
+        `${LOG_PREFIX} Error details:`,
+        parsedError.success ? parsedError.data.error : err.response?.data,
+      );
     } else {
       console.error(`${LOG_PREFIX} Unexpected error for ${url}:`, err);
     }

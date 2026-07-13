@@ -1,31 +1,4 @@
-/**
- * Type definitions for API response shapes
- * Used for type-safe error handling in API routes and client components
- */
-
-/**
- * Standard error response shape from API endpoints
- * This matches what our APIs actually return
- */
-export interface ApiErrorResponse {
-  message?: string;
-  error?: string;
-  [key: string]: unknown; // Allow additional properties
-}
-
-/**
- * Type guard to check if an unknown value has a message property
- * @param value - The value to check
- * @returns True if the value has a message property
- */
-export function hasMessage(value: unknown): value is { message: string } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "message" in value &&
-    typeof (value as { message: unknown }).message === "string"
-  );
-}
+import { apiErrorResponseSchema } from "@/types/schemas/api";
 
 /**
  * Safely extract error message from an unknown error response
@@ -34,8 +7,9 @@ export function hasMessage(value: unknown): value is { message: string } {
  * @returns The error message or fallback
  */
 export function getErrorMessage(error: unknown, fallback: string): string {
-  if (hasMessage(error)) {
-    return error.message;
-  }
+  const result = apiErrorResponseSchema.safeParse(error);
+  if (!result.success) return fallback;
+  if (result.data.message !== undefined) return result.data.message;
+  if (result.data.error !== undefined) return result.data.error;
   return fallback;
 }

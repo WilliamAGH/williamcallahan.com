@@ -1,18 +1,17 @@
 /**
- * Error and API Response Types
+ * Error Types
  *
- * SCOPE: Core error types and generic API response structures.
- * This file defines the fundamental shapes for handling errors and API communication
- * across the application.
+ * SCOPE: Core error types and client-error reporting payloads.
+ * This file defines the fundamental shapes for handling errors across the application.
  *
  * === INCLUSION RULES ===
  * ✅ DO ADD:
  *   - Base error interfaces (e.g., Error, ExtendedError)
- *   - Generic API response wrappers (e.g., ApiResponse, ErrorResponse)
  *   - Type guards for core error types.
  *
  * === EXCLUSION RULES ===
  * ❌ DO NOT ADD:
+ *   - Generic API error or response contracts (→ types/schemas/api.ts)
  *   - Domain-specific errors (→ e.g., types/bookmark.ts for BookmarkError)
  *   - Runtime utility functions (→ lib/utils/error-utils.ts)
  *   - Component-specific error props (→ e.g., types/ui/boundaries.ts)
@@ -113,19 +112,7 @@ export function getErrorTimestamp(
  * Payload for client-side errors logged to the server.
  * @usage - API endpoint for /api/log-client-error
  */
-export interface ClientErrorReport {
-  message?: string;
-  resource?: string; // e.g., script URL if it's a script error
-  type?: string; // e.g., 'ChunkLoadError', 'TypeError'
-  url?: string; // The URL where the error occurred
-  stack?: string;
-  buildId?: string; // Next.js build ID
-  // Allow other properties that might be sent from various client-side error sources
-  [key: string]: unknown; // Use unknown instead of any for better type safety
-}
-
-// Zod schema moved from app/api/log-client-error/route.ts
-export const ClientErrorSchema = z.object({
+export const ClientErrorSchema = z.looseObject({
   message: z.string().optional(),
   resource: z.string().optional(), // e.g., script URL if it's a script error
   type: z.string().optional(), // e.g., 'ChunkLoadError', 'TypeError'
@@ -133,6 +120,8 @@ export const ClientErrorSchema = z.object({
   stack: z.string().optional(),
   buildId: z.string().optional(), // Next.js build ID
 });
+
+export type ClientErrorReport = z.infer<typeof ClientErrorSchema>;
 
 export interface ErrorWithCode {
   code: string;
@@ -200,5 +189,3 @@ export interface ErrorBoundaryComponentProps {
   /** Function to reset the error boundary */
   reset: () => void;
 }
-
-// Generic error/response interfaces removed - use specific response types from API modules

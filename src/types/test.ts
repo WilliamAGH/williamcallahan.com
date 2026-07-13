@@ -56,12 +56,3 @@ export interface MockImageProps {
   fill?: boolean;
   [key: string]: unknown;
 }
-
-export type MockedWindowEntry = {
-  id: string;
-  state: "normal" | "minimized" | "maximized" | "closed";
-  icon: React.ForwardRefExoticComponent<
-    React.SVGProps<SVGSVGElement> & React.RefAttributes<SVGSVGElement>
-  >;
-  title: string;
-};

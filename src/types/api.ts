@@ -80,52 +80,7 @@ export interface ErrorPageProps {
  * @note - Extends domain context with additional search functionality
  */
 export interface DomainPageRedirectorProps extends DomainBookmarkContext {
-  searchParams: { id?: string | string[] };
-}
-
-/**
- * API error response structure
- * @usage - Standard error response from API endpoints
- */
-export interface ErrorResponse {
-  error: string | null;
-}
-
-/**
- * Refresh operation result
- * @usage - Response from refresh API endpoints
- */
-export interface RefreshResult {
-  status: string;
-  message?: string;
-}
-
-/**
- * Google Indexing API URL notification payload
- * @usage - Request payload for Google Indexing API submissions
- */
-export interface UrlNotification {
-  url: string;
-  type: "URL_UPDATED" | "URL_DELETED";
-}
-
-/**
- * Google Indexing API response structure
- * @usage - Response from Google Indexing API endpoint
- */
-export interface IndexingApiResponse {
-  urlNotificationMetadata?: {
-    url: string;
-    latestUpdate: {
-      type: "URL_UPDATED" | "URL_DELETED";
-      notifyTime: string;
-    };
-  };
-  error?: {
-    code: number;
-    message: string;
-    status: string;
-  };
+  searchParams: Promise<{ id?: string | string[] }>;
 }
 
 // Cache clear API is now simplified to only support cache clearing operations

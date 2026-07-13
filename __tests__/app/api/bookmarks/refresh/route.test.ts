@@ -3,6 +3,9 @@ import { POST as refreshGitHubActivityProduction } from "@/app/api/github-activi
 import { POST as refreshGitHubActivity } from "@/app/api/github-activity/refresh/route";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
+import { getErrorMessage } from "@/types/api-responses";
+import { apiErrorResponseSchema } from "@/types/schemas/api";
+import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
@@ -26,6 +29,44 @@ const productionRefreshRoutes = [
 const relayFetch = vi.fn();
 const mockedRefreshGitHubActivityDataFromApi = vi.mocked(refreshGitHubActivityDataFromApi);
 const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
+
+describe("API error response handling", () => {
+  it("returns a parsed message error", () => {
+    const error = apiErrorResponseSchema.parse({ message: "Message error" });
+
+    expect(getErrorMessage(error, "Fallback error")).toBe("Message error");
+  });
+
+  it("returns a parsed error field", () => {
+    const error = apiErrorResponseSchema.parse({ error: "Error field" });
+
+    expect(getErrorMessage(error, "Fallback error")).toBe("Error field");
+  });
+
+  it("falls back for missing and malformed error payloads", () => {
+    expect(getErrorMessage({}, "Fallback error")).toBe("Fallback error");
+    expect(getErrorMessage({ error: 500 }, "Fallback error")).toBe("Fallback error");
+  });
+});
+
+describe("bookmark refresh response contract", () => {
+  it("rejects malformed refresh payloads", () => {
+    expect(bookmarkRefreshResponseSchema.safeParse({}).success).toBe(false);
+    expect(
+      bookmarkRefreshResponseSchema.safeParse({
+        status: "pending",
+        message: "Refresh pending",
+        data: {},
+      }).success,
+    ).toBe(false);
+    expect(
+      bookmarkRefreshResponseSchema.safeParse({
+        status: "success",
+        message: "Refresh complete",
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe("production refresh relay routes", () => {
   beforeEach(() => {
@@ -157,6 +198,31 @@ describe("production refresh relay routes", () => {
         trailingYearCommits: 365,
         allTimeCommits: 1_000,
       },
+    });
+  });
+
+  it("rejects a 2xx production bookmark refresh error response", async () => {
+    vi.stubEnv("DEPLOYMENT_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://dev.williamcallahan.com");
+    vi.stubEnv("BOOKMARK_REFRESH_SECRET", "bookmark-refresh-secret");
+    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    relayFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "error",
+          message: "Production refresh failed",
+          error: "Upstream failure",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const response = await refreshBookmarksProduction();
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      message: "Failed to trigger production bookmarks refresh",
+      error: "Upstream failure",
     });
   });
 
