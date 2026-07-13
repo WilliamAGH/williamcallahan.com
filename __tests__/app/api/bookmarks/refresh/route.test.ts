@@ -1,7 +1,22 @@
-import { auth } from "@clerk/nextjs/server";
 import { POST as refreshBookmarksProduction } from "@/app/api/bookmarks/refresh-production/route";
 import { POST as refreshGitHubActivityProduction } from "@/app/api/github-activity/refresh-production/route";
+import { POST as refreshGitHubActivity } from "@/app/api/github-activity/refresh/route";
+import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
+import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+
+const mockedAuth = vi.hoisted(() => vi.fn((userId: string | null = null) => ({ userId })));
+
+vi.mock("@clerk/nextjs/server", () => ({ auth: mockedAuth }));
+
+vi.mock("@/lib/data-access/github", () => ({
+  refreshGitHubActivityDataFromApi: vi.fn(),
+}));
+
+vi.mock("@/lib/db/connection", () => ({
+  resolveDatabaseAccessMode: vi.fn(),
+}));
 
 const productionRefreshRoutes = [
   { name: "bookmarks", post: refreshBookmarksProduction },
@@ -9,11 +24,20 @@ const productionRefreshRoutes = [
 ];
 
 const relayFetch = vi.fn();
-const mockedAuth = vi.mocked(auth);
+const mockedRefreshGitHubActivityDataFromApi = vi.mocked(refreshGitHubActivityDataFromApi);
+const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
 
 describe("production refresh relay routes", () => {
   beforeEach(() => {
     relayFetch.mockReset();
+    mockedAuth.mockClear();
+    mockedRefreshGitHubActivityDataFromApi.mockReset();
+    mockedResolveDatabaseAccessMode.mockReset();
+    mockedResolveDatabaseAccessMode.mockReturnValue({
+      allowWrites: false,
+      environment: "development",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
     vi.stubGlobal("fetch", relayFetch);
   });
 
@@ -61,6 +85,11 @@ describe("production refresh relay routes", () => {
 
     it(`returns 403 for ${name} in production without relaying`, async () => {
       vi.stubEnv("DEPLOYMENT_ENV", "production");
+      mockedResolveDatabaseAccessMode.mockReturnValueOnce({
+        allowWrites: true,
+        environment: "production",
+        source: "DEPLOYMENT_ENV",
+      });
 
       const response = await post();
 
@@ -68,4 +97,112 @@ describe("production refresh relay routes", () => {
       expect(relayFetch).not.toHaveBeenCalled();
     });
   }
+
+  it("returns an explicit read-only result without refreshing GitHub data", async () => {
+    mockedResolveDatabaseAccessMode.mockReturnValueOnce({
+      allowWrites: false,
+      environment: "development",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
+
+    const response = await refreshGitHubActivity(
+      new NextRequest("http://localhost:3000/api/github-activity/refresh", { method: "POST" }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      message:
+        "GitHub activity refresh is read-only in this deployment. Refresh production to update the shared dataset.",
+      dataFetched: false,
+      readOnly: true,
+    });
+    expect(mockedRefreshGitHubActivityDataFromApi).not.toHaveBeenCalled();
+  });
+
+  it("relays an authenticated GitHub refresh with the production endpoint header", async () => {
+    vi.stubEnv("DEPLOYMENT_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://dev.williamcallahan.com");
+    vi.stubEnv("GITHUB_REFRESH_SECRET", "github-refresh-secret");
+    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    relayFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          message: "GitHub activity data refresh completed successfully.",
+          dataFetched: true,
+          trailingYearCommits: 365,
+          allTimeCommits: 1_000,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(200);
+    expect(relayFetch).toHaveBeenCalledWith(
+      "https://williamcallahan.com/api/github-activity/refresh",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-refresh-secret": "github-refresh-secret",
+        },
+      },
+    );
+    await expect(response.json()).resolves.toEqual({
+      message: "Production refresh initiated successfully",
+      productionResponse: {
+        message: "GitHub activity data refresh completed successfully.",
+        dataFetched: true,
+        trailingYearCommits: 365,
+        allTimeCommits: 1_000,
+      },
+    });
+  });
+
+  it("rejects a read-only response from the production refresh endpoint", async () => {
+    vi.stubEnv("DEPLOYMENT_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://dev.williamcallahan.com");
+    vi.stubEnv("GITHUB_REFRESH_SECRET", "github-refresh-secret");
+    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    relayFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          message: "GitHub activity refresh is read-only in this deployment.",
+          dataFetched: false,
+          readOnly: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      message: "Production did not perform the GitHub activity refresh",
+      error: "Production deployment is read-only",
+    });
+  });
+
+  it("rejects invalid JSON from the production refresh endpoint", async () => {
+    vi.stubEnv("DEPLOYMENT_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://dev.williamcallahan.com");
+    vi.stubEnv("GITHUB_REFRESH_SECRET", "github-refresh-secret");
+    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    relayFetch.mockResolvedValueOnce(
+      new Response("not-json", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      message: "Production returned invalid response format",
+      error: "Response validation failed",
+    });
+  });
 });

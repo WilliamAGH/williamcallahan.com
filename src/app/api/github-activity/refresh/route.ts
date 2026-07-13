@@ -18,6 +18,8 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import { getClientIp } from "@/lib/utils/request-utils";
 import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
+import { resolveDatabaseAccessMode } from "@/lib/db/connection";
+import { githubActivityRefreshSuccessResponseSchema } from "@/types/schemas/github-storage";
 
 const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
@@ -66,6 +68,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log("[API Refresh] Build phase detected - skipping GitHub activity refresh");
     return NextResponse.json(
       { message: "Skipping refresh during build phase", buildPhase: true },
+      { status: 200 },
+    );
+  }
+
+  const databaseAccess = resolveDatabaseAccessMode();
+  if (!databaseAccess.allowWrites) {
+    envLogger.log(
+      "GitHub activity refresh skipped in read-only environment",
+      {
+        environment: databaseAccess.environment,
+        source: databaseAccess.source,
+      },
+      { category: "GitHubActivityRefresh" },
+    );
+    return NextResponse.json(
+      githubActivityRefreshSuccessResponseSchema.parse({
+        message:
+          "GitHub activity refresh is read-only in this deployment. Refresh production to update the shared dataset.",
+        dataFetched: false,
+        readOnly: true,
+      }),
       { status: 200 },
     );
   }
@@ -119,48 +142,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Skip x-refresh-secret check if authenticated as cron job
   if (!isCronJob) {
-    // Allow unauthenticated refresh in non-production environments
-    const isProduction =
-      process.env.DEPLOYMENT_ENV === "production" ||
-      process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
+    const secret = headerStore.get("x-refresh-secret");
+    const serverSecret = process.env.GITHUB_REFRESH_SECRET;
 
-    if (!isProduction) {
-      envLogger.log(
-        "Allowing unauthenticated refresh in non-production environment",
-        { deploymentEnv: process.env.DEPLOYMENT_ENV, siteUrl: process.env.NEXT_PUBLIC_SITE_URL },
-        { category: "GitHubActivityRefresh" },
+    if (!serverSecret) {
+      console.error("[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.");
+      return NextResponse.json(
+        { message: "Server mis-configuration: secret missing." },
+        { status: 500 },
       );
-    } else {
-      // Production environment requires authentication
-      const secret = headerStore.get("x-refresh-secret");
-      const serverSecret = process.env.GITHUB_REFRESH_SECRET;
+    }
 
-      if (!serverSecret) {
-        console.error("[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.");
-        return NextResponse.json(
-          { message: "Server mis-configuration: secret missing." },
-          { status: 500 },
-        );
-      }
+    if (secret !== serverSecret) {
+      const generateKeyCommand =
+        "node -e \"import('crypto').then(crypto => console.log(crypto.randomBytes(32).toString('hex')))\"";
+      console.warn(
+        `[API Refresh] Unauthorized: 'x-refresh-secret' header invalid or missing.\n    Ensure GITHUB_REFRESH_SECRET is set on the server.\n    To generate a new secret, run in terminal: ${generateKeyCommand}`,
+      );
 
-      if (secret !== serverSecret) {
-        const generateKeyCommand =
-          "node -e \"import('crypto').then(crypto => console.log(crypto.randomBytes(32).toString('hex')))\"";
-        console.warn(
-          `[API Refresh] Unauthorized: 'x-refresh-secret' header invalid or missing.\n    Ensure GITHUB_REFRESH_SECRET is set on the server.\n    To generate a new secret, run in terminal: ${generateKeyCommand}`,
-        );
+      const exampleCurl =
+        "curl -X POST -H 'Content-Type: application/json' -H 'x-refresh-secret: YOUR_ACTUAL_SECRET' http://localhost:3000/api/github-activity/refresh";
 
-        const exampleCurl =
-          "curl -X POST -H 'Content-Type: application/json' -H 'x-refresh-secret: YOUR_ACTUAL_SECRET' http://localhost:3000/api/github-activity/refresh";
-
-        return NextResponse.json(
-          {
-            message: `Unauthorized. Refresh secret invalid or missing. Ensure 'x-refresh-secret' header is set correctly. Example: ${exampleCurl}. See server logs for more details.`,
-            code: "UNAUTHORIZED_REFRESH_SECRET",
-          },
-          { status: 401 },
-        );
-      }
+      return NextResponse.json(
+        {
+          message: `Unauthorized. Refresh secret invalid or missing. Ensure 'x-refresh-secret' header is set correctly. Example: ${exampleCurl}. See server logs for more details.`,
+          code: "UNAUTHORIZED_REFRESH_SECRET",
+        },
+        { status: 401 },
+      );
     }
   }
 
@@ -175,12 +184,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Invalidate cache layers for GitHub data (single source of truth)
       invalidateAllGitHubCaches();
 
-      const responseData = {
+      const responseData = githubActivityRefreshSuccessResponseSchema.parse({
         message: `GitHub activity data refresh completed successfully${isCronJob ? " (triggered by cron job)" : ""}.`,
         dataFetched: true,
         trailingYearCommits: result.trailingYearData.totalContributions,
         allTimeCommits: result.allTimeData.totalContributions,
-      };
+      });
 
       // For successful non-cron requests, headers are already set by the allowed path
       // No need to add rate limit headers here as we don't have access to the exact count

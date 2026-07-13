@@ -10,9 +10,11 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getErrorMessage } from "@/types/api-responses";
+import { githubActivityRefreshSuccessResponseSchema } from "@/types/schemas/github-storage";
 
 /**
  * POST handler for triggering production GitHub activity refresh
@@ -20,14 +22,11 @@ import { getErrorMessage } from "@/types/api-responses";
  */
 export async function POST(): Promise<NextResponse> {
   // Check if we're in a non-production environment
-  const isProduction =
-    process.env.DEPLOYMENT_ENV === "production" ||
-    process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
-
-  if (isProduction) {
+  const databaseAccess = resolveDatabaseAccessMode();
+  if (databaseAccess.allowWrites) {
     envLogger.log(
       "Production refresh endpoint called from production environment - not allowed",
-      undefined,
+      { environment: databaseAccess.environment, source: databaseAccess.source },
       {
         category: "GitHubActivityRefresh",
       },
@@ -88,7 +87,7 @@ export async function POST(): Promise<NextResponse> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${refreshSecret}`,
+        "x-refresh-secret": refreshSecret,
       },
     });
 
@@ -114,7 +113,55 @@ export async function POST(): Promise<NextResponse> {
       );
     }
 
-    const result: unknown = await response.json();
+    let rawResult: unknown;
+    try {
+      rawResult = await response.json();
+    } catch (error: unknown) {
+      envLogger.log(
+        "Production GitHub activity refresh returned invalid JSON",
+        { error: error instanceof Error ? error.message : String(error) },
+        { category: "GitHubActivityRefresh" },
+      );
+      return NextResponse.json(
+        {
+          message: "Production returned invalid response format",
+          error: "Response validation failed",
+        },
+        { status: 502 },
+      );
+    }
+
+    const parseResult = githubActivityRefreshSuccessResponseSchema.safeParse(rawResult);
+    if (!parseResult.success) {
+      envLogger.log(
+        "Production GitHub activity refresh response validation failed",
+        { errors: parseResult.error.format() },
+        { category: "GitHubActivityRefresh" },
+      );
+      return NextResponse.json(
+        {
+          message: "Production returned invalid response format",
+          error: "Response validation failed",
+        },
+        { status: 502 },
+      );
+    }
+
+    const result = parseResult.data;
+    if (!result.dataFetched) {
+      envLogger.log(
+        "Production GitHub activity refresh was rejected as read-only",
+        { result },
+        { category: "GitHubActivityRefresh" },
+      );
+      return NextResponse.json(
+        {
+          message: "Production did not perform the GitHub activity refresh",
+          error: "Production deployment is read-only",
+        },
+        { status: 502 },
+      );
+    }
 
     envLogger.log(
       "Production refresh triggered successfully",
