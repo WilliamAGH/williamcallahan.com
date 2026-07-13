@@ -5,26 +5,44 @@
  */
 
 import type { Metadata } from "next";
+import { generateMetadata as generateBookmarkDetailMetadata } from "@/app/bookmarks/[slug]/page";
 import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page";
+import { getBookmarkById } from "@/lib/bookmarks/service.server";
+import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
+import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 
-const { mockGetStaticPageMetadata } = vi.hoisted(() => ({
-  mockGetStaticPageMetadata: vi.fn(() => ({
-    title: "Bookmarks",
-    description: "A collection of bookmarks",
-    openGraph: {
+const { mockGetBookmarkById, mockGetStaticPageMetadata, mockResolveBookmarkIdFromSlug } =
+  vi.hoisted(() => ({
+    mockGetBookmarkById: vi.fn(),
+    mockResolveBookmarkIdFromSlug: vi.fn(),
+    mockGetStaticPageMetadata: vi.fn(() => ({
       title: "Bookmarks",
       description: "A collection of bookmarks",
-      url: "https://williamcallahan.com/bookmarks",
-    },
-    alternates: {
-      canonical: "https://williamcallahan.com/bookmarks",
-    },
-  })),
+      openGraph: {
+        title: "Bookmarks",
+        description: "A collection of bookmarks",
+        url: "https://williamcallahan.com/bookmarks",
+      },
+      alternates: {
+        canonical: "https://williamcallahan.com/bookmarks",
+      },
+    })),
+  }));
+
+vi.mock("@/lib/bookmarks/service.server", () => ({
+  getBookmarkById: mockGetBookmarkById,
+}));
+
+vi.mock("@/lib/bookmarks/slug-helpers", () => ({
+  resolveBookmarkIdFromSlug: mockResolveBookmarkIdFromSlug,
 }));
 
 vi.mock("@/lib/seo/metadata", () => ({
   getStaticPageMetadata: mockGetStaticPageMetadata,
 }));
+
+const mockedGetBookmarkById = vi.mocked(getBookmarkById);
+const mockedResolveBookmarkIdFromSlug = vi.mocked(resolveBookmarkIdFromSlug);
 
 describe("Metadata Integration Tests", () => {
   beforeEach(() => {
@@ -49,6 +67,36 @@ describe("Metadata Integration Tests", () => {
     expect(metadata.description).toBeDefined();
     expect(metadata.openGraph).toBeDefined();
     expect(metadata.openGraph?.url).toBe("https://williamcallahan.com/bookmarks");
+  });
+
+  it("generates URL-less bookmark metadata without logging a URL parsing error", async () => {
+    const slug = "unknown-url";
+    const bookmark = unifiedBookmarkSchema.parse({
+      id: "url-less-bookmark",
+      url: "about:blank",
+      title: "URL-less Bookmark",
+      description: "",
+      slug,
+      tags: [],
+      dateBookmarked: "2026-07-13T00:00:00.000Z",
+      sourceUpdatedAt: "2026-07-13T00:00:00.000Z",
+    });
+    mockedResolveBookmarkIdFromSlug.mockResolvedValue(bookmark.id);
+    mockedGetBookmarkById.mockResolvedValue(bookmark);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const metadata = await generateBookmarkDetailMetadata({ params: { slug } });
+
+      expect(metadata.description).toBe(
+        "A bookmark from website that I've saved for future reference.",
+      );
+      expect(metadata.alternates?.canonical).toBe(`https://williamcallahan.com/bookmarks/${slug}`);
+      expect(metadata.openGraph?.url).toBe(`https://williamcallahan.com/bookmarks/${slug}`);
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   describe("Robots.txt Environment Detection", () => {

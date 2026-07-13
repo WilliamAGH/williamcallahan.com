@@ -7,7 +7,7 @@ import type { ReactNode, HTMLAttributes } from "react";
 
 export interface ExternalLinkProps extends HTMLAttributes<HTMLAnchorElement> {
   /** Link URL */
-  href: string;
+  href?: string | null;
   /** Link text or content */
   children: ReactNode;
   /** Whether to show external link icon */

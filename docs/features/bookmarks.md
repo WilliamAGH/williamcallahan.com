@@ -212,7 +212,7 @@ deployments remain read-only and do not send engagement requests.
 
 Core data model with fields for:
 
-- Basic metadata (id, URL, title, description); `bookmarkUrlSchema` permits HTTP(S) or the canonical URL-less `about:blank` sentinel
+- Basic metadata (`id`, `url`, `title`, `description`); `bookmarkUrlSchema` permits HTTP(S) or the canonical URL-less `about:blank` sentinel
 - Tags (supports both string[] and object[] formats)
 - Timestamps (created, updated, bookmarked)
 - Enrichment data (OpenGraph, assets, logos)

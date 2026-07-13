@@ -10,7 +10,7 @@
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { ExternalLinkProps } from "@/types/ui/forms";
 
-import React, { Children, isValidElement, type JSX } from "react";
+import React, { Children, isValidElement, type AnchorHTMLAttributes, type JSX } from "react";
 
 /**
  * A component that renders an external link with proper SEO and accessibility attributes
@@ -36,12 +36,23 @@ export function ExternalLink({
   className = "",
   title,
   rawTitle = false,
-}: Readonly<ExternalLinkProps>): JSX.Element {
+  icon,
+  target,
+  rel,
+  ...attributes
+}: Readonly<
+  ExternalLinkProps & Pick<AnchorHTMLAttributes<HTMLAnchorElement>, "target">
+>): JSX.Element {
+  void target;
+  void rel;
   const baseClassName = `inline-flex items-center gap-1 ${className}`;
 
-  // If no href is provided, render as span
   if (!href) {
-    return <span className={baseClassName}>{children}</span>;
+    return (
+      <span {...attributes} className={baseClassName} title={title}>
+        {children}
+      </span>
+    );
   }
 
   // Normalize children: if MDX wrapped text in a <p>, unwrap it to avoid invalid <a><p/></a> markup
@@ -58,6 +69,7 @@ export function ExternalLink({
 
   return (
     <a
+      {...attributes}
       href={href}
       target="_blank"
       rel="noopener noreferrer"
@@ -65,7 +77,7 @@ export function ExternalLink({
       title={rawTitle ? title : title || `Visit ${href} (opens in new tab)`}
     >
       {normalizedChildren}
-      {showIcon && <ExternalLinkIcon className="w-4 h-4" aria-hidden="true" />}
+      {icon ?? (showIcon ? <ExternalLinkIcon className="w-4 h-4" aria-hidden="true" /> : null)}
     </a>
   );
 }

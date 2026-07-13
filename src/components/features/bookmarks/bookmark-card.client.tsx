@@ -5,7 +5,7 @@ import { formatDate as utilFormatDate } from "@/lib/utils";
 import { Calendar, Clock, ExternalLink as LucideExternalLinkIcon, Star } from "lucide-react";
 import Link from "next/link";
 import { type JSX } from "react";
-import { normalizeDomain } from "../../../lib/utils/domain-utils";
+import { getDisplayHostname, safeExternalHref } from "@/lib/utils/url-utils";
 import { ExternalLink } from "../../ui/external-link.client";
 import { Badge } from "@/components/ui/badge";
 import { ShareButton } from "./share-button.client";
@@ -62,8 +62,8 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     { includeScreenshots: true },
   );
 
-  // normalizeDomain already strips www prefix via stripWwwPrefix()
-  const domainWithoutWWW = normalizeDomain(url);
+  const externalHref = safeExternalHref(url);
+  const displayHostname = externalHref === null ? null : getDisplayHostname(externalHref);
 
   // Process tags using shared utilities for consistency
   const rawTags = normalizeTagsToStrings(tags || []);
@@ -95,7 +95,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
             </Link>
           ) : (
             <ExternalLink
-              href={url}
+              href={externalHref}
               title={title}
               showIcon={false}
               className="absolute inset-0 block"
@@ -105,15 +105,17 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
               </div>
             </ExternalLink>
           )}
-          <ExternalLink
-            href={url}
-            title={`Visit ${domainWithoutWWW}`}
-            showIcon={false}
-            className="absolute bottom-2 left-2 bg-white/80 dark:bg-gray-800/80 px-2 py-0.5 flex items-center space-x-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
-          >
-            <LucideExternalLinkIcon className="w-3 h-3 text-gray-700 dark:text-gray-200" />
-            <span className="text-xs text-gray-700 dark:text-gray-200">{domainWithoutWWW}</span>
-          </ExternalLink>
+          {displayHostname !== null && (
+            <ExternalLink
+              href={externalHref}
+              title={`Visit ${displayHostname}`}
+              showIcon={false}
+              className="absolute bottom-2 left-2 bg-white/80 dark:bg-gray-800/80 px-2 py-0.5 flex items-center space-x-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
+            >
+              <LucideExternalLinkIcon className="w-3 h-3 text-gray-700 dark:text-gray-200" />
+              <span className="text-xs text-gray-700 dark:text-gray-200">{displayHostname}</span>
+            </ExternalLink>
+          )}
         </div>
         <div className="flex min-h-0 flex-1 flex-col p-3">
           <div className="min-h-0 flex-1 overflow-hidden">
@@ -128,7 +130,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
               </Link>
             ) : (
               <ExternalLink
-                href={url}
+                href={externalHref}
                 title={displayTitle}
                 showIcon={false}
                 className="text-gray-900 transition-colors hover:text-blue-600 dark:text-white"
@@ -199,7 +201,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         ) : (
           // When on individual bookmark page, link to external URL in new tab
           <ExternalLink
-            href={url}
+            href={externalHref}
             title={title}
             showIcon={false}
             className="absolute inset-0 block"
@@ -211,15 +213,17 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           </ExternalLink>
         )}
         {/* Clickable domain overlay - links to external URL */}
-        <ExternalLink
-          href={url}
-          title={`Visit ${domainWithoutWWW}`}
-          showIcon={false}
-          className="absolute bottom-3 left-3 bg-white/80 dark:bg-gray-800/80 px-3 py-1 flex items-center space-x-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
-        >
-          <LucideExternalLinkIcon className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-          <span className="text-sm text-gray-700 dark:text-gray-200">{domainWithoutWWW}</span>
-        </ExternalLink>
+        {displayHostname !== null && (
+          <ExternalLink
+            href={externalHref}
+            title={`Visit ${displayHostname}`}
+            showIcon={false}
+            className="absolute bottom-3 left-3 bg-white/80 dark:bg-gray-800/80 px-3 py-1 flex items-center space-x-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
+          >
+            <LucideExternalLinkIcon className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+            <span className="text-sm text-gray-700 dark:text-gray-200">{displayHostname}</span>
+          </ExternalLink>
+        )}
       </div>
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
@@ -239,7 +243,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         ) : (
           // When on individual bookmark page, link to external URL in new tab
           <ExternalLink
-            href={url}
+            href={externalHref}
             title={displayTitle}
             showIcon={false}
             className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
