@@ -46,7 +46,7 @@ The "navigation" functionality encompasses components and utilities that manage 
 
 - **`components/ui/navigation/navigation.client.tsx`**: Main navigation container
   - Responsive mobile menu with hamburger button
-  - JavaScript-based responsive logic (should be CSS)
+  - Projects the canonical social link collection into the drawer, excluding only Bluesky
   - **Issue**: Uses `isMounted` pattern preventing SSR
 
 - **`components/ui/navigation/navigation-link.client.tsx`**: Individual link component

@@ -3,27 +3,20 @@ import { vi, type Mock } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { navigationLinks } from "@/components/ui/navigation/navigation-links";
 import { Navigation } from "@/components/ui/navigation/navigation.client";
+import { socialLinks } from "@/components/ui/social-icons/social-links";
 import { TerminalProvider } from "@/components/ui/terminal/terminal-context.client";
 import { usePathname } from "next/navigation";
-// Import the REAL provider is already imported above
 
-// Create mock functions
 const mockUseWindowSize = vi.fn();
-// const mockUsePathname = vi.fn(); // No longer needed
 
-// Mock the useWindowSize hook
 vi.mock("@/lib/hooks/use-window-size.client", () => ({
   useWindowSize: () => mockUseWindowSize(),
 }));
 
-// Mock next/navigation using vi.mock
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(),
 }));
 
-// REMOVE ALL MOCKING FOR terminal-context.client
-
-// Mock window-controls component using vi.mock
 function MockWindowControls() {
   return <div data-testid="window-controls">Window Controls</div>;
 }
@@ -32,7 +25,6 @@ vi.mock("@/components/ui/navigation/window-controls", () => ({
   WindowControls: MockWindowControls,
 }));
 
-// Mock next/link using vi.mock
 interface LinkProps {
   children: React.ReactNode;
   href: string;
@@ -61,7 +53,6 @@ vi.mock("next/link", () => ({
   },
 }));
 
-// Import mocks *after* setting them up
 describe("Navigation", () => {
   // Store original window values
   const originalInnerWidth = window.innerWidth;
@@ -128,17 +119,6 @@ describe("Navigation", () => {
         <TerminalProvider>
           <Navigation />
         </TerminalProvider>,
-      );
-
-      // Debug: check which links are actually rendered
-      const allLinks = screen.getAllByRole("link");
-      console.log(
-        "Rendered links:",
-        allLinks.map((link) => link.textContent),
-      );
-      console.log(
-        "Expected navigationLinks:",
-        navigationLinks.map((link) => link.name),
       );
 
       // At 1440px width, all links including Contact should be visible
@@ -221,6 +201,24 @@ describe("Navigation", () => {
       for (const link of navigationLinks) {
         expect(within(mobileMenu).getByRole("link", { name: link.name })).toBeInTheDocument();
       }
+    });
+
+    it("exposes the canonical Discord shortcut in the mobile menu", async () => {
+      const discordLink = socialLinks.find((link) => link.platform === "discord");
+      if (!discordLink) throw new Error("Canonical social links must include Discord");
+
+      render(
+        <TerminalProvider>
+          <Navigation />
+        </TerminalProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
+
+      const mobileMenu = screen.getByTestId("mobile-menu");
+      const renderedLink = await within(mobileMenu).findByRole("link", {
+        name: discordLink.label,
+      });
+      expect(renderedLink).toHaveAttribute("href", discordLink.href);
     });
 
     it("closes menu when a link is clicked", () => {
