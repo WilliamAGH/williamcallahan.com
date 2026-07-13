@@ -19,13 +19,12 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 const originalRewrite = Object.getOwnPropertyDescriptor(NextResponse, "rewrite");
-
+const clearDeploymentId = () => Reflect.deleteProperty(process.env, "NEXT_DEPLOYMENT_ID");
 const createRewriteResponse: typeof NextResponse.rewrite = (destination, init) => {
   const response = NextResponse.next(init);
   response.headers.set("x-middleware-rewrite", destination.toString());
   return response;
 };
-
 function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
   const request = new NextRequest(url, { method });
   if (!Reflect.set(request, "nextUrl", new URL(url))) {
@@ -33,7 +32,6 @@ function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
   }
   return request;
 }
-
 async function loadNextConfig() {
   vi.resetModules();
   vi.doMock("@sentry/nextjs", () => ({
@@ -52,7 +50,6 @@ function investmentResponses(releaseId: string): Response[] {
   const html = `<h1>Investment Portfolio</h1><script src="/_next/static/chunks/app.js?dpl=${releaseId}"></script>`;
   return Array.from({ length: 5 }, () => new Response(html));
 }
-
 describe("Cloudflare header enforcement", () => {
   const ORIGINAL_ENV = { ...process.env };
 
@@ -90,7 +87,6 @@ describe("Cloudflare header enforcement", () => {
     expect(validation.isValid).toBe(true);
     expect(validation.reasons).toEqual([]);
   });
-
   it("prefers and normalizes the Cloudflare connecting IP", () => {
     const headers = new Headers({
       "cf-connecting-ip": "203.0.113.5, 10.0.0.1",
@@ -99,7 +95,6 @@ describe("Cloudflare header enforcement", () => {
     });
     expect(getClientIp(headers)).toBe("203.0.113.5");
   });
-
   it("recognizes Cloudflare IPv6 peers", () => {
     const headers = new Headers({
       "cf-ray": "1234abcd",
@@ -109,7 +104,6 @@ describe("Cloudflare header enforcement", () => {
     expect(getClientIp(headers)).toBe("2001:db8::5");
     expect(validateCloudflareHeaders(headers).isValid).toBe(true);
   });
-
   it.each([
     ["173.245.63.255", true],
     ["173.245.64.0", false],
@@ -124,7 +118,6 @@ describe("Cloudflare header enforcement", () => {
     expect(validateCloudflareHeaders(headers).isValid).toBe(isTrusted);
     expect(getClientIp(headers)).toBe(isTrusted ? "203.0.113.5" : peerIp);
   });
-
   it("uses the direct peer instead of forged Cloudflare headers", () => {
     const headers = new Headers({
       "cf-ray": "forged",
@@ -135,7 +128,6 @@ describe("Cloudflare header enforcement", () => {
     expect(getClientIp(headers)).toBe("99.9.208.198");
     expect(validateCloudflareHeaders(headers).reasons).toContain("untrusted_proxy");
   });
-
   it("flags missing cf-ray", () => {
     const headers = new Headers({
       "cf-connecting-ip": "203.0.113.5",
@@ -145,7 +137,6 @@ describe("Cloudflare header enforcement", () => {
     expect(validation.isValid).toBe(false);
     expect(validation.reasons).toContain("missing_cf_ray");
   });
-
   it("flags invalid IPs", () => {
     const headers = new Headers({
       "cf-ray": "1234abcd",
@@ -156,14 +147,12 @@ describe("Cloudflare header enforcement", () => {
     expect(validation.isValid).toBe(false);
     expect(validation.reasons).toContain("invalid_cf_ip");
   });
-
   it("skips enforcement outside production", () => {
     vi.stubEnv("NODE_ENV", "development");
     const headers = new Headers();
     const response = requireCloudflareHeaders(headers, { route: "/api/ai/token" });
     expect(response).toBeNull();
   });
-
   it("blocks when headers are missing in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.API_BASE_URL = "https://williamcallahan.com";
@@ -171,7 +160,6 @@ describe("Cloudflare header enforcement", () => {
     const response = requireCloudflareHeaders(headers, { route: "/api/ai/token" });
     expect(response?.status).toBe(403);
   });
-
   it("allows direct-origin IP responses without Cloudflare headers", async () => {
     const request = new NextRequest("https://origin.example/api/ip", {
       headers: { "x-forwarded-for": "99.9.208.198" },
@@ -180,7 +168,6 @@ describe("Cloudflare header enforcement", () => {
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toBe("99.9.208.198");
   });
-
   it.each([
     ["/stats/script.js", true],
     ["/api/send", true],
@@ -193,7 +180,6 @@ describe("Cloudflare header enforcement", () => {
       }),
     ).toBe(shouldMatch);
   });
-
   it.each([
     [
       "GET",
@@ -225,6 +211,11 @@ describe("Cloudflare header enforcement", () => {
       vi.doUnmock("@sentry/nextjs");
       vi.resetModules();
     });
+    it("delegates development build identity to Next", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "development");
+      await expect((await loadNextConfig()).generateBuildId()).resolves.toBeNull();
+    });
     it("uses a URL-safe production deployment ID as the release identity", async () => {
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("NEXT_DEPLOYMENT_ID", "release_2026-07-13");
@@ -239,6 +230,16 @@ describe("Cloudflare header enforcement", () => {
       await expect(loadNextConfig()).rejects.toThrow(
         "[next.config] NEXT_DEPLOYMENT_ID may contain only letters, numbers, hyphens, and underscores.",
       );
+    });
+    it("uses local Git HEAD when a production deployment ID is missing", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "production");
+      const expectedReleaseId = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+        encoding: "utf8",
+      }).trim();
+      const nextConfig = await loadNextConfig();
+      await expect(nextConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe(expectedReleaseId);
     });
   });
   describe("production deployment verification", () => {
@@ -284,7 +285,6 @@ describe("Cloudflare header enforcement", () => {
         parseSmokeTestArguments(["williamcallahan.com", "--expected-release-id="]),
       ).toBeUndefined();
     });
-
     it("rejects wrong, skewed, and scriptless release HTML", async () => {
       const fetchAsset = async (url: string) =>
         responseAt(url, "export {};", "application/javascript");
@@ -319,8 +319,7 @@ describe("Cloudflare header enforcement", () => {
         ).resolves.toBe(false);
       }
     });
-
-    it("validates cache-rule defaults, ranges, and nonempty rules before deployment", () => {
+    it("validates cache-rule defaults, ranges, uniqueness, and nonempty rules before deployment", () => {
       const validationScript = `
         import assert from "node:assert/strict";
         import { readFileSync } from "node:fs";
@@ -331,13 +330,15 @@ describe("Cloudflare header enforcement", () => {
         const readConfig = () => JSON.parse(readFileSync("./infra/cloudflare/cache-rules.json", "utf8"));
         const openRange = readConfig();
         openRange.rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 400 };
-        const [invalidRange, missingDefault, invalidDefault, unknownProperty] = Array.from({ length: 4 }, readConfig);
+        const [invalidRange, missingDefault, invalidDefault, unknownProperty, duplicate] = Array.from({ length: 5 }, readConfig);
         invalidRange.rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 599, to: 400 };
         delete missingDefault.rules[2].action_parameters.edge_ttl.default;
         invalidDefault.rules[2].action_parameters.edge_ttl.default = -1;
         unknownProperty.rules[0].action_parameters.edge_tll = {};
+        duplicate.rules[1].description = duplicate.rules[0].description;
         assert.throws(() => validateCacheRulesConfig({ rules: [] }));
         for (const config of [invalidRange, missingDefault, invalidDefault, unknownProperty]) assert.throws(() => validateCacheRulesConfig(config));
+        assert.throws(() => validateCacheRulesConfig(duplicate), /rule descriptions must be unique/);
         assert.doesNotThrow(() => validateCacheRulesConfig(openRange));
       `;
       expect(() =>
