@@ -308,23 +308,6 @@ const nextConfig = {
     // Headers set here might be overridden or complemented by the proxy
     // This section is mainly for cache-control and other non-CSP headers
     {
-      source: "/_next/static/:path*",
-      headers: [
-        {
-          key: "Cache-Control",
-          value: "public, max-age=31536000, immutable",
-        },
-        {
-          key: "CDN-Cache-Control",
-          value: "public, max-age=31536000, immutable",
-        },
-        {
-          key: "Cloudflare-CDN-Cache-Control",
-          value: "public, max-age=31536000, immutable",
-        },
-      ],
-    },
-    {
       source: "/_next/data/:path*",
       headers: [
         {
