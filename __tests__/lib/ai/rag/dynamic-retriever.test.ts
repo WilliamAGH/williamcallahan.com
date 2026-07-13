@@ -5,6 +5,15 @@
  * Uses mocked search functions to avoid actual database/S3 calls.
  */
 
+const { mockLoggerWarn } = vi.hoisted(() => ({ mockLoggerWarn: vi.fn() }));
+
+vi.mock("@/lib/utils/logger", () => ({
+  default: {
+    info: vi.fn(),
+    warn: mockLoggerWarn,
+  },
+}));
+
 import { retrieveRelevantContent } from "@/lib/ai/rag/dynamic-retriever";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { searchBookmarks, searchBooks } from "@/lib/search/searchers/dynamic-searchers";
@@ -266,6 +275,21 @@ describe("RAG Dynamic Retriever", () => {
 
       expect(status).toBe("success");
       expect(results.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  describe("scope failures", () => {
+    it("logs handled failures without passing raw Error objects to stderr", async () => {
+      vi.mocked(searchBookmarks).mockRejectedValueOnce(new Error("database unavailable"));
+
+      const response = await retrieveRelevantContent("Show bookmarked links");
+
+      expect(response.status).toBe("failed");
+      expect(response.failedScopes).toEqual(["bookmarks"]);
+      expect(mockLoggerWarn).toHaveBeenCalledWith('[RAG] Search failed for scope "bookmarks"', {
+        failure: "database unavailable",
+        scope: "bookmarks",
+      });
     });
   });
 

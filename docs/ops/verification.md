@@ -7,19 +7,49 @@ description: "Cloudflare caching and bundle verification"
 
 See `AGENTS.md` ([DEP1]).
 
-## Cloudflare Bundle Verification
+## Deployment Convergence
 
-Use this snippet to check whether your code change is present in a deployed chunk (replace placeholders):
+A successful build does not prove that every origin or CDN edge serves its output.
+After deployment, wait for the rollout to converge and sample the affected route at
+least five times. Do not continue while responses alternate between old and new
+behavior.
 
 ```bash
-curl -s "https://[domain]/_next/static/chunks/[chunk].js" | grep -c "yourUniqueToken"
+for _ in {1..5}; do
+  curl -fsS -o /dev/null -w "%{http_code}\n" "https://[domain]/[affected-route]"
+  sleep 2
+done
 ```
 
-## Cloudflare Cache Purge Options
+## Static Asset Verification
 
-1. **Purge Everything**: Cloudflare Dashboard -> Caching -> Purge Everything.
-2. **Wait for TTL**: Wait for TTL expiration (can be hours).
-3. **Rebuild**: Rebuild/deploy to get new hashed chunk names (Next.js outputs versioned chunk filenames).
+Verify both outcomes after convergence. Use a known deployed chunk and a token that
+exists only in the intended release; a rebuild alone is not proof that asset hashes or
+CDN contents changed.
+
+```bash
+curl -fsS "https://[domain]/_next/static/chunks/[known-chunk].js" \
+  | grep -F "[unique-release-token]"
+```
+
+Then verify the negative path with a unique missing chunk. It must return `404`, omit
+`CDN-Cache-Control` and `Cloudflare-CDN-Cache-Control`, and never send a public
+`Cache-Control` policy.
+
+```bash
+MISSING_CHUNK="smoke-missing-$(uuidgen | tr '[:upper:]' '[:lower:]').js"
+curl -sS -D - -o /dev/null "https://[domain]/_next/static/chunks/$MISSING_CHUNK"
+```
+
+`bun run deploy:smoke-test -- https://[domain]` performs the same negative-path
+assertion alongside the production user-path checks.
+
+## Cache Purge
+
+When a prior response incorrectly cached an asset or a negative asset response, purge
+the affected URL or deploy cache in Cloudflare after the corrected release is serving.
+Use a full purge only when targeted purging cannot cover the stale entries. Purging is
+not a substitute for the positive and negative verification above.
 
 ## Baseline Browser Mapping Warning
 

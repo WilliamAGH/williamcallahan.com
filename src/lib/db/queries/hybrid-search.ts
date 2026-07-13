@@ -64,40 +64,7 @@ async function hybridSearchWithEmbedding(
   const vectorLiteral = `[${embedding.join(",")}]`;
   const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
 
-  const rows = await db.execute<{
-    id: string;
-    slug: string;
-    url: string;
-    title: string;
-    description: string;
-    note: string | null;
-    summary: string | null;
-    tags: unknown;
-    content: unknown;
-    assets: unknown;
-    logo_data: unknown;
-    og_image: string | null;
-    og_title: string | null;
-    og_description: string | null;
-    og_url: string | null;
-    og_image_external: string | null;
-    og_image_last_fetched_at: string | null;
-    og_image_etag: string | null;
-    reading_time: number | null;
-    word_count: number | null;
-    scraped_content_text: string | null;
-    archived: boolean;
-    is_private: boolean;
-    is_favorite: boolean;
-    tagging_status: string | null;
-    domain: string | null;
-    date_bookmarked: string;
-    date_published: string | null;
-    date_created: string | null;
-    modified_at: string | null;
-    source_updated_at: string;
-    hybrid_score: number;
-  }>(sql`
+  const rows = await db.execute<{ id: string; hybrid_score: number }>(sql`
     WITH keyword_results AS (
       SELECT id,
         ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
@@ -111,12 +78,13 @@ async function hybridSearchWithEmbedding(
       LIMIT ${KEYWORD_CANDIDATE_LIMIT}
     ),
     semantic_results AS (
-      SELECT entity_id AS id,
-        1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
-      FROM embeddings
-      WHERE domain = 'bookmark'
-        AND qwen_4b_fp16_embedding IS NOT NULL
-      ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
+      SELECT e.entity_id AS id,
+        1.0 - (e.qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
+      FROM embeddings e
+      JOIN bookmarks existing_bookmark ON existing_bookmark.id = e.entity_id
+      WHERE e.domain = 'bookmark'
+        AND e.qwen_4b_fp16_embedding IS NOT NULL
+      ORDER BY e.qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
       LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
     ),
     combined AS (
@@ -128,17 +96,44 @@ async function hybridSearchWithEmbedding(
       FROM keyword_results k
       FULL OUTER JOIN semantic_results s ON k.id = s.id
     )
-    SELECT b.*, c.score AS hybrid_score
+    SELECT b.id, c.score AS hybrid_score
     FROM combined c
     JOIN bookmarks b ON b.id = c.id
     ORDER BY c.score DESC
     LIMIT ${limit}
   `);
 
-  return rows.map((row) => ({
-    bookmark: mapBookmarkSelectToUnifiedBookmark(row as never),
-    score: Number(row.hybrid_score),
-  }));
+  return hydrateScoredBookmarks(
+    rows.map((row) => ({ id: row.id, score: Number(row.hybrid_score) })),
+  );
+}
+
+async function hydrateScoredBookmarks(
+  scoredIds: ReadonlyArray<{ id: string; score: number }>,
+): Promise<Array<{ bookmark: UnifiedBookmark; score: number }>> {
+  if (scoredIds.length === 0) return [];
+
+  const bookmarkRows = await db
+    .select()
+    .from(bookmarks)
+    .where(
+      inArray(
+        bookmarks.id,
+        scoredIds.map(({ id }) => id),
+      ),
+    );
+
+  const bookmarkById = new Map(
+    mapBookmarkSelectsToUnifiedBookmarks(bookmarkRows).map((bookmark) => [bookmark.id, bookmark]),
+  );
+
+  return scoredIds.map(({ id, score }) => {
+    const bookmark = bookmarkById.get(id);
+    if (!bookmark) {
+      throw new Error(`Failed to hydrate ranked bookmark ${id}`);
+    }
+    return { bookmark, score };
+  });
 }
 
 async function keywordOnlySearch(
@@ -196,17 +191,9 @@ export async function semanticSearchBookmarks(
 
   if (idRows.length === 0) return [];
 
-  const ids = idRows.map((r) => r.entity_id);
-  const scoreMap = new Map(idRows.map((r) => [r.entity_id, Number(r.vec_score)]));
-
-  const bookmarkRows = await db.select().from(bookmarks).where(inArray(bookmarks.id, ids));
-
-  return mapBookmarkSelectsToUnifiedBookmarks(bookmarkRows)
-    .map((b) => ({
-      bookmark: b,
-      score: scoreMap.get(b.id) ?? 0,
-    }))
-    .toSorted((a, b) => b.score - a.score);
+  return hydrateScoredBookmarks(
+    idRows.map((row) => ({ id: row.entity_id, score: Number(row.vec_score) })),
+  );
 }
 
 export async function hybridSearchThoughts(options: {

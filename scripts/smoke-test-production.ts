@@ -9,7 +9,7 @@ class ProductionSmokeTests {
   private authToken?: string;
 
   constructor(baseUrl: string, authToken?: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash
+    this.baseUrl = baseUrl.replace(/\/$/, "");
     this.authToken = authToken;
     console.log(`🔥 Running smoke tests against: ${this.baseUrl}`);
   }
@@ -33,10 +33,9 @@ class ProductionSmokeTests {
       const fetchOptions: RequestInit = {
         method,
         headers,
-        signal: AbortSignal.timeout(10000), // 10 second timeout
+        signal: AbortSignal.timeout(10000),
       };
 
-      // Only add body for non-GET requests
       if (method !== "GET" && options.body !== undefined) {
         fetchOptions.body = JSON.stringify(options.body);
       }
@@ -115,6 +114,19 @@ class ProductionSmokeTests {
           response.headers.get("access-control-allow-origin") === null,
       }),
     );
+    this.results.push(
+      await this.testEndpoint(
+        "Missing static chunk is not publicly cached",
+        `/_next/static/chunks/smoke-missing-${crypto.randomUUID()}.js`,
+        {
+          expectedStatus: 404,
+          validateResponse: async (response) =>
+            response.headers.get("cdn-cache-control") === null &&
+            response.headers.get("cloudflare-cdn-cache-control") === null &&
+            !response.headers.get("cache-control")?.toLowerCase().includes("public"),
+        },
+      ),
+    );
   }
 
   async runAPITests(): Promise<void> {
@@ -164,7 +176,6 @@ class ProductionSmokeTests {
       static: 500, // 500ms
     };
 
-    // Test homepage load time
     const homepageResult = await this.testEndpoint("Homepage Performance", "/", {
       expectedStatus: 200,
     });
@@ -175,7 +186,6 @@ class ProductionSmokeTests {
       passed: homepageResult.passed && homepageResult.responseTime < performanceThresholds.homepage,
     });
 
-    // Test API response time
     const apiResult = await this.testEndpoint("API Performance", "/api/health", {
       expectedStatus: 200,
     });
@@ -186,7 +196,6 @@ class ProductionSmokeTests {
       passed: apiResult.passed && apiResult.responseTime < performanceThresholds.api,
     });
 
-    // Test static asset
     const staticResult = await this.testEndpoint("Static Asset", "/favicon.ico", {
       expectedStatus: 200,
     });
@@ -201,7 +210,6 @@ class ProductionSmokeTests {
   async runDataIntegrityTests(): Promise<void> {
     console.log("\n🔍 Testing Data Integrity...\n");
 
-    // Check if bookmarks data is accessible and valid
     const diagnosticsResult = await this.testEndpoint(
       "Bookmarks Data Integrity",
       "/api/bookmarks/diagnostics",
@@ -255,7 +263,6 @@ class ProductionSmokeTests {
     const passed = this.results.filter((r) => r.passed);
     const failed = this.results.filter((r) => !r.passed);
 
-    // Group results by status
     console.log("\n✅ PASSED TESTS:");
     passed.forEach((test) => {
       console.log(`  ✓ ${test.name} (${test.responseTime}ms)`);
@@ -276,7 +283,6 @@ class ProductionSmokeTests {
       });
     }
 
-    // Performance summary
     const avgResponseTime =
       this.results.reduce((sum, r) => sum + r.responseTime, 0) / this.results.length;
     const maxResponseTime = Math.max(...this.results.map((r) => r.responseTime));
@@ -286,7 +292,6 @@ class ProductionSmokeTests {
     console.log(`  Max Response Time: ${maxResponseTime}ms`);
     console.log(`  Tests Passed: ${passed.length}/${this.results.length}`);
 
-    // Final verdict
     console.log("\n" + "=".repeat(70));
     const allPassed = failed.length === 0;
     if (allPassed) {
@@ -301,7 +306,6 @@ class ProductionSmokeTests {
     }
     console.log("=".repeat(70) + "\n");
 
-    // Exit with appropriate code
     process.exit(allPassed ? 0 : 1);
   }
 
@@ -318,7 +322,6 @@ class ProductionSmokeTests {
   }
 }
 
-// Parse command line arguments
 const args = process.argv.slice(2);
 let baseUrl = args[0];
 const authToken = args[1];
@@ -331,12 +334,10 @@ if (!baseUrl) {
   process.exit(1);
 }
 
-// Add https:// if not present
 if (!baseUrl.startsWith("http")) {
   baseUrl = `https://${baseUrl}`;
 }
 
-// Run smoke tests
 const tester = new ProductionSmokeTests(baseUrl, authToken);
 tester.run().catch((error) => {
   console.error("Smoke tests failed:", error);

@@ -3,7 +3,7 @@
  * @module proxy
  * @description
  * Handles Clerk authentication, request logging, and security headers for all non-static routes.
- * Applies security headers and caching headers for static assets and analytics scripts.
+ * Applies security headers and route-specific cache policy for proxy-matched requests.
  * Protected routes (/admin/*, /api/admin/*) require authentication when Clerk is configured.
  * Uses the Next.js 16 proxy file convention.
  *
@@ -52,17 +52,6 @@ const SECURITY_HEADERS = {
 
 const NO_CACHE_VALUE = "no-store, no-cache, must-revalidate, proxy-revalidate" as const;
 
-const STATIC_EXTENSIONS = new Set([
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".webp",
-  ".avif",
-  ".svg",
-  ".css",
-  ".woff2",
-]);
-
 function setSecurityHeaders(response: NextResponse): void {
   for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(header, value);
@@ -98,18 +87,6 @@ function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): v
     for (const [h, v] of Object.entries(IMAGE_CDN_CACHE_HEADERS)) response.headers.set(h, v);
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
-    return;
-  }
-
-  const hasStaticExtension = STATIC_EXTENSIONS.has(url.slice(url.lastIndexOf(".")));
-  if (url.includes("/_next/static") || hasStaticExtension) {
-    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-    for (const [h, v] of Object.entries(IMAGE_CDN_CACHE_HEADERS)) response.headers.set(h, v);
-    response.headers.set("X-Content-Type-Options", "nosniff");
-
-    if (/\.(jpe?g|png|webp|avif)$/.test(url)) {
-      response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
-    }
     return;
   }
 
@@ -157,7 +134,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const csp = await buildCspHeader();
   response.headers.set("Content-Security-Policy", csp);
 
-  // Add caching headers for static assets and analytics scripts
+  // Apply cache headers only to routes covered by the proxy matcher.
   const url = request.nextUrl.pathname;
   const isDev = process.env.NODE_ENV === "development";
 

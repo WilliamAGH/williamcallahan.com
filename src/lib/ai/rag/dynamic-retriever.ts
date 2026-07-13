@@ -159,9 +159,10 @@ export async function retrieveRelevantContent(
         }),
       );
     } catch (error) {
-      logger.warn(`[RAG] Search failed for scope "${scope}":`, { error, scope });
+      const failure = error instanceof Error ? error.message : String(error);
+      logger.warn(`[RAG] Search failed for scope "${scope}"`, { failure, scope });
       failedScopes.push(scope);
-      // RC1a: error logged; empty array is per-scope graceful degradation
+      // RC1a: failure logged; empty array is per-scope graceful degradation
     }
     return [];
   });

@@ -6,7 +6,7 @@
 
 The search functionality provides site-wide and section-specific search capabilities with BM25/fuzzy matching, hybrid vector reranking, caching, and security features. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, education, projects, books, thoughts, tags, and AI analysis.
 
-> **Note on Hybrid Retrieval:** Search uses domain-specific hybrid paths. Bookmarks and thoughts run PostgreSQL hybrid retrieval (FTS + trigram + pgvector). Other searchable domains run BM25/keyword retrieval with embedding-based rerank of top candidates.
+> **Note on Hybrid Retrieval:** Search uses domain-specific hybrid paths. Bookmark SQL returns ranked IDs and hydrates full records through the typed Drizzle projection; thoughts use PostgreSQL hybrid retrieval directly. Other domains run BM25/keyword retrieval with embedding reranking.
 
 ## Forbidden Patterns
 
