@@ -10,7 +10,7 @@
  * - app/api/github-activity/refresh/route.ts (manual refresh)
  * - app/api/cache/clear/route.ts (admin cache clear)
  * - lib/data-access/github-public-api.ts (data access layer)
- * - lib/server/data-fetch-manager.ts (orchestrator)
+ * - lib/server/github-activity-refresh.ts (scheduler operation)
  *
  * @module cache/invalidation
  */
