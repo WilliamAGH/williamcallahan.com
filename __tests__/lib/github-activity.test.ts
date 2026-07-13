@@ -2,6 +2,7 @@ const {
   mockFetchContributedRepositories,
   mockIsGitHubApiConfigured,
   mockIsOperationAllowed,
+  mockProcessSingleRepository,
   mockReadRepoWeeklyStatsRecord,
   mockWriteAggregatedWeeklyActivityRecord,
   mockWriteGitHubActivitySummary,
@@ -10,6 +11,7 @@ const {
   mockFetchContributedRepositories: vi.fn(),
   mockIsGitHubApiConfigured: vi.fn(),
   mockIsOperationAllowed: vi.fn(),
+  mockProcessSingleRepository: vi.fn(),
   mockReadRepoWeeklyStatsRecord: vi.fn(),
   mockWriteAggregatedWeeklyActivityRecord: vi.fn(),
   mockWriteGitHubActivitySummary: vi.fn(),
@@ -26,6 +28,9 @@ vi.mock("@/lib/data-access/github-storage", () => ({
   writeAggregatedWeeklyActivityRecord: mockWriteAggregatedWeeklyActivityRecord,
   writeGitHubActivityRecord: mockWriteGitHubActivityRecord,
 }));
+vi.mock("@/lib/data-access/github-repo-processor", () => ({
+  processSingleRepository: mockProcessSingleRepository,
+}));
 vi.mock("@/lib/data-access/github-activity-summaries", () => ({
   writeGitHubActivitySummary: mockWriteGitHubActivitySummary,
 }));
@@ -38,15 +43,22 @@ import {
   calculateAndStoreAggregatedWeeklyActivity,
   createEmptyCategoryStats,
 } from "@/lib/data-access/github-processing";
+import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
+import { GraphQLRepoNodeSchema } from "@/types/github";
 import {
   contributionDaySchema,
   GITHUB_ACTIVITY_WRITE_INTENTS,
   type AggregatedWeeklyActivity,
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
+  type GitHubActivitySummary,
   type GitHubActivityWriteIntent,
   userActivityViewSchema,
 } from "@/types/schemas/github-storage";
+import type {
+  SingleRepoProcessingInput,
+  SingleRepoProcessingResult,
+} from "@/types/features/github-processing";
 import type { GitHubSummaryInput } from "@/types/github";
 
 type RefreshGitHubActivityResult = NonNullable<
@@ -68,6 +80,35 @@ const zeroSegment: GitHubActivitySegment = {
   dataComplete: true,
 };
 
+function createGraphQLRepositoryFixture(name: string) {
+  return GraphQLRepoNodeSchema.parse({
+    id: name,
+    name,
+    owner: { login: "test-owner" },
+    nameWithOwner: `test-owner/${name}`,
+    isFork: false,
+    isPrivate: false,
+  });
+}
+
+function createRepositoryProcessingResult(
+  allTimeLinesAdded: number,
+  allTimeLinesRemoved: number,
+  hasAllTimeData: boolean,
+): SingleRepoProcessingResult {
+  return {
+    yearLinesAdded: 0,
+    yearLinesRemoved: 0,
+    allTimeLinesAdded,
+    allTimeLinesRemoved,
+    olderThanYearCommits: 0,
+    olderThanYearLinesAdded: 0,
+    olderThanYearLinesRemoved: 0,
+    dataComplete: true,
+    hasAllTimeData,
+  };
+}
+
 describe("GitHub activity refresh", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,6 +122,7 @@ describe("GitHub activity refresh", () => {
 
     mockIsGitHubApiConfigured.mockReturnValue(true);
     mockIsOperationAllowed.mockReturnValue(true);
+    mockProcessSingleRepository.mockReset();
     mockReadRepoWeeklyStatsRecord.mockReset();
     mockWriteGitHubActivityRecord.mockImplementation(
       async (
@@ -130,25 +172,26 @@ describe("GitHub activity refresh", () => {
       GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
     );
     expect(persistedAggregate).toEqual([]);
-    expect(writeOrder).toEqual(["summary", "aggregate", "activity"]);
+    expect(writeOrder).toEqual(["activity", "summary", "aggregate"]);
     expect(persistedSummary).toBeDefined();
     if (persistedSummary === undefined) {
       throw new Error("The zero-repository refresh did not persist its summary.");
     }
     expect(persistedSummary.allTimeData).toEqual(zeroSegment);
     expect(persistedSummary.totalRepositoriesContributedTo).toBe(0);
-    expect(persistedSummary.allTimeCategoryStats).toEqual(createEmptyCategoryStats());
+    expect(persistedSummary.linesOfCodeByCategory).toEqual(createEmptyCategoryStats());
   });
 
-  it("does not write a partial zero-repository result when summary persistence fails", async () => {
+  it("does not write derived records when activity preservation refuses the refresh", async () => {
     mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
-    mockWriteGitHubActivitySummary.mockResolvedValue(false);
+    mockWriteGitHubActivityRecord.mockResolvedValue(false);
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
-      "failed to persist its summary record",
+      "preserved its existing activity record",
     );
     expect(persistedActivity).toBeUndefined();
     expect(persistedAggregate).toBeUndefined();
+    expect(persistedSummary).toBeUndefined();
   });
 
   it("propagates the original GraphQL failure without persisting stale data", async () => {
@@ -190,33 +233,82 @@ describe("GitHub activity refresh", () => {
       { weekStartDate: "2026-07-06", linesAdded: 12, linesRemoved: 3 },
     ]);
   });
+
+  it("counts all-time repositories in their own categories", async () => {
+    const repositories = ["frontend-web", "frontend-client", "backend-api", "data-pipeline"].map(
+      createGraphQLRepositoryFixture,
+    );
+    const resultsByRepository = new Map<string, SingleRepoProcessingResult>([
+      ["frontend-web", createRepositoryProcessingResult(11, 3, true)],
+      ["frontend-client", createRepositoryProcessingResult(6, 2, true)],
+      ["backend-api", createRepositoryProcessingResult(4, 1, true)],
+      ["data-pipeline", createRepositoryProcessingResult(0, 0, false)],
+    ]);
+    mockProcessSingleRepository.mockImplementation(
+      async ({ repo }: SingleRepoProcessingInput): Promise<SingleRepoProcessingResult> => {
+        const result = resultsByRepository.get(repo.name);
+        if (result === undefined) {
+          throw new Error(`Unexpected repository: ${repo.name}`);
+        }
+        return result;
+      },
+    );
+
+    const result = await processRepositoryStats({
+      repos: repositories,
+      githubRepoOwner: "test-owner",
+      trailingYearFromDate: new Date("2025-07-13T00:00:00.000Z"),
+      now: new Date("2026-07-13T00:00:00.000Z"),
+    });
+    const expectedCategoryStats = createEmptyCategoryStats();
+    expectedCategoryStats.frontend.linesAdded = 17;
+    expectedCategoryStats.frontend.linesRemoved = 5;
+    expectedCategoryStats.frontend.netChange = 12;
+    expectedCategoryStats.frontend.repoCount = 2;
+    expectedCategoryStats.backend.linesAdded = 4;
+    expectedCategoryStats.backend.linesRemoved = 1;
+    expectedCategoryStats.backend.netChange = 3;
+    expectedCategoryStats.backend.repoCount = 1;
+
+    expect(result.allTimeCategoryStats).toEqual(expectedCategoryStats);
+  });
 });
 
 describe("GitHub activity summary persistence", () => {
-  it("writes exactly one all-time summary payload", async () => {
+  it("preserves distinct all-time repository counts by category", async () => {
     vi.resetModules();
-    const writeGitHubSummaryRecord = vi.fn().mockResolvedValue(true);
-    vi.doMock("@/lib/data-access/github-storage", async (importOriginal) => ({
-      ...(await importOriginal<typeof import("@/lib/data-access/github-storage")>()),
+    vi.doUnmock("@/lib/data-access/github-activity-summaries");
+    let writtenSummary: GitHubActivitySummary | undefined;
+    const writeGitHubSummaryRecord = vi.fn(
+      async (summary: GitHubActivitySummary): Promise<boolean> => {
+        writtenSummary = summary;
+        return true;
+      },
+    );
+    vi.doMock("@/lib/data-access/github-storage", () => ({
       writeGitHubSummaryRecord,
     }));
-    vi.doUnmock("@/lib/data-access/github-activity-summaries");
 
     const { writeGitHubActivitySummary } =
       await import("@/lib/data-access/github-activity-summaries");
     const allTimeCategoryStats = createEmptyCategoryStats();
+    allTimeCategoryStats.frontend.repoCount = 2;
+    allTimeCategoryStats.backend.repoCount = 1;
 
     await expect(
       writeGitHubActivitySummary({
         allTimeData: { ...zeroSegment, totalContributions: 42 },
         totalRepositoriesContributedTo: 3,
-        allTimeCategoryStats,
+        linesOfCodeByCategory: allTimeCategoryStats,
       }),
     ).resolves.toBe(true);
-    expect(writeGitHubSummaryRecord).toHaveBeenCalledOnce();
-    expect(writeGitHubSummaryRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ totalContributions: 42, totalRepositoriesContributedTo: 3 }),
-    );
+    expect(writeGitHubSummaryRecord).toHaveBeenCalledTimes(1);
+    if (writtenSummary === undefined) {
+      throw new Error("The all-time summary was not persisted.");
+    }
+    expect(writtenSummary.totalContributions).toBe(42);
+    expect(writtenSummary.totalRepositoriesContributedTo).toBe(3);
+    expect(writtenSummary.linesOfCodeByCategory).toEqual(allTimeCategoryStats);
   });
 });
 

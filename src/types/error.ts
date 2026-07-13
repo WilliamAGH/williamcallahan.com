@@ -12,13 +12,11 @@
  * === EXCLUSION RULES ===
  * ❌ DO NOT ADD:
  *   - Generic API error or response contracts (→ types/schemas/api.ts)
- *   - Domain-specific errors (→ e.g., types/bookmark.ts for BookmarkError)
+ *   - Type aliases that only rename a core error interface
  *   - Runtime utility functions (→ lib/utils/error-utils.ts)
  *   - Component-specific error props (→ e.g., types/ui/boundaries.ts)
  *
  * @see lib/utils/error-utils.ts for runtime error handling helpers
- * @see types/bookmark.ts for domain-specific bookmark errors
- * @see types/github.ts for domain-specific GitHub errors
  */
 
 /**
@@ -44,10 +42,6 @@ export interface AWSError extends Error {
     httpStatusCode?: number;
   };
 }
-
-// Deprecated error interfaces removed - use specific error types from their domain modules:
-// - BookmarkError from types/bookmark.ts
-// - GitHubActivityError from types/github.ts
 
 export interface ErrorWithCode {
   code: string;

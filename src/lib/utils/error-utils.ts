@@ -4,13 +4,7 @@
  * This is the SINGLE source of truth for all error handling in the application.
  * Consolidates error classes, utilities, categorization, and type guards.
  */
-import {
-  ErrorCategory,
-  ErrorSeverity,
-  type ErrorWithCode,
-  type ErrorWithStatusCode,
-  type CategorizedError,
-} from "@/types/error";
+import { ErrorCategory, ErrorSeverity, type CategorizedError } from "@/types/error";
 import { apiErrorResponseSchema } from "@/types/schemas/api";
 
 // =============================================================================
@@ -18,65 +12,17 @@ import { apiErrorResponseSchema } from "@/types/schemas/api";
 // =============================================================================
 
 /**
- * Base class for application errors
- * Allows for structured error handling with error codes
- */
-export class AppError extends Error {
-  code: string;
-
-  constructor(message: string, code: string, cause?: unknown) {
-    super(message);
-    this.name = this.constructor.name;
-    this.code = code;
-    this.cause = cause;
-  }
-}
-
-/**
- * Specific error for MDX processing issues
- */
-export class MDXProcessingError extends AppError {
-  filePath?: string;
-
-  constructor(message: string, filePath?: string, cause?: unknown) {
-    super(message, "MDX_PROCESSING_ERROR", cause);
-    this.filePath = filePath;
-  }
-}
-
-/**
- * Error for issues with reading files
- */
-export class FileAccessError extends AppError {
-  filePath: string;
-
-  constructor(message: string, filePath: string, cause?: unknown) {
-    super(message, "FILE_ACCESS_ERROR", cause);
-    this.filePath = filePath;
-  }
-}
-
-/**
- * Error for issues with parsing frontmatter
- */
-export class FrontmatterError extends AppError {
-  filePath: string;
-
-  constructor(message: string, filePath: string, cause?: unknown) {
-    super(message, "FRONTMATTER_ERROR", cause);
-    this.filePath = filePath;
-  }
-}
-
-/**
  * Error for missing or invalid blog post data
  */
-export class BlogPostDataError extends AppError {
+export class BlogPostDataError extends Error {
+  code = "BLOG_POST_DATA_ERROR";
   slug?: string;
 
   constructor(message: string, slug?: string, cause?: unknown) {
-    super(message, "BLOG_POST_DATA_ERROR", cause);
+    super(message);
+    this.name = this.constructor.name;
     this.slug = slug;
+    this.cause = cause;
   }
 }
 
@@ -119,13 +65,9 @@ export function safeStringifyValue(value: unknown): string {
 
   // For objects, try to access a 'message' property first
   // This is a common pattern for error-like objects
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "message" in value &&
-    typeof (value as { message: unknown }).message === "string"
-  ) {
-    return (value as { message: string }).message;
+  if (typeof value === "object" && value !== null && "message" in value) {
+    const message = Reflect.get(value, "message");
+    if (typeof message === "string") return message;
   }
 
   // Then, attempt JSON.stringify
@@ -146,64 +88,9 @@ export function safeStringifyValue(value: unknown): string {
   }
 }
 
-/**
- * Utility function to wrap errors with more context
- */
-export function wrapError<T extends Error>(
-  message: string,
-  error: unknown,
-  factory: (msg: string, cause?: unknown) => T,
-): T {
-  // Determine the cause: if the original error is an Error instance, use it.
-  // Otherwise, wrap non-Error values by stringifying them so they're not lost.
-  let cause: Error | undefined;
-  if (error instanceof Error) {
-    cause = error;
-  } else if (typeof error !== "undefined") {
-    cause = new Error(safeStringifyValue(error));
-  } else {
-    // cause remains undefined if error is undefined
-  }
-
-  // Create the new error using the provided factory function.
-  const newError = factory(message, cause);
-
-  // If the original error was an AppError with a code, and the newError is also an AppError,
-  // preserve the original code if the newError doesn't have one set by the factory.
-  if (error instanceof AppError && newError instanceof AppError && error.code && !newError.code) {
-    (newError as AppError).code = error.code;
-  }
-
-  return newError;
-}
-
-/**
- * Check if an error is of a specific custom error type
- */
-export function isErrorOfType<T extends Error>(
-  error: unknown,
-  errorType: new (...args: unknown[]) => T,
-): error is T {
-  return error instanceof errorType;
-}
-
 // =============================================================================
 // TYPE GUARDS
 // =============================================================================
-
-/**
- * Type guard to check if an error is an object with a 'code' property.
- */
-export function isErrorWithCode(error: unknown): error is ErrorWithCode {
-  return typeof error === "object" && error !== null && "code" in error;
-}
-
-/**
- * Type guard to check if an error is an object with a 'statusCode' property.
- */
-export function isErrorWithStatusCode(error: unknown): error is ErrorWithStatusCode {
-  return typeof error === "object" && error !== null && "statusCode" in error;
-}
 
 /**
  * Safely gets a property from an error object if it exists.
@@ -330,20 +217,8 @@ export function categorizeError(error: unknown, domain?: string): ErrorCategory 
  */
 function isRetryableHttpStatus(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-
   const message = error.message;
-
-  // 5xx server errors are retryable
-  if (/\b5\d{2}\b/.test(message)) return true;
-
-  // Some 4xx errors are retryable
-  if (message.includes("429")) return true; // Too Many Requests
-  if (message.includes("408")) return true; // Request Timeout
-
-  // 202 Accepted can indicate async processing in progress (commonly used by GitHub and other APIs)
-  if (message.includes("202")) return true;
-
-  return false;
+  return /\b5\d{2}\b/.test(message) || ["429", "408", "202"].some((code) => message.includes(code));
 }
 
 /**
@@ -364,15 +239,6 @@ function isRetryableS3Error(error: unknown): boolean {
     return true;
   }
 
-  // Permanent failures
-  if (
-    message.includes("nosuchkey") ||
-    message.includes("access denied") ||
-    message.includes("invalid")
-  ) {
-    return false;
-  }
-
   return false;
 }
 
@@ -381,20 +247,8 @@ function isRetryableS3Error(error: unknown): boolean {
  */
 function isRetryableGitHubError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-
   const message = error.message.toLowerCase();
-
-  // GitHub specific retryable errors
-  if (
-    message.includes("403") || // Rate limiting
-    message.includes("429") || // Too many requests
-    message.includes("202") || // Data generation in progress
-    message.includes("abuse detection")
-  ) {
-    return true;
-  }
-
-  return false;
+  return ["403", "429", "202", "abuse detection"].some((term) => message.includes(term));
 }
 
 // =============================================================================
@@ -405,38 +259,25 @@ function isRetryableGitHubError(error: unknown): boolean {
  * Convert unknown error to a standardized Error instance
  */
 export function normalizeError(error: unknown, context?: Record<string, unknown>): Error {
+  let normalizedError: Error;
+  let normalizedContext = context;
+
   if (error instanceof Error) {
-    if (context) {
-      (error as Error & { context?: Record<string, unknown> }).context = context;
-    }
-    return error;
-  }
-
-  if (typeof error === "string") {
-    const err = new Error(error);
-    if (context) {
-      (err as Error & { context?: Record<string, unknown> }).context = context;
-    }
-    return err;
-  }
-
-  if (typeof error === "object" && error !== null) {
+    normalizedError = error;
+  } else if (typeof error === "object" && error !== null) {
     const message = "message" in error ? String(error.message) : "Unknown error";
-    const err = new Error(message);
+    normalizedError = new Error(message);
     if (context) {
-      (err as Error & { context?: Record<string, unknown> }).context = {
-        ...context,
-        originalError: error,
-      };
+      normalizedContext = { ...context, originalError: error };
     }
-    return err;
+  } else {
+    normalizedError = new Error(String(error));
   }
 
-  const err = new Error(String(error));
-  if (context) {
-    (err as Error & { context?: Record<string, unknown> }).context = context;
+  if (normalizedContext) {
+    Object.assign(normalizedError, { context: normalizedContext });
   }
-  return err;
+  return normalizedError;
 }
 
 /**
@@ -461,20 +302,22 @@ export function createCategorizedError(
     severity = ErrorSeverity.HIGH;
   }
 
-  const categorizedError = normalizedError as CategorizedError;
-  categorizedError.category = category;
-  categorizedError.severity = severity;
-  categorizedError.isRetryable = isRetryable;
-  categorizedError.context = context;
-  categorizedError.originalError = error;
+  const categorizedError = Object.assign(normalizedError, {
+    category,
+    severity,
+    isRetryable,
+    originalError: error,
+  });
+  if (context !== undefined) Object.assign(categorizedError, { context });
 
   // Extract status code if available
   if (typeof error === "object" && error !== null && "$metadata" in error) {
-    const metadata = (error as { $metadata?: { httpStatusCode?: number } }).$metadata;
-    if (metadata?.httpStatusCode) {
-      categorizedError.statusCode = metadata.httpStatusCode;
+    const metadata = Reflect.get(error, "$metadata");
+    if (typeof metadata === "object" && metadata !== null) {
+      const statusCode = Reflect.get(metadata, "httpStatusCode");
+      if (typeof statusCode === "number") Object.assign(categorizedError, { statusCode });
     }
   }
 
-  return categorizedError;
+  return categorizedError satisfies CategorizedError;
 }

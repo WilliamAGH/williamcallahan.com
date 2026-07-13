@@ -41,10 +41,26 @@ with a new `GIT_SHA`. Do not replace this identity with a fixed package-version 
 configure a Cloudflare cache key that ignores the `dpl` query parameter.
 
 After deployment, configure the web Coolify resource's Post Deployment Command to run
-`bun run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL"`. The smoke test fails unless
+`bun run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/BUILD_ID)"`.
+The smoke test fails unless
 `/investments` advertises one shared nonempty deployment ID and every advertised script
 loads successfully through the public Cloudflare URL. It verifies JavaScript only; it does
 not inspect CSS assets.
+
+## Cloudflare Cache Rules
+
+`infra/cloudflare/cache-rules.json` is the declarative Cache Rules owner, validated by
+`infra/cloudflare/cache-rules.schema.json`. Preview the live diff before applying it, then deploy
+the same configuration:
+
+```bash
+bun run deploy:cf-cache-rules:dry-run
+bun run deploy:cf-cache-rules
+```
+
+Both commands load `.env` when present and require `CF_ZONE_ID` plus the recommended scoped
+`CF_API_TOKEN` (Zone > Cache Rules > Edit). The only supported alternative is
+`CLOUDFLARE_API_KEY` together with `CLOUDFLARE_EMAIL`.
 
 The pin fixes production failures with
 `controller[kState].transformAlgorithm is not a function`. Node

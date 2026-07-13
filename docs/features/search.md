@@ -49,7 +49,7 @@ export async function GET() {
 
 1. **Server/Client Boundary**: API-based approach; terminal never imports server modules.
 
-2. **Type Consolidation**: Single `SearchResult` type in `types/schemas/search.ts`.
+2. **Type Consolidation**: Single `SearchResult` type in `types/schemas/search.ts`; bookmark result `url` values are internal detail paths from `buildBookmarkPath(slug)`, never external bookmark URLs.
 
 3. **Generic Search**: `searchContent<T>` function used by all search implementations.
 

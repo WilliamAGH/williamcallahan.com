@@ -1,31 +1,35 @@
 graph TD
     subgraph "External + Refresh"
-        GHAPI[GitHub APIs<br/>(GraphQL + REST + CSV)]
+        GHAPI[GitHub APIs<br/>(GraphQL + REST)]
         REF[Refresh Jobs / POST /api/github-activity/refresh]
         LOCK[Distributed Lock]
         GHAPI --> REF --> LOCK
     end
 
-    subgraph "Source of Truth"
-        S3[github_stats_summary*.json,<br/>activity_data.json,<br/>aggregated_weekly_activity.json,<br/>repo_raw_weekly_stats/]
+    subgraph "Runtime Source of Truth"
+        DB[PostgreSQL github_activity_store<br/>activity/global, summary/global,<br/>aggregated-weekly/global, repo-weekly-stats/*]
+        LOCK --> DB
+    end
+
+    subgraph "Operational Artifact"
+        S3[S3 raw CSV only<br/>repo_raw_weekly_stats/*.csv]
         LOCK --> S3
     end
 
     subgraph "Consumers"
         CACHE[Next.js Cache Components<br/>(cacheTag("github-activity"), ~30 min)]
         UI[GitHub Activity pages<br/>(calendar, summary cards)]
-        API[/api/github-activity<br/>noStore]
-        S3 --> CACHE --> UI
-        S3 --> API
+        API[/api/github-activity<br/>connection() + no-store headers]
+        DB --> CACHE --> UI
+        DB --> API
     end
 
     subgraph "Supporting"
-        HEALTH[/api/health/deep<br/>validates JSON freshness]
         SCHED[scheduler.ts / cron]
         REF <-- SCHED
-        S3 --> HEALTH
     end
 
-    style S3 fill:#dff0d8,stroke:#2f6627,stroke-width:2
+    style DB fill:#dff0d8,stroke:#2f6627,stroke-width:2
+    style S3 fill:#fff3cd,stroke:#856404,stroke-width:2
     style CACHE fill:#e3f2fd,stroke:#1976d2,stroke-width:2
     style API fill:#fdecea,stroke:#b71c1c,stroke-width:2

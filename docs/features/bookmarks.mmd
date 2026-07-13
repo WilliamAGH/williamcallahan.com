@@ -2,31 +2,33 @@ graph TD
     subgraph "External & Refresh"
         KAR[Karakeep API]
         REFRESH[Selective Refresh Jobs<br/>(cron + API refresh endpoint)]
-        LOCK[Distributed Lock<br/>(S3 lock file)]
+        LOCK[Distributed Refresh Lock]
         KAR --> REFRESH
         REFRESH --> LOCK
     end
 
     subgraph "Source of Truth"
-        S3JSON[bookmarks-dev.json,<br/>index-dev.json,<br/>pages-dev/, tags-dev/, slug-mapping-dev.json]
-        REFRESH --> S3JSON
+        DB[PostgreSQL bookmarks,<br/>tags, pages, and canonical slugs]
+        REFRESH --> DB
     end
 
     subgraph "Consumers"
         CACHE[Next.js Cache Components<br/>("use cache", cacheTag)]
         UI_PAGES[Bookmark pages / tag pages / detail routes]
         RELCONTENT[Related Content & Search aggregators]
-        API_ROUTES[/api/bookmarks,<br/>/api/search/*,<br/>/api/related-content*]<br/><br/>noStore()
-        S3JSON --> CACHE --> UI_PAGES
+        BOOKMARKS_API[/api/bookmarks<br/>unstable_noStore() during handler work<br/>Cache-Control: public, s-maxage=60,<br/>stale-while-revalidate=300]
+        REQUEST_TIME_APIS[/api/search/*,<br/>/api/related-content*<br/>connection() + Cache-Control: no-store]
+        DB --> CACHE --> UI_PAGES
         CACHE --> RELCONTENT
-        S3JSON --> API_ROUTES
+        DB --> BOOKMARKS_API
+        DB --> REQUEST_TIME_APIS
     end
 
     subgraph "Supporting Systems"
         OG_ENRICH[OpenGraph Enhancement + UnifiedImageService]
-        HEALTH[/api/health/deep<br/>verifies slug + JSON integrity]
+        HEALTH[/api/health/deep<br/>verifies slug + database integrity]
         OG_ENRICH --> REFRESH
-        S3JSON --> HEALTH
+        DB --> HEALTH
     end
 
     subgraph "Cache Tags & TTLs"
@@ -34,6 +36,7 @@ graph TD
         CACHE --> TAGS
     end
 
-    style S3JSON fill:#dff0d8,stroke:#2f6627,stroke-width:2px
+    style DB fill:#dff0d8,stroke:#2f6627,stroke-width:2px
     style CACHE fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    style API_ROUTES fill:#fdecea,stroke:#b71c1c,stroke-width:2px
+    style BOOKMARKS_API fill:#fff3cd,stroke:#856404,stroke-width:2px
+    style REQUEST_TIME_APIS fill:#fdecea,stroke:#b71c1c,stroke-width:2px

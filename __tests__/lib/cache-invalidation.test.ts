@@ -258,14 +258,16 @@ describe("Next.js Cache Invalidation", () => {
       const { getStoredActivity, writeGitHubActivityToDb } =
         await loadGitHubActivityWriter(healthyActivity);
 
-      await writeGitHubActivityToDb(
-        buildGitHubActivity({
-          data: [{ date: "2026-06-10", count: 5, level: 2 }],
-          totalContributions: 150,
-          dataComplete: false,
-        }),
-        GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
-      );
+      await expect(
+        writeGitHubActivityToDb(
+          buildGitHubActivity({
+            data: [{ date: "2026-06-10", count: 5, level: 2 }],
+            totalContributions: 150,
+            dataComplete: false,
+          }),
+          GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+        ),
+      ).resolves.toBe(false);
 
       expect(getStoredActivity()).toEqual(healthyActivity);
     });

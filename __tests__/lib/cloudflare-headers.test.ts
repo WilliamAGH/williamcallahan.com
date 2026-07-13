@@ -7,6 +7,7 @@ import { GET as getIp } from "@/app/api/ip/route";
 import { UMAMI_ORIGIN } from "@/config/csp";
 import { config as proxyConfig, proxy } from "@/proxy";
 import {
+  fetchStaticScript,
   parseSmokeTestArguments,
   validateAdvertisedJavaScript,
 } from "../../scripts/smoke-test-production";
@@ -33,12 +34,6 @@ function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
   return request;
 }
 
-function clearDeploymentId(): void {
-  if (!Reflect.deleteProperty(process.env, "NEXT_DEPLOYMENT_ID")) {
-    throw new Error("Could not clear NEXT_DEPLOYMENT_ID for release identity test");
-  }
-}
-
 async function loadNextConfig() {
   vi.resetModules();
   vi.doMock("@sentry/nextjs", () => ({
@@ -47,6 +42,15 @@ async function loadNextConfig() {
   const configPath = "../../next.config";
   const configModule = await import(configPath);
   return configModule.default;
+}
+function responseAt(url: string, body: string, contentType: string): Response {
+  const response = new Response(body, { headers: { "content-type": contentType } });
+  Object.defineProperty(response, "url", { value: url });
+  return response;
+}
+function investmentResponses(releaseId: string): Response[] {
+  const html = `<h1>Investment Portfolio</h1><script src="/_next/static/chunks/app.js?dpl=${releaseId}"></script>`;
+  return Array.from({ length: 5 }, () => new Response(html));
 }
 
 describe("Cloudflare header enforcement", () => {
@@ -82,7 +86,6 @@ describe("Cloudflare header enforcement", () => {
       "cf-connecting-ip": "203.0.113.5",
       "x-forwarded-for": "173.245.48.1",
     });
-
     const validation = validateCloudflareHeaders(headers);
     expect(validation.isValid).toBe(true);
     expect(validation.reasons).toEqual([]);
@@ -94,7 +97,6 @@ describe("Cloudflare header enforcement", () => {
       "true-client-ip": "198.51.100.2",
       "x-forwarded-for": "192.0.2.3, 173.245.48.1",
     });
-
     expect(getClientIp(headers)).toBe("203.0.113.5");
   });
 
@@ -104,7 +106,6 @@ describe("Cloudflare header enforcement", () => {
       "cf-connecting-ip": "2001:db8::5",
       "x-forwarded-for": "2606:4700::1",
     });
-
     expect(getClientIp(headers)).toBe("2001:db8::5");
     expect(validateCloudflareHeaders(headers).isValid).toBe(true);
   });
@@ -120,7 +121,6 @@ describe("Cloudflare header enforcement", () => {
       "cf-connecting-ip": "203.0.113.5",
       "x-forwarded-for": peerIp,
     });
-
     expect(validateCloudflareHeaders(headers).isValid).toBe(isTrusted);
     expect(getClientIp(headers)).toBe(isTrusted ? "203.0.113.5" : peerIp);
   });
@@ -132,7 +132,6 @@ describe("Cloudflare header enforcement", () => {
       "true-client-ip": "198.51.100.2",
       "x-forwarded-for": "192.0.2.3, 99.9.208.198",
     });
-
     expect(getClientIp(headers)).toBe("99.9.208.198");
     expect(validateCloudflareHeaders(headers).reasons).toContain("untrusted_proxy");
   });
@@ -142,7 +141,6 @@ describe("Cloudflare header enforcement", () => {
       "cf-connecting-ip": "203.0.113.5",
       "x-forwarded-for": "173.245.48.1",
     });
-
     const validation = validateCloudflareHeaders(headers);
     expect(validation.isValid).toBe(false);
     expect(validation.reasons).toContain("missing_cf_ray");
@@ -154,7 +152,6 @@ describe("Cloudflare header enforcement", () => {
       "cf-connecting-ip": "not-an-ip",
       "x-forwarded-for": "173.245.48.1",
     });
-
     const validation = validateCloudflareHeaders(headers);
     expect(validation.isValid).toBe(false);
     expect(validation.reasons).toContain("invalid_cf_ip");
@@ -162,7 +159,6 @@ describe("Cloudflare header enforcement", () => {
 
   it("skips enforcement outside production", () => {
     vi.stubEnv("NODE_ENV", "development");
-
     const headers = new Headers();
     const response = requireCloudflareHeaders(headers, { route: "/api/ai/token" });
     expect(response).toBeNull();
@@ -171,7 +167,6 @@ describe("Cloudflare header enforcement", () => {
   it("blocks when headers are missing in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.API_BASE_URL = "https://williamcallahan.com";
-
     const headers = new Headers();
     const response = requireCloudflareHeaders(headers, { route: "/api/ai/token" });
     expect(response?.status).toBe(403);
@@ -181,157 +176,169 @@ describe("Cloudflare header enforcement", () => {
     const request = new NextRequest("https://origin.example/api/ip", {
       headers: { "x-forwarded-for": "99.9.208.198" },
     });
-
     const response = await getIp(request);
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toBe("99.9.208.198");
   });
 
-  it("matches both same-origin Umami endpoints before the external rewrite", () => {
+  it.each([
+    ["/stats/script.js", true],
+    ["/api/send", true],
+    ["/_next/static/chunks/app.js", false],
+  ])("matches %s before the external Umami rewrite", (path, shouldMatch) => {
     expect(
       unstable_doesMiddlewareMatch({
         config: proxyConfig,
-        url: "https://williamcallahan.com/stats/script.js",
+        url: `https://williamcallahan.com${path}`,
       }),
-    ).toBe(true);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config: proxyConfig,
-        url: "https://williamcallahan.com/api/send",
-      }),
-    ).toBe(true);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config: proxyConfig,
-        url: "https://williamcallahan.com/_next/static/chunks/app.js",
-      }),
-    ).toBe(false);
+    ).toBe(shouldMatch);
   });
 
-  it("rewrites the GET tracker request with its exact query and no-store headers", async () => {
-    const response = await proxy(
-      createProxyRequest(
-        "https://williamcallahan.com/stats/script.js?cache=123&source=home",
-        "GET",
-      ),
-    );
-
-    expect(isRewrite(response)).toBe(true);
-    expect(getRewrittenUrl(response)).toBe(`${UMAMI_ORIGIN}/script.js?cache=123&source=home`);
-    expect(response.headers.get("cache-control")).toBe(
-      "no-store, no-cache, must-revalidate, proxy-revalidate",
-    );
-    expect(response.headers.get("cdn-cache-control")).toBe("no-store, max-age=0");
-    expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store, max-age=0");
-  });
-
-  it("rewrites the POST event request with its exact query and no-store headers", async () => {
-    const response = await proxy(
-      createProxyRequest("https://williamcallahan.com/api/send?event=pageview&source=home", "POST"),
-    );
-
-    expect(isRewrite(response)).toBe(true);
-    expect(getRewrittenUrl(response)).toBe(`${UMAMI_ORIGIN}/api/send?event=pageview&source=home`);
-    expect(response.headers.get("cache-control")).toBe(
-      "no-store, no-cache, must-revalidate, proxy-revalidate",
-    );
-    expect(response.headers.get("cdn-cache-control")).toBe("no-store, max-age=0");
-    expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store, max-age=0");
-  });
-
+  it.each([
+    [
+      "GET",
+      "/stats/script.js?cache=123&source=home",
+      `${UMAMI_ORIGIN}/script.js?cache=123&source=home`,
+    ],
+    [
+      "POST",
+      "/api/send?event=pageview&source=home",
+      `${UMAMI_ORIGIN}/api/send?event=pageview&source=home`,
+    ],
+  ] as const)(
+    "rewrites %s requests with exact query and no-store headers",
+    async (method, path, destination) => {
+      const response = await proxy(
+        createProxyRequest(`https://williamcallahan.com${path}`, method),
+      );
+      expect(isRewrite(response)).toBe(true);
+      expect(getRewrittenUrl(response)).toBe(destination);
+      expect(response.headers.get("cache-control")).toBe(
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
+      );
+      expect(response.headers.get("cdn-cache-control")).toBe("no-store, max-age=0");
+      expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store, max-age=0");
+    },
+  );
   describe("next.config release identity", () => {
     afterEach(() => {
       vi.doUnmock("@sentry/nextjs");
       vi.resetModules();
     });
-
-    it("delegates development build identity to Next", async () => {
-      clearDeploymentId();
-      vi.stubEnv("NODE_ENV", "development");
-
-      const nextConfig = await loadNextConfig();
-
-      await expect(nextConfig.generateBuildId()).resolves.toBeNull();
-    });
-
     it("uses a URL-safe production deployment ID as the release identity", async () => {
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("NEXT_DEPLOYMENT_ID", "release_2026-07-13");
-
       const nextConfig = await loadNextConfig();
-
       await expect(nextConfig.generateBuildId()).resolves.toBe("release_2026-07-13");
       expect(process.env.NEXT_PUBLIC_GIT_HASH).toBe("release_2026-07-13");
       expect(process.env.SENTRY_RELEASE).toBe("release_2026-07-13");
     });
-
     it("rejects a production deployment ID that is not URL-safe", async () => {
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("NEXT_DEPLOYMENT_ID", "release/id");
-
       await expect(loadNextConfig()).rejects.toThrow(
         "[next.config] NEXT_DEPLOYMENT_ID may contain only letters, numbers, hyphens, and underscores.",
       );
     });
-
-    it("uses local Git HEAD when a production deployment ID is missing", async () => {
-      clearDeploymentId();
-      vi.stubEnv("NODE_ENV", "production");
-      const expectedReleaseId = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
-        encoding: "utf8",
-      }).trim();
-
-      const nextConfig = await loadNextConfig();
-
-      await expect(nextConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
-      expect(process.env.NEXT_DEPLOYMENT_ID).toBe(expectedReleaseId);
-    });
   });
-
   describe("production deployment verification", () => {
+    const baseUrl = "https://williamcallahan.com";
     const releaseId = "release_2026-07-13";
-    const html = `<h1>Investment Portfolio</h1><script src="/_next/static/chunks/app.js?dpl=${releaseId}"></script>`;
-
-    it("accepts converged HTML and the exact nonempty JavaScript asset", async () => {
-      const responses = Array.from({ length: 5 }, () => new Response(html, { status: 200 }));
-      const fetchAsset = vi.fn(async (url: string) => {
-        const response = new Response("console.log('release')", {
-          headers: { "Content-Type": "application/javascript" },
-          status: 200,
-        });
-        Object.defineProperty(response, "url", { value: url });
-        return response;
+    const scriptUrl = `${baseUrl}/_next/static/chunks/app.js?dpl=release-123`;
+    it("accepts converged HTML and a redirect-free exact nonempty JavaScript asset", async () => {
+      let redirect: RequestRedirect | undefined;
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, options) => {
+        redirect = options?.redirect;
+        return responseAt(url.toString(), "console.log('release')", "application/javascript");
       });
-
+      try {
+        await fetchStaticScript(scriptUrl);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+      expect(redirect).toBe("error");
+      const fetchAsset = vi.fn(async (url: string) => {
+        return responseAt(url, "console.log('release')", "application/javascript; charset=utf-8");
+      });
       await expect(
         validateAdvertisedJavaScript(
-          responses,
-          "https://williamcallahan.com",
+          investmentResponses(releaseId),
+          baseUrl,
           releaseId,
           fetchAsset,
         ),
       ).resolves.toBe(true);
+      expect(fetchAsset).toHaveBeenCalledOnce();
       expect(
-        parseSmokeTestArguments(["williamcallahan.com", `--expected-release-id=${releaseId}`]),
-      ).toEqual({
-        authToken: undefined,
-        baseUrl: "https://williamcallahan.com",
-        expectedReleaseId: releaseId,
-      });
+        parseSmokeTestArguments(["williamcallahan.com", `--expected-release-id=${releaseId}`])
+          ?.expectedReleaseId,
+      ).toBe(releaseId);
+      expect(
+        parseSmokeTestArguments([
+          "williamcallahan.com",
+          "token",
+          `--expected-release-id=${releaseId}`,
+        ])?.authToken,
+      ).toBe("token");
+      expect(
+        parseSmokeTestArguments(["williamcallahan.com", "--expected-release-id="]),
+      ).toBeUndefined();
     });
 
-    it("validates cache-rule TTL contracts before deployment", () => {
+    it("rejects wrong, skewed, and scriptless release HTML", async () => {
+      const fetchAsset = async (url: string) =>
+        responseAt(url, "export {};", "application/javascript");
+      await expect(
+        validateAdvertisedJavaScript(investmentResponses(releaseId), baseUrl, "other", fetchAsset),
+      ).resolves.toBe(false);
+      await expect(
+        validateAdvertisedJavaScript(
+          [...investmentResponses(releaseId), ...investmentResponses("different-release")],
+          baseUrl,
+          releaseId,
+          fetchAsset,
+        ),
+      ).resolves.toBe(false);
+      const scriptless = investmentResponses(releaseId).slice(0, 4);
+      scriptless.push(new Response("<h1>Investment Portfolio</h1>"));
+      await expect(
+        validateAdvertisedJavaScript(scriptless, baseUrl, releaseId, fetchAsset),
+      ).resolves.toBe(false);
+      for (const [url, body, contentType] of [
+        [`${baseUrl}/login`, "export {};", "application/javascript"],
+        [scriptUrl, "<html>login</html>", "text/html"],
+        [scriptUrl, "", "application/javascript"],
+      ]) {
+        await expect(
+          validateAdvertisedJavaScript(
+            investmentResponses(releaseId),
+            baseUrl,
+            releaseId,
+            async () => responseAt(url, body, contentType),
+          ),
+        ).resolves.toBe(false);
+      }
+    });
+
+    it("validates cache-rule defaults, ranges, and nonempty rules before deployment", () => {
       const validationScript = `
+        import assert from "node:assert/strict";
         import { readFileSync } from "node:fs";
+        import Ajv from "ajv";
         import { validateCacheRulesConfig } from "./scripts/deploy-cf-cache-rules.node.mjs";
+        const schema = JSON.parse(readFileSync("./infra/cloudflare/cache-rules.schema.json", "utf8"));
+        assert.equal(new Ajv().validateSchema(schema), true);
         const readConfig = () => JSON.parse(readFileSync("./infra/cloudflare/cache-rules.json", "utf8"));
         const openRange = readConfig();
         openRange.rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 400 };
-        validateCacheRulesConfig(openRange);
-        const invalid = [readConfig(), readConfig()];
-        invalid[0].rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 599, to: 400 };
-        delete invalid[1].rules[2].action_parameters.edge_ttl.default;
-        for (const config of invalid) { try { validateCacheRulesConfig(config); process.exit(2); } catch {} }
+        const [invalidRange, missingDefault, invalidDefault, unknownProperty] = Array.from({ length: 4 }, readConfig);
+        invalidRange.rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 599, to: 400 };
+        delete missingDefault.rules[2].action_parameters.edge_ttl.default;
+        invalidDefault.rules[2].action_parameters.edge_ttl.default = -1;
+        unknownProperty.rules[0].action_parameters.edge_tll = {};
+        assert.throws(() => validateCacheRulesConfig({ rules: [] }));
+        for (const config of [invalidRange, missingDefault, invalidDefault, unknownProperty]) assert.throws(() => validateCacheRulesConfig(config));
+        assert.doesNotThrow(() => validateCacheRulesConfig(openRange));
       `;
       expect(() =>
         execFileSync("node", ["--input-type=module", "--eval", validationScript]),

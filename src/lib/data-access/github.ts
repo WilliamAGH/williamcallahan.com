@@ -74,7 +74,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   if (!isGitHubApiConfigured()) {
     console.error(
       "[DataAccess/GitHub] CRITICAL: GitHub API token is missing. Cannot fetch GitHub activity. " +
-        "Please ensure GITHUB_ACCESS_TOKEN_COMMIT_GRAPH is set in your environment variables.",
+        "Set GITHUB_ACCESS_TOKEN_COMMIT_GRAPH, GITHUB_API_TOKEN, or GITHUB_TOKEN.",
     );
     return null;
   }
@@ -123,19 +123,22 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       trailingYearData: emptyActivityData,
       cumulativeAllTimeData: emptyActivityData,
     };
+    const activityWritten = await writeGitHubActivityRecord(
+      emptyActivity,
+      GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
+    );
+    if (!activityWritten) {
+      throw new Error("GitHub activity refresh preserved its existing activity record.");
+    }
     const summaryWritten = await writeGitHubActivitySummary({
       allTimeData: emptyActivityData,
       totalRepositoriesContributedTo: 0,
-      allTimeCategoryStats: createEmptyCategoryStats(),
+      linesOfCodeByCategory: createEmptyCategoryStats(),
     });
     if (!summaryWritten) {
       throw new Error("GitHub activity refresh failed to persist its summary record.");
     }
     await calculateAndStoreAggregatedWeeklyActivity([]);
-    await writeGitHubActivityRecord(
-      emptyActivity,
-      GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
-    );
     return { trailingYearData: emptyActivityData, allTimeData: emptyActivityData };
   }
 
@@ -223,10 +226,19 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     allPriorYearCommits: priorYearCommitStats,
   };
 
+  const combinedActivityData: GitHubActivityApiResponse = {
+    trailingYearData,
+    cumulativeAllTimeData: allTimeData,
+  };
+  const activityWritten = await writeGitHubActivityRecord(combinedActivityData);
+  if (!activityWritten) {
+    throw new Error("GitHub activity refresh preserved its existing activity record.");
+  }
+
   const summaryWritten = await writeGitHubActivitySummary({
     allTimeData,
     totalRepositoriesContributedTo: uniqueRepoArray.length,
-    allTimeCategoryStats,
+    linesOfCodeByCategory: allTimeCategoryStats,
   });
   if (!summaryWritten) {
     throw new Error("GitHub activity refresh failed to persist its summary record.");
@@ -235,12 +247,5 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   await calculateAndStoreAggregatedWeeklyActivity(
     uniqueRepoArray.map((repository) => repository.nameWithOwner),
   );
-
-  const combinedActivityData: GitHubActivityApiResponse = {
-    trailingYearData,
-    cumulativeAllTimeData: allTimeData,
-  };
-
-  await writeGitHubActivityRecord(combinedActivityData);
   return { trailingYearData, allTimeData };
 }

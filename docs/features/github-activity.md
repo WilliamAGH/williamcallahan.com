@@ -61,7 +61,7 @@ A hybrid approach is used to gather comprehensive data:
 Canonical runtime records live in PostgreSQL table `github_activity_store`:
 
 - `data_type = "activity", qualifier = "global"`: combined trailing-year and all-time payload.
-- `data_type = "summary", qualifier = "global"`: summary card payload.
+- `data_type = "summary", qualifier = "global"`: all-time summary-card payload.
 - `data_type = "aggregated-weekly", qualifier = "global"`: aggregated weekly chart payload.
 - `data_type = "repo-weekly-stats", qualifier = "owner/repo"`: per-repo weekly cache payload.
 
@@ -78,8 +78,8 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 
 ## API Endpoints
 
-- `GET /api/github-activity`: Retrieves the currently cached GitHub activity data. Prior-year repository identifiers and per-repository metrics remain private; the public response contains aggregate totals only.
-- `POST /api/github-activity/refresh`: Runs a protected refresh only in the production write environment. Read-only deployments return an explicit successful no-write result, which the UI reports without claiming a refresh started or offering another refresh action.
+- `GET /api/github-activity`: Retrieves the currently cached GitHub activity data. The public response includes the contribution calendar and aggregate totals; repository identifiers and per-repository metrics remain private.
+- `POST /api/github-activity/refresh`: Runs a protected refresh only in the production write environment. Read-only deployments return an explicit successful no-write result; production relays reject that result as a failed refresh.
 - `POST /api/github-activity/refresh-production`: Requires a Clerk user in a non-production environment and relays the production refresh with `GITHUB_REFRESH_SECRET` in the `x-refresh-secret` header.
 
 ## Key Files & Responsibilities
@@ -136,9 +136,13 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 ## Environment Variables
 
 ```bash
-# Required for API access
+# Set one API token; aliases are checked in this order
+GITHUB_ACCESS_TOKEN_COMMIT_GRAPH=ghp_xxxxxxxxxxxx
+GITHUB_API_TOKEN=ghp_xxxxxxxxxxxx
 GITHUB_TOKEN=ghp_xxxxxxxxxxxx
-GITHUB_USERNAME=username
+
+# Optional; defaults to WilliamAGH
+GITHUB_REPO_OWNER=username
 
 # SECURITY WARNING: DO NOT USE NEXT_PUBLIC_ PREFIX
 # This exposes the secret in client-side code!
@@ -152,8 +156,8 @@ GITHUB_CONTRIBUTION_CSV_URL=https://...
 ## Debugging
 
 ```bash
-# Verify the GitHub API token
-curl -H "Authorization: bearer $GITHUB_TOKEN" https://api.github.com/user
+# Verify the configured GitHub API token (same alias precedence as the application)
+curl -H "Authorization: bearer ${GITHUB_ACCESS_TOKEN_COMMIT_GRAPH:-${GITHUB_API_TOKEN:-${GITHUB_TOKEN:?Set one of GITHUB_ACCESS_TOKEN_COMMIT_GRAPH, GITHUB_API_TOKEN, or GITHUB_TOKEN}}}" https://api.github.com/user
 
 # Manually trigger a data refresh
 curl -X POST -H "x-refresh-secret: $GITHUB_REFRESH_SECRET" localhost:3000/api/github-activity/refresh

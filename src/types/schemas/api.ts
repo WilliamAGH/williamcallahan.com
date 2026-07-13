@@ -7,14 +7,23 @@ export const apiErrorResponseSchema = z.object({
 
 export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
 
-export const clientErrorSchema = z.object({
-  message: z.string().optional(),
-  resource: z.string().optional(),
-  type: z.string().optional(),
-  url: z.string().optional(),
-  stack: z.string().optional(),
-  buildId: z.string().optional(),
-});
+export const clientErrorSchema = z
+  .object({
+    message: z.string().optional(),
+    resource: z.string().optional(),
+    type: z.string().optional(),
+    url: z.string().optional(),
+    stack: z.string().optional(),
+    buildId: z.string().optional(),
+    chunkId: z.string().optional(),
+    performance: z
+      .object({
+        durationMs: z.number().nonnegative(),
+        cached: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .strict();
 
 export type ClientErrorReport = z.infer<typeof clientErrorSchema>;
 

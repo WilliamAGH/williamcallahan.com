@@ -226,6 +226,9 @@ Bookmark arrays, list/page/tag indexes, and slug lookups are PostgreSQL-backed. 
 Embedded slugs are treated as the source of truth during refreshes; metadata-only updates preserve existing slugs
 to avoid URL churn when titles or OpenGraph descriptions change.
 
+`buildBookmarkPath(slug)` is the canonical owner for an internal detail route and its result is passed as
+`internalHref`; the bookmark `url` remains the original external destination.
+
 ## Critical Design Decisions
 
 ### 1. Title-Based Slug Generation for Content-Sharing Domains

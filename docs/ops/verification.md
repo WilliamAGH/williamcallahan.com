@@ -88,9 +88,21 @@ for response in "$FIRST_ANALYTICS_RESPONSE" "$SECOND_ANALYTICS_RESPONSE"; do
 done
 ```
 
-`bun run deploy:smoke-test -- https://[domain]` performs the same `/investments`
+`bun run deploy:smoke-test -- https://[domain] --expected-release-id="$(cat .next/BUILD_ID)"` performs the same `/investments`
 content and advertised-script assertion plus the missing-static-chunk and analytics-script
 cache assertions alongside the other production user-path checks.
+
+For a Cache Rules change, preview the declarative
+`infra/cloudflare/cache-rules.json` configuration before deployment, then apply it only after
+reviewing the diff:
+
+```bash
+bun run deploy:cf-cache-rules:dry-run
+bun run deploy:cf-cache-rules
+```
+
+The commands require `CF_ZONE_ID` and the preferred `CF_API_TOKEN`; the global-key fallback
+requires both `CLOUDFLARE_API_KEY` and `CLOUDFLARE_EMAIL`.
 
 ## Cache Purge
 

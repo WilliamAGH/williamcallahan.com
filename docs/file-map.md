@@ -9,6 +9,7 @@
 - [Lib Directory](#lib-directory)
 - [Types Directory](#types-directory)
 - [Config Directory](#config-directory)
+- [Infrastructure Directory](#infrastructure-directory)
 - [Middleware Directory](#middleware-directory)
 - [Root Directory](#root-directory)
 - [Rules Directory](#rules-directory)
@@ -252,6 +253,7 @@ File/Path Functionality Description
   - [x] `validation.ts` `blog` - Parses canonical frontmatter and owns the cached slug-to-MDX-file index plus route/cache lookup guard
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
+  - [x] `bookmark-helpers.ts` `bookmarks` - Canonical bookmark detail-path construction and card-image selection
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
   - [x] `slug-helpers.ts` `bookmarks` - Indexed slug and bookmark-ID resolution
   - [x] **analysis/**
@@ -456,6 +458,7 @@ File/Path Functionality Description
 - [x] **db/**
   - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmark row/insert type exports for DB modules
 - [ ] **schemas/**
+  - [x] `api.ts` `log-error-debug-handling` - Canonical Zod schemas for API errors, client-error telemetry, and shared route response contracts
   - [x] `blog-frontmatter.ts` `blog` - Zod single owner of MDX frontmatter and `blogSlugSchema`; runtime MDX and Node seed ingestion parse through it
   - [x] `github-storage.ts` `github-activity` - Canonical persisted and public GitHub activity schemas, projections, and write intents
   - [x] `og-image.ts` `opengraph` - Zod schemas for OG image entity types, per-entity params, and layout props
@@ -512,6 +515,12 @@ File/Path Functionality Description
   - [x] `env-setup.ts` `testing-config` - Targeted environment mocks for tests
   - [x] `global-mocks.ts` `testing-config` - Global cache API stubs
   - [x] `setup.ts` `testing-config` - Vitest setup with DOM mocks and matchers
+
+## Infrastructure Directory
+
+- [x] **infra/cloudflare/** `caching` - Declarative Cloudflare Cache Rules ownership
+  - [x] `cache-rules.json` `caching` - Desired Cache Rules deployed through the Rulesets API
+  - [x] `cache-rules.schema.json` `caching` - JSON Schema that validates the declarative Cache Rules
 
 ## Middleware Directory
 
@@ -587,6 +596,7 @@ File/Path Functionality Description
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
     - [x] **refresh/`route.ts`** `github-activity` - Refresh GitHub activity API
+    - [x] **refresh-production/`route.ts`** `github-activity` - Authenticated relay to the production refresh endpoint
   - [x] **health/`route.ts`** `log-error-debug-handling` - Health check API
   - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated raw system metrics API; no public status page
   - [x] **ip/`route.ts`** `log-error-debug-handling` - IP address API
@@ -641,6 +651,7 @@ File/Path Functionality Description
 - [x] `check-duplicate-types.ts` `linting-formatting` - Deterministic build-time check for globally unique type/interface/enum names
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
+- [x] `deploy-cf-cache-rules.node.mjs` `caching` - Validates, previews, and deploys declarative Cloudflare Cache Rules
 - [x] `bookmark-diagnostics.ts` `log-error-debug-handling` - Diagnostics script for bookmark refresh/cache behavior
 - [x] `entrypoint.sh` `deployment` - Docker entrypoint script
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
@@ -661,6 +672,7 @@ File/Path Functionality Description
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests
 - [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
+- [x] `smoke-test-production.ts` `deployment` - Production route, release-identity, and Cloudflare cache smoke checks
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
 - [x] `entrypoint.sh` `deployment` - Web container entrypoint (DB gate + Next.js server only)

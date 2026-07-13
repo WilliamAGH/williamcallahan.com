@@ -3,10 +3,10 @@
  *
  * SCOPE: Next.js API routes, page contexts, and route parameter types
  * USAGE: Use for API route handlers, page components, and dynamic route contexts
- * OVERLAP PREVENTION: Do NOT add general API response types here - use response-types.ts
+ * OVERLAP PREVENTION: Do NOT add general API response types here; use types/schemas/api.ts
  * DO NOT add business logic types - this is only for Next.js routing infrastructure
  *
- * @see types/response-types.ts for API response/request body types
+ * @see types/schemas/api.ts for validated API response and request body contracts
  * @see types/[domain].ts for business logic types (bookmark, blog, etc.)
  */
 

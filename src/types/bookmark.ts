@@ -1,15 +1,8 @@
 /** Bookmarks API Types */
 
-import type { ExtendedError } from "./error";
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure Interfaces (no Zod dependency)
 // ─────────────────────────────────────────────────────────────────────────────
-
-export interface BookmarkError extends ExtendedError {
-  lastFetched?: number;
-  lastFetchedTimestamp?: number;
-}
 
 /**
  * Minimal bookmark record structure used by scripts that manipulate the JSON payload

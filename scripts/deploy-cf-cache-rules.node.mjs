@@ -31,7 +31,7 @@ const PHASE = "http_request_cache_settings";
 const CONFIG_PATH = resolve(__dirname, "../infra/cloudflare/cache-rules.json");
 const SCHEMA_PATH = resolve(__dirname, "../infra/cloudflare/cache-rules.schema.json");
 const schema = JSON.parse(readFileSync(SCHEMA_PATH, "utf-8"));
-const ajv = new Ajv({ allErrors: true, $data: true });
+const ajv = new Ajv({ allErrors: true });
 const validateCacheRulesSchema = ajv.compile(schema);
 
 // ---------------------------------------------------------------------------
@@ -39,12 +39,29 @@ const validateCacheRulesSchema = ajv.compile(schema);
 // ---------------------------------------------------------------------------
 
 export function validateCacheRulesConfig(config) {
-  if (validateCacheRulesSchema(config)) return config;
-  throw new Error(
-    `Invalid Cloudflare cache rules config: ${ajv.errorsText(validateCacheRulesSchema.errors, {
-      separator: "; ",
-    })}`,
-  );
+  if (!validateCacheRulesSchema(config)) {
+    throw new Error(
+      `Invalid Cloudflare cache rules config: ${ajv.errorsText(validateCacheRulesSchema.errors, {
+        separator: "; ",
+      })}`,
+    );
+  }
+  const descriptions = config.rules.map((rule) => rule.description);
+  if (new Set(descriptions).size !== descriptions.length) {
+    throw new Error("Invalid Cloudflare cache rules config: rule descriptions must be unique");
+  }
+  for (const rule of config.rules) {
+    const statusTtls = rule.action_parameters.edge_ttl?.status_code_ttl;
+    if (!statusTtls) continue;
+    for (const { status_code_range: range } of statusTtls) {
+      if (range?.from !== undefined && range.to !== undefined && range.from > range.to) {
+        throw new Error(
+          "Invalid Cloudflare cache rules config: status range from must not exceed to",
+        );
+      }
+    }
+  }
+  return config;
 }
 
 function loadConfig() {

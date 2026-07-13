@@ -67,6 +67,7 @@ const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
 /**
  * Write GitHub activity data to PostgreSQL with non-degrading write protection.
  * Avoids overwriting a healthy dataset with empty/incomplete results.
+ * @returns `true` when the activity row was written, or `false` when the existing row was preserved.
  */
 export async function writeGitHubActivityToDb(
   data: GitHubActivityApiResponse,
@@ -104,7 +105,7 @@ export async function writeGitHubActivityToDb(
         debugLog("Non-degrading write: Preserving complete GitHub activity dataset", "warn", {
           newCount: Math.max(0, newQ.contributions),
         });
-        return true;
+        return false;
       }
 
       const existingContributions = Math.max(0, existingQ.contributions);
@@ -115,7 +116,7 @@ export async function writeGitHubActivityToDb(
           existingCount: existingContributions,
           newCount: newContributions,
         });
-        return true;
+        return false;
       }
 
       debugLog("Writing new data despite incomplete flag - has more contributions", "info", {

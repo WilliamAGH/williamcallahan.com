@@ -71,6 +71,7 @@ function accumulateAllTimeCategoryStats(
     allTimeStats[categoryKey].linesAdded += result.allTimeLinesAdded;
     allTimeStats[categoryKey].linesRemoved += result.allTimeLinesRemoved;
     allTimeStats[categoryKey].netChange += result.allTimeLinesAdded - result.allTimeLinesRemoved;
+    allTimeStats[categoryKey].repoCount += 1;
   }
 }
 

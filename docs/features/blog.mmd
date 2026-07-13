@@ -1,7 +1,9 @@
 graph TD
     subgraph "Build Time / Server-Side"
-        A[data/blog/posts/*.mdx] -- "Canonical authoring source" --> B{lib/blog/validation.ts};
-        B -- "Indexes frontmatter slugs" --> D{lib/blog/mdx.ts};
+        A[data/blog/posts/*.mdx] -- "Canonical authoring source" --> B{types/schemas/blog-frontmatter.ts<br/>canonical frontmatter schema};
+        B -- "Validates runtime MDX" --> V{lib/blog/validation.ts};
+        B -- "Validates Node seed input" --> N[scripts/seed-blog-posts.node.mjs];
+        V -- "Indexes frontmatter slugs" --> D{lib/blog/mdx.ts};
         D -- "Compiles validated MDX" --> C[getAllPosts()];
         C --> E[app/blog/page.tsx];
         E -- "Pre-renders List" --> F[blog-list.server.tsx];

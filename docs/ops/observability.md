@@ -44,21 +44,14 @@ The system provides multiple layers of observability and resilience:
 #### Type Definitions
 
 - **`types/error.ts`**: Core error type definitions
-  - `ExtendedError`: Base error interface with timestamp tracking
-  - `BookmarkError`: Specialized error for bookmark operations
-  - `GitHubActivityError`: Specialized error for GitHub API operations
-  - Type guards: `hasLastFetched()`, `hasLastFetchedTimestamp()`
-  - Utility functions: `getErrorMessage()`, `getErrorTimestamp()`
-  - ** ISSUES**:
-    - Duplicate timestamp properties (`lastFetched` vs `lastFetchedTimestamp`)
-    - Inconsistent naming conventions
-    - Type guards should be in separate utility file
+  - `ExtendedError`: Canonical error interface for fetch timestamps, codes, and context
 
 #### Typed Error Contracts
 
 - **`types/error.ts`**: Application error contracts and helper utilities
-  - Standardizes error-shape access and timestamp helpers
-  - Provides type guards for shared error handling flows
+  - Owns shared error shapes and categorization types
+- **`lib/utils/error-utils.ts`**: Runtime error helpers
+  - Owns `getErrorMessage()`, `getProperty()`, retry categorization, and normalization
 
 #### React Error Boundaries
 
@@ -224,10 +217,7 @@ The system provides multiple layers of observability and resilience:
 try {
   const data = await fetchAPI();
 } catch (error) {
-  if (error instanceof BookmarkError) {
-    // Handle bookmark-specific error
-  }
-  throw new ExtendedError("API request failed", { cause: error });
+  throw new BlogPostDataError("API request failed", slug, error);
 }
 ```
 
@@ -282,7 +272,7 @@ if (!result) {
 ### Medium-term Improvements
 
 1. **Centralized Authentication**: Middleware-based auth for debug endpoints
-2. **Type Consistency**: Fix duplicate timestamp properties
+2. **Type Consistency**: Use `ExtendedError` directly for shared fetch error metadata
 3. **Error Recovery**: Implement automatic retry for transient errors
 4. **Circuit Breaker**: Add pattern for failing services
 

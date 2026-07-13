@@ -65,10 +65,12 @@ Installed Next 16.1.6 reads `NEXT_DEPLOYMENT_ID` in
 `node_modules/next/dist/server/config.js` and appends it through
 `node_modules/next/dist/shared/lib/deployment-id.js`. `generateBuildId` is separate and
 does not version static asset URLs by itself. `NEXT_DEPLOYMENT_ID` is the canonical input:
-`next.config.ts` assigns it to Next's `deploymentId` and returns the same release identity
-from `generateBuildId`. Docker also exports the same value as `GIT_HASH`, but that variable
-is not the configuration identity owner. A same `GIT_SHA` intentionally reuses the canonical
-value; follow the purge-or-new-revision recovery procedure in `docs/ops/deployment.md`.
+`next.config.ts` resolves the release identity and sets `process.env.NEXT_DEPLOYMENT_ID`; it
+does not declare a `deploymentId` configuration property. Next derives its configuration
+deployment ID from that environment value, while `generateBuildId` returns the same release
+identity. Docker also exports the same value as `GIT_HASH`, but that variable is not the
+configuration identity owner. A same `GIT_SHA` intentionally reuses the canonical value;
+follow the purge-or-new-revision recovery procedure in `docs/ops/deployment.md`.
 
 ### Async Request Data
 

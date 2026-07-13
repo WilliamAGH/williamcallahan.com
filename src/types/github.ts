@@ -1,5 +1,4 @@
 import { z } from "zod/v4";
-import type { ExtendedError } from "./error";
 import {
   repoRawWeeklyStatSchema,
   type GitHubActivitySegment,
@@ -156,20 +155,11 @@ export type GraphQLUserContributionsResponse = z.infer<
 // --- END: GitHub GraphQL Contribution Calendar Schemas ---
 
 /**
- * Error interface for GitHub activity fetch errors
- */
-export interface GitHubActivityError extends ExtendedError {
-  /** Timestamp of when activity was last successfully fetched */
-  lastFetched?: number;
-  /** Timestamp of the last fetch attempt */
-  lastFetchedTimestamp?: number;
-}
-
-/**
  * Input for writing the GitHub activity summary
  */
-export type GitHubSummaryInput = {
+export type GitHubSummaryInput = Pick<
+  GitHubActivitySummary,
+  "totalRepositoriesContributedTo" | "linesOfCodeByCategory"
+> & {
   allTimeData: GitHubActivitySegment;
-  totalRepositoriesContributedTo: number;
-  allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
 };
