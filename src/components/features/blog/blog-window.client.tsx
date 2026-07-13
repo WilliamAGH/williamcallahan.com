@@ -12,7 +12,7 @@
 
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
@@ -116,13 +116,6 @@ export function BlogWindow({
     maximize: maximizeWindow,
     isRegistered,
   } = useRegisteredWindowState(BLOG_WINDOW_ID, Newspaper, "Restore Blog", "normal");
-
-  // Log state changes (optional)
-  useEffect(() => {
-    if (isRegistered) {
-      console.log(`Blog Component Render (${BLOG_WINDOW_ID}) - Window State:`, windowState);
-    }
-  }, [windowState, isRegistered]);
 
   // Handle closed or minimized state
   if (windowState === "closed" || windowState === "minimized") {

@@ -9,7 +9,7 @@
 
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils"; // Import cn utility
 import { Briefcase } from "lucide-react"; // Import specific icon
@@ -42,17 +42,6 @@ export function Experience({ data }: ExperienceProps): React.JSX.Element | null 
     maximize: maximizeWindow,
     isRegistered,
   } = useRegisteredWindowState(EXPERIENCE_WINDOW_ID, Briefcase, "Restore Experience", "normal");
-
-  // Log state changes (optional)
-  useEffect(() => {
-    if (isRegistered) {
-      // Check isRegistered
-      console.log(
-        `Experience Component Render (${EXPERIENCE_WINDOW_ID}) - Window State:`,
-        windowState,
-      );
-    }
-  }, [windowState, isRegistered]); // Dependency on isRegistered
 
   // Render nothing until ready
   if (!isRegistered) {

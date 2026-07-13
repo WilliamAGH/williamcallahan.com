@@ -147,11 +147,6 @@ export function EducationClient({
     }
   };
 
-  // Log state changes (optional)
-  if (isRegistered) {
-    console.log(`EducationClient Render (${EDUCATION_WINDOW_ID}) - Window State:`, windowState);
-  }
-
   // Render nothing until ready
   if (!isRegistered) {
     return null;
