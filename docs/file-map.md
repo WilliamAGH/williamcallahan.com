@@ -791,7 +791,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `bookmarks.test.ts` `bookmarks` - Bookmarks utility tests
     - [x] `select-best-image.test.ts` `bookmarks` - Bookmark image selection security tests
     - [x] `cache.test.ts` `caching` - Cache utility tests
-    - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guard tests
+    - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guards; `middleware/proxy-analytics.test.ts` `analytics` - same-origin proxy delivery tests
     - [x] `data-access.s3.test.ts` `s3-object-storage` - S3 data access tests
     - [x] `env-logger.test.ts` `log-error-debug-handling` - EnvLogger safe stringify tests
     - [x] `imageAnalysis.test.ts` `image-handling` - Image analysis tests

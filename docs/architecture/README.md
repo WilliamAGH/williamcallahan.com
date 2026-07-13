@@ -63,7 +63,7 @@ Example schemas:
 - OpenGraph data access delegates Next.js cache and refresh workflows to focused modules (`opengraph-next-cache.ts`, `opengraph-refresh.ts`) with shared cache guards (`opengraph-cache-context.ts`) (see `features/opengraph.md`).
 - Dynamic OG image generation uses a unified `/api/og/[entity]` route with per-entity layout renderers in `lib/og-image/layouts/`, SSRF-protected image fetching, and shared design tokens. All page `generateMetadata()` functions use `buildOgImageUrl()` from `lib/og-image/build-og-url.ts` (see `features/opengraph.md`).
 - Route protections: `src/proxy.ts` applies sitewide rate limiting for matched traffic and
-  directly returns same-origin `/stats/**` assets with final browser/CDN no-store headers.
+  directly returns same-origin `/stats/**` assets with final browser/CDN no-store headers, covered by `__tests__/lib/middleware/proxy-analytics.test.ts`.
 - `/api/health` returns only a lightweight public status/timestamp payload; raw system telemetry is available only through bearer-authenticated `/api/health/metrics`, with no `/status` page.
 - Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).

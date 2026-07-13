@@ -83,7 +83,7 @@ returned directly so their final response has explicit `no-store` browser and CD
 an external Next.js rewrite would allow Umami's upstream `Cache-Control` to overwrite that
 policy. Event ingestion at `/api/send` remains an external rewrite. The proxy matcher includes
 `/stats/:path*`; the API matcher covers `/api/send`. Do not duplicate either path in
-`next.config.ts`.
+`next.config.ts`; `__tests__/lib/middleware/proxy-analytics.test.ts` owns proxy response coverage.
 
 Tracker tag (inside `Analytics` component):
 
