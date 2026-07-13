@@ -28,17 +28,22 @@ when the corresponding optional secret is absent.
 
 ## Web Release Identity
 
-The web `Dockerfile` owns how a production release identity reaches `next build`. When
-Coolify supplies `GIT_SHA`, that SHA is the identity, so rebuilding the same source revision
-intentionally reuses it. When `GIT_SHA` is absent, Docker creates and logs a UUID fallback;
-that fallback does not prove that the source revision or application build is uncached. The
-build exports the selected value as both `GIT_HASH` and `NEXT_DEPLOYMENT_ID` before `next build`.
+The web `Dockerfile` owns how a production release identity reaches `next build`. Enable
+Coolify's **Include Source Commit in Build** setting so it supplies the official
+`SOURCE_COMMIT` build argument. That SHA becomes both the build identity and the
+`org.opencontainers.image.revision` label. When `SOURCE_COMMIT` is absent, Docker creates and
+logs a UUID deployment identity; the OCI revision label stays `unknown` because no source
+revision was supplied. The build exports its selected identity as both `GIT_HASH` and
+`NEXT_DEPLOYMENT_ID` before `next build`. When `next start` reloads `next.config.ts` in the
+Git-free runner, the configuration reuses the immutable `.next/BUILD_ID` produced by that image.
 
 Next.js therefore uses one identity for both `generateBuildId` and the `?dpl=<release-id>`
-suffix on advertised JavaScript assets. A same-SHA rebuild retains the same `dpl` value, so
-recovery from an already cached bad asset requires a Cloudflare purge or a new source revision
-with a new `GIT_SHA`. Do not replace this identity with a fixed package-version value or
-configure a Cloudflare cache key that ignores the `dpl` query parameter.
+suffix on advertised JavaScript assets. A same-`SOURCE_COMMIT` rebuild intentionally retains
+its `dpl` value; the UUID path changes on every uncached image build. Recovery from an already
+cached bad asset requires a Cloudflare purge or a build with a new identity. Do not replace this
+identity with a fixed package-version value or configure a Cloudflare cache key that ignores the
+`dpl` query. Coolify documents `SOURCE_COMMIT` and the setting at
+[Dockerfile Build Pack](https://coolify.io/docs/applications/build-packs/dockerfile).
 
 After deployment, configure the web Coolify resource's Post Deployment Command to run
 `bun run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/BUILD_ID)"`.
