@@ -21,6 +21,7 @@ const ALLOWED_PORTS = new Set(["80", "443", "8080", "3000"]);
 const PRIVATE_HOSTNAME_PATTERNS = [
   /^localhost$/i,
   /^.*\.local$/i,
+  /^metadata\.google\.internal$/i, // Google Cloud metadata service
   /^::$/i, // IPv6 unspecified
   /^::1$/i, // IPv6 loopback
   /^fc[0-9a-f]{0,2}:/i, // IPv6 ULA fc00::/7 (requires colon to avoid false positives like fdic.gov)
@@ -112,10 +113,11 @@ function isPrivateIPv4(hostname: string): boolean {
 }
 
 /**
- * Check if hostname is a private or internal IP (IPv4, IPv6, or embedded IPv4)
+ * Check if hostname refers to a private or internal destination.
  */
 export function isPrivateIP(hostname: string): boolean {
   const cleanHostname = hostname
+    .trim()
     .replace(/^\[|\]$/g, "")
     .replace(/\.+$/, "")
     .toLowerCase();
@@ -143,7 +145,7 @@ export const safeUrlSchema = z
       try {
         const parsed = new URL(url);
 
-        // Block private IPs
+        // Block private and internal hosts
         if (isPrivateIP(parsed.hostname)) {
           return false;
         }

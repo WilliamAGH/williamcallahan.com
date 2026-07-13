@@ -11,11 +11,7 @@
  */
 
 import { getBaseUrl } from "@/lib/utils/get-base-url";
-import { normalizeString } from "@/lib/utils";
 import { isPrivateIP } from "@/types/schemas/url";
-
-/** Non-IP metadata hostname not covered by the shared private-IP classifier. */
-const BLOCKED_HOSTS = new Set(["metadata.google.internal"]);
 
 /** Fetch timeout to prevent slow-loris attacks */
 export const FETCH_TIMEOUT_MS = 5_000;
@@ -28,14 +24,10 @@ export const MAX_INPUT_PIXELS = 40_000_000;
 
 /**
  * Check if a hostname falls within private/internal IP ranges.
- * Normalizes the input and delegates IPv4/IPv6 checks to the shared isPrivateIP helper.
+ * Delegates hostname normalization and classification to the canonical URL schema.
  */
 export function isPrivateHost(hostname: string): boolean {
-  const normalizedHost = normalizeString(hostname)
-    .replace(/^\[|\]$/g, "")
-    .replace(/\.+$/, "");
-
-  return BLOCKED_HOSTS.has(normalizedHost) || isPrivateIP(normalizedHost);
+  return isPrivateIP(hostname);
 }
 
 /**

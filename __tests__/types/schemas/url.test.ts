@@ -202,6 +202,11 @@ describe("URL Schema Validation", () => {
       // Should reject file protocol
       expect(() => openGraphUrlSchema.parse("file:///etc/passwd")).toThrow(/not safe|Invalid/);
     });
+
+    it.each(["http://metadata.google.internal", "http://metadata.google.internal."])(
+      "should reject cloud metadata host %s",
+      (url) => expect(openGraphUrlSchema.safeParse(url).success).toBe(false),
+    );
   });
 
   describe("s3KeySchema", () => {

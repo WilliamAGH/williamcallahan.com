@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchImageAsDataUrl } from "@/lib/og-image/fetch-image";
 import { isPrivateHost, ensureAbsoluteUrl } from "@/lib/og-image/security";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
+import { openGraphUrlSchema } from "@/types/schemas/url";
 
 vi.mock("@/lib/utils/get-base-url", () => ({
   getBaseUrl: vi.fn(() => "https://williamcallahan.com"),
@@ -50,9 +51,12 @@ describe("isPrivateHost", () => {
     expect(isPrivateHost("192.168.1.1")).toBe(true);
   });
 
-  it("blocks cloud metadata endpoints", () => {
+  it("projects cloud metadata protection from the URL schema", () => {
+    const metadataUrl = "http://metadata.google.internal/computeMetadata/v1";
+
     expect(isPrivateHost("169.254.169.254")).toBe(true);
-    expect(isPrivateHost("metadata.google.internal")).toBe(true);
+    expect(openGraphUrlSchema.safeParse(metadataUrl).success).toBe(false);
+    expect(isPrivateHost(new URL(metadataUrl).hostname)).toBe(true);
   });
 
   it("blocks trailing-dot private host variants", () => {
