@@ -59,6 +59,8 @@ const ANALYTICS_CACHE_HEADERS = {
   "CDN-Cache-Control": "no-store, max-age=0",
   "Cloudflare-CDN-Cache-Control": "no-store, max-age=0",
 } as const;
+const ANALYTICS_RESPONSE_HEADERS = ["content-type", "etag", "last-modified", "vary"] as const;
+const ANALYTICS_FETCH_TIMEOUT_MS = 10_000;
 
 function setSecurityHeaders(response: NextResponse): void {
   for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
@@ -66,7 +68,7 @@ function setSecurityHeaders(response: NextResponse): void {
   }
 }
 
-function createAnalyticsRewriteResponse(request: NextRequest): NextResponse | null {
+async function createAnalyticsProxyResponse(request: NextRequest): Promise<NextResponse | null> {
   const { pathname, search } = request.nextUrl;
   const destination = new URL(UMAMI_ORIGIN);
 
@@ -79,7 +81,34 @@ function createAnalyticsRewriteResponse(request: NextRequest): NextResponse | nu
   }
 
   destination.search = search;
-  return NextResponse.rewrite(destination, { headers: ANALYTICS_CACHE_HEADERS });
+  if (pathname === "/api/send") {
+    return NextResponse.rewrite(destination, { headers: ANALYTICS_CACHE_HEADERS });
+  }
+  const timeoutSignal = AbortSignal.timeout(ANALYTICS_FETCH_TIMEOUT_MS);
+  let upstream: Response;
+  try {
+    upstream = await fetch(destination, {
+      method: request.method,
+      headers: { "Accept-Encoding": "identity" },
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.any([request.signal, timeoutSignal]),
+    });
+  } catch (error) {
+    if (!timeoutSignal.aborted) throw error;
+    console.error(`[Proxy] Analytics upstream timed out after ${ANALYTICS_FETCH_TIMEOUT_MS}ms`);
+    return new NextResponse(null, { status: 504, headers: ANALYTICS_CACHE_HEADERS });
+  }
+  const responseHeaders = new Headers(ANALYTICS_CACHE_HEADERS);
+  for (const header of ANALYTICS_RESPONSE_HEADERS) {
+    const value = upstream.headers.get(header);
+    if (value) responseHeaders.set(header, value);
+  }
+  return new NextResponse(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: Object.fromEntries(responseHeaders),
+  });
 }
 
 function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): void {
@@ -122,7 +151,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const analyticsResponse = createAnalyticsRewriteResponse(request);
+  const analyticsResponse = await createAnalyticsProxyResponse(request);
 
   // If the request is for a .map file, let Next.js handle it directly
   // without applying our custom headers or logic.

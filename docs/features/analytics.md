@@ -75,13 +75,15 @@ This architecture ensures that analytics are a non-critical, resilient feature t
 
 ## Same-Origin Proxy Configuration
 
-### Proxy Rewrites (`/stats/**`, `/api/send`)
+### Same-Origin Delivery (`/stats/**`, `/api/send`)
 
 All Umami traffic is routed through the site's own domain. `src/proxy.ts` owns both
-the external rewrite and the response cache policy: it preserves the request query string
-and sets explicit `no-store` browser and CDN directives on the rewritten response. Its matcher
-includes `/stats/:path*`; the API matcher covers `/api/send`. Do not duplicate these rewrites
-in `next.config.ts`, whose external-rewrite path cannot preserve proxy response headers.
+paths and preserves each request query string. Tracker assets under `/stats/**` are fetched and
+returned directly so their final response has explicit `no-store` browser and CDN directives;
+an external Next.js rewrite would allow Umami's upstream `Cache-Control` to overwrite that
+policy. Event ingestion at `/api/send` remains an external rewrite. The proxy matcher includes
+`/stats/:path*`; the API matcher covers `/api/send`. Do not duplicate either path in
+`next.config.ts`.
 
 Tracker tag (inside `Analytics` component):
 
