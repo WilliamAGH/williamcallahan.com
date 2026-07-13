@@ -22,7 +22,7 @@ import {
   mapBookmarkSelectToUnifiedBookmark,
   mapBookmarkSelectsToUnifiedBookmarks,
 } from "@/lib/db/bookmark-record-mapper";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { BookmarkFtsSearchHit } from "@/types/db/bookmarks";
 
 import {
   FTS_WEIGHT,
@@ -41,7 +41,7 @@ export async function hybridSearchBookmarks(options: {
   query: string;
   embedding?: number[];
   limit?: number;
-}): Promise<Array<{ bookmark: UnifiedBookmark; score: number }>> {
+}): Promise<BookmarkFtsSearchHit[]> {
   const { query, embedding, limit = DEFAULT_LIMIT } = options;
 
   const normalizedQuery = query.trim();
@@ -60,7 +60,7 @@ async function hybridSearchWithEmbedding(
   query: string,
   embedding: number[],
   limit: number,
-): Promise<Array<{ bookmark: UnifiedBookmark; score: number }>> {
+): Promise<BookmarkFtsSearchHit[]> {
   const vectorLiteral = `[${embedding.join(",")}]`;
   const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
 
@@ -110,7 +110,7 @@ async function hybridSearchWithEmbedding(
 
 async function hydrateScoredBookmarks(
   scoredIds: ReadonlyArray<{ id: string; score: number }>,
-): Promise<Array<{ bookmark: UnifiedBookmark; score: number }>> {
+): Promise<BookmarkFtsSearchHit[]> {
   if (scoredIds.length === 0) return [];
 
   const bookmarkRows = await db
@@ -136,10 +136,7 @@ async function hydrateScoredBookmarks(
   });
 }
 
-async function keywordOnlySearch(
-  query: string,
-  limit: number,
-): Promise<Array<{ bookmark: UnifiedBookmark; score: number }>> {
+async function keywordOnlySearch(query: string, limit: number): Promise<BookmarkFtsSearchHit[]> {
   const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
   const keywordScore = sql<number>`ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
     + similarity(${bookmarks.title}, ${query}) * ${TRIGRAM_WEIGHT}`;
@@ -167,7 +164,7 @@ async function keywordOnlySearch(
 export async function semanticSearchBookmarks(
   embedding: number[],
   limit: number = DEFAULT_LIMIT,
-): Promise<Array<{ bookmark: UnifiedBookmark; score: number }>> {
+): Promise<BookmarkFtsSearchHit[]> {
   if (embedding.length !== CONTENT_EMBEDDING_DIMENSIONS) {
     throw new Error(
       `Embedding must have ${CONTENT_EMBEDDING_DIMENSIONS} dimensions, got ${embedding.length}`,
@@ -180,12 +177,13 @@ export async function semanticSearchBookmarks(
     entity_id: string;
     vec_score: number;
   }>(sql`
-    SELECT entity_id,
-      1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
-    FROM embeddings
-    WHERE domain = 'bookmark'
-      AND qwen_4b_fp16_embedding IS NOT NULL
-    ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
+    SELECT e.entity_id,
+      1.0 - (e.qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
+    FROM embeddings e
+    JOIN bookmarks existing_bookmark ON existing_bookmark.id = e.entity_id
+    WHERE e.domain = 'bookmark'
+      AND e.qwen_4b_fp16_embedding IS NOT NULL
+    ORDER BY e.qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}
     LIMIT ${limit}
   `);
 
