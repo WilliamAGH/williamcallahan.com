@@ -48,7 +48,12 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 - **Deterministic Keys**: `hash-utils.ts` + `generateS3Key` produce predictable names; no overwrites unless `S3_FORCE_WRITE=true` (used only by sync scripts).
 - **Streaming**: `lib/services/image-streaming.ts` uses `@aws-sdk/lib-storage Upload` with timeouts and byte monitoring for large downloads; avoids buffering >5 MB in Node.
 - **Access Control**: All public assets get `x-amz-acl: public-read`; sensitive JSON lives under private prefixes and is never exposed through CDN.
-- **Retries**: AWS SDK retry strategy (configured in `lib/s3/client.ts`) handles transient SDK errors; `S3Operations` in `lib/services/image/s3-operations.ts` adds an application-level upload retry queue for failed S3 puts.
+
+### Retry Scope and Durability
+
+Commands sent through the shared `getS3Client()` use AWS SDK adaptive retry mode with `maxAttempts: 5`: at most five request attempts, and only for retryable SDK failures. This covers `lib/s3/*` and direct command call sites that obtain the shared client. `lib/data-access/images.server.ts` and `scripts/migrate-s3-data-to-pg.node.mjs` instantiate separate clients without these options; they retain the SDK's default retry strategy but are outside the shared five-attempt adaptive configuration.
+
+`S3Operations.uploadToS3()` is a best-effort, process-local recovery path, not a general S3 write queue. It can enqueue only failed Unified Image Service uploads whose keys contain `/logos/` or `/logo/` and parse to a domain. The bounded in-memory map stores source metadata rather than the failed bytes, and its timer re-runs `getLogo()`. Entries can be evicted or exhausted and are lost with the process, so the queue is not durable and does not guarantee eventual persistence.
 
 ## Environment Configuration
 
@@ -105,4 +110,4 @@ Keep this file current whenever you add a new prefix, manifest, or lock artifact
 - **Proxy endpoints stream, not redirect.** `/api/cache/images` fetches the CDN resource server-side, decodes multi-encoded `url` parameters, and streams the bytes so `_next/image` always sees a 200 response. ([Image Component docs](https://nextjs.org/docs/app/api-reference/components/image#unoptimized))
 - **Add hosts to `next.config.ts` before storing assets.** If you introduce a new Spaces endpoint or CDN hostname, update `CALLAHAN_IMAGE_HOSTS` and `images.remotePatterns` at the same time or `_next/image` will throw 400s in production.
 
-Changes to this contract must be mirrored in `image-handling.md`, `image-stack.md`, and `../standards/nextjs-framework.md`.
+Other documentation must link to this contract instead of restating its retry scope or durability guarantees.

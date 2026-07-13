@@ -48,7 +48,7 @@ Example schemas:
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
 - ESLint project-specific rules live under `config/eslint/rules/` and are wired from `config/eslint.config.ts`.
 - Oxlint JS plugins live under `config/oxlint/js-plugins/` and are wired from `config/oxlintrc.json` (experimental; not supported in the language server/editor integrations).
-- S3 I/O is standardized under `lib/s3/*` with SDK retries plus an application-level upload retry queue in `S3Operations`; CDN usage is explicit at call sites (see `s3-storage.md`).
+- The canonical S3 retry scope and durability contract is [`s3-storage.md`](s3-storage.md); CDN usage remains explicit at call sites.
 - Runtime JSON persistence is PostgreSQL-backed across all environments via domain tables (`github_activity_store`, `content_graph_artifacts`, `search_index_artifacts`, `books_latest`/`books_snapshots`, etc.); the legacy `lib/s3/json.ts` layer has been removed.
 - Bookmark runtime reads and bookmark/index/tag writes are PostgreSQL-only; S3 is reserved for binary assets (see `bookmarks.md`).
 - PostgreSQL bookmark runtime modules live under `src/lib/db/` and now manage `bookmarks`, `bookmark_tag_links`, `bookmarks_tags`, `bookmarks_tags_links`, `bookmark_index_state`, and `bookmark_tag_index_state` through Drizzle query/mutation modules.
