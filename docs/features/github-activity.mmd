@@ -7,14 +7,12 @@ graph TD
     end
 
     subgraph "Runtime Source of Truth"
-        DB[PostgreSQL github_activity_store<br/>activity/global, summary/global,<br/>aggregated-weekly/global, repo-weekly-stats/*]
+        DB[PostgreSQL github_activity_store<br/>activity/global, summary/global,<br/>aggregated-weekly/global, repo-weekly-stats/*,<br/>csv-checksum/*]
         LOCK --> DB
     end
 
-    subgraph "Operational Artifact"
-        S3[S3 raw CSV only<br/>repo_raw_weekly_stats/*.csv]
-        LOCK --> S3
-    end
+    REPAIR[Checksum-guided repair<br/>PostgreSQL repo-weekly records]
+    DB --> REPAIR --> DB
 
     subgraph "Consumers"
         CACHE[Next.js Cache Components<br/>(cacheTag("github-activity"), ~30 min)]
@@ -30,6 +28,6 @@ graph TD
     end
 
     style DB fill:#dff0d8,stroke:#2f6627,stroke-width:2
-    style S3 fill:#fff3cd,stroke:#856404,stroke-width:2
+    style REPAIR fill:#fff3cd,stroke:#856404,stroke-width:2
     style CACHE fill:#e3f2fd,stroke:#1976d2,stroke-width:2
     style API fill:#fdecea,stroke:#b71c1c,stroke-width:2

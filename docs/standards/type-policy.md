@@ -7,7 +7,7 @@ description: "Zod schema patterns and type derivation"
 
 See `AGENTS.md` ([TS1]).
 
-`src/types/schemas/api.ts` is the canonical owner of shared API response and external-service schemas; consumers import its schemas and `z.infer` types instead of restating response fields.
+Do not treat `src/types/schemas/api.ts` as the owner of every external-service schema. It owns cross-domain API error, client telemetry, health, and diagnostic contracts; `src/types/github.ts` owns GitHub external API schemas. Consumers import the schema and `z.infer` type from the relevant canonical owner instead of restating response fields.
 
 ## Zod Schema Pattern
 

@@ -22,8 +22,8 @@ The GitHub Activity system coordinates several modules to produce its final outp
    - The resulting JSON is persisted to PostgreSQL (`github_activity_store`) before cache invalidation.
 
 2. **Persistence (`data-access` + `db`)**:
-   - Runtime GitHub documents (`activity`, `summary`, `aggregated-weekly`, `repo-weekly-stats`) are upserted in PostgreSQL.
-   - Raw repository weekly CSV payloads may remain durable binary artifacts in S3 for operational diagnostics, but runtime reads are PostgreSQL-only.
+   - Runtime GitHub documents (`activity`, `summary`, `aggregated-weekly`, `repo-weekly-stats`, and `csv-checksum`) are upserted in PostgreSQL.
+   - Repository-weekly repair reads PostgreSQL records, serializes them only while checking or normalizing data, and writes repaired records and checksums back to PostgreSQL.
 
 3. **Caching (`caching`)**:
    - To ensure performance, server read paths use Next.js Cache Components with `cacheTag("github-activity")`.
@@ -43,8 +43,7 @@ GitHub APIs -> Refresh jobs / authorized POST -> PostgreSQL github_activity_stor
 
 | Layer                                | Purpose                                                                                  |
 | ------------------------------------ | ---------------------------------------------------------------------------------------- |
-| PostgreSQL (`github_activity_store`) | Source of truth for GitHub activity/summary/aggregated documents                         |
-| S3 CSV artifacts                     | Optional archival/diagnostic artifacts (`repo_raw_weekly_stats/*.csv`)                   |
+| PostgreSQL (`github_activity_store`) | Source of truth for activity, summary, aggregate, repository-weekly, and checksum rows   |
 | Next.js Cache Components             | `cacheTag("github-activity")` with ~30 min lifetime for pages/cards                      |
 | API (`GET /api/github-activity`)     | Uses `connection()` plus no-store headers and reads PostgreSQL-backed activity documents |
 
@@ -54,7 +53,7 @@ A hybrid approach is used to gather comprehensive data:
 
 - **GraphQL API**: Efficiently fetches user-level aggregated data, such as the contribution calendar and total commit counts.
 - **REST API**: Used for granular, repository-specific data like contributor stats and language breakdowns.
-- **CSV Export**: Optional archival/repair input for operational scripts; runtime GitHub weekly reads do not depend on CSV parsing.
+- **Repository-weekly repair**: Normalizes an in-memory CSV serialization of PostgreSQL repository-weekly records, compares its PostgreSQL checksum, and persists the repaired record. When no record exists, it fetches GitHub contributor data and creates the PostgreSQL record.
 
 ## Storage Model
 
@@ -64,8 +63,9 @@ Canonical runtime records live in PostgreSQL table `github_activity_store`:
 - `data_type = "summary", qualifier = "global"`: all-time summary-card payload.
 - `data_type = "aggregated-weekly", qualifier = "global"`: aggregated weekly chart payload.
 - `data_type = "repo-weekly-stats", qualifier = "owner/repo"`: per-repo weekly cache payload.
+- `data_type = "csv-checksum", qualifier = "owner/repo"`: checksum used to skip unchanged repository-weekly repair work.
 
-S3 can still hold raw CSV artifacts under the GitHub prefix (`repo_raw_weekly_stats/*.csv`) for operational diagnostics, but canonical runtime reads are PostgreSQL-only.
+No active GitHub runtime or repair path falls back to S3. If historical GitHub CSV artifacts are retained, they are legacy migration or archival material only.
 
 A confirmed empty current repository set is intentionally persisted as complete zero activity and an empty weekly aggregate, replacing prior healthy aggregates rather than retaining stale repository data. This requires the canonical explicit replacement intent; nonzero or incomplete payloads are rejected, and summary persistence must succeed before the refresh reports success.
 
@@ -95,17 +95,17 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
   - Delegates runtime JSON reads/writes to PostgreSQL query/mutation modules
   - Exposes activity metadata for public refresh timestamps
 - **`src/lib/data-access/github-repo-stats.ts`**
-  - Batch processes repo stats with CSV fallback and category aggregation
+  - Batch processes repository stats with PostgreSQL cache recovery and category aggregation
 - **`src/lib/data-access/github-commit-counts.ts`**
   - Computes all-time commit totals (GraphQL with REST fallback)
 - **`src/lib/data-access/github-contributions.ts`**
   - Fetches and flattens the contribution calendar
 - **`src/lib/data-access/github-csv-repair.ts`**
-  - CSV integrity checks and repair workflow
+  - PostgreSQL repository-weekly integrity checks, checksum comparison, and repair workflow
 - **`src/lib/data-access/github-activity-summaries.ts`**
   - Writes the single all-time summary-card payload to `summary/global`
 - **`src/lib/data-access/github-processing.ts`**
-  - Shared processing helpers (category stats, CSV repair utilities)
+  - Shared processing helpers (category stats and in-memory repository-weekly normalization)
 
 ### API Endpoints
 
@@ -165,8 +165,8 @@ curl -X POST -H "x-refresh-secret: $GITHUB_REFRESH_SECRET" localhost:3000/api/gi
 # Inspect PostgreSQL GitHub activity rows
 psql "$DATABASE_URL" -c "select data_type, qualifier, updated_at from github_activity_store order by updated_at desc limit 20;"
 
-# Inspect raw CSV artifacts in S3 (fallback layer)
-aws s3 ls s3://$S3_BUCKET/github/repo_raw_weekly_stats/
+# Inspect PostgreSQL repository-weekly records and their repair checksums
+psql "$DATABASE_URL" -c "select data_type, qualifier, checksum, updated_at from github_activity_store where data_type in ('repo-weekly-stats', 'csv-checksum') order by updated_at desc limit 20;"
 ```
 
 ## Handling GitHub 202 "stats still generating" responses
@@ -177,7 +177,7 @@ Our pipeline now recognizes this explicitly:
 - `fetchContributorStats` performs a configurable retry loop (env vars `GITHUB_STATS_PENDING_MAX_ATTEMPTS`, `GITHUB_STATS_PENDING_DELAY_MS`).
   - If the endpoint keeps returning 202 after the configured attempts it throws `GitHubContributorStatsPendingError`.
 - The repo-processing batch marks the repository status as `pending_202_from_api` (instead of `fetch_error`).
-  - This allows the refresh job to fall back to any existing CSV and keep partial data flowing.
+  - This allows the refresh job to reuse any existing PostgreSQL repository-weekly record and keep partial data flowing.
 - `detectAndRepairCsvFiles` treats 202 as informational and defers repair until the next run.
 
 This guarantees that a temporary 202 cannot derail the entire refresh while still ensuring that new data is picked up automatically on subsequent cycles.
