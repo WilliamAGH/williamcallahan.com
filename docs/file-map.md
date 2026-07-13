@@ -327,7 +327,7 @@ File/Path Functionality Description
     - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated upserts and guarded writes
     - [x] `content-graph.ts` `search` - Content-graph artifact upserts for related-content precomputation
     - [x] `books.ts` `books` - Books snapshot upserts with transactional latest pointer update
-    - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest/versions upserts with transactional versioning
+    - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest upserts with optional append-only version inserts in the same transaction
     - [x] `opengraph.ts` `seo` - OpenGraph metadata/override upserts
     - [x] `thoughts.ts` `thoughts` - Thought upsert/delete mutations
     - [x] `image-manifests.ts` `image-handling` - Image manifest upserts (single and batch)
