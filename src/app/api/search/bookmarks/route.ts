@@ -103,8 +103,11 @@ async function tryHybridSearch(query: string): Promise<BookmarkFtsSearchHit[] | 
         if (vec && vec.length === schema.CONTENT_EMBEDDING_DIMENSIONS) {
           embedding = vec;
         }
-      } catch {
-        // Embedding generation failed; hybrid continues with keyword-only scoring
+      } catch (error: unknown) {
+        console.error(
+          "[BookmarksSearchRoute] Embedding generation failed; continuing with keyword-only scoring:",
+          error,
+        );
       }
     }
 
@@ -167,8 +170,9 @@ export async function GET(request: NextRequest) {
     // Sanitize / validate like other search routes
     const validation = validateSearchQuery(rawQuery);
     if (!validation.isValid) {
+      const validationError = validation.error ? validation.error : "Invalid search query";
       return NextResponse.json(
-        { error: validation.error || "Invalid search query" },
+        { error: validationError },
         { status: 400, headers: withNoStoreHeaders() },
       );
     }
