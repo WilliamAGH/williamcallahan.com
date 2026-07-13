@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
 import {
@@ -71,6 +72,43 @@ export async function readGitHubActivityFromDb(
   }
 
   return gitHubActivityApiResponseSchema.parse(payload);
+}
+
+/**
+ * Read the prior activity only as a transaction-locked refresh precondition.
+ * Invalid persisted data is reported without its payload so a validated refresh can repair the row.
+ */
+export async function readGitHubActivityRefreshPreconditionFromDb(
+  executor: Pick<typeof db, "select">,
+): Promise<GitHubActivityApiResponse | null> {
+  const payload = await readPayload(executor, "activity");
+  if (payload === null) {
+    return null;
+  }
+
+  const parsed = gitHubActivityApiResponseSchema.safeParse(payload);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  const firstIssues = parsed.error.issues.slice(0, 3);
+  Sentry.captureMessage("Stored GitHub activity payload failed schema validation", {
+    level: "error",
+    tags: {
+      feature: "github-activity-refresh",
+      integrity: "invalid-persisted-activity",
+    },
+    extra: {
+      dataType: "activity",
+      qualifier: GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
+      issueCount: parsed.error.issues.length,
+      issueCodes: firstIssues.map((issue) => issue.code),
+      issuePaths: firstIssues.map((issue) =>
+        issue.path.length === 0 ? "<root>" : issue.path.map(String).join("."),
+      ),
+    },
+  });
+  return null;
 }
 
 /**
