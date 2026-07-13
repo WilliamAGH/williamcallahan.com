@@ -70,9 +70,7 @@ function accumulateAllTimeCategoryStats(
   if (result.hasAllTimeData) {
     allTimeStats[categoryKey].linesAdded += result.allTimeLinesAdded;
     allTimeStats[categoryKey].linesRemoved += result.allTimeLinesRemoved;
-    allTimeStats[categoryKey].netChange =
-      (allTimeStats[categoryKey].netChange || 0) +
-      (result.allTimeLinesAdded - result.allTimeLinesRemoved);
+    allTimeStats[categoryKey].netChange += result.allTimeLinesAdded - result.allTimeLinesRemoved;
   }
 }
 

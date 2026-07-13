@@ -19,7 +19,6 @@ import {
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
 } from "@/types/schemas/github-storage";
-import type { GitHubSummaryInput } from "@/types/github";
 import { getTrailingYearDate, startOfDay, endOfDay } from "@/lib/utils/date-format";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 
