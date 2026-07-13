@@ -216,6 +216,9 @@ describe("GitHub activity public schemas", () => {
       contributionDaySchema.safeParse({ date: "not-a-date", count: 1, level: 1 }).success,
     ).toBe(false);
     expect(
+      contributionDaySchema.safeParse({ date: "2026-07-13", count: -1, level: 1 }).success,
+    ).toBe(false);
+    expect(
       userActivityViewSchema.safeParse({
         source: "empty",
         trailingYearData: { data: [], totalContributions: 0, dataComplete: false },
