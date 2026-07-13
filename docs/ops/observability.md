@@ -43,7 +43,7 @@ The system provides multiple layers of observability and resilience:
 
 #### Typed Error Contracts
 
-- **`types/error.ts`**: Application error contracts and helper utilities
+- **`types/error.ts`**: Application error categorization and error-boundary contracts
   - Owns shared error shapes and categorization types
 - **`lib/utils/error-utils.ts`**: Runtime error helpers
   - Owns `getErrorMessage()`, `getProperty()`, retry categorization, and normalization
