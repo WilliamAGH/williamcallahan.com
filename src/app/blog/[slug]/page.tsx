@@ -195,113 +195,98 @@ async function BlogPostContent({ params }: BlogPostPageProps) {
     notFound();
   }
 
-  try {
-    // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
-    const post = await getCachedBlogPost(slug);
+  // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
+  const post = await getCachedBlogPost(slug);
 
-    // If post not found, use Next.js built-in 404 page
-    if (!post) {
-      console.log(`Blog post not found: ${slug} - Returning 404 page`);
-      notFound();
-    }
-
-    // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
-    // Use canonical post.slug for consistency (not route param)
-    const softwareDetails = getSoftwareDetails(post.slug);
-    const pageType: "software" | "article" = softwareDetails ? "software" : "article";
-
-    const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
-
-    const authorUrl = resolveAuthorUrl(post.author.url);
-
-    const schemaParams = {
-      path: `/blog/${post.slug}`,
-      title: post.title,
-      description: post.excerpt,
-      datePublished: new Date(post.publishedAt).toISOString(),
-      dateModified: new Date(post.updatedAt ?? post.publishedAt).toISOString(),
-      type: pageType,
-      articleBody: post.rawContent ?? post.excerpt,
-      keywords: post.tags,
-      image: absoluteImageUrl
-        ? {
-            url: absoluteImageUrl,
-            width: 1200,
-            height: 630,
-          }
-        : undefined,
-      images: absoluteImageUrl ? [absoluteImageUrl] : undefined,
-      breadcrumbs: [
-        { path: "/", name: "Home" },
-        { path: "/blog", name: "Blog" },
-        { path: `/blog/${post.slug}`, name: post.title },
-      ],
-      authors: [
-        {
-          name: post.author.name,
-          url: authorUrl,
-        },
-      ],
-      ...(softwareDetails && {
-        softwareMetadata: {
-          name: softwareDetails.name,
-          operatingSystem: softwareDetails.operatingSystem,
-          applicationCategory: softwareDetails.applicationCategory,
-          downloadUrl: softwareDetails.downloadUrl,
-          softwareVersion: softwareDetails.softwareVersion,
-          screenshot: softwareDetails.screenshot,
-          isFree: true,
-        },
-      }),
-    };
-
-    const jsonLdData = generateSchemaGraph(schemaParams);
-
-    // Import MDXContent server component here at the page level
-    const { MDXContent } = await import("@/components/features/blog/blog-article/mdx-content");
-
-    return (
-      <>
-        <JsonLdScript data={jsonLdData} />
-        <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
-
-        {/* Similar Content Section */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Suspense
-            fallback={
-              <RelatedContentFallback
-                title="Similar Content"
-                className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
-                cardCount={3}
-              />
-            }
-          >
-            <RelatedContent
-              sourceType="blog"
-              sourceId={post.id}
-              sectionTitle="Similar Content"
-              options={{
-                maxPerType: 3,
-                maxTotal: 12,
-                excludeTypes: [], // Include all content types
-              }}
-              className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
-            />
-          </Suspense>
-        </div>
-      </>
-    );
-  } catch (error: unknown) {
-    // Log the error with details
-    if (error instanceof Error) {
-      console.error(`Error rendering blog post ${slug}:`, error);
-    } else {
-      const errorMessage = String(error);
-      console.error(`Error rendering blog post ${slug}:`, errorMessage);
-    }
-
-    // Return 404 page for any error in blog post rendering
-    // This prevents server crashes and provides a better user experience
+  // If post not found, use Next.js built-in 404 page
+  if (!post) {
     notFound();
   }
+
+  // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
+  // Use canonical post.slug for consistency (not route param)
+  const softwareDetails = getSoftwareDetails(post.slug);
+  const pageType: "software" | "article" = softwareDetails ? "software" : "article";
+
+  const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
+
+  const authorUrl = resolveAuthorUrl(post.author.url);
+
+  const schemaParams = {
+    path: `/blog/${post.slug}`,
+    title: post.title,
+    description: post.excerpt,
+    datePublished: new Date(post.publishedAt).toISOString(),
+    dateModified: new Date(post.updatedAt ?? post.publishedAt).toISOString(),
+    type: pageType,
+    articleBody: post.rawContent ?? post.excerpt,
+    keywords: post.tags,
+    image: absoluteImageUrl
+      ? {
+          url: absoluteImageUrl,
+          width: 1200,
+          height: 630,
+        }
+      : undefined,
+    images: absoluteImageUrl ? [absoluteImageUrl] : undefined,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/blog", name: "Blog" },
+      { path: `/blog/${post.slug}`, name: post.title },
+    ],
+    authors: [
+      {
+        name: post.author.name,
+        url: authorUrl,
+      },
+    ],
+    ...(softwareDetails && {
+      softwareMetadata: {
+        name: softwareDetails.name,
+        operatingSystem: softwareDetails.operatingSystem,
+        applicationCategory: softwareDetails.applicationCategory,
+        downloadUrl: softwareDetails.downloadUrl,
+        softwareVersion: softwareDetails.softwareVersion,
+        screenshot: softwareDetails.screenshot,
+        isFree: true,
+      },
+    }),
+  };
+
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
+  // Import MDXContent server component here at the page level
+  const { MDXContent } = await import("@/components/features/blog/blog-article/mdx-content");
+
+  return (
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
+
+      {/* Similar Content Section */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Suspense
+          fallback={
+            <RelatedContentFallback
+              title="Similar Content"
+              className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+              cardCount={3}
+            />
+          }
+        >
+          <RelatedContent
+            sourceType="blog"
+            sourceId={post.id}
+            sectionTitle="Similar Content"
+            options={{
+              maxPerType: 3,
+              maxTotal: 12,
+              excludeTypes: [], // Include all content types
+            }}
+            className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+          />
+        </Suspense>
+      </div>
+    </>
+  );
 }
