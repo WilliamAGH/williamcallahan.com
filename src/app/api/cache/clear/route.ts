@@ -50,6 +50,7 @@ export function POST(request: NextRequest): NextResponse {
       "logo-manifest",
       "search",
       "bookmarks",
+      "related-content",
       "education",
       "experience",
       "investments",

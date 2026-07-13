@@ -10,6 +10,7 @@
  */
 
 import { limitByTypeAndTotal } from "@/lib/utils/limit-by-type";
+import { cacheLife, cacheTag } from "next/cache";
 import { RelatedContentSection } from "./related-content-section";
 import { debug } from "@/lib/utils/debug";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
@@ -26,13 +27,6 @@ import {
   DEFAULT_MAX_TOTAL,
   getEnabledContentTypes,
 } from "@/config/related-content.config";
-
-// CRITICAL: Check build phase AT RUNTIME using dynamic property access.
-// Direct property access (process.env.NEXT_PHASE) gets inlined by Turbopack/webpack
-// during build, permanently baking "phase-production-build" into the bundle.
-const PHASE_ENV_KEY = "NEXT_PHASE" as const;
-const BUILD_PHASE_VALUE = "phase-production-build" as const;
-const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUILD_PHASE_VALUE;
 
 const normalizeTagForComparison = (tag: string): string =>
   tag.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
@@ -155,9 +149,9 @@ export async function RelatedContent({
   options = {},
   className,
 }: RelatedContentProps) {
-  if (isProductionBuildPhase()) {
-    return null;
-  }
+  "use cache";
+  cacheLife("hours");
+  cacheTag("related-content");
 
   try {
     // For bookmarks, prefer slug over ID for idempotency
