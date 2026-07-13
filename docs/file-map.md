@@ -66,7 +66,7 @@ File/Path Functionality Description
     - [x] `blog.client.tsx` `blog` - Main component for blog features
     - [x] `index.ts` `blog` - Removed; import blog components from concrete files
     - [x] `standard-tweet-embed.client.tsx` `blog-article` - Standard tweet embedding component
-    - [x] `tweet-embed.tsx` `blog-article` - Embeds tweets using react-tweet and an image proxy
+    - [x] `tweet-embed.tsx` `blog-article` - Embeds tweets using react-tweet and bypasses double optimization for proxied Twitter images
   - [x] **blog-article/**
     - [x] `blog-article.client.tsx` `blog-article` - Server-owned article shell; interactive leaves retain client boundaries
     - [x] `blog-wrapper.tsx` `blog-article` - Legacy unreferenced dynamic wrapper outside the active detail route
@@ -541,7 +541,7 @@ File/Path Functionality Description
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Runtime instrumentation dispatch and request-error header redaction
-- [x] `src/proxy.ts` `middleware` - Next.js Proxy (middleware) entrypoint (Next.js 16)
+- [x] `src/proxy.ts` `middleware` - Next.js Proxy entrypoint; owns route protection and final no-store delivery for same-origin analytics assets
 - [x] `next-env.d.ts` `config` - Next.js environment type definitions
 - [x] `next.config.ts` `config` - Next.js configuration
 - [x] `package.json` `deps` - Project dependencies and scripts
