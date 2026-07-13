@@ -162,6 +162,7 @@ Keep this document synchronized with real code: every new image entry point, val
 | -------------------------------------------------------- | ----------------------------- | -------------- | -------------------------------------- | ------------------------ |
 | Our CDN (`*.callahan.cloud`, `*.digitaloceanspaces.com`) | **Direct URL**                | **No**         | Yes (responsive) / Recommended (fixed) | Next.js `/_next/image`   |
 | External URL (Twitter, LinkedIn, etc.)                   | Proxy via `/api/cache/images` | **Yes**        | Yes (responsive) / Recommended (fixed) | API route streams bytes  |
+| `/api/twitter-image/[...path]`                           | N/A (local API route)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route streams bytes  |
 | `/api/assets/[assetId]` (Karakeep proxy)                 | N/A (local API route)         | **No**         | Yes (responsive)                       | Next.js `/_next/image`   |
 | Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Yes (responsive) / Recommended (fixed) | Next.js                  |
 | `/api/logo`, `/api/og-image`                             | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |

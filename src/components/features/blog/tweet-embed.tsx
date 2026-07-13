@@ -100,6 +100,7 @@ const ImgProxy = ({ src = "", alt, width, height, className }: ImgProxyProps) =>
       width={imageWidth}
       height={imageHeight}
       sizes={isAvatar ? "48px" : "(max-width: 500px) 100vw, 500px"}
+      unoptimized
       onError={() => {
         if (srcStage === "proxy" && safeSrc) setSrcStage("original");
         else if (srcStage === "original") setSrcStage("fallback");

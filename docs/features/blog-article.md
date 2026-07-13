@@ -28,6 +28,8 @@ The "blog-article" functionality encompasses components and utilities that manag
   - Returns posts array with count
   - Handles errors with proper formatting
 - **app/api/twitter-image/[...path]/route.ts**: API route for proxying Twitter images used in blog article embeds.
+  - Accepts extensionless `media/<id>?format=<image-format>` URLs emitted by Twitter
+  - Tweet image components set `unoptimized` because the SSRF-safe API route already streams the bytes
   - Implements retry logic with exponential backoff
   - Caches images for 24 hours with stale-while-revalidate
   - Validates against specific Twitter CDN path patterns
