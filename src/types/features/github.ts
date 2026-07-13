@@ -14,22 +14,6 @@
  * @see types/ui.ts for generic UI component props
  */
 
-import type { ReactNode } from "react";
-import type { ContributionDay } from "../schemas/github-storage";
-
-/**
- * GitHub activity component props
- * @usage - Displaying GitHub activity feeds and timelines
- */
-export interface GitHubActivityProps {
-  /** GitHub activity data */
-  activity: ContributionDay[];
-  /** Maximum items to show */
-  maxItems?: number;
-  /** Optional CSS classes */
-  className?: string;
-}
-
 /**
  * GitHub statistics data structure containing cumulative metrics
  * @usage - Core data structure for GitHub statistics display
@@ -46,21 +30,6 @@ export interface GitHubStats {
 }
 
 /**
- * GitHub stats card data structure
- * @usage - Individual stat card within stats collection
- */
-export interface CumulativeGitHubStatsCard {
-  /** Card title */
-  title: string;
-  /** Card value */
-  value: number | string;
-  /** Card icon */
-  icon?: ReactNode;
-  /** Card description */
-  description?: string;
-}
-
-/**
  * GitHub stats cards component props
  * @usage - Displaying cumulative GitHub statistics
  */
@@ -69,13 +38,4 @@ export interface CumulativeGitHubStatsCardsProps {
   stats: GitHubStats;
   /** Optional additional CSS class names */
   className?: string;
-}
-
-/**
- * API Error response structure
- * @usage - Handling GitHub API error responses
- */
-export interface ApiError {
-  message?: string;
-  error?: string;
 }

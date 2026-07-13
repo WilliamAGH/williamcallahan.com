@@ -2,9 +2,8 @@ import { z } from "zod/v4";
 import type { ExtendedError } from "./error";
 import {
   repoRawWeeklyStatSchema,
-  type ContributionDay,
+  type GitHubActivitySegment,
   type GitHubActivitySummary,
-  type PriorYearCommitSummary,
 } from "./schemas/github-storage";
 
 /**
@@ -12,26 +11,6 @@ import {
  *
  * Type definitions for fetching and displaying GitHub contribution data.
  */
-
-/**
- * Represents a single day of contribution activity.
- */
-/**
- * Raw GitHub activity shape returned by getGithubActivity (flat structure)
- * This represents the canonical persisted activity record shape.
- */
-export interface StoredGithubActivity {
-  source: "scraping" | "api" | "api_multi_file_cache";
-  data: ContributionDay[];
-  totalContributions: number;
-  linesAdded?: number;
-  linesRemoved?: number;
-  dataComplete?: boolean;
-  error?: string;
-  details?: string;
-  allTimeTotalContributions?: number;
-  allPriorYearCommits?: PriorYearCommitSummary;
-}
 
 /**
  * Schema for GitHub GraphQL repository node
@@ -129,29 +108,6 @@ export type GithubContributorStatsEntry = z.infer<typeof GithubContributorStatsE
 // Schema for the full contributor stats API response
 export const ContributorStatsResponseSchema = z.array(GithubContributorStatsEntrySchema);
 
-/**
- * Represents the structured view of user GitHub activity, returned by functions like getGithubActivity.
- * This is what components and scripts like populate-volumes.ts will consume.
- */
-export interface UserActivityView {
-  source: "db-store" | "api-fallback" | "error" | "empty";
-  error?: string;
-  trailingYearData: {
-    data: ContributionDay[];
-    totalContributions: number;
-    linesAdded?: number;
-    linesRemoved?: number;
-    dataComplete: boolean;
-  };
-  allTimeStats: {
-    totalContributions: number;
-    linesAdded: number;
-    linesRemoved: number;
-  };
-  priorYearCommits?: PriorYearCommitSummary;
-  lastRefreshed?: string;
-}
-
 // --- START: GitHub GraphQL Contribution Calendar Schemas ---
 export const GraphQLContributionDaySchema = z.object({
   contributionCount: z.number(),
@@ -210,20 +166,12 @@ export interface GitHubActivityError extends ExtendedError {
 }
 
 /**
- * Input for writing GitHub activity summaries
+ * Input for writing the GitHub activity summary
  */
 export type GitHubSummaryInput = {
-  trailingYearData: StoredGithubActivity;
-  allTimeData: StoredGithubActivity;
+  trailingYearData: GitHubActivitySegment;
+  allTimeData: GitHubActivitySegment;
   totalRepositoriesContributedTo: number;
   yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
   allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
-};
-
-/**
- * Result of writing GitHub activity summaries
- */
-export type GitHubSummaryWriteResult = {
-  trailingYearWritten: boolean;
-  allTimeWritten: boolean;
 };

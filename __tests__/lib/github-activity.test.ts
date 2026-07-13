@@ -1,296 +1,237 @@
-/**
- * Vitest test for lib/data-access/github.ts
- * Tests GitHub activity refresh functionality and diagnostics
- */
-
-// Mock the GitHub data access module
-vi.mock("@/lib/data-access/github", () => ({
-  refreshGitHubActivityDataFromApi: vi.fn(),
+const {
+  mockFetchContributedRepositories,
+  mockIsGitHubApiConfigured,
+  mockIsOperationAllowed,
+  mockReadRepoWeeklyStatsRecord,
+  mockWriteAggregatedWeeklyActivityRecord,
+  mockWriteGitHubActivitySummary,
+  mockWriteGitHubActivityRecord,
+} = vi.hoisted(() => ({
+  mockFetchContributedRepositories: vi.fn(),
+  mockIsGitHubApiConfigured: vi.fn(),
+  mockIsOperationAllowed: vi.fn(),
+  mockReadRepoWeeklyStatsRecord: vi.fn(),
+  mockWriteAggregatedWeeklyActivityRecord: vi.fn(),
+  mockWriteGitHubActivitySummary: vi.fn(),
+  mockWriteGitHubActivityRecord: vi.fn(),
 }));
 
-// Mock the S3 utils module
-vi.mock("@/lib/s3/objects", () => ({
-  getS3ObjectMetadata: vi.fn(),
+vi.mock("@/lib/data-access/github-api", () => ({
+  fetchContributedRepositories: mockFetchContributedRepositories,
+  getGitHubUsername: vi.fn(() => "test-owner"),
+  isGitHubApiConfigured: mockIsGitHubApiConfigured,
+}));
+vi.mock("@/lib/data-access/github-storage", () => ({
+  readRepoWeeklyStatsRecord: mockReadRepoWeeklyStatsRecord,
+  writeAggregatedWeeklyActivityRecord: mockWriteAggregatedWeeklyActivityRecord,
+  writeGitHubActivityRecord: mockWriteGitHubActivityRecord,
+}));
+vi.mock("@/lib/data-access/github-activity-summaries", () => ({
+  writeGitHubActivitySummary: mockWriteGitHubActivitySummary,
+}));
+vi.mock("@/lib/rate-limiter", () => ({
+  isOperationAllowed: mockIsOperationAllowed,
 }));
 
-// Mock fetch globally
-const fetchMock = vi.fn();
-global.fetch = fetchMock as unknown as typeof fetch;
-
-import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
-import { getS3ObjectMetadata } from "@/lib/s3/objects";
-import { GITHUB_ACTIVITY_S3_PATHS } from "@/lib/constants";
-import type { MockedFunction } from "vitest";
-
-const mockRefreshGitHubActivityDataFromApi = vi.mocked(refreshGitHubActivityDataFromApi);
-const mockGetS3ObjectMetadata = vi.mocked(getS3ObjectMetadata);
-const mockFetch = fetchMock as unknown as MockedFunction<typeof fetch>;
+import { refreshGitHubActivityDataFromApi } from "../../src/lib/data-access/github";
+import {
+  calculateAndStoreAggregatedWeeklyActivity,
+  createEmptyCategoryStats,
+} from "@/lib/data-access/github-processing";
+import {
+  contributionDaySchema,
+  GITHUB_ACTIVITY_WRITE_INTENTS,
+  type AggregatedWeeklyActivity,
+  type GitHubActivityApiResponse,
+  type GitHubActivitySegment,
+  type GitHubActivityWriteIntent,
+  userActivityViewSchema,
+} from "@/types/schemas/github-storage";
+import type { GitHubSummaryInput } from "@/types/github";
 
 type RefreshGitHubActivityResult = NonNullable<
   Awaited<ReturnType<typeof refreshGitHubActivityDataFromApi>>
 >;
 
-describe("lib/data-access/github.ts functionality", () => {
+let persistedActivity: GitHubActivityApiResponse | undefined;
+let persistedAggregate: AggregatedWeeklyActivity[] | undefined;
+let persistedSummary: GitHubSummaryInput | undefined;
+let persistedIntent: GitHubActivityWriteIntent | undefined;
+
+const zeroSegment: GitHubActivitySegment = {
+  source: "api",
+  data: [],
+  totalContributions: 0,
+  linesAdded: 0,
+  linesRemoved: 0,
+  dataComplete: true,
+};
+
+describe("GitHub activity refresh", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.AUTO_REPAIR_CSV_FILES = "false";
+    process.env.DRY_RUN = "false";
+    persistedActivity = undefined;
+    persistedAggregate = undefined;
+    persistedSummary = undefined;
+    persistedIntent = undefined;
 
-    // Reset environment variables
-    process.env.GITHUB_REPO_OWNER = "";
-    process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH = "";
-    process.env.GITHUB_API_TOKEN = "";
-    process.env.GITHUB_TOKEN = "";
-    process.env.S3_BUCKET = "";
-    process.env.BOOKMARK_CRON_REFRESH_SECRET = "";
-    process.env.GITHUB_REFRESH_SECRET = "";
+    mockIsGitHubApiConfigured.mockReturnValue(true);
+    mockIsOperationAllowed.mockReturnValue(true);
+    mockReadRepoWeeklyStatsRecord.mockReset();
+    mockWriteGitHubActivityRecord.mockImplementation(
+      async (
+        data: GitHubActivityApiResponse,
+        intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+      ): Promise<boolean> => {
+        persistedActivity = data;
+        persistedIntent = intent;
+        return true;
+      },
+    );
+    mockWriteAggregatedWeeklyActivityRecord.mockImplementation(
+      async (data: AggregatedWeeklyActivity[]): Promise<boolean> => {
+        if (data.length === 0) {
+          persistedAggregate = data;
+          return true;
+        }
+
+        throw new Error("The zero-repository refresh must persist an empty aggregate.");
+      },
+    );
+    mockWriteGitHubActivitySummary.mockImplementation(
+      async (input: GitHubSummaryInput): Promise<boolean> => {
+        persistedSummary = input;
+        return true;
+      },
+    );
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
-    vi.clearAllTimers();
+  it("replaces stale aggregate data with a complete zero-repository result", async () => {
+    const expectedResult: RefreshGitHubActivityResult = {
+      trailingYearData: zeroSegment,
+      allTimeData: zeroSegment,
+    };
+    persistedAggregate = [{ weekStartDate: "2026-01-01", linesAdded: 123, linesRemoved: 45 }];
+    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
+
+    await expect(refreshGitHubActivityDataFromApi()).resolves.toEqual(expectedResult);
+    expect(persistedActivity).toEqual({
+      trailingYearData: zeroSegment,
+      cumulativeAllTimeData: zeroSegment,
+    });
+    expect(persistedIntent).toBe(
+      GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
+    );
+    expect(persistedAggregate).toEqual([]);
+    expect(persistedSummary).toBeDefined();
+    if (persistedSummary === undefined) {
+      throw new Error("The zero-repository refresh did not persist its summary.");
+    }
+    expect(persistedSummary.allTimeData).toEqual(zeroSegment);
+    expect(persistedSummary.totalRepositoriesContributedTo).toBe(0);
+    expect(persistedSummary.allTimeCategoryStats).toEqual(createEmptyCategoryStats());
   });
 
-  afterAll(() => {
-    vi.restoreAllMocks();
-    vi.useRealTimers();
+  it("does not write a partial zero-repository result when summary persistence fails", async () => {
+    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
+    mockWriteGitHubActivitySummary.mockResolvedValue(false);
+
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
+      "failed to persist its summary record",
+    );
+    expect(persistedActivity).toBeUndefined();
+    expect(persistedAggregate).toBeUndefined();
   });
 
-  describe("environment variable validation", () => {
-    it("should detect missing environment variables", () => {
-      const requiredEnvVars = [
-        "GITHUB_REPO_OWNER",
-        "GITHUB_ACCESS_TOKEN_COMMIT_GRAPH",
-        "GITHUB_API_TOKEN",
-        "GITHUB_TOKEN",
-        "S3_BUCKET",
-      ];
+  it("propagates the original GraphQL failure without persisting stale data", async () => {
+    const graphQlFailure = new Error("GitHub GraphQL rate limit exceeded");
+    mockFetchContributedRepositories.mockRejectedValue(graphQlFailure);
 
-      for (const envVar of requiredEnvVars) {
-        expect(process.env[envVar]).toBeFalsy();
-      }
-    });
-
-    it("should detect present environment variables", () => {
-      // Set test environment variables
-      process.env.GITHUB_REPO_OWNER = "test-owner";
-      process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH = "test-token";
-      process.env.GITHUB_API_TOKEN = "test-api-token";
-      process.env.GITHUB_TOKEN = "test-github-token";
-      process.env.S3_BUCKET = "test-bucket";
-
-      expect(process.env.GITHUB_REPO_OWNER).toBe("test-owner");
-      expect(process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH).toBe("test-token");
-      expect(process.env.GITHUB_API_TOKEN).toBe("test-api-token");
-      expect(process.env.GITHUB_TOKEN).toBe("test-github-token");
-      expect(process.env.S3_BUCKET).toBe("test-bucket");
-    });
-
-    it("should determine environment suffix correctly", () => {
-      // Helper function to test suffix logic (hoisted here for linter)
-      const getEnvSuffix = (env: string | undefined): string =>
-        env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
-
-      // Test production (default)
-      expect(getEnvSuffix(undefined)).toBe("");
-      expect(getEnvSuffix("production")).toBe("");
-
-      // Test development
-      expect(getEnvSuffix("development")).toBe("-dev");
-
-      // Test test environment
-      expect(getEnvSuffix("test")).toBe("-test");
-    });
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toBe(graphQlFailure);
+    expect(persistedActivity).toBeUndefined();
+    expect(persistedAggregate).toBeUndefined();
+    expect(persistedSummary).toBeUndefined();
   });
 
-  describe("S3 data key generation", () => {
-    it("should generate correct activity key for different environments", () => {
-      const testCases = [
-        { env: undefined, expected: "json/github-activity/activity_data.json" },
-        { env: "production", expected: "json/github-activity/activity_data.json" },
-        { env: "development", expected: "json/github-activity/activity_data-dev.json" },
-        { env: "test", expected: "json/github-activity/activity_data-test.json" },
-      ];
+  it("returns null without persisting when GitHub API configuration is absent", async () => {
+    mockIsGitHubApiConfigured.mockReturnValue(false);
 
-      for (const { env, expected } of testCases) {
-        const envSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
-        const activityKey = `json/github-activity/activity_data${envSuffix}.json`;
-
-        expect(activityKey).toBe(expected);
-      }
-    });
+    await expect(refreshGitHubActivityDataFromApi()).resolves.toBeNull();
+    expect(persistedActivity).toBeUndefined();
+    expect(persistedAggregate).toBeUndefined();
+    expect(persistedSummary).toBeUndefined();
   });
 
-  describe("direct refresh functionality", () => {
-    it("should handle successful refresh", async () => {
-      const mockResult: RefreshGitHubActivityResult = {
-        trailingYearData: {
-          source: "api",
-          data: [],
-          totalContributions: 365,
-          dataComplete: true,
-        },
-        allTimeData: {
-          source: "api",
-          data: [],
-          totalContributions: 1000,
-          dataComplete: true,
-          allTimeTotalContributions: 1000,
-        },
-      };
-
-      mockRefreshGitHubActivityDataFromApi.mockResolvedValue(mockResult);
-
-      const mockMetadata = {
-        lastModified: new Date(),
-        eTag: "test-etag",
-      };
-      mockGetS3ObjectMetadata.mockResolvedValue(mockMetadata);
-
-      // Test that the mock functions work as expected
-      const result = await refreshGitHubActivityDataFromApi();
-      expect(result).toEqual(mockResult);
-      expect(result?.trailingYearData.totalContributions).toBe(365);
-      expect(result?.allTimeData.totalContributions).toBe(1000);
-
-      const metadata = await getS3ObjectMetadata("test-key");
-      expect(metadata).toEqual(mockMetadata);
+  it("aggregates only the current repository identifiers", async () => {
+    mockReadRepoWeeklyStatsRecord.mockResolvedValue({
+      repoOwnerLogin: "current-owner",
+      repoName: "current-repo",
+      lastFetched: "2026-07-13T00:00:00.000Z",
+      status: "complete",
+      stats: [{ w: Date.parse("2026-07-06T00:00:00.000Z") / 1000, a: 12, d: 3, c: 1 }],
     });
+    mockWriteAggregatedWeeklyActivityRecord.mockResolvedValue(true);
 
-    it("should handle refresh failure", async () => {
-      mockRefreshGitHubActivityDataFromApi.mockResolvedValue(null);
+    const result = await calculateAndStoreAggregatedWeeklyActivity(["current-owner/current-repo"]);
 
-      const result = await refreshGitHubActivityDataFromApi();
-      expect(result).toBeNull();
-    });
+    expect(mockReadRepoWeeklyStatsRecord).toHaveBeenCalledExactlyOnceWith(
+      "current-owner",
+      "current-repo",
+    );
+    expect(result?.aggregatedActivity).toEqual([
+      { weekStartDate: "2026-07-06", linesAdded: 12, linesRemoved: 3 },
+    ]);
+  });
+});
 
-    it("should handle S3 metadata retrieval", async () => {
-      const testKey = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA_PROD_FALLBACK;
-      const mockMetadata = {
-        lastModified: new Date("2024-01-01"),
-        eTag: "test-etag",
-      };
+describe("GitHub activity summary persistence", () => {
+  it("writes exactly one all-time summary payload", async () => {
+    vi.resetModules();
+    const writeGitHubSummaryRecord = vi.fn().mockResolvedValue(true);
+    vi.doMock("@/lib/data-access/github-storage", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/lib/data-access/github-storage")>()),
+      writeGitHubSummaryRecord,
+    }));
+    vi.doUnmock("@/lib/data-access/github-activity-summaries");
 
-      mockGetS3ObjectMetadata.mockResolvedValue(mockMetadata);
+    const { writeGitHubActivitySummary } =
+      await import("@/lib/data-access/github-activity-summaries");
+    const allTimeCategoryStats = createEmptyCategoryStats();
 
-      const metadata = await getS3ObjectMetadata(testKey);
-      expect(metadata).toEqual(mockMetadata);
-      expect(metadata?.lastModified).toEqual(new Date("2024-01-01"));
-    });
+    await expect(
+      writeGitHubActivitySummary({
+        allTimeData: { ...zeroSegment, totalContributions: 42 },
+        totalRepositoriesContributedTo: 3,
+        allTimeCategoryStats,
+      }),
+    ).resolves.toBe(true);
+    expect(writeGitHubSummaryRecord).toHaveBeenCalledOnce();
+    expect(writeGitHubSummaryRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ totalContributions: 42, totalRepositoriesContributedTo: 3 }),
+    );
+  });
+});
 
-    it("should calculate age correctly", () => {
-      const testDate = new Date("2024-01-01");
-      const currentDate = new Date("2024-01-08"); // 7 days later
-
-      // Mock Date.now to return consistent results
-      const originalNow = Date.now;
-      Date.now = vi.fn(() => currentDate.getTime());
-
-      const ageDays = Math.round((Date.now() - testDate.getTime()) / (1000 * 60 * 60 * 24));
-      expect(ageDays).toBe(7);
-
-      // Restore original Date.now
-      Date.now = originalNow;
-    });
+describe("GitHub activity public schemas", () => {
+  it("rejects contribution days that the calendar cannot render", () => {
+    expect(
+      contributionDaySchema.safeParse({ date: "not-a-date", count: 1, level: 1 }).success,
+    ).toBe(false);
+    expect(
+      contributionDaySchema.safeParse({ date: "2026-07-13", count: -1, level: 1 }).success,
+    ).toBe(false);
   });
 
-  describe("API endpoint testing", () => {
-    beforeEach(() => {
-      mockFetch.mockClear();
-    });
-
-    it("should format correct API URLs", () => {
-      const baseUrl = "http://localhost:3000";
-      const endpoint = "/api/github-activity/refresh";
-      const fullUrl = `${baseUrl}${endpoint}`;
-
-      expect(fullUrl).toBe("http://localhost:3000/api/github-activity/refresh");
-    });
-
-    it("should prepare correct authentication headers", () => {
-      const testSecret = "test-secret-123";
-      process.env.BOOKMARK_CRON_REFRESH_SECRET = testSecret;
-
-      const bearerHeaders = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${testSecret}`,
-      };
-
-      expect(bearerHeaders.Authorization).toBe(`Bearer ${testSecret}`);
-
-      const refreshHeaders = {
-        "Content-Type": "application/json",
-        "x-refresh-secret": testSecret,
-      };
-
-      expect(refreshHeaders["x-refresh-secret"]).toBe(testSecret);
-    });
-
-    it("should handle API response structure", async () => {
-      const mockResponse = {
-        success: true,
-        data: { contributions: 365 },
-        message: "Refresh successful",
-      };
-
-      mockFetch.mockResolvedValue({
-        status: 200,
-        json: vi.fn().mockResolvedValue(mockResponse),
-      } as any);
-
-      const response = await fetch("http://localhost:3000/api/github-activity/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
-      expect(data).toEqual(mockResponse);
-      expect(data.success).toBe(true);
-      expect(data.data.contributions).toBe(365);
-    });
-
-    it("should handle API error responses", async () => {
-      const mockErrorResponse = {
-        error: "Authentication failed",
-        status: 401,
-      };
-
-      mockFetch.mockResolvedValue({
-        status: 401,
-        json: vi.fn().mockResolvedValue(mockErrorResponse),
-      } as any);
-
-      const response = await fetch("http://localhost:3000/api/github-activity/refresh");
-      expect(response.status).toBe(401);
-
-      const errorData = await response.json();
-      expect(errorData.error).toBe("Authentication failed");
-    });
-  });
-
-  describe("error handling", () => {
-    it("should handle network errors gracefully", async () => {
-      mockFetch.mockRejectedValue(new Error("Network error"));
-
-      await expect(fetch("http://localhost:3000/api/github-activity/refresh")).rejects.toThrow(
-        "Network error",
-      );
-    });
-
-    it("should handle refresh function errors", async () => {
-      const testError = new Error("GitHub API rate limit exceeded");
-      mockRefreshGitHubActivityDataFromApi.mockRejectedValue(testError);
-
-      await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
-        "GitHub API rate limit exceeded",
-      );
-    });
-
-    it("should handle S3 metadata errors", async () => {
-      mockGetS3ObjectMetadata.mockResolvedValue(null);
-
-      const metadata = await getS3ObjectMetadata("non-existent-key");
-      expect(metadata).toBeNull();
-    });
+  it("requires an ISO timestamp for the public refresh date", () => {
+    expect(
+      userActivityViewSchema.safeParse({
+        source: "empty",
+        trailingYearData: { data: [], totalContributions: 0, dataComplete: false },
+        allTimeStats: { totalContributions: 0, linesAdded: 0, linesRemoved: 0 },
+        lastRefreshed: "not-a-date",
+      }).success,
+    ).toBe(false);
   });
 });

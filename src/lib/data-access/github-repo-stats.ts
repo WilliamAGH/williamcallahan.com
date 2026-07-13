@@ -60,21 +60,12 @@ function accumulatePriorYearStats(
   };
 }
 
-function accumulateCategoryStats(
-  yearStats: GitHubActivitySummary["linesOfCodeByCategory"],
+function accumulateAllTimeCategoryStats(
   allTimeStats: GitHubActivitySummary["linesOfCodeByCategory"],
   repo: GraphQLRepoNode,
   result: SingleRepoProcessingResult,
 ): void {
   const categoryKey = categorizeRepository(repo.name);
-
-  if (result.yearLinesAdded > 0 || result.yearLinesRemoved > 0 || result.dataComplete) {
-    yearStats[categoryKey].linesAdded += result.yearLinesAdded;
-    yearStats[categoryKey].linesRemoved += result.yearLinesRemoved;
-    yearStats[categoryKey].repoCount += 1;
-    yearStats[categoryKey].netChange =
-      (yearStats[categoryKey].netChange || 0) + (result.yearLinesAdded - result.yearLinesRemoved);
-  }
 
   if (result.hasAllTimeData) {
     allTimeStats[categoryKey].linesAdded += result.allTimeLinesAdded;
@@ -92,7 +83,6 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
   let allTimeLinesRemoved = 0;
   let allTimeOverallDataComplete = true;
 
-  const yearCategoryStats = createEmptyCategoryStats();
   const allTimeCategoryStats = createEmptyCategoryStats();
   const priorYearCommitStats = initializePriorYearStats();
 
@@ -107,13 +97,12 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
     }
 
     accumulatePriorYearStats(priorYearCommitStats, repo, result);
-    accumulateCategoryStats(yearCategoryStats, allTimeCategoryStats, repo, result);
+    accumulateAllTimeCategoryStats(allTimeCategoryStats, repo, result);
   }
 
   return {
     yearLinesAdded,
     yearLinesRemoved,
-    yearCategoryStats,
     priorYearCommitStats,
     allTimeLinesAdded,
     allTimeLinesRemoved,

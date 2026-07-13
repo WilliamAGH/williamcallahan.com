@@ -8,43 +8,14 @@ import { formatPacificDateTime } from "@/lib/utils/date-format";
 import { createCategorizedError } from "@/lib/utils/error-utils";
 import { createEmptyCategoryStats } from "./github-processing";
 import { writeGitHubSummaryRecord } from "./github-storage";
-import type { GitHubSummaryInput, GitHubSummaryWriteResult } from "@/types/github";
+import type { GitHubSummaryInput } from "@/types/github";
 import type { GitHubActivitySummary } from "@/types/schemas/github-storage";
 
-export async function writeGitHubActivitySummaries({
-  trailingYearData,
+export async function writeGitHubActivitySummary({
   allTimeData,
   totalRepositoriesContributedTo,
-  yearCategoryStats,
   allTimeCategoryStats,
-}: GitHubSummaryInput): Promise<GitHubSummaryWriteResult> {
-  const result: GitHubSummaryWriteResult = { trailingYearWritten: false, allTimeWritten: false };
-
-  try {
-    const netYearLoc = (trailingYearData.linesAdded || 0) - (trailingYearData.linesRemoved || 0);
-    const yearSummaryData: GitHubActivitySummary = {
-      lastUpdatedAtPacific: formatPacificDateTime(),
-      totalContributions: trailingYearData.totalContributions,
-      totalLinesAdded: trailingYearData.linesAdded || 0,
-      totalLinesRemoved: trailingYearData.linesRemoved || 0,
-      netLinesOfCode: netYearLoc,
-      dataComplete:
-        trailingYearData.dataComplete !== undefined ? trailingYearData.dataComplete : true,
-      totalRepositoriesContributedTo,
-      linesOfCodeByCategory: yearCategoryStats,
-    };
-    await writeGitHubSummaryRecord(yearSummaryData);
-    debug("[DataAccess/GitHub-Store] Trailing year GitHub summary saved");
-    result.trailingYearWritten = true;
-  } catch (summaryError: unknown) {
-    const categorizedError = createCategorizedError(summaryError, "github");
-    console.error(
-      "[DataAccess/GitHub-Store] Failed to write trailing year GitHub summary:",
-      categorizedError.message,
-    );
-    // result.trailingYearWritten remains false - caller can check and handle
-  }
-
+}: GitHubSummaryInput): Promise<boolean> {
   try {
     const finalAllTimeCategoryStats = createEmptyCategoryStats();
 
@@ -60,28 +31,26 @@ export async function writeGitHubActivitySummaries({
       }
     }
 
-    const netAllTimeLoc = (allTimeData.linesAdded || 0) - (allTimeData.linesRemoved || 0);
+    const netAllTimeLoc = allTimeData.linesAdded - allTimeData.linesRemoved;
     const allTimeSummaryData: GitHubActivitySummary = {
       lastUpdatedAtPacific: formatPacificDateTime(),
       totalContributions: allTimeData.totalContributions,
-      totalLinesAdded: allTimeData.linesAdded || 0,
-      totalLinesRemoved: allTimeData.linesRemoved || 0,
+      totalLinesAdded: allTimeData.linesAdded,
+      totalLinesRemoved: allTimeData.linesRemoved,
       netLinesOfCode: netAllTimeLoc,
-      dataComplete: allTimeData.dataComplete !== undefined ? allTimeData.dataComplete : true,
+      dataComplete: allTimeData.dataComplete,
       totalRepositoriesContributedTo,
       linesOfCodeByCategory: finalAllTimeCategoryStats,
     };
     await writeGitHubSummaryRecord(allTimeSummaryData);
     debug("[DataAccess/GitHub-Store] All-time GitHub summary saved to PostgreSQL");
-    result.allTimeWritten = true;
+    return true;
   } catch (summaryError: unknown) {
     const categorizedError = createCategorizedError(summaryError, "github");
     console.error(
       "[DataAccess/GitHub-Store] Failed to write all-time GitHub summary:",
       categorizedError.message,
     );
-    // result.allTimeWritten remains false - caller can check and handle
+    return false;
   }
-
-  return result;
 }

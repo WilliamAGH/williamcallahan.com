@@ -16,11 +16,7 @@ import type {
   RepoRawWeeklyStat,
 } from "@/types/schemas/github-storage";
 import { debug } from "@/lib/utils/debug";
-import {
-  listRepoStatsFiles,
-  readRepoWeeklyStatsRecord,
-  writeAggregatedWeeklyActivityRecord,
-} from "./github-storage";
+import { readRepoWeeklyStatsRecord, writeAggregatedWeeklyActivityRecord } from "./github-storage";
 
 /**
  * Creates an empty category stats object for LOC tracking
@@ -204,7 +200,9 @@ export function repairCsvData(
  *
  * @remark If any repository CSV is missing or unreadable, the `overallDataComplete` flag will be set to `false`.
  */
-export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
+export async function calculateAndStoreAggregatedWeeklyActivity(
+  currentRepoStatIdentifiers: readonly string[],
+): Promise<{
   aggregatedActivity: AggregatedWeeklyActivity[];
   overallDataComplete: boolean;
 } | null> {
@@ -222,19 +220,10 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
   let overallDataComplete = true;
   const weeklyTotals: Record<string, { added: number; removed: number }> = {};
   const today = new Date();
-  let repoStatIdentifiers: string[] = [];
-  try {
-    repoStatIdentifiers = await listRepoStatsFiles();
-    debug(`[DataAccess/GitHub-Store] Found ${repoStatIdentifiers.length} repo stat identifiers.`);
-  } catch (listError: unknown) {
-    const message = listError instanceof Error ? listError.message : String(listError);
-    console.error(
-      "[DataAccess/GitHub-Store] Aggregation: Error listing repo weekly stats:",
-      message,
-    );
-    await writeAggregatedWeeklyActivityRecord([]); // Write empty if listing fails
-    return { aggregatedActivity: [], overallDataComplete: false };
-  }
+  const repoStatIdentifiers = currentRepoStatIdentifiers;
+  debug(
+    `[DataAccess/GitHub-Store] Using ${repoStatIdentifiers.length} current repo stat identifiers.`,
+  );
   if (repoStatIdentifiers.length === 0) {
     debug(
       "[DataAccess/GitHub-Store] Aggregation: No repo weekly stats found. Nothing to aggregate.",
@@ -277,8 +266,8 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
           }
           const totals = weeklyTotals[weekKey];
           if (totals) {
-            totals.added += stat.a || 0;
-            totals.removed += stat.d || 0;
+            totals.added += stat.a;
+            totals.removed += stat.d;
           }
         }
       }

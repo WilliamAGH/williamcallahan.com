@@ -17,15 +17,20 @@ import {
 } from "@/lib/db/queries/github-activity";
 import {
   writeGitHubActivityToDb,
-  writeGitHubSummaryToDb,
+  writeGitHubSummaryDocumentsToDb,
   writeRepoWeeklyStatsToDb,
   writeAggregatedWeeklyActivityToDb,
 } from "@/lib/db/mutations/github-activity";
-import type { StoredGithubActivity } from "@/types/github";
+import {
+  GITHUB_ACTIVITY_WRITE_INTENTS,
+  gitHubActivityApiResponseSchema,
+} from "@/types/schemas/github-storage";
 import type {
   AggregatedWeeklyActivity,
   GitHubActivityApiResponse,
   GitHubActivitySummary,
+  GitHubActivitySummaryDocuments,
+  GitHubActivityWriteIntent,
   RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 
@@ -44,8 +49,16 @@ export async function readGitHubActivityRecord(): Promise<GitHubActivityApiRespo
 /**
  * Write GitHub activity data with non-degrading write protection.
  */
-export async function writeGitHubActivityRecord(data: GitHubActivityApiResponse): Promise<boolean> {
-  return writeGitHubActivityToDb(data);
+export async function writeGitHubActivityRecord(
+  data: GitHubActivityApiResponse,
+  intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+): Promise<boolean> {
+  const parsedData = gitHubActivityApiResponseSchema.safeParse(data);
+  if (!parsedData.success) {
+    throw new Error(`Invalid GitHub activity record: ${parsedData.error.message}`);
+  }
+
+  return writeGitHubActivityToDb(parsedData.data, intent);
 }
 
 /**
@@ -56,10 +69,12 @@ export async function readGitHubSummaryRecord(): Promise<GitHubActivitySummary |
 }
 
 /**
- * Write GitHub activity summary to the database.
+ * Write both GitHub activity summaries to the database atomically.
  */
-export async function writeGitHubSummaryRecord(summary: GitHubActivitySummary): Promise<boolean> {
-  return writeGitHubSummaryToDb(summary);
+export async function writeGitHubSummaryRecords(
+  summaries: GitHubActivitySummaryDocuments,
+): Promise<boolean> {
+  return writeGitHubSummaryDocumentsToDb(summaries);
 }
 
 /**
@@ -121,21 +136,4 @@ export async function getGitHubActivityMetadata(): Promise<{ lastModified?: Date
   }
 
   return { lastModified: new Date(updatedAt) };
-}
-
-/**
- * Check if an object uses the old flat stored GitHub activity format.
- * Retained for backward compatibility in consumers that handle legacy data shapes.
- */
-export function isFlatStoredGithubActivityFormat(obj: unknown): obj is StoredGithubActivity {
-  if (!obj || typeof obj !== "object") return false;
-
-  return (
-    "source" in obj &&
-    typeof (obj as StoredGithubActivity).source === "string" &&
-    "data" in obj &&
-    Array.isArray((obj as StoredGithubActivity).data) &&
-    "totalContributions" in obj &&
-    typeof (obj as StoredGithubActivity).totalContributions === "number"
-  );
 }

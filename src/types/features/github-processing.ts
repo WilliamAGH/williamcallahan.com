@@ -59,7 +59,6 @@ export type SingleRepoProcessingResult = {
 export type RepoProcessingResult = {
   yearLinesAdded: number;
   yearLinesRemoved: number;
-  yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
   priorYearCommitStats: PriorYearCommitSummary;
   allTimeLinesAdded: number;
   allTimeLinesRemoved: number;

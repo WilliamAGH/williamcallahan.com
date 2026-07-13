@@ -1,17 +1,22 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import {
   githubActivityStore,
   GITHUB_ACTIVITY_DATA_TYPES,
+  GITHUB_ACTIVITY_ALL_TIME_QUALIFIER,
   GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
+  type GitHubActivitySummaryQualifier,
 } from "@/lib/db/schema/github-activity";
 import { readGitHubActivityFromDb } from "@/lib/db/queries/github-activity";
 import { debugLog } from "@/lib/utils/debug";
-import type {
-  AggregatedWeeklyActivity,
-  GitHubActivityApiResponse,
-  GitHubActivitySummary,
-  RepoWeeklyStatCache,
+import {
+  GITHUB_ACTIVITY_WRITE_INTENTS,
+  type AggregatedWeeklyActivity,
+  type GitHubActivityApiResponse,
+  type GitHubActivitySegment,
+  type GitHubActivitySummaryDocuments,
+  type GitHubActivityWriteIntent,
+  type RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 
 /**
@@ -49,9 +54,7 @@ const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
     };
   }
 
-  const ty = d.trailingYearData as
-    | { data?: unknown[]; dataComplete?: boolean; totalContributions?: number }
-    | undefined;
+  const ty = d.trailingYearData;
   const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
   const hasCount = typeof ty?.totalContributions === "number" && ty.totalContributions >= 0;
   const contributions = ty?.totalContributions ?? -1;
@@ -67,11 +70,33 @@ const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
  * Write GitHub activity data to PostgreSQL with non-degrading write protection.
  * Avoids overwriting a healthy dataset with empty/incomplete results.
  */
-export async function writeGitHubActivityToDb(data: GitHubActivityApiResponse): Promise<boolean> {
+export async function writeGitHubActivityToDb(
+  data: GitHubActivityApiResponse,
+  intent: GitHubActivityWriteIntent,
+): Promise<boolean> {
   assertDatabaseWriteAllowed("writeGitHubActivityToDb");
 
   const newQ = classifyDataset(data);
-  if (newQ.isIncomplete) {
+  const replacesEmptyCurrentRepositorySet =
+    intent === GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET;
+  const isCompleteZeroSegment = (segment: GitHubActivitySegment): boolean =>
+    segment.data.length === 0 &&
+    segment.totalContributions === 0 &&
+    segment.linesAdded === 0 &&
+    segment.linesRemoved === 0 &&
+    segment.dataComplete === true &&
+    segment.allPriorYearCommits === undefined;
+  const isExplicitEmptyCurrentRepositorySet =
+    isCompleteZeroSegment(data.trailingYearData) &&
+    isCompleteZeroSegment(data.cumulativeAllTimeData);
+
+  if (replacesEmptyCurrentRepositorySet && !isExplicitEmptyCurrentRepositorySet) {
+    throw new Error(
+      "An empty-current-repository-set write must contain complete, zero-contribution activity data.",
+    );
+  }
+
+  if (!replacesEmptyCurrentRepositorySet && newQ.isIncomplete) {
     const existing = await readGitHubActivityFromDb();
     const existingQ = classifyDataset(existing);
     const existingIsHealthy = !!existing && !existingQ.isEmpty;
@@ -108,13 +133,45 @@ export async function writeGitHubActivityToDb(data: GitHubActivityApiResponse): 
 }
 
 /**
- * Write GitHub activity summary to PostgreSQL.
+ * Atomically write the trailing-year and all-time GitHub summaries to PostgreSQL.
  */
-export async function writeGitHubSummaryToDb(summary: GitHubActivitySummary): Promise<boolean> {
-  assertDatabaseWriteAllowed("writeGitHubSummaryToDb");
+export async function writeGitHubSummaryDocumentsToDb(
+  summaries: GitHubActivitySummaryDocuments,
+): Promise<boolean> {
+  assertDatabaseWriteAllowed("writeGitHubSummaryDocumentsToDb");
 
-  await upsertDocument("summary", GITHUB_ACTIVITY_GLOBAL_QUALIFIER, summary);
-  debugLog("Successfully wrote GitHub summary to DB", "info");
+  const updatedAt = Date.now();
+  const summaryRows = [
+    {
+      dataType: "summary" as const,
+      qualifier: GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
+      payload: summaries.trailingYear,
+      updatedAt,
+    },
+    {
+      dataType: "summary" as const,
+      qualifier: GITHUB_ACTIVITY_ALL_TIME_QUALIFIER,
+      payload: summaries.allTime,
+      updatedAt,
+    },
+  ] satisfies Array<{
+    dataType: "summary";
+    qualifier: GitHubActivitySummaryQualifier;
+    payload: GitHubActivitySummaryDocuments[keyof GitHubActivitySummaryDocuments];
+    updatedAt: number;
+  }>;
+
+  await db
+    .insert(githubActivityStore)
+    .values(summaryRows)
+    .onConflictDoUpdate({
+      target: [githubActivityStore.dataType, githubActivityStore.qualifier],
+      set: {
+        payload: sql`excluded.payload`,
+        updatedAt: sql`excluded.updated_at`,
+      },
+    });
+  debugLog("Successfully wrote trailing-year and all-time GitHub summaries to DB", "info");
   return true;
 }
 

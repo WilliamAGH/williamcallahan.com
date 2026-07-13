@@ -1,14 +1,8 @@
-/**
- * Component that displays a graph of the user's GitHub activity
- * Fetches and visualizes contribution data with refresh capabilities
- */
-
 "use client";
 
-import type { UserActivityView } from "@/types/github";
-import type { PriorYearCommitSummary } from "@/types/schemas/github-storage";
+import { userActivityViewSchema, type UserActivityView } from "@/types/schemas/github-storage";
 import { formatDistanceToNow } from "date-fns";
-import { Code, RefreshCw } from "lucide-react";
+import { Code } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ActivityCalendarComponent, {
@@ -16,301 +10,108 @@ import ActivityCalendarComponent, {
   type ThemeInput as ReactActivityCalendarThemeInput,
 } from "react-activity-calendar";
 import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
-import type { ApiError } from "@/types/features/github";
 
-// Responsive calculation helpers
-const SM_BREAKPOINT = 640; // Tailwind sm breakpoint
-const DEFAULT_COLUMNS = 53; // GitHub contribution calendar weeks (~53)
-const MOBILE_COLUMNS = 20; // Fewer columns for mobile to make blocks more visible
-const BLOCK_MARGIN_PX = 2; // Keep constant; margin between squares
-const MIN_BLOCK_SIZE = 8; // Minimum block size for visibility
-const MAX_BLOCK_SIZE = 16; // Maximum block size to prevent oversized blocks
+const SM_BREAKPOINT = 640;
 
-function normalizeContributionDays(
-  days: UserActivityView["trailingYearData"]["data"] | undefined,
-): Activity[] {
-  return days?.map((day) => ({ date: day.date, count: day.count, level: day.level ?? 0 })) ?? [];
+function toCalendarActivity(days: UserActivityView["trailingYearData"]["data"]): Activity[] {
+  return days.map((day) => {
+    if (day.level === undefined) {
+      throw new Error("Validated GitHub contribution data is missing an activity level.");
+    }
+    return { date: day.date, count: day.count, level: day.level };
+  });
 }
 
-// Define the custom theme for the calendar
+async function readResponseJson(response: Response, request: string): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (parseError: unknown) {
+    const detail = parseError instanceof Error ? parseError.message : String(parseError);
+    throw new Error(`Failed to parse the ${request} response: ${detail}`, { cause: parseError });
+  }
+}
+
 const calendarCustomTheme: ReactActivityCalendarThemeInput = {
-  // Subtle blue-slate gradient that blends with site palette
-  light: [
-    "#f1f5f9", // light slate – level 0
-    "#cfe8ff", // blue-100 – level 1
-    "#9fd6ff", // blue-200 – level 2
-    "#60b0ff", // blue-300 – level 3
-    "#3b82f6", // blue-500 – level 4 (accent)
-  ],
-  dark: [
-    "#1e293b", // slate-800 – level 0
-    "#27364d", // slate-700 – level 1 (slight blue tint)
-    "#304560", // slate-600 – level 2
-    "#3b5a7a", // slate-500 blueish – level 3
-    "#60a5fa", // blue-400 – level 4 (brightest)
-  ],
+  light: ["#f1f5f9", "#cfe8ff", "#9fd6ff", "#60b0ff", "#3b82f6"],
+  dark: ["#1e293b", "#27364d", "#304560", "#3b5a7a", "#60a5fa"],
 };
 
 const GitHubActivity = () => {
-  const { resolvedTheme } = useTheme(); // Resolved theme (accounts for system preference)
-  const [blockSize, setBlockSize] = useState<number>(12); // Dynamically calculated square size
-  const [isMobile, setIsMobile] = useState(false); // Track mobile viewport
-  const [activityData, setActivityData] = useState<Activity[]>([]); // Activity data for the calendar
-  const [isLoading, setIsLoading] = useState(true); // Loading state for initial data fetch
-  const [isRefreshing, setIsRefreshing] = useState(false); // Loading state for refresh operation
-  const [error, setError] = useState<string | null>(null); // Error message, if any
-
-  // State for trailing year summary text
-  const [totalContributions, setTotalContributions] = useState<number | null>(null); // Total contributions in the trailing year
-  const [trailingYearLinesAdded, setTrailingYearLinesAdded] = useState<number | null>(null); // Lines added in the trailing year
-  const [trailingYearLinesRemoved, setTrailingYearLinesRemoved] = useState<number | null>(null); // Lines removed in the trailing year
-
-  // State for all-time stats (used by CumulativeGitHubStatsCards)
-  const [allTimeLinesAdded, setAllTimeLinesAdded] = useState<number | null>(null); // All-time lines added
-  const [allTimeLinesRemoved, setAllTimeLinesRemoved] = useState<number | null>(null); // All-time lines removed
-  const [allTimeTotalContributions, setAllTimeTotalContributions] = useState<number | null>(null); // All-time total contributions
-  const [priorYearCommits, setPriorYearCommits] = useState<PriorYearCommitSummary | null>(null); // Prior-year commit stats
-
-  const [dataComplete, setDataComplete] = useState<boolean>(true); // Flag indicating if the fetched data is complete
-  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null); // Timestamp of the last data refresh
-  const [showCrossEnvRefresh, setShowCrossEnvRefresh] = useState(false); // Show option to refresh other environments
-  const [isRefreshingProduction, setIsRefreshingProduction] = useState(false); // Loading state for production refresh
-  const lifetimeContributionTotal =
-    allTimeTotalContributions ?? (totalContributions ?? 0) + (priorYearCommits?.totalCommits ?? 0);
-
-  // Determine if refresh buttons should be shown based on environment
-  // Show refresh button for non-production environments (development, test, staging)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  const isDev = process.env.NODE_ENV === "development";
-
-  // Show refresh button if:
-  // 1. We're in development mode (NODE_ENV=development), OR
-  // 2. NEXT_PUBLIC_SITE_URL is not the production URL (https://williamcallahan.com)
-  const showRefreshButtons = isDev || (siteUrl && siteUrl !== "https://williamcallahan.com");
-
-  const fetchInitiatedRef = useRef(false); // Ref to track if the initial fetch has been initiated
+  const { resolvedTheme } = useTheme();
+  const [activity, setActivity] = useState<UserActivityView | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const fetchInitiatedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const trailingYearData = activity?.trailingYearData;
+  const allTimeStats = activity?.allTimeStats;
+  const activityData = trailingYearData ? toCalendarActivity(trailingYearData.data) : [];
+  const priorYearCommits = activity?.priorYearCommits;
+  const lifetimeContributionTotal = allTimeStats?.totalContributions;
 
-  // Native ResizeObserver to keep calendar responsive without extra deps
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    const updateSize = (width: number) => {
-      // Detect mobile viewport
-      const mobile = width < SM_BREAKPOINT;
-      setIsMobile(mobile);
-
-      // Use fewer columns on mobile for better visibility
-      const targetColumns = mobile ? MOBILE_COLUMNS : DEFAULT_COLUMNS;
-      const columns = Math.min(Math.ceil(activityData.length / 7) || targetColumns, targetColumns);
-
-      // Calculate block size with min/max constraints
-      let candidate = Math.floor(width / columns) - BLOCK_MARGIN_PX;
-      candidate = Math.max(MIN_BLOCK_SIZE, Math.min(candidate, MAX_BLOCK_SIZE));
-
-      if (Math.abs(candidate - blockSize) > 1) {
-        setBlockSize(candidate);
-      }
-    };
-
-    // Initial measurement
-    updateSize(el.clientWidth);
-
-    const observer = new ResizeObserver((entries) => {
-      if (!entries[0]) return;
-      updateSize(entries[0].contentRect.width);
+    setIsMobile(container.clientWidth < SM_BREAKPOINT);
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setIsMobile(entry.contentRect.width < SM_BREAKPOINT);
     });
-
-    observer.observe(el);
+    observer.observe(container);
     return () => observer.disconnect();
-  }, [activityData.length, blockSize]);
+  }, [isLoading]);
 
-  /**
-   * Resets all component state related to fetched data.
-   * Useful for clearing stale data on error or before a new fetch.
-   * Wrapped in useCallback as it's a dependency of fetchData.
-   */
-  const resetState = useCallback(() => {
-    setActivityData([]);
-    setTotalContributions(null);
-    setTrailingYearLinesAdded(null); // Reset for summary
-    setTrailingYearLinesRemoved(null); // Reset for summary
-    setAllTimeLinesAdded(null); // Reset for cards
-    setAllTimeLinesRemoved(null); // Reset for cards
-    setAllTimeTotalContributions(null); // Reset for cards
-    setPriorYearCommits(null);
-    setDataComplete(false); // Assume data is incomplete after reset
-    setLastRefreshed(null);
-    setError(null); // Also reset error state
-  }, []);
-
-  /**
-   * Fetches GitHub activity data from the API.
-   * Can optionally trigger a data refresh on the server before fetching.
-   * Wrapped in useCallback to stabilize its reference for useEffect dependencies.
-   * @param {boolean} [refresh=false] - If true, requests a data refresh on the server.
-   */
-  const fetchData = useCallback(
-    async (refresh = false) => {
-      setIsLoading(true);
-      if (!refresh) setError(null); // Clear previous non-refresh errors on new fetch, keep refresh-related errors
-
-      try {
-        if (refresh) {
-          setIsRefreshing(true);
-          const refreshResponse = await fetch("/api/github-activity/refresh", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-          if (!refreshResponse.ok) {
-            let refreshErrorResult: ApiError | null = null;
-            try {
-              refreshErrorResult = (await refreshResponse.json()) as ApiError;
-            } catch {
-              /* Failed to parse response JSON, error message will be generic */
-            }
-            const errorMessage =
-              refreshErrorResult?.message ??
-              refreshErrorResult?.error ??
-              `Refresh request failed with status: ${refreshResponse.status}`;
-            console.error("[Client] GitHub data refresh POST request failed:", errorMessage);
-            setError(errorMessage); // Set error, but still proceed to fetch current data
-          } else {
-            // Show cross-environment refresh option for non-production environments
-            if (showRefreshButtons && !isRefreshingProduction) {
-              setShowCrossEnvRefresh(true);
-            }
-            // setError(null); // Clear error if refresh was successful before fetching - No, keep error if subsequent GET fails
-          }
-        }
-
-        const response = await fetch("/api/github-activity");
-        let result: UserActivityView;
-
-        try {
-          result = (await response.json()) as UserActivityView;
-        } catch (parseError) {
-          const errorMessage = `Failed to parse API response from GET /api/github-activity: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`;
-          console.error(errorMessage);
-          setError(errorMessage);
-          resetState(); // Full reset if parsing fails
-          return;
-        }
-
-        if (!response.ok) {
-          const errorMsg = result?.error ?? `API request failed with status: ${response.status}`;
-          console.error("GitHub Activity GET API returned an error:", errorMsg);
-          setError(errorMsg); // Set error from API response
-
-          // Try to use partial data if available, even with an error response
-          setActivityData(normalizeContributionDays(result?.trailingYearData?.data));
-          setTotalContributions(result?.trailingYearData?.totalContributions ?? 0);
-          setTrailingYearLinesAdded(result?.trailingYearData?.linesAdded ?? null);
-          setTrailingYearLinesRemoved(result?.trailingYearData?.linesRemoved ?? null);
-          setDataComplete(result?.trailingYearData?.dataComplete ?? false);
-
-          setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
-          setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
-          setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
-          setPriorYearCommits(result?.priorYearCommits ?? null);
-
-          setLastRefreshed(result?.lastRefreshed ?? null);
-          return; // Return after setting partial data/error
-        }
-
-        // If response is OK and data is present
-        setActivityData(normalizeContributionDays(result?.trailingYearData?.data));
-        setTotalContributions(result?.trailingYearData?.totalContributions ?? 0);
-        setTrailingYearLinesAdded(result?.trailingYearData?.linesAdded ?? null);
-        setTrailingYearLinesRemoved(result?.trailingYearData?.linesRemoved ?? null);
-        setDataComplete(result?.trailingYearData?.dataComplete ?? false);
-        setLastRefreshed(result?.lastRefreshed ?? null);
-
-        if (!result?.trailingYearData) {
-          setDataComplete(false); // Assume incomplete if no trailing year data
-        }
-
-        setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
-        setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
-        setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
-        setPriorYearCommits(result?.priorYearCommits ?? null);
-      } catch (err: unknown) {
-        console.error("Failed to fetch or parse GitHub activity:", err); // Log the full error object
-        setError(
-          err instanceof Error ? err.message : "An unknown error occurred while fetching data.",
-        );
-        resetState(); // Full reset on critical fetch/parse error
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
-    },
-    [resetState, isRefreshingProduction, showRefreshButtons],
-  );
-
-  /**
-   * Handles the click event for the refresh button.
-   * Stops event propagation and triggers a data fetch with refresh.
-   * @param {React.MouseEvent} e - The mouse event.
-   */
-  const handleRefresh = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    setShowCrossEnvRefresh(false); // Reset cross-env option
-    void fetchData(true);
-  };
-
-  /**
-   * Handles refreshing production environment data
-   */
-  const handleProductionRefresh = async () => {
-    setIsRefreshingProduction(true);
-    // Keep the banner visible during production refresh so user sees the loading state
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
 
     try {
-      // Call a special endpoint that will trigger production refresh
-      const response = await fetch("/api/github-activity/refresh-production", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => null)) as { message?: string } | null;
-        console.error(
-          "[Client] Production refresh failed:",
-          errorData?.message || response.statusText,
-        );
+      const response = await fetch("/api/github-activity");
+      const result = userActivityViewSchema.safeParse(
+        await readResponseJson(response, "GitHub activity"),
+      );
+      if (!result.success) {
+        const message = "The GitHub activity endpoint returned an invalid response.";
+        console.error("[Client] GET /api/github-activity failed schema validation:", result.error);
+        setActivity(null);
+        setError(message);
+        return;
       }
-    } catch (error) {
-      console.error("[Client] Failed to trigger production refresh:", error);
-    } finally {
-      setIsRefreshingProduction(false);
-      setShowCrossEnvRefresh(false); // Hide banner after completion
-    }
-  };
 
-  /**
-   * Effect to fetch initial data on component mount.
-   * Uses a ref to ensure fetchData is called only once.
-   */
+      setActivity(result.data);
+      if (!response.ok) {
+        const message = result.data.error;
+        if (message === undefined) {
+          const fallbackMessage = `API request failed with status: ${response.status}`;
+          console.error("GitHub Activity GET API returned an error:", fallbackMessage);
+          setError(fallbackMessage);
+          return;
+        }
+        console.error("GitHub Activity GET API returned an error:", message);
+        setError(message);
+      }
+    } catch (fetchError: unknown) {
+      console.error("Failed to fetch or parse GitHub activity:", fetchError);
+      setActivity(null);
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : "An unknown error occurred while fetching data.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (fetchInitiatedRef.current) return;
     fetchInitiatedRef.current = true;
     void fetchData();
-  }, [fetchData]); // Add fetchData to dependency array
+  }, [fetchData]);
 
-  useEffect(() => {
-    if (activityData.length === 0) return; // Avoid on first empty render
-    const svg = document.querySelector<SVGSVGElement>(".react-activity-calendar__svg");
-    if (!svg) return;
-    svg.querySelectorAll<SVGRectElement>("rect[data-date]").forEach((rect) => {
-      rect.setAttribute("stroke", "none");
-    });
-  }, [activityData]);
+  const hasActivityCalendar = activityData.length > 0;
+  const lastRefreshed = activity?.lastRefreshed;
 
   return (
     <div className="bg-white dark:bg-neutral-900 p-3 sm:p-4 rounded-lg shadow-card hover:shadow-card-hover transition-all duration-300 transform sm:hover:-translate-y-1 group text-left w-full">
@@ -326,171 +127,110 @@ const GitHubActivity = () => {
             GitHub Activity
           </a>
         </h3>
-        {showRefreshButtons && (
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing || isLoading}
-            className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            title="Refresh GitHub data"
-          >
-            <RefreshCw
-              size={16}
-              className={`${isRefreshing ? "animate-spin text-blue-500" : "text-gray-500"}`}
-            />
-          </button>
-        )}
       </div>
 
-      {isLoading && ( // This covers both initial load and refresh triggered loading
+      {isLoading && (
         <div className="flex flex-col justify-center items-center h-48">
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-            <p className="ml-3 text-gray-600 dark:text-gray-400">
-              {isRefreshing ? "Refreshing GitHub activity data..." : "Loading activity data..."}
-            </p>
+            <p className="ml-3 text-gray-600 dark:text-gray-400">Loading activity data...</p>
           </div>
-          {isRefreshing && (
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              This may take several minutes to fetch data from GitHub API
-            </p>
-          )}
         </div>
       )}
 
-      {/* Cross-environment refresh option */}
-      {showCrossEnvRefresh && !isLoading && (
-        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-          <p className="text-sm text-blue-700 dark:text-blue-300">
-            {isRefreshingProduction ? (
-              <span className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2" />
-                Triggering production refresh...
-              </span>
-            ) : (
-              <>
-                Local refresh initiated. Would you like to{" "}
-                <button
-                  type="button"
-                  onClick={handleProductionRefresh}
-                  className="underline hover:text-blue-900 dark:hover:text-blue-100 font-medium"
-                  disabled={isRefreshingProduction}
-                >
-                  refresh production environment as well
-                </button>
-                ?
-              </>
-            )}
-          </p>
-        </div>
-      )}
-
-      {error && !isLoading && ( // Show error only if not currently loading
+      {error && !isLoading && (
         <div className="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
           <p className="font-medium">Error fetching GitHub activity:</p>
           <p className="text-sm">{error}</p>
-          <p className="text-sm mt-1">Try refreshing, or check data source availability.</p>
         </div>
       )}
 
       {!isLoading && !error && (
         <>
-          {activityData.length === 0 &&
-          (totalContributions === null || totalContributions === 0) ? (
+          {!hasActivityCalendar ? (
             <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-              <p>No contribution activity found for the trailing year.</p>
-              {dataComplete === false && lastRefreshed && (
-                <p className="text-sm mt-1">
-                  Data might be incomplete. Last attempt:{" "}
-                  {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}.
-                </p>
-              )}
+              <p>
+                {trailingYearData?.totalContributions
+                  ? "Contribution calendar data is unavailable."
+                  : "No contribution activity found for the trailing year."}
+              </p>
             </div>
           ) : (
-            <div className="mt-4 mb-2 p-2 w-full" ref={containerRef}>
-              {/* Mobile-optimized wrapper with better touch scrolling */}
-              <div className={`${isMobile ? "overflow-x-auto -mx-2 px-2" : ""} w-full`}>
-                <div className={isMobile ? "min-w-fit" : ""}>
-                  <ActivityCalendarComponent
-                    data={activityData}
-                    theme={calendarCustomTheme}
-                    colorScheme={resolvedTheme === "dark" ? "dark" : "light"}
-                    blockSize={blockSize}
-                    blockMargin={BLOCK_MARGIN_PX}
-                    blockRadius={isMobile ? 2 : 0}
-                    fontSize={isMobile ? 11 : 14}
-                    hideTotalCount
-                    showWeekdayLabels={!isMobile}
-                  />
-                </div>
-              </div>
-              {isMobile && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
-                  ← Swipe to view full year →
-                </p>
+            <div
+              ref={containerRef}
+              className={`mt-4 mb-2 p-2 w-full ${isMobile ? "overflow-x-auto -mx-2 px-2" : ""}`}
+            >
+              <ActivityCalendarComponent
+                data={activityData}
+                theme={calendarCustomTheme}
+                colorScheme={resolvedTheme === "dark" ? "dark" : "light"}
+                blockSize={isMobile ? 10 : 12}
+                blockMargin={2}
+                blockRadius={isMobile ? 2 : 0}
+                fontSize={isMobile ? 11 : 14}
+                hideTotalCount
+                showWeekdayLabels={!isMobile}
+              />
+            </div>
+          )}
+
+          {trailingYearData && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1 sm:space-y-0">
+              <span>
+                Total contributions (trailing year):{" "}
+                <span className="font-medium">
+                  {trailingYearData.totalContributions.toLocaleString()}
+                </span>
+                .{" "}
+              </span>
+              {trailingYearData.linesAdded !== undefined &&
+                trailingYearData.linesRemoved !== undefined && (
+                  <span>
+                    LOC Change:{" "}
+                    <span className="text-green-600 dark:text-green-400 font-medium">
+                      +{trailingYearData.linesAdded.toLocaleString()}
+                    </span>{" "}
+                    /{" "}
+                    <span className="text-red-600 dark:text-red-400 font-medium">
+                      -{trailingYearData.linesRemoved.toLocaleString()}
+                    </span>
+                    .{" "}
+                  </span>
+                )}
+              {lastRefreshed && (
+                <span title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}>
+                  Last updated: {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}.
+                </span>
               )}
             </div>
           )}
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1 sm:space-y-0">
-            {totalContributions !== null && (
-              <span className="block sm:inline">
-                Total contributions (trailing year):{" "}
-                <span className="font-medium">{totalContributions.toLocaleString()}</span>
-                <span className="hidden sm:inline">. </span>
-              </span>
-            )}
-            {trailingYearLinesAdded !== null && trailingYearLinesRemoved !== null && (
-              <span className="block sm:inline">
-                <span className="hidden sm:inline">LOC Change (trailing year): </span>
-                <span className="inline sm:hidden">LOC: </span>
-                <span className="text-green-600 dark:text-green-400 font-medium">
-                  +{trailingYearLinesAdded.toLocaleString()}
-                </span>{" "}
-                /{" "}
-                <span className="text-red-600 dark:text-red-400 font-medium">
-                  -{trailingYearLinesRemoved.toLocaleString()}
-                </span>
-                <span className="hidden sm:inline">. </span>
-              </span>
-            )}
-            {lastRefreshed && (
-              <span
-                className="block sm:inline"
-                title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}
-              >
-                <span className="hidden sm:inline">Last updated: </span>
-                <span className="inline sm:hidden">Updated: </span>
-                {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}
-                <span className="hidden sm:inline">.</span>
-              </span>
-            )}
-          </div>
-          {lifetimeContributionTotal > 0 && (
+
+          {lifetimeContributionTotal !== undefined && lifetimeContributionTotal > 0 && (
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
               Lifetime contributions:{" "}
               <span className="font-semibold">{lifetimeContributionTotal.toLocaleString()}</span>
-              {priorYearCommits && totalContributions !== null && (
-                <span className="ml-1 text-gray-500 dark:text-gray-400">
+              {priorYearCommits && trailingYearData && (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {" "}
                   (Prior years: {priorYearCommits.totalCommits.toLocaleString()} + Trailing year:{" "}
-                  {totalContributions.toLocaleString()})
+                  {trailingYearData.totalContributions.toLocaleString()})
                 </span>
               )}
             </div>
           )}
-          {allTimeLinesAdded !== null &&
-            allTimeLinesRemoved !== null &&
-            allTimeTotalContributions !== null && (
-              <div className="mt-6">
-                <CumulativeGitHubStatsCards
-                  stats={{
-                    totalContributions: allTimeTotalContributions,
-                    linesAdded: allTimeLinesAdded,
-                    linesRemoved: allTimeLinesRemoved,
-                    netLinesOfCode: allTimeLinesAdded - allTimeLinesRemoved,
-                  }}
-                />
-              </div>
-            )}
+
+          {allTimeStats && (
+            <div className="mt-6">
+              <CumulativeGitHubStatsCards
+                stats={{
+                  totalContributions: allTimeStats.totalContributions,
+                  linesAdded: allTimeStats.linesAdded,
+                  linesRemoved: allTimeStats.linesRemoved,
+                  netLinesOfCode: allTimeStats.linesAdded - allTimeStats.linesRemoved,
+                }}
+              />
+            </div>
+          )}
         </>
       )}
     </div>

@@ -38,15 +38,15 @@ The system uses a durable-source plus tagged-cache hierarchy:
 ```text
 GitHub APIs -> Refresh jobs / authorized POST -> PostgreSQL github_activity_store -> Next.js Cache Components -> UI
                                                                                    |
-                                                                     API routes (noStore, read DB fresh)
+                                                    API routes (request-time execution + no-store response headers)
 ```
 
-| Layer                                | Purpose                                                                                     |
-| ------------------------------------ | ------------------------------------------------------------------------------------------- |
-| PostgreSQL (`github_activity_store`) | Source of truth for GitHub activity/summary/aggregated documents                            |
-| S3 CSV artifacts                     | Optional archival/diagnostic artifacts (`repo_raw_weekly_stats/*.csv`)                      |
-| Next.js Cache Components             | `cacheTag("github-activity")` with ~30 min lifetime for pages/cards                         |
-| API (`GET /api/github-activity`)     | Calls `unstable_noStore()`, reads PostgreSQL-backed activity documents, returns immediately |
+| Layer                                | Purpose                                                                                  |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| PostgreSQL (`github_activity_store`) | Source of truth for GitHub activity/summary/aggregated documents                         |
+| S3 CSV artifacts                     | Optional archival/diagnostic artifacts (`repo_raw_weekly_stats/*.csv`)                   |
+| Next.js Cache Components             | `cacheTag("github-activity")` with ~30 min lifetime for pages/cards                      |
+| API (`GET /api/github-activity`)     | Uses `connection()` plus no-store headers and reads PostgreSQL-backed activity documents |
 
 ## API & Data Source Strategy
 
@@ -67,6 +67,8 @@ Canonical runtime records live in PostgreSQL table `github_activity_store`:
 
 S3 can still hold raw CSV artifacts under the GitHub prefix (`repo_raw_weekly_stats/*.csv`) for operational diagnostics, but canonical runtime reads are PostgreSQL-only.
 
+A confirmed empty current repository set is intentionally persisted as complete zero activity and an empty weekly aggregate, replacing prior healthy aggregates rather than retaining stale repository data. This requires the canonical explicit replacement intent; nonzero or incomplete payloads are rejected, and summary persistence must succeed before the refresh reports success.
+
 ## Scheduled Data Refresh
 
 A cron job automatically refreshes the data from GitHub's APIs to ensure it remains up-to-date.
@@ -76,8 +78,8 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 
 ## API Endpoints
 
-- `GET /api/github-activity`: Retrieves the currently cached GitHub activity data.
-- `POST /api/github-activity/refresh`: Runs a protected refresh only in the production write environment. Read-only deployments return an explicit successful no-write result so the UI can offer the production relay.
+- `GET /api/github-activity`: Retrieves the currently cached GitHub activity data. Prior-year repository identifiers and per-repository metrics remain private; the public response contains aggregate totals only.
+- `POST /api/github-activity/refresh`: Runs a protected refresh only in the production write environment. Read-only deployments return an explicit successful no-write result, which the UI reports without claiming a refresh started or offering another refresh action.
 - `POST /api/github-activity/refresh-production`: Requires a Clerk user in a non-production environment and relays the production refresh with `GITHUB_REFRESH_SECRET` in the `x-refresh-secret` header.
 
 ## Key Files & Responsibilities
@@ -101,14 +103,14 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 - **`src/lib/data-access/github-csv-repair.ts`**
   - CSV integrity checks and repair workflow
 - **`src/lib/data-access/github-activity-summaries.ts`**
-  - Writes trailing-year and all-time summary JSON payloads
+  - Writes the single all-time summary-card payload to `summary/global`
 - **`src/lib/data-access/github-processing.ts`**
   - Shared processing helpers (category stats, CSV repair utilities)
 
 ### API Endpoints
 
 - **`src/app/api/github-activity/route.ts`**
-  - Read-only endpoint for cached data (calls `unstable_noStore()` and reads PostgreSQL-backed payloads)
+  - Read-only request-time endpoint with explicit no-store response headers
   - Never triggers refresh
 - **`src/app/api/github-activity/refresh/route.ts`**
   - Production-only protected refresh endpoint with an explicit read-only response elsewhere
