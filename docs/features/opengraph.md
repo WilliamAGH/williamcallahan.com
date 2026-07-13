@@ -11,10 +11,11 @@ To provide resilient OpenGraph metadata extraction and image processing for any 
 The OpenGraph system operates with a multi-layered approach:
 
 ```
-Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store -> Return
-           |              |              |
-         Next.js        Persistent    HTML Fetch
-         (Fast)         (Durable)     (Slow)
+Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store* -> Return
+           |              |              |                        |
+         Next.js        Persistent    HTML Fetch           *Best-effort:
+         (Fast)         (Durable)     (Slow)             data returned even
+                                                     if persistence fails
 ```
 
 ## Key Components
