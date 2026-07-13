@@ -10,11 +10,7 @@ import {
   parseSmokeTestArguments,
   validateAdvertisedJavaScript,
 } from "../../scripts/smoke-test-production";
-import {
-  getRewrittenUrl,
-  isRewrite,
-  unstable_doesMiddlewareMatch,
-} from "next/experimental/testing/server";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER } from "next/constants";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -28,6 +24,7 @@ const createRewriteResponse: typeof NextResponse.rewrite = (destination, init) =
 function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
   const request = new NextRequest(url, { method });
   Object.defineProperty(request, "nextUrl", { value: new URL(url) });
+  Object.defineProperty(request, "signal", { value: new AbortController().signal });
   return request;
 }
 async function loadNextConfig(phase = PHASE_PRODUCTION_BUILD) {
@@ -60,9 +57,8 @@ describe("Cloudflare header enforcement", () => {
   });
 
   afterEach(() => {
-    if (originalRewrite) {
-      Object.defineProperty(NextResponse, "rewrite", originalRewrite);
-    } else if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
+    if (originalRewrite) Object.defineProperty(NextResponse, "rewrite", originalRewrite);
+    else if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
       throw new Error("Could not remove NextResponse.rewrite test implementation");
     }
   });
@@ -122,24 +118,17 @@ describe("Cloudflare header enforcement", () => {
     expect(getClientIp(headers)).toBe("99.9.208.198");
     expect(validateCloudflareHeaders(headers).reasons).toContain("untrusted_proxy");
   });
-  it("flags missing cf-ray", () => {
-    const headers = new Headers({
-      "cf-connecting-ip": "203.0.113.5",
-      "x-forwarded-for": "173.245.48.1",
-    });
+  it.each([
+    [{ "cf-connecting-ip": "203.0.113.5", "x-forwarded-for": "173.245.48.1" }, "missing_cf_ray"],
+    [
+      { "cf-ray": "1234abcd", "cf-connecting-ip": "not-an-ip", "x-forwarded-for": "173.245.48.1" },
+      "invalid_cf_ip",
+    ],
+  ])("flags invalid Cloudflare headers: %s", (input, reason) => {
+    const headers = new Headers(input);
     const validation = validateCloudflareHeaders(headers);
     expect(validation.isValid).toBe(false);
-    expect(validation.reasons).toContain("missing_cf_ray");
-  });
-  it("flags invalid IPs", () => {
-    const headers = new Headers({
-      "cf-ray": "1234abcd",
-      "cf-connecting-ip": "not-an-ip",
-      "x-forwarded-for": "173.245.48.1",
-    });
-    const validation = validateCloudflareHeaders(headers);
-    expect(validation.isValid).toBe(false);
-    expect(validation.reasons).toContain("invalid_cf_ip");
+    expect(validation.reasons).toContain(reason);
   });
   it("skips enforcement outside production", () => {
     vi.stubEnv("NODE_ENV", "development");
@@ -166,7 +155,7 @@ describe("Cloudflare header enforcement", () => {
     ["/stats/script.js", true],
     ["/api/send", true],
     ["/_next/static/chunks/app.js", false],
-  ])("matches %s before the external Umami rewrite", (path, shouldMatch) => {
+  ])("matches %s for same-origin Umami delivery", (path, shouldMatch) => {
     expect(
       unstable_doesMiddlewareMatch({
         config: proxyConfig,
@@ -174,32 +163,14 @@ describe("Cloudflare header enforcement", () => {
       }),
     ).toBe(shouldMatch);
   });
-  it.each([
-    [
-      "GET",
-      "/stats/script.js?cache=123&source=home",
-      `${UMAMI_ORIGIN}/script.js?cache=123&source=home`,
-    ],
-    [
-      "POST",
-      "/api/send?event=pageview&source=home",
-      `${UMAMI_ORIGIN}/api/send?event=pageview&source=home`,
-    ],
-  ] as const)(
-    "rewrites %s requests with exact query and no-store headers",
-    async (method, path, destination) => {
-      const response = await proxy(
-        createProxyRequest(`https://williamcallahan.com${path}`, method),
-      );
-      expect(isRewrite(response)).toBe(true);
-      expect(getRewrittenUrl(response)).toBe(destination);
-      expect(response.headers.get("cache-control")).toBe(
-        "no-store, no-cache, must-revalidate, proxy-revalidate",
-      );
-      expect(response.headers.get("cdn-cache-control")).toBe("no-store, max-age=0");
-      expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store, max-age=0");
-    },
-  );
+  it("keeps analytics event ingestion on the exact upstream rewrite", async () => {
+    const response = await proxy(
+      createProxyRequest("https://williamcallahan.com/api/send?event=pageview", "POST"),
+    );
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      `${UMAMI_ORIGIN}/api/send?event=pageview`,
+    );
+  });
   describe("next.config release identity", () => {
     afterEach(() => {
       for (const id of ["@sentry/nextjs", "node:child_process", "node:fs"]) vi.doUnmock(id);

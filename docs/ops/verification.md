@@ -56,6 +56,10 @@ but each must contain `no-store` when emitted. Independently, neither response m
 edge storage of failed static chunks; it does not mutate their origin response headers. The
 missing chunk must be `404`; the analytics tracker must be `200`.
 
+`src/proxy.ts` returns `/stats/**` directly after fetching the fixed Umami origin. Do not replace
+that response with an external Next.js rewrite: Next 16 applies proxy headers before forwarding,
+then the upstream response can overwrite the browser `Cache-Control` field.
+
 ```bash
 set -euo pipefail
 
