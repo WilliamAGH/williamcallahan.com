@@ -289,7 +289,6 @@ describe("GitHub activity atomic persistence", () => {
     const { writeGitHubActivityRefreshToDb } = await import("@/lib/db/mutations/github-activity");
     return { events, getRecords: () => records, writeGitHubActivityRefreshToDb };
   };
-
   it("locks, reads, and writes every projection with one timestamp", async () => {
     const { events, getRecords, writeGitHubActivityRefreshToDb } =
       await loadWriter(healthyActivity);
@@ -307,7 +306,6 @@ describe("GitHub activity atomic persistence", () => {
     expect(dataTypes).toEqual(["activity", "aggregated-weekly", "summary"]);
     expect(new Set(records.map(({ updatedAt }) => updatedAt))).toHaveLength(1);
   });
-
   it("refuses degrading and invalid empty-set publications before insertion", async () => {
     const incomplete = {
       ...healthyActivity,
@@ -334,7 +332,6 @@ describe("GitHub activity atomic persistence", () => {
     ).rejects.toThrow("complete, zero-contribution activity data");
     expect(invalid.events).toEqual(["lock", "read"]);
   });
-
   it("leaves projections untouched when the atomic insert fails", async () => {
     const writer = await loadWriter(healthyActivity, true);
     await expect(
