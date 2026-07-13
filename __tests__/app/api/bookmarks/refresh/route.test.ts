@@ -3,7 +3,7 @@ import { POST as refreshGitHubActivityProduction } from "@/app/api/github-activi
 import { POST as refreshGitHubActivity } from "@/app/api/github-activity/refresh/route";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
-import { getErrorMessage } from "@/types/api-responses";
+import { getErrorMessage } from "@/lib/utils/error-utils";
 import { apiErrorResponseSchema } from "@/types/schemas/api";
 import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

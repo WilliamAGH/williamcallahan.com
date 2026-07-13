@@ -8,7 +8,7 @@ import { UNIFIED_IMAGE_SERVICE_CONFIG, LOGO_BLOCKLIST_STORE_KEY } from "@/lib/co
 import { FailureTracker } from "@/lib/utils/failure-tracker";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "@/lib/rate-limiter";
 import logger from "@/lib/utils/logger";
-import { getErrorMessage } from "@/types/error";
+import { getErrorMessage } from "@/lib/utils/error-utils";
 import { z } from "zod/v4";
 
 import type { LogoFetchResult } from "@/types/cache";

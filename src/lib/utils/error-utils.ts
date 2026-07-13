@@ -7,11 +7,11 @@
 import {
   ErrorCategory,
   ErrorSeverity,
-  type ExtendedError,
   type ErrorWithCode,
   type ErrorWithStatusCode,
   type CategorizedError,
 } from "@/types/error";
+import { apiErrorResponseSchema } from "@/types/schemas/api";
 
 // =============================================================================
 // CUSTOM ERROR CLASSES
@@ -83,6 +83,17 @@ export class BlogPostDataError extends AppError {
 // =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
+
+export function getErrorMessage(error: unknown, fallback = "An unknown error occurred"): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+
+  const result = apiErrorResponseSchema.safeParse(error);
+  if (!result.success) return fallback;
+  if (result.data.message !== undefined) return result.data.message;
+  if (result.data.error !== undefined) return result.data.error;
+  return fallback;
+}
 
 /**
  * Safely converts an unknown value to a string, avoiding "[object Object]".
@@ -197,18 +208,10 @@ export function isErrorWithStatusCode(error: unknown): error is ErrorWithStatusC
 /**
  * Safely gets a property from an error object if it exists.
  */
-export function getProperty(error: ExtendedError, property: string): number | undefined {
-  // ExtendedError extends Error which is an object; use indexed access via unknown intermediate
-  const record: unknown = error;
-  if (
-    typeof record === "object" &&
-    record !== null &&
-    property in record &&
-    typeof (record as { [k: string]: unknown })[property] === "number"
-  ) {
-    return (record as { [k: string]: unknown })[property] as number;
-  }
-  return undefined;
+export function getProperty(error: unknown, property: string): number | undefined {
+  if (typeof error !== "object" || error === null || !(property in error)) return undefined;
+  const value = Reflect.get(error, property);
+  return typeof value === "number" ? value : undefined;
 }
 
 // =============================================================================

@@ -7,6 +7,17 @@ export const apiErrorResponseSchema = z.object({
 
 export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
 
+export const clientErrorSchema = z.object({
+  message: z.string().optional(),
+  resource: z.string().optional(),
+  type: z.string().optional(),
+  url: z.string().optional(),
+  stack: z.string().optional(),
+  buildId: z.string().optional(),
+});
+
+export type ClientErrorReport = z.infer<typeof clientErrorSchema>;
+
 export const googleIndexingNotificationTypeSchema = z.enum(["URL_UPDATED", "URL_DELETED"]);
 
 export const googleIndexingUrlNotificationSchema = z.object({
@@ -63,13 +74,15 @@ export type CfVisitor = z.infer<typeof cfVisitorSchema>;
 
 export const standardApiErrorCodeSchema = z.enum(["RATE_LIMITED", "SERVICE_UNAVAILABLE"]);
 
-export const standardApiErrorResponseSchema = apiErrorResponseSchema.extend({
-  code: standardApiErrorCodeSchema,
-  message: z.string().min(1),
-  retryAfterSeconds: z.number().int().positive(),
-  retryAfterAt: z.string().datetime({ offset: true }),
-  status: z.union([z.literal(429), z.literal(503)]),
-});
+export const standardApiErrorResponseSchema = apiErrorResponseSchema
+  .pick({ message: true })
+  .extend({
+    code: standardApiErrorCodeSchema,
+    message: z.string().min(1),
+    retryAfterSeconds: z.number().int().positive(),
+    retryAfterAt: z.string().datetime({ offset: true }),
+    status: z.union([z.literal(429), z.literal(503)]),
+  });
 
 export type StandardApiErrorCode = z.infer<typeof standardApiErrorCodeSchema>;
 export type StandardApiErrorResponse = z.infer<typeof standardApiErrorResponseSchema>;

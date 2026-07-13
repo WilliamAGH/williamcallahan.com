@@ -21,8 +21,6 @@
  * @see types/github.ts for domain-specific GitHub errors
  */
 
-import { z } from "zod/v4";
-
 /**
  * Extended Error interface for application-specific errors
  */
@@ -50,78 +48,6 @@ export interface AWSError extends Error {
 // Deprecated error interfaces removed - use specific error types from their domain modules:
 // - BookmarkError from types/bookmark.ts
 // - GitHubActivityError from types/github.ts
-
-/**
- * Type guard to check if an error has the lastFetched property
- */
-export function hasLastFetched(error: unknown): error is ExtendedError & { lastFetched: number } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "lastFetched" in error &&
-    typeof (error as ExtendedError).lastFetched === "number"
-  );
-}
-
-/**
- * Type guard to check if an error has the lastFetchedTimestamp property
- */
-export function hasLastFetchedTimestamp(
-  error: unknown,
-): error is ExtendedError & { lastFetchedTimestamp: number } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "lastFetchedTimestamp" in error &&
-    typeof (error as ExtendedError).lastFetchedTimestamp === "number"
-  );
-}
-
-/**
- * Utility function to safely extract error message
- */
-export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  return "An unknown error occurred";
-}
-
-/**
- * Utility function to safely extract timestamp from error
- */
-export function getErrorTimestamp(
-  error: unknown,
-  property: "lastFetched" | "lastFetchedTimestamp",
-): number | undefined {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    property in error &&
-    typeof (error as { [k: string]: unknown })[property] === "number"
-  ) {
-    return (error as { [k: string]: number })[property];
-  }
-  return undefined;
-}
-
-/**
- * Payload for client-side errors logged to the server.
- * @usage - API endpoint for /api/log-client-error
- */
-export const ClientErrorSchema = z.looseObject({
-  message: z.string().optional(),
-  resource: z.string().optional(), // e.g., script URL if it's a script error
-  type: z.string().optional(), // e.g., 'ChunkLoadError', 'TypeError'
-  url: z.string().optional(), // The URL where the error occurred
-  stack: z.string().optional(),
-  buildId: z.string().optional(), // Next.js build ID
-});
-
-export type ClientErrorReport = z.infer<typeof ClientErrorSchema>;
 
 export interface ErrorWithCode {
   code: string;
