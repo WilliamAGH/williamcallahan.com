@@ -667,7 +667,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
 - [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
-- [x] `entrypoint.sh` `deployment` - Scheduler container entrypoint (DB gate, sitemap submission, cron scheduler)
+- [x] `entrypoint.sh` `deployment` - Scheduler container entrypoint (DB gate, Node data bootstrap, web-cache revalidation, sitemap submission, cron scheduler)
 - [x] `Dockerfile` `deployment` - Scheduler image (deps + tsx runtime, no Next.js build)
 - [x] `docker-compose.yml` `deployment` - Coolify compose service with 1-CPU / 3G limits
 - [x] `diagnose-scheduler.sh` `batch-fetch-update` - Scheduler diagnostic report script

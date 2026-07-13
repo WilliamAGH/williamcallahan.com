@@ -100,6 +100,80 @@ const bookmarkTagsRetrofitCron = process.env.S3_BOOKMARK_TAGS_RETROFIT_CRON || "
 const booksCron = process.env.S3_BOOKS_CRON || "0 6 * * *"; // daily at 6 AM PT (1x/day)
 const githubCron = process.env.S3_GITHUB_CRON || "0 0 * * *"; // daily at midnight (1x/day)
 const logosCron = process.env.S3_LOGOS_CRON || "0 1 * * 0"; // weekly Sunday at 1 AM (1x/week)
+const REVALIDATE_BOOTSTRAP_CACHES_FLAG = "--revalidate-bootstrap-caches";
+
+const CACHE_REVALIDATION_TARGETS = {
+  Bookmarks: {
+    path: "/api/revalidate/bookmarks",
+    authSecretKey: "BOOKMARK_CRON_REFRESH_SECRET",
+  },
+  Books: {
+    path: "/api/revalidate/books",
+    authSecretKey: "BOOKMARK_CRON_REFRESH_SECRET",
+  },
+  GitHub: {
+    path: "/api/revalidate/github-activity",
+    authSecretKey: "BOOKMARK_CRON_REFRESH_SECRET",
+  },
+} as const satisfies Record<
+  string,
+  { path: string; authSecretKey: "BOOKMARK_CRON_REFRESH_SECRET" }
+>;
+
+async function invalidateWebCache(
+  name: string,
+  target: (typeof CACHE_REVALIDATION_TARGETS)[keyof typeof CACHE_REVALIDATION_TARGETS],
+): Promise<{ success: true } | { success: false; error: Error }> {
+  console.log(`[Scheduler] [${name}] Invalidating cache: ${target.path}`);
+  const secret = process.env[target.authSecretKey];
+  if (!secret) {
+    const error = new Error(`${target.authSecretKey} is not configured`);
+    console.error(`[Scheduler] [${name}] ${error.message}`);
+    return { success: false, error };
+  }
+
+  const revalidateUrl = new URL(target.path, getBaseUrl()).toString();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    const response = await fetch(revalidateUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const error = new Error(`Cache invalidation failed: ${response.status}`);
+      console.error(`[Scheduler] [${name}] ${error.message}`);
+      return { success: false, error };
+    }
+
+    console.log(`[Scheduler] [${name}] ✅ Cache invalidated`);
+    return { success: true };
+  } catch (error) {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    console.error(`[Scheduler] [${name}] Cache invalidation error:`, failure);
+    return { success: false, error: failure };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function revalidateBootstrapCaches(): Promise<void> {
+  const results = await Promise.all(
+    Object.entries(CACHE_REVALIDATION_TARGETS).map(([name, target]) =>
+      invalidateWebCache(name, target),
+    ),
+  );
+
+  if (results.some((result) => !result.success)) {
+    console.error("[Scheduler] Bootstrap cache revalidation failed");
+    process.exit(1);
+  }
+
+  console.log("[Scheduler] Bootstrap caches revalidated");
+  process.exit(0);
+}
 
 /**
  * Schedule a recurring data update job.
@@ -109,8 +183,7 @@ const scheduleCronJob = (
   name: string,
   schedule: string,
   flag: string,
-  revalidatePath?: string,
-  authSecretKey?: string,
+  revalidationTarget?: (typeof CACHE_REVALIDATION_TARGETS)[keyof typeof CACHE_REVALIDATION_TARGETS],
 ) => {
   console.log(`[Scheduler] ${name} schedule: ${schedule}`);
   cron.schedule(schedule, () => {
@@ -160,28 +233,8 @@ const scheduleCronJob = (
           return; // Logos don't need explicit revalidation (handled by manifest reload)
         }
 
-        if (revalidatePath) {
-          console.log(`[Scheduler] [${name}] Invalidating cache: ${revalidatePath}`);
-          const apiUrl = getBaseUrl();
-          const revalidateUrl = new URL(revalidatePath, apiUrl).toString();
-          const secret = authSecretKey ? process.env[authSecretKey] : undefined;
-          const headers = secret ? { Authorization: `Bearer ${secret}` } : undefined;
-
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10_000);
-
-          fetch(revalidateUrl, { method: "POST", headers, signal: controller.signal })
-            .then((res) => {
-              clearTimeout(timeoutId);
-              if (res.ok) console.log(`[Scheduler] [${name}] ✅ Cache invalidated`);
-              else console.error(`[Scheduler] [${name}] Cache invalidation failed: ${res.status}`);
-              return null;
-            })
-            .catch((err) => {
-              clearTimeout(timeoutId);
-              console.error(`[Scheduler] [${name}] Cache invalidation error:`, err);
-              return null;
-            });
+        if (revalidationTarget) {
+          void invalidateWebCache(name, revalidationTarget);
         }
 
         if (name === "Bookmarks") {
@@ -206,47 +259,36 @@ const scheduleCronJob = (
   });
 };
 
+if (process.argv.includes(REVALIDATE_BOOTSTRAP_CACHES_FLAG)) {
+  await revalidateBootstrapCaches();
+}
+
 // Register Jobs
 scheduleCronJob(
   "Bookmarks",
   bookmarksCron,
   DATA_UPDATER_FLAGS.BOOKMARKS,
-  "/api/revalidate/bookmarks",
-  "BOOKMARK_CRON_REFRESH_SECRET",
+  CACHE_REVALIDATION_TARGETS.Bookmarks,
 );
 
 scheduleCronJob(
   "BookmarkTags",
   bookmarkTagsCron,
   DATA_UPDATER_FLAGS.BOOKMARK_TAGS,
-  "/api/revalidate/bookmarks",
-  "BOOKMARK_CRON_REFRESH_SECRET",
+  CACHE_REVALIDATION_TARGETS.Bookmarks,
 );
 
 scheduleCronJob(
   "BookmarkTagsRetrofit",
   bookmarkTagsRetrofitCron,
   DATA_UPDATER_FLAGS.BOOKMARK_TAGS_RETROFIT,
-  "/api/revalidate/bookmarks",
-  "BOOKMARK_CRON_REFRESH_SECRET",
+  CACHE_REVALIDATION_TARGETS.Bookmarks,
 );
 
-scheduleCronJob(
-  "Books",
-  booksCron,
-  DATA_UPDATER_FLAGS.BOOKS,
-  "/api/revalidate/books",
-  "BOOKMARK_CRON_REFRESH_SECRET",
-);
+scheduleCronJob("Books", booksCron, DATA_UPDATER_FLAGS.BOOKS, CACHE_REVALIDATION_TARGETS.Books);
 
 // CRITICAL: Use --github flag (mapped to GITHUB constant), NOT --github-activity
-scheduleCronJob(
-  "GitHub",
-  githubCron,
-  DATA_UPDATER_FLAGS.GITHUB,
-  "/api/revalidate/github-activity",
-  "BOOKMARK_CRON_REFRESH_SECRET",
-);
+scheduleCronJob("GitHub", githubCron, DATA_UPDATER_FLAGS.GITHUB, CACHE_REVALIDATION_TARGETS.GitHub);
 
 scheduleCronJob("Logos", logosCron, DATA_UPDATER_FLAGS.LOGOS);
 

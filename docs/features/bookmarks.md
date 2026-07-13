@@ -333,7 +333,7 @@ These operations only need metadata and can safely use `includeImageData: false`
 
 ## Deployment & Automatic Data Population
 
-Background population belongs to the scheduler container. The web entrypoint only gates database readiness and starts the Next.js server; `scheduler/entrypoint.sh` runs the initial populator and then starts cron scheduling.
+Background population belongs to the scheduler container. The web entrypoint only gates database readiness and starts the Next.js server; `scheduler/entrypoint.sh` runs the canonical `node --run update-data` bootstrap, revalidates affected web caches, and starts cron scheduling only after both succeed.
 
 ### Manual Ops
 

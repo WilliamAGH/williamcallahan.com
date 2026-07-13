@@ -11,7 +11,6 @@
  */
 
 import { execSync, spawnSync } from "node:child_process";
-import * as path from "node:path";
 
 /**
  * Smoke test suite for data-updater.ts script interface validation
@@ -20,29 +19,30 @@ import * as path from "node:path";
  * and maintain test isolation while validating expected CLI behaviors
  */
 describe("Update S3 Script Smoke Tests", () => {
-  /** Resolved path to target data updater script for reference validation */
-  const scriptPath = path.join(__dirname, "../../scheduler/data-updater.ts");
-  const bunPath = process.env.BUN_PATH || "bun";
+  const updateDataCommand = "node --run update-data";
 
   /** Extended timeout accommodation for potential script execution scenarios */
   vi.setConfig({ testTimeout: 30000 });
 
   /**
    * Validates help message format and required command-line options
-   * Ensures all update flags (bookmarks, github-activity, logos, force) are documented in usage text
+   * Ensures all update flags (bookmarks, books, GitHub, logos, search indexes, force) are documented in usage text
    */
   it("should display help message", () => {
     /** Execute script with --help flag and capture output */
-    const stdout = execSync(`${bunPath} ${scriptPath} --help`, {
+    const stdout = execSync(`${updateDataCommand} -- --help`, {
       encoding: "utf8",
       env: { ...process.env, S3_BUCKET: "test-bucket" },
     });
 
     expect(stdout).toContain("Usage: data-fetch-manager [options]");
     expect(stdout).toContain("--bookmarks");
+    expect(stdout).toContain("--books");
     expect(stdout).toContain("--github");
     expect(stdout).toContain("--logos");
+    expect(stdout).toContain("--search-indexes");
     expect(stdout).toContain("--force");
+    expect(stdout).toContain("If no options are specified, all operations will run");
   });
 
   /**
@@ -51,7 +51,7 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should run with DRY_RUN environment variable", () => {
     /** Execute script in dry-run mode and capture output */
-    const stdout = execSync(`${bunPath} ${scriptPath}`, {
+    const stdout = execSync(updateDataCommand, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket" },
     });
@@ -76,7 +76,7 @@ describe("Update S3 Script Smoke Tests", () => {
 
     try {
       // Use test limit and dry run to ensure quick execution
-      stdout = execSync(`${bunPath} ${scriptPath}`, {
+      stdout = execSync(updateDataCommand, {
         encoding: "utf8",
         env: { ...cleanEnv, DRY_RUN: "true", S3_TEST_LIMIT: "1" },
         timeout: 5000, // 5 second timeout
@@ -95,7 +95,7 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should accept individual update flags", () => {
     /** Execute script with specific flags in dry-run mode */
-    const stdout = execSync(`${bunPath} ${scriptPath} --bookmarks --logos`, {
+    const stdout = execSync(`${updateDataCommand} -- --bookmarks --logos`, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket" },
     });
@@ -112,7 +112,7 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should handle test limit environment variable", () => {
     /** Execute script with test limit set */
-    const stdout = execSync(`${bunPath} ${scriptPath}`, {
+    const stdout = execSync(updateDataCommand, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket", S3_TEST_LIMIT: "5" },
     });
@@ -128,7 +128,7 @@ describe("Update S3 Script Smoke Tests", () => {
     /** Execute script with immediate exit to test module loading */
     let exitCode = 0;
     try {
-      execSync(`${bunPath} ${scriptPath} --help`, {
+      execSync(`${updateDataCommand} -- --help`, {
         encoding: "utf8",
         env: { ...process.env, S3_BUCKET: "test-bucket" },
       });
@@ -172,7 +172,58 @@ describe("Scheduler and data-updater flag consistency", () => {
 
     expect(schedulerContent).toContain("setInterval(writeHeartbeat, 30_000)");
     expect(dockerfile).toContain("SCHEDULER_HEARTBEAT_FILE=/tmp/scheduler-heartbeat");
+    expect(dockerfile).toContain("--start-period=15m");
     expect(dockerfile).toContain("age>120000");
+  });
+
+  it("fails closed when bootstrap cache revalidation cannot reach the web app", () => {
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      API_BASE_URL: "http://127.0.0.1:54321",
+      BOOKMARK_CRON_REFRESH_SECRET: "test-secret",
+    };
+
+    const result = spawnSync(
+      "node",
+      ["--run", "scheduler", "--", "--revalidate-bootstrap-caches"],
+      { cwd: process.cwd(), encoding: "utf8", env },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Cache invalidation error");
+    expect(result.stderr).toContain("Bootstrap cache revalidation failed");
+    expect(result.stdout).not.toContain("Setup complete");
+  });
+
+  it("bootstraps data through Node before starting cron and fails closed", async () => {
+    const fs = await import("node:fs/promises");
+    const entrypoint = await fs.readFile("scheduler/entrypoint.sh", "utf8");
+    const syntaxCheck = spawnSync("bash", ["-n", "scheduler/entrypoint.sh"], {
+      encoding: "utf8",
+    });
+    const bootstrapIndex = entrypoint.indexOf("node --run update-data");
+    const revalidationIndex = entrypoint.indexOf(
+      "node --run scheduler -- --revalidate-bootstrap-caches",
+    );
+    const schedulerStartIndex = entrypoint.indexOf('echo "🕒 [Entrypoint] Starting scheduler..."');
+    const sitemapStartIndex = entrypoint.indexOf('echo "🗺️  [Entrypoint] Submitting sitemap..."');
+
+    expect(syntaxCheck.status).toBe(0);
+    expect(entrypoint).toMatch(/if node --run update-data; then/);
+    expect(bootstrapIndex).toBeGreaterThan(-1);
+    expect(revalidationIndex).toBeGreaterThan(-1);
+    expect(sitemapStartIndex).toBeGreaterThan(-1);
+    expect(schedulerStartIndex).toBeGreaterThan(-1);
+    expect(bootstrapIndex).toBeLessThan(sitemapStartIndex);
+    expect(bootstrapIndex).toBeLessThan(schedulerStartIndex);
+    expect(revalidationIndex).toBeGreaterThan(bootstrapIndex);
+    expect(revalidationIndex).toBeLessThan(sitemapStartIndex);
+    expect(revalidationIndex).toBeLessThan(schedulerStartIndex);
+    expect(entrypoint).toContain("Initial data bootstrap completed");
+    expect(entrypoint).toMatch(
+      /Initial data bootstrap failed; scheduler will not start" >&2\n {4}exit 1/,
+    );
+    expect(entrypoint).not.toContain("background-data-populator");
   });
 
   /**

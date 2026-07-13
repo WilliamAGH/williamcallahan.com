@@ -12,11 +12,19 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 
 ## Architecture Decisions
 
-1. **Async Scheduler**: Uses async `spawn` (not `spawnSync`) with job tracking so jobs run independently without blocking.
+1. **Startup Bootstrap**: After the database readiness gate, `scheduler/entrypoint.sh` runs
+   `node --run update-data` with no operation flags. That invokes the canonical default
+   data-updater operation set, including books and search indexes. After success, the
+   scheduler invalidates the bookmark, books, and GitHub web caches through their existing
+   authenticated endpoints. Any bootstrap or cache-revalidation failure stops the container
+   before cron starts.
 
-2. **Scheduled Asset Refresh**: The scheduler refreshes logos through `scheduler/data-updater.ts`; `bun run prefetch` performs a one-shot refresh of bookmarks, GitHub activity, and logos.
+2. **Async Scheduler**: Uses async `spawn` (not `spawnSync`) with job tracking so recurring
+   jobs run independently without blocking.
 
-3. **Centralized Data Fetching**: `src/lib/server/data-fetch-manager.ts` is the single orchestrator. Its CLI entry point is `scheduler/data-updater.ts`.
+3. **Scheduled Asset Refresh**: The scheduler refreshes logos through `scheduler/data-updater.ts`; `bun run prefetch` performs a one-shot refresh of bookmarks, GitHub activity, and logos.
+
+4. **Centralized Data Fetching**: `src/lib/server/data-fetch-manager.ts` is the single orchestrator. Its CLI entry point is `scheduler/data-updater.ts`.
 
 ## Refresh Frequencies
 
@@ -66,6 +74,8 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 ### Data Fetch Manager Architecture
 
 `scheduler/data-updater.ts` parses CLI flags, invokes `DataFetchManager`, and exits nonzero when a requested operation fails.
+Its no-flag default is the scheduler bootstrap contract; the operation inventory remains owned by
+the data updater rather than the entrypoint.
 
 ### Usage Examples
 
@@ -103,6 +113,10 @@ bun run update-data -- --force --bookmarks
 ### Manual and Scheduled Refreshes
 
 `bun run prefetch` runs a one-shot refresh for bookmarks, GitHub activity, and logos. During a Next.js production build, `scheduler/data-updater.ts` refuses writes unless explicitly passed `--allow-build-writes`; recurring updates belong to the scheduler or an explicit manual command.
+
+At scheduler-container startup, the entrypoint runs the no-flag data updater through Node.js before
+sitemap submission and cron registration. It logs a successful bootstrap or exits nonzero with an
+error; it does not launch a polling background process.
 
 **Background Updates (via scheduler):**
 
@@ -179,6 +193,8 @@ The schedules are deliberately staggered to prevent resource contention:
 ### Scheduler Logs
 
 ```bash
+[Entrypoint] Running initial data bootstrap...
+[Entrypoint] Initial data bootstrap completed
 [Scheduler] Starting at <timestamp> with Node <version> in <working-directory>
 [Scheduler] Bookmarks schedule: 0 */2 * * *
 [Scheduler] BookmarkTags schedule: 30 */4 * * *
@@ -260,7 +276,10 @@ NODE_ENV=development bun run scheduler
 
 ### Health Checks
 
-The scheduler process must remain running for automated updates. The scheduler image writes an event-loop heartbeat every 30 seconds; its Docker health check fails when that heartbeat is more than two minutes old. Monitor via:
+The scheduler process must remain running for automated updates. Docker allows a 15-minute
+startup grace for the database gate, bootstrap, cache revalidation, and sitemap submission.
+After cron starts, the scheduler writes an event-loop heartbeat every 30 seconds; its health
+check fails when that heartbeat is more than two minutes old. Monitor via:
 
 - Container health and stdout/stderr
 - Log output for successful cron triggers

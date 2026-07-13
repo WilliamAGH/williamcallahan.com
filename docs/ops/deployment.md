@@ -2,10 +2,10 @@
 
 Production runs as **two containers built from this repository**:
 
-| Container | Dockerfile             | Entrypoint                | Runs                                                                 |
-| --------- | ---------------------- | ------------------------- | -------------------------------------------------------------------- |
-| Web       | `Dockerfile`           | `scripts/entrypoint.sh`   | Next.js server only                                                  |
-| Scheduler | `scheduler/Dockerfile` | `scheduler/entrypoint.sh` | Cron jobs (`scheduler/scheduler.ts`) and one-time sitemap submission |
+| Container | Dockerfile             | Entrypoint                | Runs                                                                                                              |
+| --------- | ---------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Web       | `Dockerfile`           | `scripts/entrypoint.sh`   | Next.js server only                                                                                               |
+| Scheduler | `scheduler/Dockerfile` | `scheduler/entrypoint.sh` | Initial Node data bootstrap, web-cache revalidation, sitemap submission, and cron jobs (`scheduler/scheduler.ts`) |
 
 Both entrypoints share the DATABASE_URL rewrite + readiness gate via `scripts/entrypoint-db-gate.sh`.
 
@@ -41,7 +41,15 @@ the deployment helper.
 
 The scheduler image does **not** run `next build` — it installs dependencies and runs
 TypeScript directly via tsx, so its builds take minutes, not tens of minutes. No ports
-are exposed; health requires the scheduler heartbeat to be no more than two minutes old.
+are exposed. Docker allows 15 minutes for startup work; afterward, health requires the
+scheduler heartbeat to be no more than two minutes old.
+
+Scheduler startup waits for the database gate, then runs `node --run update-data` with no
+operation flags. The data updater owns that default operation set, including books and search
+indexes. The scheduler next reuses its canonical authenticated endpoint inventory to invalidate
+bookmark, books, and GitHub web caches before sitemap submission and cron. A bootstrap or cache
+revalidation failure logs an error and exits instead of serving stale data; the compose service's
+`unless-stopped` restart policy retries it.
 
 Local build + one-shot data prefetch:
 
