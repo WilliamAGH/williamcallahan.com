@@ -41,6 +41,11 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ## Critical Implementation Details
 
+### Route-Hook Suspense Isolation
+
+- `TerminalProvider` and `TerminalLoader` render beneath a local `Suspense` boundary
+- The boundary contains their route-hook client rendering so it cannot replace the shared app shell during hydration
+
 ### Hydration Warning Suppression
 
 - Script in `<head>` intercepts console.error to suppress Dark Reader conflicts
@@ -53,7 +58,7 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ### Responsive Header
 
-- Mobile: Shows X icon only
+- Below `lg`: Condensed X/GitHub header; the mobile drawer adds LinkedIn and Discord
 - Desktop: Full social icon set in bordered container
 - Max widths: 95% -> 1400px (xl) -> 1800px (2xl)
 
@@ -84,7 +89,7 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 - Resource hints: preconnect to fonts.googleapis.com, dns-prefetch for external domains
 - Font loading: Inter with `display: swap` prevents FOIT
-- Lazy loading: Suspense boundaries for non-critical components
+- Lazy loading: Suspense boundaries isolate non-critical and route-hook client components
 - Layout shift prevention via fixed header heights
 
 ## Security
