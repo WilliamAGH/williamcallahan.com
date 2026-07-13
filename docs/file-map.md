@@ -249,7 +249,7 @@ File/Path Functionality Description
   - [x] `index.ts` `blog` - Removed; import blog library modules directly
   - [x] `mdx.ts` `blog` - MDX processing utilities
   - [x] `server-search.ts` `blog` - Server-side blog search
-  - [x] `validation.ts` `blog` - Projects `blogSlugSchema` into the route/cache lookup guard
+  - [x] `validation.ts` `blog` - Parses canonical frontmatter and owns the cached slug-to-MDX-file index plus route/cache lookup guard
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings

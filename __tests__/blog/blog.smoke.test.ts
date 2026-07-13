@@ -80,6 +80,8 @@ describe("Blog MDX Smoke Tests", () => {
         slug: " invalid-slug ",
         title: "Invalid slug",
         author: "william-callahan",
+        publishedAt: "2026-01-01",
+        excerpt: "Invalid slug fixture.",
       }).success,
     ).toBe(false);
   });
@@ -124,12 +126,6 @@ describe("Blog MDX Smoke Tests", () => {
           expect(post.content).toBeDefined();
           // Verify other critical properties as needed
           expect(post.slug).toBe(frontmatterSlug);
-
-          // Guardrail: ensure we did not hit the MDX fallback renderer
-          // Fallback string is produced when MDX compilation fails in lib/blog/mdx.ts
-          const FALLBACK_MDX_MARKER = "Unable to render content due to MDX errors.";
-          const compiled = JSON.stringify(post.content);
-          expect(compiled).not.toContain(FALLBACK_MDX_MARKER);
         }
       }),
     );

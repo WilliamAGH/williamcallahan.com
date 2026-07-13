@@ -6,19 +6,19 @@ export const blogSlugSchema = z
   .refine((slug) => !slug.includes("--"), { message: "Slug cannot contain consecutive hyphens" });
 
 const blogDateSchema = z.union([z.iso.date(), z.date()]);
-const optionalTrimmedTextSchema = z.string().trim().min(1);
+const trimmedTextSchema = z.string().trim().min(1);
 
 export const blogFrontmatterSchema = z
   .object({
     slug: blogSlugSchema,
     title: z.string().trim().min(1),
     author: z.string().trim().min(1),
-    publishedAt: blogDateSchema.optional(),
+    publishedAt: blogDateSchema,
     updatedAt: blogDateSchema.optional(),
-    excerpt: optionalTrimmedTextSchema.optional(),
+    excerpt: trimmedTextSchema,
     tags: z.array(z.string()).default([]),
     readingTime: z.number().optional(),
-    coverImage: optionalTrimmedTextSchema.optional(),
+    coverImage: trimmedTextSchema.optional(),
     draft: z.boolean().optional(),
   })
   .strict();
@@ -26,7 +26,7 @@ export const blogFrontmatterSchema = z
 export type BlogFrontmatter = z.infer<typeof blogFrontmatterSchema>;
 
 export const blogPostInputSchema = z.object({
-  frontmatter: blogFrontmatterSchema.required({ publishedAt: true }),
+  frontmatter: blogFrontmatterSchema,
   rawContent: z.string(),
 });
 

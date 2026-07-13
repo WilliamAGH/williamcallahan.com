@@ -54,13 +54,13 @@ The "blog-article" functionality encompasses components and utilities that manag
 ### Libraries
 
 - **lib/blog.ts**: Main blog data management
-  - Combines posts from multiple sources
+  - Retrieves posts from the canonical MDX source
   - Proper error handling and logging
 - **lib/blog/mdx.ts**: MDX processing utilities
-  - Excellent caching strategy with file modification checks
-  - Robust error handling with fallbacks
+  - Compiles validated MDX and integrates with tagged Next.js caches
+  - Supports lightweight metadata reads that skip compilation and blur generation
 - **types/schemas/blog-frontmatter.ts**: Canonical Zod owner for MDX frontmatter, slug syntax, and the PostgreSQL mutation input.
-- **lib/blog/validation.ts**: Projects the canonical slug schema into the route/cache lookup guard (`isValidBlogSlug`).
+- **lib/blog/validation.ts**: Parses frontmatter through the canonical schema and owns the cached canonical-slug file index plus route/cache lookup guard.
 - **lib/utils/tag-utils.ts**: A suite of utility functions for formatting, normalizing, and sanitizing tags, including functions to convert tags to URL-friendly slugs (`tagToSlug`) and back (`slugToTagDisplay`).
 
 ## Logic Flow and Interactions
@@ -103,9 +103,9 @@ The components work together to enrich static MDX content with dynamic, client-s
 ## Performance Considerations
 
 1. **MDX Processing**
-   - Module-local cache with file modification checks
-   - Concurrent post processing with `Promise.allSettled`
-   - Fallback content for MDX compilation failures
+   - Canonical frontmatter slugs resolve through a file index, even when filenames differ
+   - Concurrent post processing uses `Promise.all`
+   - Tagged Next.js caches cover individual posts and the complete post inventory
    - `generateMetadata()` should use `getPostMetaBySlug()` (skips MDX compilation + blur generation)
 
 2. **Image Handling**

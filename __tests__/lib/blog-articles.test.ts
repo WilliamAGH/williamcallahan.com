@@ -1,29 +1,27 @@
-import type { MockedFunction } from "vitest";
-
 /**
  * Blog Module Tests
  *
  * Tests the core blog functionality including:
  * 1. Post Management
- *    - Retrieval of posts from both static and MDX sources
+ *    - Retrieval of posts from the canonical MDX source
  *    - Proper sorting by publish date (newest first)
  *    - Validation of required post fields
  *
  * 2. Post Lookup
  *    - Finding posts by slug
  *    - Handling non-existent slugs
- *    - Proper source prioritization (static before MDX)
  *
  * Test Data:
  * - Uses mock posts with controlled dates and fields
- * - Mocks both static posts and MDX functionality
+ * - Mocks MDX functionality
  * - Tests edge cases like missing posts
  */
 
 import { getAllPosts, getPostBySlug } from "@/lib/blog";
-import { isValidBlogSlug } from "@/lib/blog/validation";
+import { findBlogPostFilePath, isValidBlogSlug } from "@/lib/blog/validation";
 import { cacheContextGuards } from "@/lib/cache";
 import { GET as getPostsApi } from "@/app/api/posts/route";
+import type { BlogPost } from "@/types/blog";
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 
 vi.mock("@/lib/cache", () => ({
@@ -35,15 +33,20 @@ vi.mock("@/lib/cache", () => ({
   },
 }));
 
-// Mock static posts using mock.module
-vi.mock("@/data/blog/posts", () => ({
-  posts: [
+vi.mock("@/lib/blog/validation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/blog/validation")>()),
+  findBlogPostFilePath: vi.fn(),
+}));
+
+// Mock MDX functionality using mock.module
+const { mockMdxPosts } = vi.hoisted(() => ({
+  mockMdxPosts: [
     {
       id: "test-post-1",
       title: "Test Post 1",
       slug: "test-post-1",
       excerpt: "Test excerpt 1",
-      content: "Test content 1",
+      content: { compiledSource: "Test content 1", scope: {}, frontmatter: {} },
       publishedAt: "2024-03-14T12:00:00Z",
       author: {
         id: "william-callahan",
@@ -57,7 +60,7 @@ vi.mock("@/data/blog/posts", () => ({
       title: "Test Post 2",
       slug: "test-post-2",
       excerpt: "Test excerpt 2",
-      content: "Test content 2",
+      content: { compiledSource: "Test content 2", scope: {}, frontmatter: {} },
       publishedAt: "2024-03-13T12:00:00Z",
       author: {
         id: "william-callahan",
@@ -66,60 +69,29 @@ vi.mock("@/data/blog/posts", () => ({
       coverImage: "https://example.com/image2.jpg",
       tags: ["test"],
     },
-  ],
+  ] satisfies BlogPost[],
 }));
 
-// Mock MDX functionality using mock.module
-const mockMdxPosts = [
-  {
-    id: "test-post-1",
-    title: "Test Post 1",
-    slug: "test-post-1",
-    excerpt: "Test excerpt 1",
-    content: "Test content 1",
-    publishedAt: "2024-03-14T12:00:00Z",
-    author: {
-      id: "william-callahan",
-      name: "William Callahan",
-    },
-    coverImage: "https://example.com/image1.jpg",
-    tags: ["test"],
-  },
-  {
-    id: "test-post-2",
-    title: "Test Post 2",
-    slug: "test-post-2",
-    excerpt: "Test excerpt 2",
-    content: "Test content 2",
-    publishedAt: "2024-03-13T12:00:00Z",
-    author: {
-      id: "william-callahan",
-      name: "William Callahan",
-    },
-    coverImage: "https://example.com/image2.jpg",
-    tags: ["test"],
-  },
-];
-
 vi.mock("@/lib/blog/mdx", () => ({
-  getAllMDXPostsCached: vi.fn().mockResolvedValue([]),
+  getAllMDXPostsCached: vi.fn().mockImplementation(() => Promise.resolve(mockMdxPosts)),
   getMDXPost: vi.fn().mockImplementation((slug: string) => {
     const post = mockMdxPosts.find((p) => p.slug === slug);
-    return Promise.resolve(post || null);
+    return Promise.resolve(post === undefined ? null : post);
   }),
   getMDXPostCached: vi.fn().mockImplementation((slug: string) => {
     const post = mockMdxPosts.find((p) => p.slug === slug);
-    return Promise.resolve(post || null);
+    return Promise.resolve(post === undefined ? null : post);
   }),
 }));
 
 describe("Blog Module", () => {
-  const cacheLifeSpy = cacheContextGuards.cacheLife as MockedFunction<
-    typeof cacheContextGuards.cacheLife
-  >;
+  const cacheLifeSpy = vi.mocked(cacheContextGuards.cacheLife);
 
   beforeEach(() => {
     cacheLifeSpy.mockClear();
+    vi.mocked(findBlogPostFilePath).mockImplementation(async (slug) =>
+      mockMdxPosts.some((post) => post.slug === slug) ? `/posts/${slug}.mdx` : undefined,
+    );
   });
 
   describe("getAllPosts", () => {
