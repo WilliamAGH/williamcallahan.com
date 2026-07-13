@@ -1,13 +1,15 @@
-/**
- * @fileoverview Tests for Cloudflare header validation and enforcement
- * @vitest-environment node
- */
+// @vitest-environment node
 
+import { execFileSync } from "node:child_process";
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-utils";
 import { GET as getIp } from "@/app/api/ip/route";
 import { UMAMI_ORIGIN } from "@/config/csp";
 import { config as proxyConfig, proxy } from "@/proxy";
+import {
+  parseSmokeTestArguments,
+  validateAdvertisedJavaScript,
+} from "../../scripts/smoke-test-production";
 import {
   getRewrittenUrl,
   isRewrite,
@@ -29,6 +31,22 @@ function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
     throw new Error("Could not set NextRequest.nextUrl for proxy behavior test");
   }
   return request;
+}
+
+function clearDeploymentId(): void {
+  if (!Reflect.deleteProperty(process.env, "NEXT_DEPLOYMENT_ID")) {
+    throw new Error("Could not clear NEXT_DEPLOYMENT_ID for release identity test");
+  }
+}
+
+async function loadNextConfig() {
+  vi.resetModules();
+  vi.doMock("@sentry/nextjs", () => ({
+    withSentryConfig: <T>(nextConfig: T): T => nextConfig,
+  }));
+  const configPath = "../../next.config";
+  const configModule = await import(configPath);
+  return configModule.default;
 }
 
 describe("Cloudflare header enforcement", () => {
@@ -219,5 +237,105 @@ describe("Cloudflare header enforcement", () => {
     );
     expect(response.headers.get("cdn-cache-control")).toBe("no-store, max-age=0");
     expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store, max-age=0");
+  });
+
+  describe("next.config release identity", () => {
+    afterEach(() => {
+      vi.doUnmock("@sentry/nextjs");
+      vi.resetModules();
+    });
+
+    it("delegates development build identity to Next", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "development");
+
+      const nextConfig = await loadNextConfig();
+
+      await expect(nextConfig.generateBuildId()).resolves.toBeNull();
+    });
+
+    it("uses a URL-safe production deployment ID as the release identity", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_DEPLOYMENT_ID", "release_2026-07-13");
+
+      const nextConfig = await loadNextConfig();
+
+      await expect(nextConfig.generateBuildId()).resolves.toBe("release_2026-07-13");
+      expect(process.env.NEXT_PUBLIC_GIT_HASH).toBe("release_2026-07-13");
+      expect(process.env.SENTRY_RELEASE).toBe("release_2026-07-13");
+    });
+
+    it("rejects a production deployment ID that is not URL-safe", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_DEPLOYMENT_ID", "release/id");
+
+      await expect(loadNextConfig()).rejects.toThrow(
+        "[next.config] NEXT_DEPLOYMENT_ID may contain only letters, numbers, hyphens, and underscores.",
+      );
+    });
+
+    it("uses local Git HEAD when a production deployment ID is missing", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "production");
+      const expectedReleaseId = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+        encoding: "utf8",
+      }).trim();
+
+      const nextConfig = await loadNextConfig();
+
+      await expect(nextConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
+      expect(process.env.NEXT_DEPLOYMENT_ID).toBe(expectedReleaseId);
+    });
+  });
+
+  describe("production deployment verification", () => {
+    const releaseId = "release_2026-07-13";
+    const html = `<h1>Investment Portfolio</h1><script src="/_next/static/chunks/app.js?dpl=${releaseId}"></script>`;
+
+    it("accepts converged HTML and the exact nonempty JavaScript asset", async () => {
+      const responses = Array.from({ length: 5 }, () => new Response(html, { status: 200 }));
+      const fetchAsset = vi.fn(async (url: string) => {
+        const response = new Response("console.log('release')", {
+          headers: { "Content-Type": "application/javascript" },
+          status: 200,
+        });
+        Object.defineProperty(response, "url", { value: url });
+        return response;
+      });
+
+      await expect(
+        validateAdvertisedJavaScript(
+          responses,
+          "https://williamcallahan.com",
+          releaseId,
+          fetchAsset,
+        ),
+      ).resolves.toBe(true);
+      expect(
+        parseSmokeTestArguments(["williamcallahan.com", `--expected-release-id=${releaseId}`]),
+      ).toEqual({
+        authToken: undefined,
+        baseUrl: "https://williamcallahan.com",
+        expectedReleaseId: releaseId,
+      });
+    });
+
+    it("validates cache-rule TTL contracts before deployment", () => {
+      const validationScript = `
+        import { readFileSync } from "node:fs";
+        import { validateCacheRulesConfig } from "./scripts/deploy-cf-cache-rules.node.mjs";
+        const readConfig = () => JSON.parse(readFileSync("./infra/cloudflare/cache-rules.json", "utf8"));
+        const openRange = readConfig();
+        openRange.rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 400 };
+        validateCacheRulesConfig(openRange);
+        const invalid = [readConfig(), readConfig()];
+        invalid[0].rules[1].action_parameters.edge_ttl.status_code_ttl[0].status_code_range = { from: 599, to: 400 };
+        delete invalid[1].rules[2].action_parameters.edge_ttl.default;
+        for (const config of invalid) { try { validateCacheRulesConfig(config); process.exit(2); } catch {} }
+      `;
+      expect(() =>
+        execFileSync("node", ["--input-type=module", "--eval", validationScript]),
+      ).not.toThrow();
+    });
   });
 });
