@@ -14,13 +14,13 @@ See `docs/architecture/caching.mmd` for the current write/read/supporting flow.
 
 ### Domain Responsibilities
 
-| Domain                   | Source of truth                                             | Cached read path                                            | Invalidation                                                                                         |
-| ------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Bookmarks                | PostgreSQL read model (`src/lib/db/*`)                      | `"use cache"` functions + tag-labeled RSC reads             | `invalidateNextJsBookmarksCache()` (dataset, slug, and tag caches), slug/tag-specific tags           |
-| AI Analysis              | PostgreSQL `ai_analysis_latest` + `ai_analysis_versions`    | Durable rows use `cacheLife("max")`; misses are short-lived | Successful analysis writes immediately expire analysis tags with `revalidateTag(..., { expire: 0 })` |
-| Blog + Related Content   | Repository content + PostgreSQL content-graph artifacts     | Server read functions with `cacheLife/cacheTag`             | `revalidateTag("blog")`, `revalidateTag("related-content")`                                          |
-| GitHub Activity          | PostgreSQL `github_activity_store` (JSON payload documents) | RSC summaries/pages using cache tags                        | `revalidateTag("github-activity")`                                                                   |
-| Images/Logos/OG metadata | S3 objects + manifests                                      | Cache-tagged server accessors and manifest loaders          | tag invalidation + key-level refresh                                                                 |
+| Domain                   | Source of truth                                             | Cached read path                                            | Invalidation                                                                                                                                          |
+| ------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bookmarks                | PostgreSQL read model (`src/lib/db/*`)                      | `"use cache"` functions + tag-labeled RSC reads             | `invalidateNextJsBookmarksCache()` (dataset, slug, and tag caches), slug/tag-specific tags                                                            |
+| AI Analysis              | PostgreSQL `ai_analysis_latest` + `ai_analysis_versions`    | Durable rows use `cacheLife("max")`; misses are short-lived | Successful analysis writes immediately expire analysis tags with `revalidateTag(..., { expire: 0 })`                                                  |
+| Blog + Related Content   | Repository content + PostgreSQL content-graph artifacts     | Server read functions with `cacheLife/cacheTag`             | `revalidateTag("blog")`; successful bookmark/content-graph refresh flows call `invalidateNextJsBookmarksCache()`, which revalidates `related-content` |
+| GitHub Activity          | PostgreSQL `github_activity_store` (JSON payload documents) | RSC summaries/pages using cache tags                        | `revalidateTag("github-activity")`                                                                                                                    |
+| Images/Logos/OG metadata | S3 objects + manifests                                      | Cache-tagged server accessors and manifest loaders          | tag invalidation + key-level refresh                                                                                                                  |
 
 ### Route Policy
 

@@ -13,6 +13,7 @@ import { invalidateLogoCache } from "@/lib/data-access/logos";
 import { invalidateSearchCache } from "@/lib/search/cache-invalidation";
 import { revalidateTag } from "next/cache";
 import { GITHUB_CACHE_TAGS, invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
+import { RELATED_CONTENT_CACHE_TAG } from "@/config/related-content.config";
 
 /**
  * Validates API key for cache operations
@@ -50,7 +51,7 @@ export function POST(request: NextRequest): NextResponse {
       "logo-manifest",
       "search",
       "bookmarks",
-      "related-content",
+      RELATED_CONTENT_CACHE_TAG,
       "education",
       "experience",
       "investments",

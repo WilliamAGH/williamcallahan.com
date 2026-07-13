@@ -26,6 +26,7 @@ import {
   DEFAULT_MAX_PER_TYPE,
   DEFAULT_MAX_TOTAL,
   getEnabledContentTypes,
+  RELATED_CONTENT_CACHE_TAG,
 } from "@/config/related-content.config";
 
 const normalizeTagForComparison = (tag: string): string =>
@@ -151,7 +152,7 @@ export async function RelatedContent({
 }: RelatedContentProps) {
   "use cache";
   cacheLife("hours");
-  cacheTag("related-content");
+  cacheTag(RELATED_CONTENT_CACHE_TAG);
 
   try {
     // For bookmarks, prefer slug over ID for idempotency

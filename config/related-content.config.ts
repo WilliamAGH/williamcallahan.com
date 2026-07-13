@@ -47,6 +47,9 @@ export const DEFAULT_MAX_TOTAL = 12;
  */
 export const RELATED_CONTENT_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
+/** Next.js cache tag shared by related-content reads and refresh paths. */
+export const RELATED_CONTENT_CACHE_TAG = "related-content" as const;
+
 /**
  * Weight configuration for similarity scoring
  *

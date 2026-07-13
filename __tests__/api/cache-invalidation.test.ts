@@ -187,6 +187,7 @@ describe("Cache Invalidation via API Routes", () => {
       expect(mockedRevalidateTag).toHaveBeenCalledWith("bookmarks-db-full", "max");
       expect(mockedRevalidateTag).toHaveBeenCalledWith("bookmark-slug-mapping", "max");
       expect(mockedRevalidateTag).toHaveBeenCalledWith("search-index", "max");
+      expect(mockedRevalidateTag).toHaveBeenCalledWith("related-content", "max");
     });
   });
 

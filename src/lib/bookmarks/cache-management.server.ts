@@ -7,6 +7,7 @@
 
 import { USE_NEXTJS_CACHE, cacheContextGuards } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
+import { RELATED_CONTENT_CACHE_TAG } from "@/config/related-content.config";
 
 // ============================================================================
 // Next.js Cache Integration
@@ -56,6 +57,7 @@ export function invalidateNextJsBookmarksCache(): void {
     safeRevalidateTag("bookmark-slug-mapping");
     safeRevalidateTag("bookmarks-slugs");
     safeRevalidateTag("search-index");
+    safeRevalidateTag(RELATED_CONTENT_CACHE_TAG);
     envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, {
       category: "Bookmarks",
     });
