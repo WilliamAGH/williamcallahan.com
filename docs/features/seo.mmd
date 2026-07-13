@@ -36,7 +36,7 @@ graph TB
     end
     
     subgraph "Content Sources"
-        BLOG["data/blog/posts.ts<br/>Frontmatter dates"]
+        BLOG["data/blog/posts/*.mdx<br/>Canonical frontmatter dates"]
         BOOKMARKS["Bookmarks API/Cache<br/>🐛 Needs UnifiedBookmarkSchema.parse()"]
         STATIC["Static Routes<br/>Fixed priorities"]
         KARAKEEP["Karakeep/Hoarder API<br/>Asset fallback"]

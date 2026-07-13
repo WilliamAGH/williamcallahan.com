@@ -11,6 +11,7 @@
     },
     "rules": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
         "required": ["description", "expression", "action", "action_parameters", "enabled"],
@@ -42,6 +43,7 @@
                   },
                   "default": {
                     "type": "integer",
+                    "minimum": 0,
                     "description": "TTL in seconds (required when mode is override_origin)"
                   },
                   "status_code_ttl": {
@@ -50,14 +52,31 @@
                       "type": "object",
                       "required": ["value"],
                       "properties": {
-                        "status_code": { "type": "integer", "minimum": 100, "maximum": 599 },
+                        "status_code": { "type": "integer", "minimum": 100, "maximum": 999 },
                         "status_code_range": {
                           "type": "object",
-                          "required": ["from", "to"],
                           "properties": {
-                            "from": { "type": "integer", "minimum": 100, "maximum": 599 },
-                            "to": { "type": "integer", "minimum": 100, "maximum": 599 }
-                          }
+                            "from": { "type": "integer", "minimum": 100, "maximum": 999 },
+                            "to": { "type": "integer", "minimum": 100, "maximum": 999 }
+                          },
+                          "anyOf": [{ "required": ["from"] }, { "required": ["to"] }],
+                          "allOf": [
+                            {
+                              "if": {
+                                "type": "object",
+                                "required": ["from", "to"]
+                              },
+                              "then": {
+                                "type": "object",
+                                "properties": {
+                                  "to": {
+                                    "type": "integer",
+                                    "minimum": { "$data": "1/from" }
+                                  }
+                                }
+                              }
+                            }
+                          ]
                         },
                         "value": {
                           "type": "integer",
@@ -72,7 +91,22 @@
                     }
                   }
                 },
-                "required": ["mode"]
+                "required": ["mode"],
+                "allOf": [
+                  {
+                    "if": {
+                      "type": "object",
+                      "properties": {
+                        "mode": { "const": "override_origin" }
+                      },
+                      "required": ["mode"]
+                    },
+                    "then": {
+                      "type": "object",
+                      "required": ["default"]
+                    }
+                  }
+                ]
               },
               "browser_ttl": {
                 "type": "object",
@@ -83,10 +117,26 @@
                   },
                   "default": {
                     "type": "integer",
+                    "minimum": 0,
                     "description": "TTL in seconds (required when mode is override_origin)"
                   }
                 },
-                "required": ["mode"]
+                "required": ["mode"],
+                "allOf": [
+                  {
+                    "if": {
+                      "type": "object",
+                      "properties": {
+                        "mode": { "const": "override_origin" }
+                      },
+                      "required": ["mode"]
+                    },
+                    "then": {
+                      "type": "object",
+                      "required": ["default"]
+                    }
+                  }
+                ]
               }
             }
           },

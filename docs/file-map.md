@@ -273,12 +273,15 @@ File/Path Functionality Description
 - [x] **data-access/**
   - [x] `bookmarks.ts` `json-handling` - Data access for bookmarks
   - [x] `github.ts` `json-handling` - GitHub orchestration (API fetch, processing, cache invalidation, and durable persistence flow)
-  - [x] `github-activity-summaries.ts` `github-activity` - Writes trailing-year and all-time summary payloads via PostgreSQL-backed storage adapters
+  - [x] `github-activity-summaries.ts` `github-activity` - Writes the single all-time summary payload via PostgreSQL-backed storage
   - [x] `github-commit-counts.ts` `github-activity` - All-time commit count aggregation (GraphQL + REST fallback)
   - [x] `github-contributions.ts` `github-activity` - Contribution calendar fetch + flattening helpers
   - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
+  - [x] `github-processing.ts` `github-activity` - Canonical weekly aggregation and line-of-code category processing
+  - [x] `github-public-api.ts` `github-activity` - Projects validated stored activity into the aggregate-only public view
   - [x] `github-repo-stats.ts` `github-activity` - Per-repo stats processing + category aggregation
   - [x] `github-repo-processor.ts` `github-activity` - Single-repo processing with CSV fallback
+  - [x] `github-storage.ts` `github-activity` - Validated PostgreSQL activity, summary, aggregate, and repository-stat persistence boundary
   - [x] `investments.ts` `investments` - Data access for investments
   - [x] `logos.ts` `image-handling` - Data access for logos
   - [x] `opengraph.ts` `opengraph` - Data access for OpenGraph metadata extraction and caching (2025-06: background persistence)
@@ -454,6 +457,7 @@ File/Path Functionality Description
   - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmark row/insert type exports for DB modules
 - [ ] **schemas/**
   - [x] `blog-frontmatter.ts` `blog` - Zod single owner of MDX frontmatter and `blogSlugSchema`; runtime MDX and Node seed ingestion parse through it
+  - [x] `github-storage.ts` `github-activity` - Canonical persisted and public GitHub activity schemas, projections, and write intents
   - [x] `og-image.ts` `opengraph` - Zod schemas for OG image entity types, per-entity params, and layout props
   - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
 - [ ] **global/**

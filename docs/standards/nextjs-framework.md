@@ -45,15 +45,15 @@ a runtime retry, or a polyfill in application code.
 
 ### Migration Rules
 
-| Area                | Required behavior                                                                                                                                                       |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dynamic APIs        | Treat `params`, `searchParams`, `cookies()`, and `headers()` as asynchronous. Await them in Server Components; use React's supported promise APIs in Client Components. |
-| Cache Components    | Keep `cacheComponents: true` in `next.config.ts`. Use `'use cache'` for cacheable work and stable `cacheLife`/`cacheTag` APIs inside valid cache scopes.                |
-| Route config        | Do not export `runtime`, `dynamicParams`, `dynamic`, `fetchCache`, `revalidate`, or `experimental_ppr` from an App Router segment while Cache Components are enabled.   |
-| Removed experiments | Do not reintroduce `experimental.ppr` or `experimental.dynamicIO`; PPR is configured through `cacheComponents`.                                                         |
-| Proxy naming        | Use `skipProxyUrlNormalize`, never `skipMiddlewareUrlNormalize`. Next 16 uses `src/proxy.ts`, not `middleware.ts`.                                                      |
-| Images              | Use `next/image`; `next/legacy/image` is prohibited.                                                                                                                    |
-| Tooling             | Turbopack is the Next 16 default. Do not add redundant flags or revive a Webpack configuration without an approved, measured reason.                                    |
+| Area                | Required behavior                                                                                                                                                             |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dynamic APIs        | Treat `params`, `searchParams`, `cookies()`, and `headers()` as asynchronous. Await them in Server Components; use React's supported promise APIs in Client Components.       |
+| Cache Components    | Keep `cacheComponents: true` in `next.config.ts`. Use `'use cache'` for cacheable work and stable `cacheLife`/`cacheTag` APIs inside valid cache scopes.                      |
+| Route config        | Do not export `runtime`, `dynamicParams`, `dynamic`, `fetchCache`, `revalidate`, or `experimental_ppr` from an App Router segment while Cache Components are enabled.         |
+| Removed experiments | Do not reintroduce `experimental.ppr` or `experimental.dynamicIO`; PPR is configured through `cacheComponents`.                                                               |
+| Proxy naming        | Use `skipProxyUrlNormalize`, never `skipMiddlewareUrlNormalize`. Next 16 uses `src/proxy.ts`, not `middleware.ts`.                                                            |
+| Images              | Use `next/image`; `next/legacy/image` is prohibited.                                                                                                                          |
+| Tooling             | Turbopack is the Next 16 default. Do not add redundant flags or revive a Webpack configuration without an approved, measured reason.                                          |
 | Deployment identity | Production assets must carry one release-scoped `?dpl=` value. The same `GIT_SHA` intentionally reuses it; purge or a new source revision recovers a same-SHA cache incident. |
 
 Installed-source evidence: `node_modules/next/dist/server/config.js:330-331` rejects
@@ -64,9 +64,11 @@ enabled. Verify this against the installed version before changing a segment.
 Installed Next 16.1.6 reads `NEXT_DEPLOYMENT_ID` in
 `node_modules/next/dist/server/config.js` and appends it through
 `node_modules/next/dist/shared/lib/deployment-id.js`. `generateBuildId` is separate and
-does not version static asset URLs by itself. Docker binds it through `GIT_HASH` and binds
-`NEXT_DEPLOYMENT_ID` to the same value for `dpl` URLs. A same `GIT_SHA` intentionally reuses
-that value; follow the purge-or-new-revision recovery procedure in `docs/ops/deployment.md`.
+does not version static asset URLs by itself. `NEXT_DEPLOYMENT_ID` is the canonical input:
+`next.config.ts` assigns it to Next's `deploymentId` and returns the same release identity
+from `generateBuildId`. Docker also exports the same value as `GIT_HASH`, but that variable
+is not the configuration identity owner. A same `GIT_SHA` intentionally reuses the canonical
+value; follow the purge-or-new-revision recovery procedure in `docs/ops/deployment.md`.
 
 ### Async Request Data
 

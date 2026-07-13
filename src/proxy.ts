@@ -99,15 +99,9 @@ function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): v
   }
 
   if (shouldApplyHtmlCachePolicy(url)) {
-    // HTML (SSR / SSG) pages – absolutely never cache at CDN level.
     response.headers.set("Cache-Control", NO_CACHE_VALUE);
     response.headers.set("CDN-Cache-Control", NO_CACHE_VALUE);
     response.headers.set("Cloudflare-CDN-Cache-Control", NO_CACHE_VALUE);
-
-    // Tag the response with both the semantic app version and the commit hash
-    const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
-    const gitHash = process.env.NEXT_PUBLIC_GIT_HASH ?? "unknown-hash";
-    response.headers.set("Cache-Tag", `html-v${appVersion}, commit-${gitHash}`);
   }
 }
 

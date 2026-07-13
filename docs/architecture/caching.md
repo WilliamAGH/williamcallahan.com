@@ -24,7 +24,8 @@ See `docs/architecture/caching.mmd` for the current write/read/supporting flow.
 
 ### Route Policy
 
-- API routes (`/api/*`) that must always read fresh state call `unstable_noStore()`.
+- API routes that must always execute at request time call `connection()` and return explicit
+  `Cache-Control: no-store` headers.
 - RSC/server data functions use `"use cache"` and explicit `cacheLife/cacheTag` profiles.
 - Next.js static assets use release-scoped `dpl` query keys. The Cloudflare rule owner
   `infra/cloudflare/cache-rules.json` honors the origin policy for successful responses and
@@ -153,7 +154,7 @@ rg "Date\.now\(\)" src/lib src/components
 
 - Validate tag/path invalidation behavior for each high-traffic domain.
 - Verify scheduler refresh writes durable state before invalidation triggers.
-- Ensure API routes using `unstable_noStore()` do not regress into stale cached responses.
+- Ensure request-time API routes retain both `connection()` and explicit no-store response headers.
 - Confirm build/runtime parity for `cacheComponents` routes.
 
 ## Long-Term Improvements

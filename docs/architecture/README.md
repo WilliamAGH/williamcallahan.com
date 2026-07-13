@@ -44,6 +44,10 @@ Example schemas:
 
 ## Verification Notes
 
+- Request-time API freshness is owned jointly by `connection()` and explicit no-store response
+  headers; `unstable_noStore()` is not the route-level contract under Cache Components.
+- Blog runtime content comes from `data/blog/posts/*.mdx`, with frontmatter, slug syntax, and
+  ingestion inputs owned by `src/types/schemas/blog-frontmatter.ts`.
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
 - Search indexes load from PostgreSQL `search_index_artifacts` and hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).

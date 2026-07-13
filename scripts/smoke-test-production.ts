@@ -1,13 +1,81 @@
 #!/usr/bin/env bun
 import type { SmokeTestEndpointOptions, TestResult } from "@/types/scripts";
 import { bookmarkDiagnosticsResponseSchema, healthResponseSchema } from "@/types/schemas/api";
+
+const CONVERGENCE_SAMPLE_COUNT = 5;
+const EXPECTED_RELEASE_ID_PREFIX = "--expected-release-id=";
+
+type StaticAssetFetcher = (url: string) => Promise<Response>;
+
+export function fetchStaticScript(
+  url: string,
+  fetchImplementation: typeof fetch = fetch,
+): Promise<Response> {
+  return fetchImplementation(url, {
+    headers: { "User-Agent": "Smoke-Test/1.0" },
+    redirect: "error",
+    signal: AbortSignal.timeout(10000),
+  });
+}
+
+export async function validateAdvertisedJavaScript(
+  responses: readonly Response[],
+  baseUrl: string,
+  expectedReleaseId: string | undefined,
+  fetchAsset: StaticAssetFetcher,
+): Promise<boolean> {
+  const samples = await Promise.all(
+    responses.map(async (response) => ({ html: await response.text(), status: response.status })),
+  );
+  const scripts = [
+    ...new Set(
+      samples.flatMap((sample) =>
+        [...sample.html.matchAll(/src=["'](\/_next\/static\/[^"']+\.js[^"']*)["']/g)].flatMap(
+          (match) => (match[1] === undefined ? [] : [match[1]]),
+        ),
+      ),
+    ),
+  ].map((path) => new URL(path, baseUrl));
+  const deploymentIds = new Set(scripts.map((script) => script.searchParams.get("dpl")));
+  if (
+    !samples.every(
+      (sample) => sample.status === 200 && sample.html.includes("Investment Portfolio"),
+    ) ||
+    scripts.length === 0 ||
+    deploymentIds.size !== 1 ||
+    ![...deploymentIds].every(Boolean) ||
+    (expectedReleaseId !== undefined && !deploymentIds.has(expectedReleaseId))
+  ) {
+    return false;
+  }
+  return (
+    await Promise.all(
+      scripts.map(async (script) => {
+        const response = await fetchAsset(script.href);
+        const contentType = response.headers
+          .get("content-type")
+          ?.split(";", 1)[0]
+          ?.trim()
+          .toLowerCase();
+        return (
+          response.status === 200 &&
+          response.url === script.href &&
+          (contentType === "application/javascript" || contentType === "text/javascript")
+        );
+      }),
+    )
+  ).every(Boolean);
+}
+
 class ProductionSmokeTests {
   private baseUrl: string;
   private results: TestResult[] = [];
   private authToken?: string;
-  constructor(baseUrl: string, authToken?: string) {
+  private expectedReleaseId?: string;
+  constructor(baseUrl: string, authToken?: string, expectedReleaseId?: string) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.authToken = authToken;
+    this.expectedReleaseId = expectedReleaseId;
     console.log(`🔥 Running smoke tests against: ${this.baseUrl}`);
   }
 
@@ -115,30 +183,22 @@ class ProductionSmokeTests {
     }
 
     this.results.push(
-      await this.testEndpoint("Investments content and scripts", "/investments", {
+      await this.testEndpoint("Investment release identity and scripts converge", "/investments", {
         validateResponse: async (response) => {
-          const html = await response.text();
-          const scripts = [
-            ...new Set(
-              [...html.matchAll(/src=["'](\/_next\/static\/[^"']+\.js[^"']*)["']/g)].flatMap(
-                (match) => (match[1] ? [match[1]] : []),
+          const responses = [
+            response,
+            ...(await Promise.all(
+              Array.from({ length: CONVERGENCE_SAMPLE_COUNT - 1 }, () =>
+                this.fetchSameOrigin("/investments"),
               ),
-            ),
+            )),
           ];
-          const deploymentIds = new Set(
-            scripts.map((script) => new URL(script, this.baseUrl).searchParams.get("dpl")),
+          return validateAdvertisedJavaScript(
+            responses,
+            this.baseUrl,
+            this.expectedReleaseId,
+            fetchStaticScript,
           );
-          if (
-            !html.includes("Investment Portfolio") ||
-            scripts.length === 0 ||
-            deploymentIds.size !== 1 ||
-            deploymentIds.has(null)
-          )
-            return false;
-          const responses = await Promise.all(
-            scripts.map((script) => this.fetchSameOrigin(script)),
-          );
-          return responses.every((script) => script.status === 200);
         },
       }),
     );
@@ -301,7 +361,7 @@ class ProductionSmokeTests {
     console.log("\n" + "=".repeat(70));
     const allPassed = failed.length === 0;
     if (allPassed) {
-      console.log("✅ ALL SMOKE TESTS PASSED - Deployment Successful!");
+      console.log("✅ ALL SMOKE CHECKS PASSED");
     } else {
       console.log(`⚠️  ${failed.length} TESTS FAILED - Investigation Required`);
     }
@@ -323,22 +383,56 @@ class ProductionSmokeTests {
   }
 }
 
-const args = process.argv.slice(2);
-let baseUrl = args[0];
-const authToken = args[1];
-
-if (!baseUrl) {
-  console.error("Usage: bun scripts/smoke-test-production.ts <base-url> [auth-token]");
-  console.error(
-    "Example: bun scripts/smoke-test-production.ts https://williamcallahan.com your-secret-token",
+export function parseSmokeTestArguments(args: string[]) {
+  const releaseArguments = args.filter((argument) =>
+    argument.startsWith(EXPECTED_RELEASE_ID_PREFIX),
   );
-  process.exit(1);
+  const positionalArguments = args.filter(
+    (argument) => !argument.startsWith(EXPECTED_RELEASE_ID_PREFIX),
+  );
+  if (
+    releaseArguments.length > 1 ||
+    releaseArguments[0] === EXPECTED_RELEASE_ID_PREFIX ||
+    positionalArguments.length === 0 ||
+    positionalArguments.length > 2
+  ) {
+    return undefined;
+  }
+  const [baseUrl, authToken] = positionalArguments;
+  if (baseUrl === undefined) return undefined;
+  return {
+    authToken,
+    baseUrl: baseUrl.startsWith("http") ? baseUrl : `https://${baseUrl}`,
+    expectedReleaseId: releaseArguments[0]?.slice(EXPECTED_RELEASE_ID_PREFIX.length),
+  };
 }
 
-if (!baseUrl.startsWith("http")) baseUrl = `https://${baseUrl}`;
+function printUsage(): void {
+  console.error(
+    "Usage: bun scripts/smoke-test-production.ts <base-url> [auth-token] [--expected-release-id=<id>]",
+  );
+  console.error(
+    "Example: bun scripts/smoke-test-production.ts https://williamcallahan.com your-secret-token --expected-release-id=release-123",
+  );
+}
 
-const tester = new ProductionSmokeTests(baseUrl, authToken);
-tester.run().catch((error) => {
-  console.error("Smoke tests failed:", error);
-  process.exit(1);
-});
+async function runCli(): Promise<void> {
+  const options = parseSmokeTestArguments(process.argv.slice(2));
+  if (options === undefined) {
+    printUsage();
+    process.exit(1);
+  }
+  const tester = new ProductionSmokeTests(
+    options.baseUrl,
+    options.authToken,
+    options.expectedReleaseId,
+  );
+  await tester.run();
+}
+
+if (import.meta.main) {
+  runCli().catch((error: unknown) => {
+    console.error("Smoke tests failed:", error);
+    process.exit(1);
+  });
+}
