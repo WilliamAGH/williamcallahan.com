@@ -152,7 +152,7 @@
     "react-activity-calendar": "2.7.14",
     "react-dom": "^19.2.4",
     "react-parallax-tilt": "1.7.299",
-    "react-tweet": "^3.2.2",
+    "react-tweet": "^3.3.1",
     "rehype-prism": "^2.3.3",
     "rehype-raw": "^7.0.0",
     "remark-breaks": "^4.0.0",
