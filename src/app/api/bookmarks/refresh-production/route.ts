@@ -10,6 +10,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getErrorMessage } from "@/types/api-responses";
 import { productionRefreshResponseSchema } from "@/types/schemas/api";
@@ -38,9 +39,22 @@ export async function POST(): Promise<NextResponse> {
     );
   }
 
-  const { userId } = await auth();
+  try {
+    const { userId } = await auth();
 
-  if (!userId) {
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } catch (error) {
+    if (!isMissingClerkMiddlewareError(error)) {
+      throw error;
+    }
+
+    envLogger.log(
+      "Clerk authentication unavailable; rejecting production refresh request",
+      { error: error.message },
+      { category: "BookmarksRefresh" },
+    );
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

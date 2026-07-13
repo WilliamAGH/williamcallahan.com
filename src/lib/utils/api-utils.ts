@@ -24,6 +24,12 @@ export const RATE_LIMITED_MESSAGE =
   "You've reached a rate limit. Please wait a few minutes and try again.";
 export const SERVICE_UNAVAILABLE_MESSAGE =
   "The server is temporarily under heavy load. Please wait a few minutes and try again.";
+const CLERK_MIDDLEWARE_MISSING_MESSAGE =
+  "Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware().";
+
+export function isMissingClerkMiddlewareError(error: unknown): error is Error {
+  return error instanceof Error && error.message.startsWith(CLERK_MIDDLEWARE_MISSING_MESSAGE);
+}
 
 /**
  * Opt out of static caching for the current request.
