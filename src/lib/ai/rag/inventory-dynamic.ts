@@ -14,6 +14,7 @@ import { projects } from "@/data/projects";
 import { getBookmarksIndex, getCachedBooksData } from "@/lib/search/loaders/dynamic-content";
 import { aggregateTags } from "@/lib/search/tag-aggregator";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { listAnalysisItemIds } from "@/lib/ai-analysis/reader.server";
 import { envLogger } from "@/lib/utils/env-logger";
 import type { Book } from "@/types/schemas/book";
@@ -34,7 +35,7 @@ const buildBookmarksRows = (bookmarks: Array<BookmarkIndexEntry & { slug: string
         id: bookmark.id,
         slug: bookmark.slug,
         title: bookmark.title,
-        url: `/bookmarks/${bookmark.slug}`,
+        url: buildBookmarkPath(bookmark.slug),
         tags: bookmark.tags.split("\n").filter(Boolean),
       }),
     );
@@ -179,11 +180,11 @@ function buildLookupMaps(
   for (const bookmark of bookmarks) {
     bookmarksById.set(bookmark.id, {
       title: bookmark.title ?? bookmark.slug,
-      url: `/bookmarks/${bookmark.slug}`,
+      url: buildBookmarkPath(bookmark.slug),
     });
     bookmarksById.set(bookmark.slug, {
       title: bookmark.title ?? bookmark.slug,
-      url: `/bookmarks/${bookmark.slug}`,
+      url: buildBookmarkPath(bookmark.slug),
     });
   }
 

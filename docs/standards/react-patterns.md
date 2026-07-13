@@ -340,10 +340,10 @@ export default function GlobalError({
 
 ## Related Documentation
 
-- [app-layout.md](./app-layout.md) - Root layout and provider setup
-- [caching.md](./caching.md) - Caching strategies and implementation
+- [app-layout.md](../architecture/app-layout.md) - Root layout and provider setup
+- [caching.md](../architecture/caching.md) - Caching strategies and implementation
 - [coding-standards.md](./coding-standards.md) - Type safety and code quality
-- [state-theme-window-providers.md](./state-theme-window-providers.md) - Client-side state management
+- [state-management.md](../architecture/state-management.md) - Client-side state management
 - [nextjs-framework.md](./nextjs-framework.md) - Cache Components, async params, and outlawed patterns
 - [testing.md](./testing.md) - Vitest 4 enforcement and testing workflow
 

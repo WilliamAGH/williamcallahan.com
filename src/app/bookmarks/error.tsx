@@ -2,7 +2,7 @@
 "use client";
 
 import { formatDate as utilFormatDate } from "@/lib/utils";
-import { getErrorTimestamp } from "@/types/error";
+import { getProperty } from "@/lib/utils/error-utils";
 import type { ErrorPageProps } from "@/types/api";
 import { useEffect, useState } from "react";
 
@@ -103,7 +103,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
   // Attempt to get the last fetched timestamp if it was attached to the error
   // (the property name was changed to 'lastFetched' in bookmarks.server.tsx)
-  const lastFetchedTimestamp = getErrorTimestamp(error, "lastFetchedTimestamp");
+  const lastFetchedTimestamp = getProperty(error, "lastFetchedTimestamp");
 
   return (
     <main className="max-w-5xl mx-auto py-16 px-4 sm:px-6 lg:px-8 text-center">

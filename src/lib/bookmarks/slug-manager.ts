@@ -24,6 +24,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
 import { isSlugManagerLoggingEnabled } from "@/lib/bookmarks/config";
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";
+import { buildBookmarkPath } from "./bookmark-helpers";
 
 const formatSlugEnvironmentSnapshot = (): string =>
   `NODE_ENV=${process.env.NODE_ENV || "(not set)"}, DEPLOYMENT_ENV=${process.env.DEPLOYMENT_ENV || "(not set)"}`;
@@ -296,5 +297,5 @@ export function generateBookmarkRoutes(mapping: BookmarkSlugMapping): string[] {
   return Object.values(mapping.slugs)
     .map((entry) => entry.slug)
     .toSorted((a, b) => a.localeCompare(b))
-    .map((slug) => `/bookmarks/${slug}`);
+    .map(buildBookmarkPath);
 }

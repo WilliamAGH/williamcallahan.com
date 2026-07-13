@@ -274,7 +274,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 - **`app/sitemap.ts`**: Dynamically generates the `sitemap.xml` file at build time
   - Includes: Blog posts, tags, bookmarks, static pages
   - Priorities: Home (1.0), Investments/Projects (0.9), Experience/Education (0.8), Blog/Bookmarks (0.7)
-  - Uses frontmatter dates for `lastModified` when available
+  - Uses trimmed, validated frontmatter slugs for blog URLs and frontmatter dates for `lastModified` when available
 
 #### Automated Submission
 
@@ -359,7 +359,7 @@ const validatedHomeMetadata = validatePageMetadata("home", {
 The `app/sitemap.ts` file aggregates content from multiple sources:
 
 1. **Static Pages**: Manually defined routes with fixed priorities
-2. **Blog Posts**: Fetched from `data/blog/posts.ts` with frontmatter dates
+2. **Blog Posts**: `src/lib/sitemap/blog-collector.ts` projects the canonical inventory from `getAllPostsMeta()`, so sitemap URLs use the same frontmatter slugs as blog routes and static params
 3. **Blog Tags**: Dynamically generated from unique post tags
 4. **Bookmarks**: Retrieved from cache or API with domain groupings
 5. **Bookmark Tags**: Extracted from bookmark metadata
@@ -724,6 +724,6 @@ grep -n "TODO" data/metadata.ts
 ## Related Documentation
 
 - **[`opengraph.md`](./opengraph.md)**: Deep dive into OG system
-- **[`s3-object-storage.md`](./s3-object-storage.md)**: Image persistence details
-- **[`caching.md`](./caching.md)**: Cache strategies for SEO
+- **[`s3-storage.md`](../architecture/s3-storage.md)**: Image persistence details
+- **[`caching.md`](../architecture/caching.md)**: Cache strategies for SEO
 - **[`react-patterns.md`](../standards/react-patterns.md)**: Server component patterns

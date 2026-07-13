@@ -16,7 +16,7 @@ import {
   isOurCdnUrl,
 } from "@/lib/utils/cdn-utils";
 import { resolveInvestmentLogo } from "./investment-logo-resolver";
-import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
+import { buildBookmarkPath, selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type {
   ScoredCandidate,
   HydrationEntry,
@@ -73,7 +73,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       id: r.id,
       title: r.title,
       description: r.description ?? "",
-      url: `/bookmarks/${r.slug || r.id}`,
+      url: buildBookmarkPath(r.slug),
       score: score ?? 0,
       metadata: {
         tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),

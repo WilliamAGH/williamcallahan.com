@@ -76,6 +76,9 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 `scheduler/data-updater.ts` parses CLI flags, invokes `DataFetchManager`, and exits nonzero when a requested operation fails.
 Its no-flag default is the scheduler bootstrap contract; the operation inventory remains owned by
 the data updater rather than the entrypoint.
+GitHub activity refreshes resolve PostgreSQL write eligibility before external API work. Read-only
+deployments return a successful zero-item summary, while unexpected production failures remain
+error results and are reported to Sentry.
 
 ### Usage Examples
 
@@ -99,9 +102,10 @@ bun run update-data -- --force --bookmarks
 ### Core Orchestrator
 
 - **src/lib/server/data-fetch-manager.ts**: Centralized data fetching orchestrator
-  - Handles bookmarks, GitHub activity, and logo fetching
+  - Delegates GitHub activity to `src/lib/server/github-activity-refresh.ts`
   - Provides unified interface for all data operations
   - Manages batch processing, rate limiting, and retries
+- **src/lib/server/github-activity-refresh.ts**: Production-write-gated GitHub refresh operation
 
 ### Script Layer
 

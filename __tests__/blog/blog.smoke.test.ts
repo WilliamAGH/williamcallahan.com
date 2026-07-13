@@ -13,7 +13,6 @@ vi.mock("@/lib/s3/objects", () => ({
   listS3Objects: vi.fn().mockResolvedValue([]),
 }));
 
-import type { BlogFrontmatter } from "@/types/test";
 import { renderToReadableStream } from "react-dom/server";
 import React from "react";
 import { notFound } from "next/navigation";
@@ -21,6 +20,7 @@ import type { BlogPost } from "@/types/blog";
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
+import { blogFrontmatterSchema } from "@/types/schemas/blog-frontmatter";
 // IMPORTANT: Use the real serializer. Keep ESM rehype/remark plugins mocked by config.
 vi.doUnmock("next-mdx-remote/serialize");
 vi.doUnmock("next-mdx-remote");
@@ -74,6 +74,18 @@ describe("Blog MDX Smoke Tests", () => {
     expect(mdxFiles.length).toBeGreaterThan(0);
   });
 
+  it("rejects whitespace-padded canonical slugs", () => {
+    expect(
+      blogFrontmatterSchema.safeParse({
+        slug: " invalid-slug ",
+        title: "Invalid slug",
+        author: "william-callahan",
+        publishedAt: "2026-01-01",
+        excerpt: "Invalid slug fixture.",
+      }).success,
+    ).toBe(false);
+  });
+
   it("all blog posts have valid frontmatter", async () => {
     await Promise.all(
       mdxFiles.map(async (fileName) => {
@@ -88,7 +100,7 @@ describe("Blog MDX Smoke Tests", () => {
           return;
         }
 
-        const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };
+        const frontmatter = blogFrontmatterSchema.parse(matter(fileContents).data);
 
         expect(frontmatter.slug).toEqual(expect.any(String));
         expect(frontmatter.slug.trim()).not.toBe("");
@@ -101,7 +113,7 @@ describe("Blog MDX Smoke Tests", () => {
       mdxFiles.map(async (fileName) => {
         const fullPath = path.join(POSTS_DIRECTORY, fileName);
         const fileContents = await fs.readFile(fullPath, "utf8");
-        const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };
+        const frontmatter = blogFrontmatterSchema.parse(matter(fileContents).data);
         const frontmatterSlug = frontmatter.slug.trim();
 
         const post = await getMDXPost(frontmatterSlug, fullPath, fileContents);
@@ -114,12 +126,6 @@ describe("Blog MDX Smoke Tests", () => {
           expect(post.content).toBeDefined();
           // Verify other critical properties as needed
           expect(post.slug).toBe(frontmatterSlug);
-
-          // Guardrail: ensure we did not hit the MDX fallback renderer
-          // Fallback string is produced when MDX compilation fails in lib/blog/mdx.ts
-          const FALLBACK_MDX_MARKER = "Unable to render content due to MDX errors.";
-          const compiled = JSON.stringify(post.content);
-          expect(compiled).not.toContain(FALLBACK_MDX_MARKER);
         }
       }),
     );

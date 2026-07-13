@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import coverImageMap from "@/data/blog/cover-image-map.json";
+import { blogFrontmatterSchema } from "@/types/schemas/blog-frontmatter";
 
 describe("blog cover image manifest", () => {
   it("contains an entry for every local MDX cover image", () => {
@@ -13,11 +14,11 @@ describe("blog cover image manifest", () => {
     for (const file of files) {
       const filePath = path.join(postsDir, file);
       const raw = fs.readFileSync(filePath, "utf8");
-      const frontmatter = matter(raw).data as { coverImage?: unknown };
+      const frontmatter = blogFrontmatterSchema.parse(matter(raw).data);
       const coverImage = frontmatter.coverImage;
-      if (typeof coverImage === "string" && coverImage.startsWith("/images/posts/")) {
+      if (coverImage?.startsWith("/images/posts/")) {
         const baseName = path.basename(coverImage).replace(/\.[^.]+$/, "");
-        if (!coverImageMap[baseName as keyof typeof coverImageMap]) {
+        if (!Object.hasOwn(coverImageMap, baseName)) {
           missing.push(`${coverImage} (${file})`);
         }
       }

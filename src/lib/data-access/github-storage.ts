@@ -13,19 +13,22 @@ import {
   readRepoWeeklyStatsFromDb,
   readAggregatedWeeklyActivityFromDb,
   readGitHubActivityUpdatedAt,
-  listRepoWeeklyStatsQualifiers,
 } from "@/lib/db/queries/github-activity";
 import {
-  writeGitHubActivityToDb,
-  writeGitHubSummaryToDb,
+  writeGitHubActivityRefreshToDb,
   writeRepoWeeklyStatsToDb,
-  writeAggregatedWeeklyActivityToDb,
 } from "@/lib/db/mutations/github-activity";
-import type { StoredGithubActivity } from "@/types/github";
+import {
+  GITHUB_ACTIVITY_WRITE_INTENTS,
+  aggregatedWeeklyActivityArraySchema,
+  gitHubActivityApiResponseSchema,
+  gitHubActivitySummarySchema,
+} from "@/types/schemas/github-storage";
 import type {
   AggregatedWeeklyActivity,
   GitHubActivityApiResponse,
   GitHubActivitySummary,
+  GitHubActivityWriteIntent,
   RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 
@@ -41,11 +44,19 @@ export async function readGitHubActivityRecord(): Promise<GitHubActivityApiRespo
   return activityRecord;
 }
 
-/**
- * Write GitHub activity data with non-degrading write protection.
- */
-export async function writeGitHubActivityRecord(data: GitHubActivityApiResponse): Promise<boolean> {
-  return writeGitHubActivityToDb(data);
+/** Validate and atomically persist every public record produced by one GitHub refresh. */
+export async function writeGitHubActivityRefreshRecord(
+  activity: GitHubActivityApiResponse,
+  summary: GitHubActivitySummary,
+  aggregatedActivity: AggregatedWeeklyActivity[],
+  intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+): Promise<boolean> {
+  return writeGitHubActivityRefreshToDb(
+    gitHubActivityApiResponseSchema.parse(activity),
+    gitHubActivitySummarySchema.parse(summary),
+    aggregatedWeeklyActivityArraySchema.parse(aggregatedActivity),
+    intent,
+  );
 }
 
 /**
@@ -53,13 +64,6 @@ export async function writeGitHubActivityRecord(data: GitHubActivityApiResponse)
  */
 export async function readGitHubSummaryRecord(): Promise<GitHubActivitySummary | null> {
   return readGitHubSummaryFromDb();
-}
-
-/**
- * Write GitHub activity summary to the database.
- */
-export async function writeGitHubSummaryRecord(summary: GitHubActivitySummary): Promise<boolean> {
-  return writeGitHubSummaryToDb(summary);
 }
 
 /**
@@ -93,24 +97,6 @@ export async function readAggregatedWeeklyActivityRecord(): Promise<
 }
 
 /**
- * Write aggregated weekly activity to the database.
- */
-export async function writeAggregatedWeeklyActivityRecord(
-  data: AggregatedWeeklyActivity[],
-): Promise<boolean> {
-  return writeAggregatedWeeklyActivityToDb(data);
-}
-
-/**
- * List all repository weekly stats qualifiers stored in the database.
- * Returns qualifiers in "owner/repo" format, sorted alphabetically.
- * Replaces object-store key listing for repo weekly stats.
- */
-export async function listRepoStatsFiles(): Promise<string[]> {
-  return listRepoWeeklyStatsQualifiers();
-}
-
-/**
  * Get metadata for GitHub activity data.
  * Returns the updatedAt timestamp from the database row.
  */
@@ -121,21 +107,4 @@ export async function getGitHubActivityMetadata(): Promise<{ lastModified?: Date
   }
 
   return { lastModified: new Date(updatedAt) };
-}
-
-/**
- * Check if an object uses the old flat stored GitHub activity format.
- * Retained for backward compatibility in consumers that handle legacy data shapes.
- */
-export function isFlatStoredGithubActivityFormat(obj: unknown): obj is StoredGithubActivity {
-  if (!obj || typeof obj !== "object") return false;
-
-  return (
-    "source" in obj &&
-    typeof (obj as StoredGithubActivity).source === "string" &&
-    "data" in obj &&
-    Array.isArray((obj as StoredGithubActivity).data) &&
-    "totalContributions" in obj &&
-    typeof (obj as StoredGithubActivity).totalContributions === "number"
-  );
 }

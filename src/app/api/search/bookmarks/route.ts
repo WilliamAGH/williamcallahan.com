@@ -2,9 +2,7 @@
  * Bookmarks-only Search API Route
  *
  * GET /api/search/bookmarks?q=<query>
- * Returns dual payload shapes for compatibility:
- * - `data`: hydrated `UnifiedBookmark[]` for bookmark-focused consumers
- * - `results`: normalized `SearchResult[]` for terminal scoped-search parsing
+ * Returns compact `SearchResult[]` projections for terminal scoped-search parsing.
  *
  * In production: hybrid search (FTS + trigram + pgvector semantic similarity).
  * Fallback: FTS-only search when hybrid is unavailable.
@@ -15,12 +13,12 @@ import {
   createSearchErrorResponse,
   withNoStoreHeaders,
 } from "@/lib/search/api-guards";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarkFtsSearchHit, BookmarkFtsSearchPageResult } from "@/types/db/bookmarks";
-import type { SearchResult } from "@/types/schemas/search";
+import type { BookmarkSearchResponse, BookmarkSearchResult } from "@/types/schemas/search";
 import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
-import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -44,41 +42,37 @@ const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: tr
 
 /** Build the standard bookmark search response payload. */
 function buildBookmarkSearchResponse(params: {
-  data: UnifiedBookmark[];
-  results: SearchResult[];
+  results: BookmarkSearchResult[];
   totalCount: number;
   hasMore: boolean;
   query: string;
-  buildPhase?: boolean;
-}): NextResponse {
-  const { data, results, totalCount, hasMore, query, buildPhase } = params;
-  return NextResponse.json(
-    {
-      data,
-      results,
-      totalCount,
-      hasMore,
-      meta: {
-        query,
-        scope: "bookmarks",
-        count: results.length,
-        timestamp: new Date().toISOString(),
-        ...(buildPhase ? { buildPhase: true } : {}),
-      },
+  buildPhase?: true;
+}): NextResponse<BookmarkSearchResponse> {
+  const { results, totalCount, hasMore, query, buildPhase } = params;
+  const response = {
+    results,
+    totalCount,
+    hasMore,
+    meta: {
+      query,
+      scope: "bookmarks",
+      count: results.length,
+      timestamp: new Date().toISOString(),
+      ...(buildPhase === true ? { buildPhase } : {}),
     },
-    { headers: withNoStoreHeaders() },
-  );
+  } satisfies BookmarkSearchResponse;
+
+  return NextResponse.json(response, { headers: withNoStoreHeaders() });
 }
 
-/** Map a ranked bookmark row into a normalized SearchResult. */
-function toBookmarkSearchResult(bookmark: UnifiedBookmark, score: number): SearchResult {
-  const fallbackUrl = bookmark.slug ? `/bookmarks/${bookmark.slug}` : `/bookmarks/${bookmark.id}`;
+/** Map a ranked bookmark row into a compact search result. */
+function toBookmarkSearchResult(bookmark: UnifiedBookmark, score: number): BookmarkSearchResult {
   return {
     id: bookmark.id,
     type: "bookmark",
     title: bookmark.title,
     description: bookmark.description,
-    url: fallbackUrl,
+    url: buildBookmarkPath(bookmark.slug),
     score,
   };
 }
@@ -108,8 +102,11 @@ async function tryHybridSearch(query: string): Promise<BookmarkFtsSearchHit[] | 
         if (vec && vec.length === schema.CONTENT_EMBEDDING_DIMENSIONS) {
           embedding = vec;
         }
-      } catch {
-        // Embedding generation failed; hybrid continues with keyword-only scoring
+      } catch (error: unknown) {
+        console.error(
+          "[BookmarksSearchRoute] Embedding generation failed; continuing with keyword-only scoring:",
+          error,
+        );
       }
     }
 
@@ -146,14 +143,9 @@ function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }
 }
 
 export async function GET(request: NextRequest) {
-  // connection(): ensure request-time execution under cacheComponents to avoid prerendered buildPhase responses
   await connection();
-  // CRITICAL: Call preventCaching() FIRST to prevent Next.js from caching ANY response
-  // If called after the build phase check, the buildPhase:true response gets cached
-  preventCaching();
   if (isProductionBuildPhase()) {
     return buildBookmarkSearchResponse({
-      data: [],
       results: [],
       totalCount: 0,
       hasMore: false,
@@ -174,7 +166,7 @@ export async function GET(request: NextRequest) {
     const validation = validateSearchQuery(rawQuery);
     if (!validation.isValid) {
       return NextResponse.json(
-        { error: validation.error || "Invalid search query" },
+        { error: validation.error },
         { status: 400, headers: withNoStoreHeaders() },
       );
     }
@@ -182,7 +174,6 @@ export async function GET(request: NextRequest) {
     const query = validation.sanitized;
     if (query.length === 0) {
       return buildBookmarkSearchResponse({
-        data: [],
         results: [],
         totalCount: 0,
         hasMore: false,
@@ -208,7 +199,6 @@ export async function GET(request: NextRequest) {
     const start = (page - 1) * limit;
 
     return buildBookmarkSearchResponse({
-      data: allItems.items.map((item) => item.bookmark),
       results: allItems.items.map((item) => toBookmarkSearchResult(item.bookmark, item.score)),
       totalCount: allItems.totalCount,
       hasMore: start + limit < allItems.totalCount,

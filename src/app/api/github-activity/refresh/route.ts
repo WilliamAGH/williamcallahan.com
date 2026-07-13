@@ -63,15 +63,6 @@ async function ensureRateLimitsLoaded() {
  * - Server logs provide detailed information on failures or unauthorized attempts.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // Skip during build phase to prevent blocking
-  if (process.env.NEXT_PHASE === "phase-production-build") {
-    console.log("[API Refresh] Build phase detected - skipping GitHub activity refresh");
-    return NextResponse.json(
-      { message: "Skipping refresh during build phase", buildPhase: true },
-      { status: 200 },
-    );
-  }
-
   const databaseAccess = resolveDatabaseAccessMode();
   if (!databaseAccess.allowWrites) {
     envLogger.log(

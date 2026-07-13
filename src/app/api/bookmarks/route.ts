@@ -9,6 +9,7 @@ import { preventCaching } from "@/lib/utils/api-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { getMonotonicTime } from "@/lib/utils";
 import { getDiscoveryRankedBookmarks } from "@/lib/db/queries/discovery-scores";
 import { getDiscoveryGroupedBookmarks } from "@/lib/db/queries/discovery-grouped";
@@ -25,12 +26,12 @@ function buildInternalHrefs(
   for (const item of items) {
     const embedded = tryGetEmbeddedSlug(item);
     if (embedded) {
-      res[item.id] = `/bookmarks/${embedded}`;
+      res[item.id] = buildBookmarkPath(embedded);
       continue;
     }
     if (slugMapping) {
       const mapped = getSlugForBookmark(slugMapping, item.id);
-      if (mapped) res[item.id] = `/bookmarks/${mapped}`;
+      if (mapped) res[item.id] = buildBookmarkPath(mapped);
       else console.error(`[API Bookmarks] WARNING: No slug for bookmark ${item.id}`);
     } else {
       console.error(

@@ -2,7 +2,7 @@
  * GitHub Activity Storage Schemas
  * @module types/schemas/github-storage
  * @description
- * Zod v4 schemas for GitHub activity data persisted in PostgreSQL.
+ * Zod v4 schemas for stored GitHub activity and its public API projections.
  */
 
 import { z } from "zod/v4";
@@ -21,9 +21,13 @@ export const githubActivityRefreshSuccessResponseSchema = z.discriminatedUnion("
   }),
 ]);
 
+export type GitHubActivityRefreshSuccessResponse = z.infer<
+  typeof githubActivityRefreshSuccessResponseSchema
+>;
+
 export const contributionDaySchema = z.object({
-  date: z.string(),
-  count: z.number(),
+  date: z.iso.date(),
+  count: z.number().int().nonnegative(),
   level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
 });
 
@@ -49,19 +53,74 @@ export const priorYearCommitSummarySchema = z.object({
 
 export type PriorYearCommitSummary = z.infer<typeof priorYearCommitSummarySchema>;
 
+export const publicPriorYearCommitSummarySchema = priorYearCommitSummarySchema.omit({
+  perRepo: true,
+});
+
+export type PublicPriorYearCommitSummary = z.infer<typeof publicPriorYearCommitSummarySchema>;
+
 export const githubActivitySegmentSchema = z.object({
   source: z.enum(["scraping", "api", "api_multi_file_cache"]),
   data: z.array(contributionDaySchema),
   totalContributions: z.number(),
-  linesAdded: z.number().optional(),
-  linesRemoved: z.number().optional(),
-  dataComplete: z.boolean().optional(),
+  linesAdded: z.number(),
+  linesRemoved: z.number(),
+  dataComplete: z.boolean(),
   error: z.string().optional(),
   details: z.string().optional(),
   allPriorYearCommits: priorYearCommitSummarySchema.optional(),
 });
 
 export type GitHubActivitySegment = z.infer<typeof githubActivitySegmentSchema>;
+
+const publicTrailingYearActivitySchema = githubActivitySegmentSchema.pick({
+  data: true,
+  totalContributions: true,
+  linesAdded: true,
+  linesRemoved: true,
+  dataComplete: true,
+});
+
+export const userActivityViewSchema = z.object({
+  source: z.enum(["db-store", "error", "empty"]),
+  error: z.string().optional(),
+  trailingYearData: publicTrailingYearActivitySchema,
+  allTimeStats: githubActivitySegmentSchema.pick({
+    totalContributions: true,
+    linesAdded: true,
+    linesRemoved: true,
+  }),
+  priorYearCommits: publicPriorYearCommitSummarySchema.optional(),
+  lastRefreshed: z.iso.datetime().optional(),
+});
+
+export type UserActivityView = z.infer<typeof userActivityViewSchema>;
+
+export function createUnavailableUserActivityView({
+  source,
+  error,
+}: {
+  source: Extract<UserActivityView["source"], "empty" | "error">;
+  error?: string;
+}): UserActivityView {
+  const view = {
+    source,
+    trailingYearData: {
+      data: [],
+      totalContributions: 0,
+      linesAdded: 0,
+      linesRemoved: 0,
+      dataComplete: false,
+    },
+    allTimeStats: {
+      totalContributions: 0,
+      linesAdded: 0,
+      linesRemoved: 0,
+    },
+  } satisfies UserActivityView;
+
+  return error === undefined ? view : { ...view, error };
+}
 
 export const gitHubActivityApiResponseSchema = z.object({
   trailingYearData: githubActivitySegmentSchema,
@@ -71,6 +130,18 @@ export const gitHubActivityApiResponseSchema = z.object({
 });
 
 export type GitHubActivityApiResponse = z.infer<typeof gitHubActivityApiResponseSchema>;
+
+export const GITHUB_ACTIVITY_WRITE_INTENTS = {
+  PRESERVE_HEALTHY_ACTIVITY: "preserve-healthy-activity",
+  REPLACE_EMPTY_CURRENT_REPOSITORY_SET: "replace-empty-current-repository-set",
+} as const;
+
+export const githubActivityWriteIntentSchema = z.enum([
+  GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+  GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
+]);
+
+export type GitHubActivityWriteIntent = z.infer<typeof githubActivityWriteIntentSchema>;
 
 const locCategorySchema = z.object({
   linesAdded: z.number(),

@@ -9,6 +9,7 @@
 - [Lib Directory](#lib-directory)
 - [Types Directory](#types-directory)
 - [Config Directory](#config-directory)
+- [Infrastructure Directory](#infrastructure-directory)
 - [Middleware Directory](#middleware-directory)
 - [Root Directory](#root-directory)
 - [Rules Directory](#rules-directory)
@@ -249,9 +250,10 @@ File/Path Functionality Description
   - [x] `index.ts` `blog` - Removed; import blog library modules directly
   - [x] `mdx.ts` `blog` - MDX processing utilities
   - [x] `server-search.ts` `blog` - Server-side blog search
-  - [x] `validation.ts` `blog` - Blog data validation schemas
+  - [x] `validation.ts` `blog` - Parses canonical frontmatter and owns the cached slug-to-MDX-file index plus route/cache lookup guard
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
+  - [x] `bookmark-helpers.ts` `bookmarks` - Canonical bookmark detail-path construction and card-image selection
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
   - [x] `slug-helpers.ts` `bookmarks` - Indexed slug and bookmark-ID resolution
   - [x] **analysis/**
@@ -273,12 +275,15 @@ File/Path Functionality Description
 - [x] **data-access/**
   - [x] `bookmarks.ts` `json-handling` - Data access for bookmarks
   - [x] `github.ts` `json-handling` - GitHub orchestration (API fetch, processing, cache invalidation, and durable persistence flow)
-  - [x] `github-activity-summaries.ts` `github-activity` - Writes trailing-year and all-time summary payloads via PostgreSQL-backed storage adapters
+  - [x] `github-activity-summaries.ts` `github-activity` - Writes the single all-time summary payload via PostgreSQL-backed storage
   - [x] `github-commit-counts.ts` `github-activity` - All-time commit count aggregation (GraphQL + REST fallback)
   - [x] `github-contributions.ts` `github-activity` - Contribution calendar fetch + flattening helpers
   - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
+  - [x] `github-processing.ts` `github-activity` - Canonical weekly aggregation and line-of-code category processing
+  - [x] `github-public-api.ts` `github-activity` - Projects validated stored activity into the aggregate-only public view
   - [x] `github-repo-stats.ts` `github-activity` - Per-repo stats processing + category aggregation
   - [x] `github-repo-processor.ts` `github-activity` - Single-repo processing with CSV fallback
+  - [x] `github-storage.ts` `github-activity` - Validated PostgreSQL activity, summary, aggregate, and repository-stat persistence boundary
   - [x] `investments.ts` `investments` - Data access for investments
   - [x] `logos.ts` `image-handling` - Data access for logos
   - [x] `opengraph.ts` `opengraph` - Data access for OpenGraph metadata extraction and caching (2025-06: background persistence)
@@ -327,7 +332,7 @@ File/Path Functionality Description
     - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated upserts and guarded writes
     - [x] `content-graph.ts` `search` - Content-graph artifact upserts for related-content precomputation
     - [x] `books.ts` `books` - Books snapshot upserts with transactional latest pointer update
-    - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest/versions upserts with transactional versioning
+    - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest upserts with optional append-only version inserts in the same transaction
     - [x] `opengraph.ts` `seo` - OpenGraph metadata/override upserts
     - [x] `thoughts.ts` `thoughts` - Thought upsert/delete mutations
     - [x] `image-manifests.ts` `image-handling` - Image manifest upserts (single and batch)
@@ -394,6 +399,7 @@ File/Path Functionality Description
 - [x] **server/**
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
+  - [x] `github-activity-refresh.ts` `batch-fetch-update` - Write-gated GitHub refresh operation and Sentry boundary
 - [ ] **services/**
   - [x] `image-streaming.ts` `image-handling` - Error-propagating streaming pipeline for image uploads
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
@@ -401,7 +407,7 @@ File/Path Functionality Description
     - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
     - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
 - [x] **sitemap/**
-  - [x] `blog-collector.ts` `seo` - Synchronous blog post/tag sitemap entry collector (reads MDX frontmatter)
+  - [x] `blog-collector.ts` `seo` - Asynchronous projection of canonical `getAllPostsMeta()` inventory into blog post/tag sitemap entries
   - [x] `bookmark-collectors.ts` `seo` - Bookmark and bookmark-tag sitemap entry collectors (slug mapping + paginated fallback)
   - [x] `constants.ts` `seo` - Shared sitemap constants (change frequencies, priorities, cache TTL)
   - [x] `content-collectors.ts` `seo` - Book and thought sitemap entry collectors
@@ -452,6 +458,9 @@ File/Path Functionality Description
 - [x] **db/**
   - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmark row/insert type exports for DB modules
 - [ ] **schemas/**
+  - [x] `api.ts` `log-error-debug-handling` - Canonical Zod schemas for API errors, client-error telemetry, and shared route response contracts
+  - [x] `blog-frontmatter.ts` `blog` - Zod single owner of MDX frontmatter and `blogSlugSchema`; runtime MDX and Node seed ingestion parse through it
+  - [x] `github-storage.ts` `github-activity` - Canonical persisted and public GitHub activity schemas, projections, and write intents
   - [x] `og-image.ts` `opengraph` - Zod schemas for OG image entity types, per-entity params, and layout props
   - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
 - [ ] **global/**
@@ -507,6 +516,12 @@ File/Path Functionality Description
   - [x] `global-mocks.ts` `testing-config` - Global cache API stubs
   - [x] `setup.ts` `testing-config` - Vitest setup with DOM mocks and matchers
 
+## Infrastructure Directory
+
+- [x] **infra/cloudflare/** `caching` - Declarative Cloudflare Cache Rules ownership
+  - [x] `cache-rules.json` `caching` - Desired Cache Rules deployed through the Rulesets API
+  - [x] `cache-rules.schema.json` `caching` - JSON Schema that validates the declarative Cache Rules
+
 ## Middleware Directory
 
 - [ ] **middleware/**
@@ -520,7 +535,7 @@ File/Path Functionality Description
 - [x] `.gitignore` `config` - Git ignore file
 - [x] `bun.lock` `deps` - Bun lockfile
 - [x] `components.json` `config` - ShadCN UI component configuration
-- [x] `Dockerfile` `deployment` - Docker container configuration
+- [x] `Dockerfile` `deployment` - Web image build with one release identity for Next build IDs and `dpl` asset cache keys
 - [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
 - [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
@@ -581,6 +596,7 @@ File/Path Functionality Description
   - [x] **github-activity/**
     - [x] `route.ts` `github-activity` - GitHub activity API
     - [x] **refresh/`route.ts`** `github-activity` - Refresh GitHub activity API
+    - [x] **refresh-production/`route.ts`** `github-activity` - Authenticated relay to the production refresh endpoint
   - [x] **health/`route.ts`** `log-error-debug-handling` - Health check API
   - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated raw system metrics API; no public status page
   - [x] **ip/`route.ts`** `log-error-debug-handling` - IP address API
@@ -635,6 +651,7 @@ File/Path Functionality Description
 - [x] `check-duplicate-types.ts` `linting-formatting` - Deterministic build-time check for globally unique type/interface/enum names
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
+- [x] `deploy-cf-cache-rules.node.mjs` `caching` - Validates, previews, and deploys declarative Cloudflare Cache Rules
 - [x] `bookmark-diagnostics.ts` `log-error-debug-handling` - Diagnostics script for bookmark refresh/cache behavior
 - [x] `entrypoint.sh` `deployment` - Docker entrypoint script
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
@@ -655,6 +672,7 @@ File/Path Functionality Description
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests
 - [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
+- [x] `smoke-test-production.ts` `deployment` - Production route, release-identity, and Cloudflare cache smoke checks
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
 - [x] `entrypoint.sh` `deployment` - Web container entrypoint (DB gate + Next.js server only)
@@ -781,6 +799,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `image-handling/streaming-refetch.test.ts` `image-handling` - Image streaming re-fetch fallback tests
     - [x] `instrumentation-client.test.ts` `log-error-debug-handling` - Client instrumentation error filter tests
     - [x] `instrumentation-register.test.ts` `instrumentation-monitoring` - Instrumentation register hook tests
+    - [x] **server/**
+      - [x] `github-activity-refresh.test.ts` `batch-fetch-update` - Read-only, production, and Sentry GitHub refresh operation tests
     - [x] `logo.test.ts` `image-handling` - Logo utility tests
     - [x] `routes.test.ts` `navigation` - Routes utility tests
     - [x] `s3-connection.test.ts` `s3-object-storage` - S3 connection tests

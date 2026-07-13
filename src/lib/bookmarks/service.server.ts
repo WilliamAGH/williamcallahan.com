@@ -51,6 +51,14 @@ export async function getBookmarks(
   return result;
 }
 
+export function getBookmarkById(
+  bookmarkId: string,
+  options: BookmarkLoadOptions & { includeImageData: true },
+): Promise<UnifiedBookmark | null>;
+export function getBookmarkById(
+  bookmarkId: string,
+  options?: BookmarkLoadOptions,
+): Promise<UnifiedBookmark | LightweightBookmark | null>;
 export async function getBookmarkById(
   bookmarkId: string,
   options: BookmarkLoadOptions = {},

@@ -1,62 +1,25 @@
-/**
- * MDX Processing Utilities
- *
- * Handles reading, parsing, and serializing MDX blog posts with frontmatter.
- * Provides functionality to:
- * - Read MDX files from the posts directory
- * - Parse frontmatter metadata
- * - Serialize MDX content with syntax highlighting
- *
- * @note Plugin Compatibility
- * The rehype/remark plugins work correctly at runtime despite TypeScript type
- * mismatches from nested unified/vfile version dependencies. If you encounter
- * "Plugin<...> is not assignable to type 'Pluggable<any[]>'" errors when
- * updating these packages, verify version compatibility across:
- * - next-mdx-remote, mdx-js/mdx, remark-gfm, rehype-prism, rehype-slug,
- *   rehype-autolink-headings.
- */
-
-assertServerOnly(); // Ensure this module runs only on the server
-
-import { assertServerOnly } from "../utils/ensure-server-only";
-// rehype-raw removed to avoid conflicts with MDX v3 JSX nodes
-import { formatSeoDate } from "../seo/utils"; // Import the Pacific Time formatter
-import type { Frontmatter } from "@/types/features/blog";
-
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getPlaiceholder } from "plaiceholder";
 import rehypePrism from "@mapbox/rehype-prism";
-import matter from "gray-matter";
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
 import { serialize } from "next-mdx-remote/serialize";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
-import { getBlogPostImageCdnUrl } from "@/lib/utils/cdn-utils";
 import { authors } from "@/data/blog/authors";
-import type { BlogPost } from "../../types/blog";
-
-import type { CacheDurationProfile } from "@/types/cache-profile";
+import { BLOG_POSTS_DIRECTORY, isValidBlogSlug, parseBlogMdxDocument } from "@/lib/blog/validation";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
+import { getBlogPostImageCdnUrl } from "@/lib/utils/cdn-utils";
+import type { BlogPost } from "@/types/blog";
+import { formatSeoDate } from "../seo/utils";
+import { assertServerOnly } from "../utils/ensure-server-only";
 
-const isDevLoggingEnabled =
-  process.env.NODE_ENV === "development" ||
-  process.env.DEBUG === "true" ||
-  process.env.VERBOSE === "true";
+assertServerOnly();
 
-const logCoverImageInfo = (message: string): void => {
-  if (isDevLoggingEnabled) {
-    console.log(`[sanitizeCoverImage] ${message}`);
-  }
-};
+const PUBLIC_DIRECTORY = path.join(process.cwd(), "public");
+const legacyParagraphWrapperTags = ["BackgroundInfo", "CollapseDropdown"];
 
-/**
- * Some blog posts embed code samples inside JSX as
- * `<code>{`...`}</code>`. `next-mdx-remote` can misparse shell-style snippets in
- * that form, so convert them to an explicit joined string array before
- * serialization.
- */
 function normalizeCodeExpressionBlocks(content: string): string {
   return content.replaceAll(/<code([^>]*)>\{`([\s\S]*?)`}<\/code>/g, (_match, attributes, code) => {
     const serializedLines = code
@@ -67,23 +30,19 @@ function normalizeCodeExpressionBlocks(content: string): string {
   });
 }
 
-const legacyParagraphWrapperTags = ["BackgroundInfo", "CollapseDropdown"] as const;
-
 function normalizeParagraphWrappers(content: string): string {
   return legacyParagraphWrapperTags.reduce((normalizedContent, tagName) => {
-    const blockPattern = new RegExp(`<${tagName}(\\b[^>]*)>([\\s\\S]*?)</${tagName}>`, "g");
-
-    return normalizedContent.replaceAll(blockPattern, (_match, attributes, innerContent) => {
+    const pattern = new RegExp(`<${tagName}(\\b[^>]*)>([\\s\\S]*?)</${tagName}>`, "g");
+    return normalizedContent.replaceAll(pattern, (_match, attributes, innerContent) => {
       const normalizedInnerContent = innerContent
         .replaceAll(/<p(\s[^>]*)?>/g, "<div$1>")
         .replaceAll("</p>", "</div>");
-
       return `<${tagName}${attributes ?? ""}>${normalizedInnerContent}</${tagName}>`;
     });
   }, content);
 }
 
-export function normalizeBlogMdxContent(content: string): string {
+function normalizeBlogMdxContent(content: string): string {
   return normalizeParagraphWrappers(normalizeCodeExpressionBlocks(content))
     .replaceAll(/```cmd\b/g, "```batch")
     .replaceAll(/```dos\b/g, "```batch")
@@ -91,7 +50,7 @@ export function normalizeBlogMdxContent(content: string): string {
     .replaceAll(/```ps1\b/g, "```powershell");
 }
 
-export async function serializeBlogMdxContent(
+async function serializeBlogMdxContent(
   content: string,
 ): Promise<MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>> {
   return serialize(normalizeBlogMdxContent(content), {
@@ -104,33 +63,12 @@ export async function serializeBlogMdxContent(
   });
 }
 
-/** Directory containing MDX blog posts */
-const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
-/** Public directory for static assets */
-const PUBLIC_DIRECTORY = path.join(process.cwd(), "public");
-
-/**
- * Generates a blur data URL (LQIP - Low Quality Image Placeholder) for a local image.
- * Used as the blurDataURL prop for Next.js Image component's placeholder="blur".
- *
- * @param localImagePath - The public-relative path (e.g., "/images/posts/my-image.png")
- * @returns Base64-encoded blur data URL or undefined if generation fails
- */
 async function generateBlurDataURL(localImagePath: string): Promise<string | undefined> {
-  // Only process local paths starting with /images/posts/
-  if (!localImagePath.startsWith("/images/posts/")) {
-    return undefined;
-  }
+  if (!localImagePath.startsWith("/images/posts/")) return undefined;
 
-  const absolutePath = path.join(PUBLIC_DIRECTORY, localImagePath);
-  const normalizedPath = path.normalize(absolutePath);
-
-  // Defense-in-depth: ensure resolved path stays within PUBLIC_DIRECTORY
-  // Prevents path traversal attacks like "/images/posts/../../../etc/passwd"
+  const normalizedPath = path.normalize(path.join(PUBLIC_DIRECTORY, localImagePath));
   if (!normalizedPath.startsWith(PUBLIC_DIRECTORY)) {
-    if (isDevLoggingEnabled) {
-      console.warn(`[generateBlurDataURL] Path traversal attempt blocked: ${localImagePath}`);
-    }
+    console.warn(`[blog] Blocked invalid cover image path: ${localImagePath}`);
     return undefined;
   }
 
@@ -139,459 +77,187 @@ async function generateBlurDataURL(localImagePath: string): Promise<string | und
     const { base64 } = await getPlaiceholder(imageBuffer, { size: 10 });
     return base64;
   } catch (error) {
-    // Log warning but don't fail - blur placeholder is an enhancement, not critical
-    if (isDevLoggingEnabled) {
-      console.warn(`[generateBlurDataURL] Failed to generate blur for ${localImagePath}:`, error);
-    }
-    // RC1a: error logged; undefined is the documented contract (enhancement-only)
+    console.warn(`[blog] Failed to generate blur data for ${localImagePath}:`, error);
+    throw error;
   }
-  return undefined;
 }
 
-const cacheLife = (profile: CacheDurationProfile): void => {
-  cacheContextGuards.cacheLife("BlogMDX", profile);
-};
+function sanitizeCoverImage(coverImage: string | undefined): string | undefined {
+  if (coverImage === undefined || !coverImage.startsWith("/images/posts/")) return coverImage;
 
-const cacheTag = (...tags: string[]): void => {
-  cacheContextGuards.cacheTag("BlogMDX", ...tags);
-};
+  try {
+    const cdnUrl = getBlogPostImageCdnUrl(coverImage);
+    if (cdnUrl !== undefined) return cdnUrl;
+    console.warn(`[blog] Missing cover image manifest entry for ${coverImage}.`);
+  } catch (error) {
+    console.warn(`[blog] Failed to resolve cover image ${coverImage}:`, error);
+  }
 
-const revalidateTag = (...tags: string[]): void => {
-  cacheContextGuards.revalidateTag("BlogMDX", ...tags);
-};
-
-/**
- * Converts a date string or Date object to a Pacific Time ISO string
- * Uses the formatSeoDate utility to handle PT/DST correctly.
- * If no date is provided, uses the current time.
- */
-function toPacificISOString(date: string | Date | undefined): string {
-  return formatSeoDate(date);
+  return coverImage;
 }
 
-/**
- * Validates and sanitizes the coverImage value from frontmatter.
- * Automatically maps local blog post images to S3 CDN URLs if available.
- * @param coverImageValue - The value from frontmatter.
- * @param contextSlug - The slug of the post for logging purposes.
- * @param contextFilePath - The file path of the post for logging purposes.
- * @returns Sanitized cover image string (S3 CDN URL if available) or undefined.
- */
-function sanitizeCoverImage(
-  coverImageValue: unknown,
-  contextSlug: string,
-  contextFilePath: string,
-): string | undefined {
-  if (!coverImageValue) {
-    return undefined;
+async function createMdxPost(
+  document: NonNullable<ReturnType<typeof parseBlogMdxDocument>>,
+  filePath: string,
+  skipHeavyProcessing: boolean,
+): Promise<BlogPost | null> {
+  const { content, frontmatter } = document;
+  const author = authors[frontmatter.author];
+  if (!author) {
+    console.error(`[blog] Unknown author "${frontmatter.author}" in ${filePath}.`);
+    return null;
   }
-  if (typeof coverImageValue === "string" && coverImageValue.trim() !== "") {
-    const trimmedValue = coverImageValue.trim();
 
-    // Check if it's a local blog post image path
-    if (trimmedValue.startsWith("/images/posts/")) {
-      try {
-        const cdnUrl = getBlogPostImageCdnUrl(trimmedValue);
-        if (cdnUrl) {
-          logCoverImageInfo(`Mapped ${trimmedValue} to S3 CDN: ${cdnUrl}`);
-          return cdnUrl;
-        }
-        console.warn(`[sanitizeCoverImage] Missing cover image manifest entry for ${trimmedValue}`);
-      } catch (error) {
-        console.warn(
-          `[sanitizeCoverImage] Falling back to local cover image for ${trimmedValue} because CDN resolution failed:`,
-          error,
-        );
-      }
+  const mdxSource = skipHeavyProcessing
+    ? { compiledSource: "", scope: {}, frontmatter: {} }
+    : await serializeBlogMdxContent(content);
+  const coverImageBlurDataURL =
+    frontmatter.coverImage === undefined || skipHeavyProcessing
+      ? undefined
+      : await generateBlurDataURL(frontmatter.coverImage);
 
-      return trimmedValue;
-    }
-
-    return trimmedValue;
-  }
-  console.warn(
-    `[sanitizeCoverImage] Invalid coverImage frontmatter for slug "${contextSlug}" (file: ${contextFilePath}): Not a non-empty string. Received:`,
-    coverImageValue,
-  );
-  return undefined;
+  return {
+    id: `mdx-${frontmatter.slug}`,
+    title: frontmatter.title,
+    slug: frontmatter.slug,
+    excerpt: frontmatter.excerpt,
+    content: mdxSource,
+    rawContent: content,
+    publishedAt: formatSeoDate(frontmatter.publishedAt),
+    ...(frontmatter.updatedAt !== undefined && { updatedAt: formatSeoDate(frontmatter.updatedAt) }),
+    author,
+    tags: frontmatter.tags,
+    ...(frontmatter.readingTime !== undefined && { readingTime: frontmatter.readingTime }),
+    coverImage: sanitizeCoverImage(frontmatter.coverImage),
+    ...(coverImageBlurDataURL !== undefined && { coverImageBlurDataURL }),
+    filePath,
+    ...(frontmatter.draft === true && { draft: true }),
+  };
 }
 
-/**
- * Retrieves and processes a single MDX blog post.
- * Prioritizes frontmatter slug for identification and caching.
- *
- * @param {string} frontmatterSlug - The slug from frontmatter, used as the primary key.
- * @param {string} filePathForPost - The full path to the .mdx file.
- * @param {string} [fileContentOverride] - Optional. Pre-read content of the file. If not provided, reads from filePathForPost.
- * @returns {Promise<BlogPost | null>} The processed blog post or null if not found/error.
- */
 export async function getMDXPost(
-  frontmatterSlug: string, // Renamed from identifier
-  filePathForPost: string,
+  frontmatterSlug: string,
+  filePath: string,
   fileContentOverride?: string,
   skipHeavyProcessing = false,
 ): Promise<BlogPost | null> {
   try {
-    let fileContents: string;
-    let stats: import("fs").Stats;
-
-    if (fileContentOverride) {
-      fileContents = fileContentOverride;
-      // Need stats for lastModified, even with content override
-      try {
-        stats = await fs.stat(filePathForPost);
-      } catch {
-        console.warn(
-          `[getMDXPost] Could not stat file ${filePathForPost} even with content override`,
-        );
-        // Build a minimal stats-like object for the fallback path.
-        // Only mtime, birthtime, birthtimeMs, and mtimeMs are accessed downstream.
-        const fallbackStats: unknown = {
-          mtime: new Date(0),
-          birthtime: new Date(0),
-          birthtimeMs: 0,
-          mtimeMs: 0,
-        };
-        stats = fallbackStats as import("fs").Stats;
-      }
-    } else {
-      // Stat once; failure means the file is missing or unreadable
-      try {
-        stats = await fs.stat(filePathForPost);
-      } catch {
-        console.warn(
-          `[getMDXPost] Blog post file not found or unreadable at path ${filePathForPost} (slug: ${frontmatterSlug})`,
-        );
-        return null;
-      }
-      fileContents = await fs.readFile(filePathForPost, "utf8");
-    }
-
-    // Parse frontmatter
-    const parsed = matter(fileContents);
-    const frontmatter = parsed.data as Frontmatter;
-    const content = parsed.content;
-
-    // Validate frontmatter slug consistency
-    const normalizedParam = frontmatterSlug.trim();
-    if (
-      !frontmatter.slug ||
-      typeof frontmatter.slug !== "string" ||
-      frontmatter.slug.trim() === "" ||
-      frontmatter.slug.trim() !== normalizedParam
-    ) {
-      console.warn(
-        `[getMDXPost] Mismatch or invalid slug in frontmatter for file ${filePathForPost}. Expected "${normalizedParam}", got "${frontmatter.slug}". Skipping.`,
-      );
+    const source =
+      fileContentOverride !== undefined ? fileContentOverride : await fs.readFile(filePath, "utf8");
+    const document = parseBlogMdxDocument(source);
+    if (!document) {
+      console.warn(`[blog] Invalid frontmatter in ${filePath}.`);
       return null;
     }
 
-    // Look up author data
-    const authorId = frontmatter.author;
-    const author = authors[authorId];
-    if (!author) {
-      console.error(
-        `Author not found: ${authorId} in post with slug "${frontmatterSlug}" (file: ${filePathForPost})`,
-      );
+    if (!isValidBlogSlug(frontmatterSlug) || document.frontmatter.slug !== frontmatterSlug) {
+      console.warn(`[blog] Frontmatter slug mismatch in ${filePath}.`);
       return null;
     }
 
-    // Get file dates as fallback
-    const fileDates = {
-      created: stats.birthtimeMs ? stats.birthtime.toISOString() : stats.mtime.toISOString(),
-      modified: stats.mtime.toISOString(),
-    };
-
-    /**
-     * Serialize the MDX content with syntax highlighting and enhanced features.
-     *
-     * @note Plugin Type Casting Required
-     * The rehype plugins are cast to `Pluggable` type to work around TypeScript
-     * type mismatches between unified ecosystem versions. This is safe because:
-     * - All plugins are compatible at runtime
-     * - The type mismatch is only in the nested vfile/unified type definitions
-     * - Broader unified ecosystem type incompatibilities are documented in the module header
-     *
-     * Plugins used:
-     * - remarkGfm: GitHub Flavored Markdown support (tables, strikethrough, etc.)
-     * - rehypePrism: Syntax highlighting for code blocks
-     * - rehypeSlug: Auto-generates anchor IDs for headings
-     * - rehypeAutolinkHeadings: Makes headings clickable with anchor links
-     */
-    let mdxSource: MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>;
-
-    if (skipHeavyProcessing) {
-      mdxSource = {
-        compiledSource: "",
-        scope: {},
-        frontmatter: {},
-      };
-    } else {
-      try {
-        // Normalize code block language labels to Prism-compatible names
-        // This avoids MDX compile errors from rehype-prism when encountering unknown languages
-        mdxSource = await serializeBlogMdxContent(content);
-      } catch (mdxError) {
-        console.error(`[getMDXPost] MDX compile error for slug "${frontmatterSlug}":`, mdxError);
-        // Fallback minimal content to prevent crash
-        mdxSource = await serialize("<p>Unable to render content due to MDX errors.</p>", {
-          scope: {},
-          parseFrontmatter: false,
-        });
-      }
-    }
-
-    // Use frontmatter dates, ensuring they are Pacific Time ISO strings
-    const publishedAt = toPacificISOString(frontmatter.publishedAt || fileDates.created);
-    const updatedAt = toPacificISOString(
-      frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified,
-    );
-
-    // Generate blur data URL from local image path (before S3 mapping)
-    // This must happen BEFORE sanitizeCoverImage transforms to CDN URL
-    const rawCoverImagePath =
-      typeof frontmatter.coverImage === "string" ? frontmatter.coverImage.trim() : undefined;
-    const coverImageBlurDataURL =
-      rawCoverImagePath && !skipHeavyProcessing
-        ? await generateBlurDataURL(rawCoverImagePath)
-        : undefined;
-
-    const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
-
-    const post: BlogPost = {
-      id: `mdx-${frontmatterSlug}`,
-      title: frontmatter.title,
-      slug: frontmatterSlug,
-      excerpt: frontmatter.excerpt || "",
-      content: mdxSource,
-      rawContent: content,
-      publishedAt,
-      updatedAt,
-      author,
-      tags: frontmatter.tags || [],
-      ...(frontmatter.readingTime !== undefined && { readingTime: frontmatter.readingTime }),
-      coverImage,
-      coverImageBlurDataURL,
-      filePath: filePathForPost,
-      ...(frontmatter.draft === true && { draft: true }),
-    };
-
+    const post = await createMdxPost(document, filePath, skipHeavyProcessing);
     return post;
-  } catch (e) {
-    const error = e as Error;
-    console.error(
-      `Error processing post from file ${filePathForPost} (slug: ${frontmatterSlug}):`,
-      error.message,
-      error.stack,
-    );
-    // RC1a: error logged; null is the documented contract for callers
+  } catch (error) {
+    console.error(`[blog] Failed to process ${filePath} for slug "${frontmatterSlug}":`, error);
+    throw error;
   }
-  return null;
 }
 
-// Internal direct read function for MDX posts (always available)
-async function getMDXPostDirect(
-  frontmatterSlug: string,
-  filePathForPost: string,
-  fileContentOverride?: string,
-  skipHeavyProcessing = false,
-): Promise<BlogPost | null> {
-  return getMDXPost(frontmatterSlug, filePathForPost, fileContentOverride, skipHeavyProcessing);
-}
-
-// Cached version using 'use cache' directive
 async function getCachedMDXPost(
   frontmatterSlug: string,
-  filePathForPost: string,
+  filePath: string,
   skipHeavyProcessing = false,
 ): Promise<BlogPost | null> {
   "use cache";
-
-  // Set cache profile for blog posts
-  cacheLife("hours"); // Blog posts are relatively static
-
-  cacheTag("blog-mdx");
-  cacheTag(`blog-post-${frontmatterSlug}`);
-
-  return getMDXPostDirect(frontmatterSlug, filePathForPost, undefined, skipHeavyProcessing);
+  cacheContextGuards.cacheLife("BlogMDX", "hours");
+  cacheContextGuards.cacheTag("BlogMDX", "blog-mdx", `blog-post-${frontmatterSlug}`);
+  return getMDXPost(frontmatterSlug, filePath, undefined, skipHeavyProcessing);
 }
 
-// Updated export to use caching when enabled
 export async function getMDXPostCached(
   frontmatterSlug: string,
-  filePathForPost: string,
+  filePath: string,
   fileContentOverride?: string,
   skipHeavyProcessing = false,
 ): Promise<BlogPost | null> {
-  // Don't use cache if content override is provided
-  if (fileContentOverride) {
-    return getMDXPostDirect(
-      frontmatterSlug,
-      filePathForPost,
-      fileContentOverride,
-      skipHeavyProcessing,
-    );
+  if (fileContentOverride !== undefined) {
+    return getMDXPost(frontmatterSlug, filePath, fileContentOverride, skipHeavyProcessing);
   }
 
-  // If caching is enabled, try to use it with fallback to direct
-  if (USE_NEXTJS_CACHE) {
-    return withCacheFallback(
-      () => getCachedMDXPost(frontmatterSlug, filePathForPost, skipHeavyProcessing),
-      () => getMDXPostDirect(frontmatterSlug, filePathForPost, undefined, skipHeavyProcessing),
-    );
-  }
+  if (!USE_NEXTJS_CACHE)
+    return getMDXPost(frontmatterSlug, filePath, undefined, skipHeavyProcessing);
 
-  // Default: Always use direct read
-  return getMDXPostDirect(frontmatterSlug, filePathForPost, undefined, skipHeavyProcessing);
+  return withCacheFallback(
+    () => getCachedMDXPost(frontmatterSlug, filePath, skipHeavyProcessing),
+    () => getMDXPost(frontmatterSlug, filePath, undefined, skipHeavyProcessing),
+  );
 }
 
-/**
- * Retrieves and processes all MDX blog posts concurrently.
- * Uses frontmatter slug as the canonical identifier.
- *
- * @returns {Promise<BlogPost[]>} Array of all processed blog posts
- */
 export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogPost[]> {
-  const processedPosts: BlogPost[] = [];
-  const seenSlugs = new Set<string>();
-
   try {
-    const files = await fs.readdir(POSTS_DIRECTORY);
-    const mdxFiles = files.filter((file) => file.endsWith(".mdx"));
-
-    // Map filenames to promises that read/parse frontmatter and then fully process
-    const postPromises = mdxFiles.map(async (fileName) => {
-      const fullPath = path.join(POSTS_DIRECTORY, fileName);
-      let frontmatterSlug: string | null = null;
-      try {
-        const fileContents = await fs.readFile(fullPath, "utf8");
-        // Parse frontmatter just to get the slug
-        // gray-matter returns { data, content, ... }; extract with proper typing
-        const matterResult: unknown = matter(fileContents);
-        const { data: frontmatter } = matterResult as {
-          data: Frontmatter;
-          content: string;
-        };
-
-        if (
-          !frontmatter.slug ||
-          typeof frontmatter.slug !== "string" ||
-          frontmatter.slug.trim() === ""
-        ) {
-          console.warn(
-            `[getAllMDXPosts] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`,
-          );
-          return null; // Skip this file
+    const directoryEntries = await fs.readdir(BLOG_POSTS_DIRECTORY);
+    const fileNames = directoryEntries.filter((file) => file.endsWith(".mdx"));
+    const posts = await Promise.all(
+      fileNames.map(async (fileName) => {
+        const filePath = path.join(BLOG_POSTS_DIRECTORY, fileName);
+        try {
+          const document = parseBlogMdxDocument(await fs.readFile(filePath, "utf8"));
+          if (!document) {
+            console.warn(`[blog] Invalid frontmatter in ${fileName}; skipping.`);
+            return null;
+          }
+          return createMdxPost(document, filePath, skipHeavyProcessing);
+        } catch (error) {
+          console.error(`[blog] Failed to load ${fileName}:`, error);
+          throw error;
         }
-        frontmatterSlug = frontmatter.slug.trim();
+      }),
+    );
 
-        // Now fully process the post using its frontmatter slug as the identifier,
-        // and pass the fullPath and pre-read fileContents.
-        return await getMDXPost(frontmatterSlug, fullPath, fileContents, skipHeavyProcessing);
-      } catch (fileError) {
-        console.error(
-          `[getAllMDXPosts] Error initially processing file ${fileName} (slug: ${frontmatterSlug ?? "unknown"}):`,
-          fileError,
-        );
-        // RC1a: error logged; null signals skip to caller
+    const seenSlugs = new Set<string>();
+    return posts.flatMap((post) => {
+      if (!post) return [];
+      if (seenSlugs.has(post.slug)) {
+        console.warn(`[blog] Duplicate frontmatter slug "${post.slug}" in ${post.filePath}.`);
+        return [];
       }
-      return null;
+      seenSlugs.add(post.slug);
+      return [post];
     });
-
-    // Wait for all processing attempts to settle
-    const settledResults = await Promise.allSettled(postPromises);
-
-    // Process settled results, ensuring uniqueness and filtering out failures/nulls
-    for (const result of settledResults) {
-      if (result.status === "fulfilled" && result.value) {
-        const post = result.value;
-        // Final duplicate check after all promises settled
-        if (seenSlugs.has(post.slug)) {
-          console.warn(
-            `[getAllMDXPosts] Duplicate slug "${post.slug}" detected after processing (file: ${post.filePath}). Skipping subsequent instance.`,
-          );
-        } else {
-          seenSlugs.add(post.slug);
-          processedPosts.push(post);
-        }
-      } else if (result.status === "rejected") {
-        // Log errors from promises that were rejected
-        console.error("[getAllMDXPosts] A post processing promise was rejected:", result.reason);
-      }
-    }
-
-    return processedPosts;
   } catch (error) {
-    // Catch errors from fs.readdir itself
-    console.error("Error reading posts directory:", error);
-    // RC1a: error logged; empty array is the documented contract for callers
+    console.error("[blog] Failed to load blog posts:", error);
+    throw error;
   }
-  return processedPosts;
 }
 
-// Internal direct read function for all MDX posts (always available)
-async function getAllMDXPostsDirect(skipHeavyProcessing = false): Promise<BlogPost[]> {
+async function getCachedAllMDXPosts(skipHeavyProcessing = false): Promise<BlogPost[]> {
+  "use cache";
+  cacheContextGuards.cacheLife("BlogMDX", "hours");
+  cacheContextGuards.cacheTag("BlogMDX", "blog", "mdx", "blog-posts-all");
   return getAllMDXPosts(skipHeavyProcessing);
 }
 
-// Cached version using 'use cache' directive
-async function getCachedAllMDXPosts(skipHeavyProcessing = false): Promise<BlogPost[]> {
-  "use cache";
-
-  // Set cache profile for blog posts
-  cacheLife("hours"); // Blog posts are relatively static
-
-  // Set cache tags for blog posts
-  cacheTag("blog");
-  cacheTag("mdx");
-  cacheTag("blog-posts-all");
-
-  return getAllMDXPostsDirect(skipHeavyProcessing);
-}
-
-// Updated export to use caching when enabled
 export async function getAllMDXPostsCached(skipHeavyProcessing = false): Promise<BlogPost[]> {
-  // If caching is enabled, try to use it with fallback to direct
-  if (USE_NEXTJS_CACHE) {
-    return withCacheFallback(
-      () => getCachedAllMDXPosts(skipHeavyProcessing),
-      () => getAllMDXPostsDirect(skipHeavyProcessing),
-    );
-  }
-
-  // Default: Always use direct read
-  return getAllMDXPostsDirect(skipHeavyProcessing);
+  if (!USE_NEXTJS_CACHE) return getAllMDXPosts(skipHeavyProcessing);
+  return withCacheFallback(
+    () => getCachedAllMDXPosts(skipHeavyProcessing),
+    () => getAllMDXPosts(skipHeavyProcessing),
+  );
 }
 
-/**
- * Lightweight version of getAllMDXPosts that excludes rawContent for search operations.
- * This significantly reduces memory usage during search.
- *
- * @returns {Promise<BlogPost[]>} Array of blog posts without rawContent
- */
 export async function getAllMDXPostsForSearch(): Promise<BlogPost[]> {
   const posts = await getAllMDXPosts();
-  // Return posts without rawContent to save memory
-  // Destructure to exclude rawContent to save memory (rest-sibling pattern)
-  return posts.map(({ rawContent, ...lightweightPost }) => lightweightPost as BlogPost);
+  return posts.map(({ rawContent: _rawContent, ...post }) => post);
 }
 
-// Cache invalidation functions for blog/MDX
 export function invalidateBlogCache(): void {
-  if (USE_NEXTJS_CACHE) {
-    // Invalidate all blog cache tags
-    revalidateTag("blog");
-    revalidateTag("mdx");
-    revalidateTag("blog-posts-all");
-    revalidateTag("blog-mdx");
-    console.log("[Blog] Cache invalidated for all blog posts");
-  }
+  if (!USE_NEXTJS_CACHE) return;
+  cacheContextGuards.revalidateTag("BlogMDX", "blog", "mdx", "blog-posts-all", "blog-mdx");
+  console.log("[Blog] Cache invalidated for all blog posts");
 }
 
-// Invalidate specific blog post cache
 export function invalidateBlogPostCache(slug: string): void {
-  if (USE_NEXTJS_CACHE) {
-    revalidateTag(`blog-post-${slug}`);
-    console.log(`[Blog] Cache invalidated for post: ${slug}`);
-  }
+  if (!USE_NEXTJS_CACHE) return;
+  cacheContextGuards.revalidateTag("BlogMDX", `blog-post-${slug}`);
+  console.log(`[Blog] Cache invalidated for post: ${slug}`);
 }

@@ -32,10 +32,8 @@ import { listS3Objects } from "@/lib/s3/objects";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { LogoManifest } from "@/types/schemas/image-manifest";
 
-import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
-import { calculateAndStoreAggregatedWeeklyActivity } from "@/lib/data-access/github-processing";
 import { initializeBookmarksDataAccess } from "@/lib/bookmarks/refresh-logic.server";
-// Cache invalidation uses dynamic import to reduce startup overhead (see refreshGitHubActivityData)
+import { runGitHubActivityRefresh } from "@/lib/server/github-activity-refresh";
 
 /**
  * Main data fetch manager class
@@ -74,7 +72,7 @@ export class DataFetchManager {
 
     // STEP 2: Fetch other primary data sources (no ordering dependency)
     if (config.githubActivity) {
-      results.push(await this.fetchGithubActivity(config));
+      results.push(await runGitHubActivityRefresh());
     }
 
     if (config.books) {
@@ -164,59 +162,6 @@ export class DataFetchManager {
       return {
         success: false,
         operation: "bookmarks",
-        error: error.message,
-        duration: (getMonotonicTime() - startTime) / 1000,
-      };
-    }
-  }
-
-  /**
-   * Fetch GitHub activity data
-   * @param config - Configuration (acknowledged but unused)
-   * @returns Promise resolving to operation summary
-   */
-  private async fetchGithubActivity(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
-    const startTime = getMonotonicTime();
-    void config; // Explicitly mark as unused per project convention
-    logger.info("[DataFetchManager] Starting GitHub activity fetch...");
-
-    try {
-      const refreshed = await refreshGitHubActivityDataFromApi();
-
-      if (!refreshed) {
-        throw new Error("GitHub activity refresh returned null");
-      }
-
-      logger.info(
-        `[DataFetchManager] GitHub activity fetched - Trailing year: ${refreshed.trailingYearData.totalContributions}, All-time: ${refreshed.allTimeData.totalContributions}`,
-      );
-
-      // Re-aggregate stats
-      await calculateAndStoreAggregatedWeeklyActivity();
-
-      // Invalidate caches after successful durable write (defense in depth)
-      try {
-        const { invalidateAllGitHubCaches } = await import("@/lib/cache/invalidation");
-        invalidateAllGitHubCaches();
-        logger.info("[DataFetchManager] GitHub caches invalidated after data fetch");
-      } catch (cacheError) {
-        logger.warn("[DataFetchManager] Cache invalidation failed (non-fatal):", cacheError);
-      }
-
-      const duration = (getMonotonicTime() - startTime) / 1000;
-      return {
-        success: true,
-        operation: "github-activity",
-        itemsProcessed: refreshed.trailingYearData.totalContributions,
-        duration,
-      };
-    } catch (e: unknown) {
-      const error = e instanceof Error ? e : new Error(String(e));
-      Sentry.captureException?.(error);
-      logger.error("[DataFetchManager] GitHub activity fetch failed:", error);
-      return {
-        success: false,
-        operation: "github-activity",
         error: error.message,
         duration: (getMonotonicTime() - startTime) / 1000,
       };

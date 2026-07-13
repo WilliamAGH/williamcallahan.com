@@ -15,8 +15,9 @@ graph TD
     end
 
     subgraph "Error Handling"
-        TYPES[types/error.ts<br/>Error Types]
-        ERRORS[types/error.ts<br/>Error Contracts]
+        TYPES[types/error.ts<br/>Core Error Types]
+        ERRORS[utils/error-utils.ts<br/>Runtime Error Helpers]
+        SCHEMA[types/schemas/api.ts<br/>Boundary Error Schemas]
         BOUNDARY[Error Boundaries]
         PAGES[Error Pages]
         RECOVERY[Recovery UI]
@@ -58,7 +59,8 @@ graph TD
 
     %% Error Flow
     COMP --> |Throws| BOUNDARY
-    API --> |Throws| ERRORS
+    API --> |Validates| SCHEMA
+    SCHEMA --> |Throws| ERRORS
     ERRORS --> TYPES
     BOUNDARY --> RECOVERY
     BOUNDARY --> PAGES

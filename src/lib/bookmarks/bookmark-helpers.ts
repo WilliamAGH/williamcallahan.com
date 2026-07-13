@@ -12,6 +12,11 @@ import type { ValidatedKarakeepImageFallback } from "@/types/seo/opengraph";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
+/** Build the canonical internal route for a bookmark detail page. */
+export function buildBookmarkPath(slug: string): string {
+  return `/bookmarks/${slug}`;
+}
+
 /**
  * Constructs a consistent asset URL for Karakeep assets.
  *

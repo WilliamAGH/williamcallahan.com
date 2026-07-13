@@ -14,15 +14,13 @@
  * @module data-access/github
  */
 
-import { debug } from "@/lib/utils/debug";
-import { type StoredGithubActivity, type GraphQLRepoNode } from "@/types/github";
-import type {
-  GitHubActivityApiResponse,
-  GitHubActivitySegment,
+import {
+  GITHUB_ACTIVITY_WRITE_INTENTS,
+  type GitHubActivityApiResponse,
+  type GitHubActivitySegment,
 } from "@/types/schemas/github-storage";
 import { getTrailingYearDate, startOfDay, endOfDay } from "@/lib/utils/date-format";
 import { isOperationAllowed } from "@/lib/rate-limiter";
-import { createCategorizedError } from "@/lib/utils/error-utils";
 
 // Import from specialized modules
 import {
@@ -31,53 +29,25 @@ import {
   getGitHubUsername,
 } from "./github-api";
 
-import { writeGitHubActivityRecord } from "./github-storage";
-import { writeGitHubActivitySummaries } from "./github-activity-summaries";
+import { writeGitHubActivityRefreshRecord } from "./github-storage";
+import { createGitHubActivitySummary } from "./github-activity-summaries";
 import { detectAndRepairCsvFiles } from "./github-csv-repair";
 import { calculateAllTimeCommitCount } from "./github-commit-counts";
 import { processRepositoryStats } from "./github-repo-stats";
 import { GITHUB_REFRESH_RATE_LIMIT_CONFIG } from "@/lib/constants";
 
-import { calculateAndStoreAggregatedWeeklyActivity } from "./github-processing";
+import { calculateAggregatedWeeklyActivity, createEmptyCategoryStats } from "./github-processing";
 import { fetchTrailingYearContributionCalendar } from "./github-contributions";
 
 // Configuration
 const GITHUB_REPO_OWNER = getGitHubUsername();
-
-// --- Helper Functions ---
-
-/**
- * Formats trailing year and all-time GitHub activity data into a structured API response
- *
- * @param fetchedParts - Contains the trailing year and all-time activity data to be wrapped
- * @returns A structured API response with separated trailing year and all-time segments, or `null` if input is missing or incomplete
- */
-function wrapGithubActivity(
-  fetchedParts: {
-    trailingYearData: StoredGithubActivity;
-    allTimeData: StoredGithubActivity;
-  } | null,
-): GitHubActivityApiResponse | null {
-  if (!fetchedParts || !fetchedParts.trailingYearData || !fetchedParts.allTimeData) {
-    console.warn("[DataAccess/GitHub] wrapGithubActivity received null or incomplete parts");
-    return null;
-  }
-  // Create segments by spreading. 'summaryActivity' and 'allTimeTotalContributions' are omitted by type.
-  const trailingYearSegment: GitHubActivitySegment = { ...fetchedParts.trailingYearData };
-  const cumulativeAllTimeSegment: GitHubActivitySegment = { ...fetchedParts.allTimeData };
-
-  return {
-    trailingYearData: trailingYearSegment,
-    cumulativeAllTimeData: cumulativeAllTimeSegment,
-  };
-}
 
 // --- GitHub Activity Data Refresh ---
 
 /**
  * Refreshes and recalculates GitHub activity data by fetching repository statistics, commit
  * history, and contribution calendars from the GitHub API, then updates the PostgreSQL-backed
- * store with the latest summaries and per-repository data.
+ * store with the latest summary and per-repository data.
  *
  * This function:
  * - Optionally repairs CSV files for data completeness.
@@ -92,8 +62,8 @@ function wrapGithubActivity(
  * @returns A promise that resolves to an object containing `trailingYearData` and `allTimeData`, or `null` if the refresh fails
  */
 export async function refreshGitHubActivityDataFromApi(): Promise<{
-  trailingYearData: StoredGithubActivity;
-  allTimeData: StoredGithubActivity;
+  trailingYearData: GitHubActivitySegment;
+  allTimeData: GitHubActivitySegment;
 } | null> {
   console.log(
     "[DataAccess/GitHub:refreshGitHubActivity] Attempting to refresh GitHub activity data from API...",
@@ -101,7 +71,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   if (!isGitHubApiConfigured()) {
     console.error(
       "[DataAccess/GitHub] CRITICAL: GitHub API token is missing. Cannot fetch GitHub activity. " +
-        "Please ensure GITHUB_ACCESS_TOKEN_COMMIT_GRAPH is set in your environment variables.",
+        "Set GITHUB_ACCESS_TOKEN_COMMIT_GRAPH, GITHUB_API_TOKEN, or GITHUB_TOKEN.",
     );
     return null;
   }
@@ -130,39 +100,45 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     }
   }
   const now = new Date();
-  let uniqueRepoArray: GraphQLRepoNode[];
-  let githubUserId: string | undefined; // Declare githubUserId
-  try {
-    console.log(
-      `[DataAccess/GitHub] Fetching list of contributed repositories and user ID for ${GITHUB_REPO_OWNER} via GraphQL API...`,
-    );
-
-    const { userId, repositories } = await fetchContributedRepositories(GITHUB_REPO_OWNER);
-    githubUserId = userId;
-    uniqueRepoArray = repositories;
-  } catch (gqlError: unknown) {
-    const categorizedError = createCategorizedError(gqlError, "github");
-    console.error(
-      "[DataAccess/GitHub] CRITICAL: Failed to fetch repository list via GraphQL:",
-      categorizedError.message,
-    );
-    return null;
-  }
+  console.log(
+    `[DataAccess/GitHub] Fetching list of contributed repositories and user ID for ${GITHUB_REPO_OWNER} via GraphQL API...`,
+  );
+  const { userId: githubUserId, repositories: uniqueRepoArray } =
+    await fetchContributedRepositories(GITHUB_REPO_OWNER);
 
   if (uniqueRepoArray.length === 0) {
     console.warn("[DataAccess/GitHub] No non-forked repositories contributed to found for user.");
-    const emptyRawResponse: StoredGithubActivity = {
+    const emptyActivityData: GitHubActivitySegment = {
       source: "api",
       data: [],
       totalContributions: 0,
       linesAdded: 0,
       linesRemoved: 0,
       dataComplete: true,
-      allTimeTotalContributions: 0,
     };
-    const result = { trailingYearData: emptyRawResponse, allTimeData: emptyRawResponse };
-    await writeGitHubActivityRecord(wrapGithubActivity(result) as GitHubActivityApiResponse);
-    return result;
+    const emptyActivity: GitHubActivityApiResponse = {
+      trailingYearData: emptyActivityData,
+      cumulativeAllTimeData: emptyActivityData,
+    };
+    const summary = createGitHubActivitySummary({
+      allTimeData: emptyActivityData,
+      totalRepositoriesContributedTo: 0,
+      linesOfCodeByCategory: createEmptyCategoryStats(),
+    });
+    const aggregate = await calculateAggregatedWeeklyActivity([]);
+    if (aggregate === null) {
+      throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
+    }
+    const refreshWritten = await writeGitHubActivityRefreshRecord(
+      emptyActivity,
+      summary,
+      aggregate.aggregatedActivity,
+      GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
+    );
+    if (!refreshWritten) {
+      throw new Error("GitHub activity refresh preserved its existing activity record.");
+    }
+    return { trailingYearData: emptyActivityData, allTimeData: emptyActivityData };
   }
 
   console.log("[DataAccess/GitHub] Calculating trailing year stats...");
@@ -173,7 +149,6 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   const {
     yearLinesAdded,
     yearLinesRemoved,
-    yearCategoryStats,
     priorYearCommitStats,
     allTimeLinesAdded,
     allTimeLinesRemoved,
@@ -206,15 +181,13 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     toDate: gqlToDate,
   });
 
-  const yearOverallDataComplete = uniqueRepoArray.length === 0 ? true : allTimeOverallDataComplete;
-
-  const trailingYearData: StoredGithubActivity = {
+  const trailingYearData: GitHubActivitySegment = {
     source: "api",
     data: trailingYearContributionsCalendar,
     totalContributions: yearTotalCommits,
     linesAdded: yearLinesAdded,
     linesRemoved: yearLinesRemoved,
-    dataComplete: yearOverallDataComplete,
+    dataComplete: allTimeOverallDataComplete,
   };
 
   console.log(
@@ -240,10 +213,9 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     );
   }
 
-  const lifetimeContributionEstimate =
-    (yearTotalCommits || 0) + (priorYearCommitStats.totalCommits || 0);
+  const lifetimeContributionEstimate = yearTotalCommits + priorYearCommitStats.totalCommits;
 
-  const allTimeData: StoredGithubActivity = {
+  const allTimeData: GitHubActivitySegment = {
     source: "api", // Source is 'api' because it's processed from API/database cache.
     data: [], // All-time data typically doesn't include the daily calendar view
     totalContributions: lifetimeContributionEstimate,
@@ -251,54 +223,30 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     linesRemoved: allTimeLinesRemoved,
     dataComplete: allTimeOverallDataComplete,
     allPriorYearCommits: priorYearCommitStats,
-    // No allTimeTotalContributions field here, totalContributions is the source of truth.
   };
 
-  await writeGitHubActivitySummaries({
+  const combinedActivityData: GitHubActivityApiResponse = {
     trailingYearData,
+    cumulativeAllTimeData: allTimeData,
+  };
+  const summary = createGitHubActivitySummary({
     allTimeData,
     totalRepositoriesContributedTo: uniqueRepoArray.length,
-    yearCategoryStats,
-    allTimeCategoryStats,
+    linesOfCodeByCategory: allTimeCategoryStats,
   });
-
-  await calculateAndStoreAggregatedWeeklyActivity();
-
-  const emptyStoredBase: Omit<StoredGithubActivity, "source" | "error" | "details"> = {
-    data: [],
-    totalContributions: 0,
-    linesAdded: 0,
-    linesRemoved: 0,
-    dataComplete: false,
-    allTimeTotalContributions: 0,
-  };
-  const safeTrailingYearData: StoredGithubActivity = trailingYearData || {
-    ...emptyStoredBase,
-    source: "api",
-    error: "Trailing year data generation failed or was incomplete during refresh",
-    dataComplete: false,
-  };
-  const safeAllTimeData: StoredGithubActivity = allTimeData || {
-    ...emptyStoredBase,
-    source: "api",
-    error: "All-time data generation failed or was incomplete during refresh",
-    dataComplete: false,
-  };
-  const combinedActivityData: GitHubActivityApiResponse = {
-    // The segments here conform to GitHubActivitySegment which omits summaryActivity and allTimeTotalContributions
-    trailingYearData: { ...safeTrailingYearData, source: "api_multi_file_cache" },
-    cumulativeAllTimeData: { ...safeAllTimeData, source: "api_multi_file_cache" },
-  };
-
-  try {
-    await writeGitHubActivityRecord(combinedActivityData);
-    debug("[DataAccess/GitHub-Store] Combined GitHub activity data persisted to PostgreSQL.");
-  } catch (error: unknown) {
-    const categorizedError = createCategorizedError(error, "github");
-    console.error(
-      "[DataAccess/GitHub-Store] Failed to write combined GitHub activity data to the store:",
-      categorizedError.message,
-    );
+  const aggregate = await calculateAggregatedWeeklyActivity(
+    uniqueRepoArray.map((repository) => repository.nameWithOwner),
+  );
+  if (aggregate === null) {
+    throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
+  }
+  const refreshWritten = await writeGitHubActivityRefreshRecord(
+    combinedActivityData,
+    summary,
+    aggregate.aggregatedActivity,
+  );
+  if (!refreshWritten) {
+    throw new Error("GitHub activity refresh preserved its existing activity record.");
   }
   return { trailingYearData, allTimeData };
 }

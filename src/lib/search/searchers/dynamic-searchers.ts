@@ -13,6 +13,7 @@ import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { hybridSearchBookmarks } from "@/lib/db/queries/hybrid-search";
 import { hybridSearchBooks } from "@/lib/db/queries/hybrid-search-books-blog";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { getBooksIndex } from "@/lib/search/loaders/dynamic-content";
 import { envLogger } from "@/lib/utils/env-logger";
 
@@ -40,7 +41,7 @@ export async function searchBookmarks(
     type: "bookmark" as const,
     title: bookmark.title,
     description: bookmark.description,
-    url: `/bookmarks/${bookmark.slug || bookmark.id}`,
+    url: buildBookmarkPath(bookmark.slug),
     score,
   }));
 }

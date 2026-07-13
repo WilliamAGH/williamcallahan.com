@@ -46,7 +46,8 @@ graph TD
   - `cacheLife(...)`
   - `cacheTag(...)`
   - `revalidateTag(...)`
-- API routes are excluded and use `unstable_noStore()` when fresh reads are required.
+- Fresh API routes use `connection()` for request-time execution plus explicit
+  `Cache-Control: no-store` response headers.
 
 ## Domain Flows
 

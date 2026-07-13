@@ -3,24 +3,34 @@
   "title": "Cloudflare Cache Rules",
   "description": "Declarative config for Cloudflare Cache Rules (Rulesets API phase: http_request_cache_settings)",
   "type": "object",
+  "additionalProperties": false,
   "required": ["rules"],
   "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1
+    },
     "description": {
       "type": "string",
+      "minLength": 1,
       "description": "Human-readable description of this ruleset"
     },
     "rules": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["description", "expression", "action", "action_parameters", "enabled"],
         "properties": {
           "description": {
             "type": "string",
+            "minLength": 1,
             "description": "Human-readable rule name"
           },
           "expression": {
             "type": "string",
+            "minLength": 1,
             "description": "Cloudflare Ruleset Engine expression (Wire format)"
           },
           "action": {
@@ -30,11 +40,13 @@
           },
           "action_parameters": {
             "type": "object",
+            "additionalProperties": false,
             "required": ["cache"],
             "properties": {
               "cache": { "type": "boolean" },
               "edge_ttl": {
                 "type": "object",
+                "additionalProperties": false,
                 "properties": {
                   "mode": {
                     "type": "string",
@@ -42,13 +54,59 @@
                   },
                   "default": {
                     "type": "integer",
+                    "minimum": 0,
                     "description": "TTL in seconds (required when mode is override_origin)"
+                  },
+                  "status_code_ttl": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["value"],
+                      "properties": {
+                        "status_code": { "type": "integer", "minimum": 100, "maximum": 999 },
+                        "status_code_range": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "from": { "type": "integer", "minimum": 100, "maximum": 999 },
+                            "to": { "type": "integer", "minimum": 100, "maximum": 999 }
+                          },
+                          "anyOf": [{ "required": ["from"] }, { "required": ["to"] }]
+                        },
+                        "value": {
+                          "type": "integer",
+                          "minimum": -1,
+                          "description": "TTL in seconds; 0 revalidates and -1 prevents Cloudflare edge storage without modifying origin response headers"
+                        }
+                      },
+                      "oneOf": [
+                        { "required": ["status_code"] },
+                        { "required": ["status_code_range"] }
+                      ]
+                    }
                   }
                 },
-                "required": ["mode"]
+                "required": ["mode"],
+                "allOf": [
+                  {
+                    "if": {
+                      "type": "object",
+                      "properties": {
+                        "mode": { "const": "override_origin" }
+                      },
+                      "required": ["mode"]
+                    },
+                    "then": {
+                      "type": "object",
+                      "required": ["default"]
+                    }
+                  }
+                ]
               },
               "browser_ttl": {
                 "type": "object",
+                "additionalProperties": false,
                 "properties": {
                   "mode": {
                     "type": "string",
@@ -56,10 +114,26 @@
                   },
                   "default": {
                     "type": "integer",
+                    "minimum": 0,
                     "description": "TTL in seconds (required when mode is override_origin)"
                   }
                 },
-                "required": ["mode"]
+                "required": ["mode"],
+                "allOf": [
+                  {
+                    "if": {
+                      "type": "object",
+                      "properties": {
+                        "mode": { "const": "override_origin" }
+                      },
+                      "required": ["mode"]
+                    },
+                    "then": {
+                      "type": "object",
+                      "required": ["default"]
+                    }
+                  }
+                ]
               }
             }
           },

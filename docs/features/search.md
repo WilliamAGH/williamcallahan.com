@@ -29,33 +29,17 @@ const isProductionBuildPhase = (): boolean => process.env[PHASE_ENV_KEY] === BUI
 
 ### Route Handlers Require `connection()`
 
-Route Handlers can be pre-rendered at build time even with `noStore()`. Under Next.js 16 Cache Components, call `connection()` before `noStore()` and build-phase guards:
+Under Next.js 16 Cache Components, call `connection()` before request-time search work:
 
 ```typescript
-import { unstable_noStore as noStore } from "next/cache";
 import { connection } from "next/server";
 
 export async function GET() {
   await connection();
-  noStore();
 }
 ```
 
 **Symptom**: `x-nextjs-cache: HIT` with `buildPhase: true` at runtime.
-
-### noStore() Must Precede Build Phase Checks
-
-Call `noStore()` BEFORE any early return—otherwise the build-phase response gets cached:
-
-```typescript
-//  FORBIDDEN - noStore() never called when returning early
-if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
-noStore();
-
-//  REQUIRED - noStore() first
-noStore();
-if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
-```
 
 ### Caching Empty Results
 
@@ -65,7 +49,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 
 1. **Server/Client Boundary**: API-based approach; terminal never imports server modules.
 
-2. **Type Consolidation**: Single `SearchResult` type in `types/schemas/search.ts`.
+2. **Type Consolidation**: Single `SearchResult` type in `types/schemas/search.ts`; bookmark result `url` values are internal detail paths from `buildBookmarkPath(slug)`, never external bookmark URLs.
 
 3. **Generic Search**: `searchContent<T>` function used by all search implementations.
 
@@ -105,7 +89,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
   - Returns consistent response format
 - **`app/api/related-content/debug/route.ts`**: Related content debug endpoint
   - Validates query params with `types/schemas/related-content.ts`
-- **Runtime behavior**: Search APIs resolve request metadata from `request.headers` (not `headers()` helper) to prevent `NEXT_PRERENDER_INTERRUPTED` errors under `cacheComponents`.
+- **Runtime behavior**: Search APIs use `connection()` for request-time execution, resolve request metadata from `request.headers`, and return explicit no-store response headers.
 - **`app/api/search/all/route.ts`**: Site-wide search
   - Aggregates results from all sections
   - Adds section prefixes to results
@@ -114,7 +98,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
   - Maintained for backward compatibility
   - Routes through server-side search and shares `applySearchGuards()` protections
 - **`app/api/search/bookmarks/route.ts`**: Bookmarks-only search
-  - Preserves MiniSearch relevance ordering when returning hydrated bookmarks
+  - Returns only compact ranked `SearchResult` projections; full bookmark records stay server-side
   - Shares `applySearchGuards()` protections
 
 ### Caching Layer
@@ -122,7 +106,7 @@ if (isProductionBuildPhase()) return NextResponse.json({ buildPhase: true });
 - **`lib/search/search-factory.ts`** and **`lib/search/cache-invalidation.ts`**
   - Search functions use `\"use cache\"`, `cacheLife`, and `cacheTag`
   - Search-tag invalidation can be triggered with `revalidateTag(...)`
-  - API routes remain `noStore()` when fresh responses are required
+  - API routes use `connection()` and explicit no-store response headers when fresh responses are required
 
 ### Integration Points
 

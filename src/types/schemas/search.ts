@@ -8,6 +8,25 @@
 
 import { z } from "zod/v4";
 
+export const searchQueryValidationResultSchema = z.discriminatedUnion("isValid", [
+  z
+    .object({
+      isValid: z.literal(true),
+      sanitized: z.string().min(1),
+      error: z.never().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      isValid: z.literal(false),
+      sanitized: z.literal(""),
+      error: z.string().min(1),
+    })
+    .strict(),
+]);
+
+export type SearchQueryValidationResult = z.infer<typeof searchQueryValidationResultSchema>;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Search Scopes
 // ─────────────────────────────────────────────────────────────────────────────
@@ -234,6 +253,33 @@ export type SearchResult = z.infer<typeof searchResultSchema>;
 export const searchResultsSchema = z.array(searchResultSchema);
 
 export type SearchResults = z.infer<typeof searchResultsSchema>;
+
+export const bookmarkSearchResultSchema = searchResultSchema
+  .pick({ id: true, title: true, description: true, url: true, score: true })
+  .extend({ type: z.literal("bookmark") })
+  .strict();
+
+export type BookmarkSearchResult = z.infer<typeof bookmarkSearchResultSchema>;
+
+/** Compact response returned by the paginated bookmark search API. */
+export const bookmarkSearchResponseSchema = z
+  .object({
+    results: z.array(bookmarkSearchResultSchema),
+    totalCount: z.number().int().min(0),
+    hasMore: z.boolean(),
+    meta: z
+      .object({
+        query: z.string(),
+        scope: z.literal("bookmarks"),
+        count: z.number().int().min(0),
+        timestamp: z.string(),
+        buildPhase: z.literal(true).optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export type BookmarkSearchResponse = z.infer<typeof bookmarkSearchResponseSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MiniSearch Internal Types

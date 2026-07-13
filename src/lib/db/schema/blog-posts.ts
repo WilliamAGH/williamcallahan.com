@@ -5,7 +5,7 @@
  * Embeddings live in embeddings (domain = 'blog').
  *
  * Source data: data/blog/posts/*.mdx (seeded via scripts/seed-blog-posts.node.mjs)
- * Type definition: src/types/blog.ts (BlogPageFrontmatter)
+ * Frontmatter schema: src/types/schemas/blog-frontmatter.ts
  *
  * @module lib/db/schema/blog-posts
  */

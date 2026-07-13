@@ -11,8 +11,9 @@ graph TD
     end
 
     subgraph "Caching & Storage"
-        F[In-Memory Cache]
-        G[S3 JSON Storage via s3-object-storage]
+        F[Next.js Cache Components]
+        G[PostgreSQL Domain Storage]
+        J[S3 Binary Image Storage]
     end
     
     subgraph "Consumers"
@@ -27,11 +28,13 @@ graph TD
     D -- "Enriches with OG Images" --> E
     
     D -- "Caches in" --> F
-    D -- "Persists to" --> G
+    D -- "Persists records to" --> G
+    E -- "Persists images to" --> J
 
+    G -- "Hydrates" --> F
     F -- "Serves" --> H & I
-    G -- "Serves on cache miss" --> H & I
 
     style D fill:#d4edda,stroke:#155724
     style F fill:#e2e3e5,stroke:#383d41
-    style G fill:#e2e3e5,stroke:#383d41 
+    style G fill:#e2e3e5,stroke:#383d41
+    style J fill:#e2e3e5,stroke:#383d41

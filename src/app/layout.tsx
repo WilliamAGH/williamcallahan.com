@@ -187,12 +187,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </ErrorBoundary>
 
               <main className="pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
-                {/* Localize TerminalProvider to isolate failures to this subtree */}
-                <TerminalProvider>
-                  <ErrorBoundary>
-                    <TerminalLoader />
-                  </ErrorBoundary>
-                </TerminalProvider>
+                {/* Keep TerminalProvider route-hook rendering inside a local Suspense boundary */}
+                <Suspense fallback={null}>
+                  <TerminalProvider>
+                    <ErrorBoundary>
+                      <TerminalLoader />
+                    </ErrorBoundary>
+                  </TerminalProvider>
+                </Suspense>
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
 

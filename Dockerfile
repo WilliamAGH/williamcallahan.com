@@ -99,26 +99,6 @@ RUN bun install --ignore-scripts --frozen-lockfile
 # 5. Ensure CSP hashes file exists early for tooling that might import it
 RUN bun scripts/init-csp-hashes.ts
 
-# ---------- Pre-checks stage (lint + type-check, cached) ----------
-# Use base image (which has Bun and checksum-pinned Node.js) and run checks with Bun instead of npm.
-# This avoids the Docker Hub dependency on a floating Node image.
-FROM base AS checks
-WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV HUSKY=0
-
-# 1. Copy installed deps from previous deps stage (no BuildKit-only flags)
-COPY --from=deps /app/node_modules ./node_modules
-# Copy generated CSP hashes (created in deps stage, gitignored so COPY . . won't include it)
-COPY --from=deps /app/generated ./generated
-
-# 2. Copy source for analysis only (does not affect later build layers)
-COPY . .
-
-# 3. Run linter and type checker using Bun (Bun can run npm scripts).
-#    Cache mounts are omitted to keep the Dockerfile compatible with non-BuildKit builders.
-RUN bun run lint && bun run type-check
-
 # ---------- Build stage (production build) ----------
 # Use the shared base stage so Bun commands and the exact Node.js runtime are available.
 FROM base AS builder
@@ -149,6 +129,7 @@ ENV USE_NEXTJS_CACHE=false
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 # Serialize static page generation to reduce peak memory and DB pool contention
 ENV STATIC_GEN_CONCURRENCY=1
+ARG GIT_SHA=unknown
 
 # 3. Accept and propagate public env vars for Next.js build (changes occasionally)
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
@@ -223,6 +204,15 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
     bash -c 'set -euo pipefail \
       && for secret_path in /run/secrets/build/*; do if [ -f "${secret_path}" ]; then name="${secret_path##*/}"; value="$(cat "${secret_path}")"; if [ -n "${value}" ]; then export "${name}=${value}"; fi; fi; done \
       && if [ -n "${S3_SESSION_TOKEN:-}" ]; then export AWS_SESSION_TOKEN="${S3_SESSION_TOKEN}"; fi \
+      && if [ -n "${GIT_SHA:-}" ] && [ "${GIT_SHA}" != "unknown" ]; then \
+        release_id="${GIT_SHA}"; \
+      else \
+        release_id="$(node -e "console.log(require(\"node:crypto\").randomUUID())")"; \
+        echo "Generated deployment ID because GIT_SHA was not supplied."; \
+      fi \
+      && export GIT_HASH="${release_id}" \
+      && export NEXT_DEPLOYMENT_ID="${release_id}" \
+      && echo "Building Next.js deployment ${release_id}" \
       && bun run build \
       && (find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true)'
 

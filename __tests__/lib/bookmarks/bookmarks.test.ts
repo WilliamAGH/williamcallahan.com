@@ -329,10 +329,12 @@ describe("Bookmarks Module (Simplified)", () => {
 });
 
 describe("bookmark URL contract", () => {
-  it("treats the URL-less bookmark sentinel as a website without logging an error", () => {
+  it("accepts HTTP(S) URLs and treats the URL-less bookmark sentinel as a website without logging an error", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
+      expect(bookmarkUrlSchema.safeParse("http://example.com").success).toBe(true);
+      expect(bookmarkUrlSchema.safeParse("https://example.com").success).toBe(true);
       expect(bookmarkUrlSchema.safeParse("about:blank").success).toBe(true);
       expect(bookmarkUrlSchema.safeParse("javascript:alert(1)").success).toBe(false);
       expect(getDisplayHostname("about:blank")).toBe("website");

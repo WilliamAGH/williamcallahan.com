@@ -1,6 +1,8 @@
+import type { mapBookmarkSelectsToUnifiedBookmarks } from "@/lib/db/bookmark-record-mapper";
+
 const { mockExecute, mockMapBookmarks, mockSelect, mockWhere } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
-  mockMapBookmarks: vi.fn((rows: unknown[]) => rows),
+  mockMapBookmarks: vi.fn<typeof mapBookmarkSelectsToUnifiedBookmarks>(),
   mockSelect: vi.fn(),
   mockWhere: vi.fn(),
 }));
@@ -21,13 +23,14 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
 import { hybridSearchBooks } from "@/lib/db/queries/hybrid-search-books-blog";
 import { hybridSearchProjects } from "@/lib/db/queries/hybrid-search-investments";
-import { hybridSearchBookmarks } from "@/lib/db/queries/hybrid-search";
+import { hybridSearchBookmarks, semanticSearchBookmarks } from "@/lib/db/queries/hybrid-search";
 import {
   computeEmbeddingBlendScore,
   findRelatedBookmarkIdsForSeeds,
   findSimilarByEmbedding,
   rankEmbeddingCandidates,
 } from "@/lib/db/queries/embedding-similarity";
+import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 
 function renderLastExecuteSql(): string {
   const call = mockExecute.mock.calls.at(-1);
@@ -35,6 +38,19 @@ function renderLastExecuteSql(): string {
   const query = call[0];
   if (!is(query, SQL)) throw new Error("Expected db.execute to receive a SQL query");
   return new PgDialect().sqlToQuery(query).sql;
+}
+
+function createBookmarkFixture(id: string) {
+  return unifiedBookmarkSchema.parse({
+    id,
+    url: `https://example.com/${id}`,
+    title: `Bookmark ${id}`,
+    description: "",
+    slug: id,
+    tags: [],
+    dateBookmarked: "2026-07-13T00:00:00.000Z",
+    sourceUpdatedAt: "2026-07-13T00:00:00.000Z",
+  });
 }
 
 describe("embedding-similarity query helpers", () => {
@@ -206,21 +222,14 @@ describe("hybrid search SQL ranking", () => {
   });
 
   it("hydrates embedding-mode bookmark IDs through the canonical Drizzle projection", async () => {
-    const firstBookmark = {
-      id: "bookmark-1",
-      dateBookmarked: "2026-07-13T00:00:00.000Z",
-      sourceUpdatedAt: "2026-07-13T00:00:00.000Z",
-    };
-    const secondBookmark = {
-      id: "bookmark-2",
-      dateBookmarked: "2026-07-12T00:00:00.000Z",
-      sourceUpdatedAt: "2026-07-12T00:00:00.000Z",
-    };
+    const firstBookmark = createBookmarkFixture("bookmark-1");
+    const secondBookmark = createBookmarkFixture("bookmark-2");
     mockExecute.mockResolvedValueOnce([
       { id: firstBookmark.id, hybrid_score: "0.91" },
       { id: secondBookmark.id, hybrid_score: "0.83" },
     ]);
     mockWhere.mockResolvedValueOnce([secondBookmark, firstBookmark]);
+    mockMapBookmarks.mockReturnValueOnce([secondBookmark, firstBookmark]);
 
     const results = await hybridSearchBookmarks({
       query: "cache components",
@@ -240,17 +249,43 @@ describe("hybrid search SQL ranking", () => {
     ]);
   });
 
-  it("fails when a ranked bookmark disappears before hydration", async () => {
-    mockExecute.mockResolvedValueOnce([{ id: "deleted-bookmark", hybrid_score: "0.91" }]);
+  it("fails when a semantic-ranked bookmark disappears before hydration", async () => {
+    mockExecute.mockResolvedValueOnce([{ entity_id: "deleted-bookmark", vec_score: "0.91" }]);
     mockWhere.mockResolvedValueOnce([]);
+    mockMapBookmarks.mockReturnValueOnce([]);
 
     await expect(
-      hybridSearchBookmarks({
-        query: "cache components",
-        embedding: Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0),
-        limit: 1,
-      }),
+      semanticSearchBookmarks(
+        Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0),
+        1,
+      ),
     ).rejects.toThrow("Failed to hydrate ranked bookmark deleted-bookmark");
+  });
+
+  it("filters missing bookmarks before limiting semantic candidates and preserves semantic rank", async () => {
+    const firstBookmark = createBookmarkFixture("bookmark-1");
+    const secondBookmark = createBookmarkFixture("bookmark-2");
+    mockExecute.mockResolvedValueOnce([
+      { entity_id: secondBookmark.id, vec_score: "0.91" },
+      { entity_id: firstBookmark.id, vec_score: "0.83" },
+    ]);
+    mockWhere.mockResolvedValueOnce([firstBookmark, secondBookmark]);
+    mockMapBookmarks.mockReturnValueOnce([firstBookmark, secondBookmark]);
+
+    const results = await semanticSearchBookmarks(
+      Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0),
+      2,
+    );
+    const rendered = renderLastExecuteSql();
+    const existenceJoin = "JOIN bookmarks existing_bookmark ON existing_bookmark.id = e.entity_id";
+
+    expect(rendered).toContain("FROM embeddings e");
+    expect(rendered).toContain(existenceJoin);
+    expect(rendered.indexOf(existenceJoin)).toBeLessThan(rendered.indexOf("LIMIT"));
+    expect(results).toEqual([
+      { bookmark: secondBookmark, score: 0.91 },
+      { bookmark: firstBookmark, score: 0.83 },
+    ]);
   });
 
   it("orders keyword candidates before limiting embedding-mode project search", async () => {

@@ -33,8 +33,8 @@ Karakeep API -> Selective Refresh Jobs -> Drizzle writes (bookmarks + taxonomy/i
    - Coordinates between data access and external APIs
    - Manages refresh cycles and cache invalidation
 
-3. **API Endpoints (always `unstable_noStore`)**
-   - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering and feed mode (`?feed=discover|latest`); responds with `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`
+3. **API Endpoints (request-time execution + explicit no-store headers)**
+   - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering and feed mode (`?feed=discover|latest`)
    - `/api/bookmarks/refresh` - Manual refresh trigger (secret protected)
    - `/api/engagement` - Client engagement event ingestion (impression, click, dwell, external_click)
    - `/api/og-image` - Unified OpenGraph image serving
@@ -188,7 +188,7 @@ deployments remain read-only and do not send engagement requests.
 
 - **Health Monitoring**: `/api/bookmarks/diagnostics` reports PostgreSQL bookmark/index-state health and slug mapping status.
 - **Next.js Cache Tags**: Bookmark lists/tag pages use `cacheTag("bookmarks")` plus slug-specific tags with 15–60 minute lifetimes. Detail routes tag `bookmark-${slug}`. Related content uses its own tags while reading PostgreSQL-backed content-graph artifacts.
-- **API Responses**: `/api/bookmarks`, `/api/search/*`, `/api/related-content*` call `unstable_noStore()` and return `Cache-Control: no-store` so they always read the freshest DB-backed bookmark state without joining the Cache Components layer.
+- **API Responses**: `/api/bookmarks`, `/api/search/*`, and `/api/related-content*` use `connection()` where request-time execution is required and return `Cache-Control: no-store`, keeping fresh DB-backed reads outside the Cache Components layer.
 - **Legacy Map Cache**: Still used for metadata (slug lookups, stats) but never stores full bookmark arrays or buffers.
 
 ### Memory Management
@@ -212,7 +212,7 @@ deployments remain read-only and do not send engagement requests.
 
 Core data model with fields for:
 
-- Basic metadata (id, URL, title, description); `bookmarkUrlSchema` permits HTTP(S) or the canonical URL-less `about:blank` sentinel
+- Basic metadata (`id`, `url`, `title`, `description`); `bookmarkUrlSchema` permits HTTP(S) or the canonical URL-less `about:blank` sentinel
 - Tags (supports both string[] and object[] formats)
 - Timestamps (created, updated, bookmarked)
 - Enrichment data (OpenGraph, assets, logos)
@@ -225,6 +225,9 @@ Bookmark arrays, list/page/tag indexes, and slug lookups are PostgreSQL-backed. 
 
 Embedded slugs are treated as the source of truth during refreshes; metadata-only updates preserve existing slugs
 to avoid URL churn when titles or OpenGraph descriptions change.
+
+`buildBookmarkPath(slug)` is the canonical owner for an internal detail route and its result is passed as
+`internalHref`; the bookmark `url` remains the original external destination.
 
 ## Critical Design Decisions
 

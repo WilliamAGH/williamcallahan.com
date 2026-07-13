@@ -4,35 +4,37 @@
 
 ## Core Objective
 
-To provide resilient OpenGraph metadata extraction and image processing for any URL, with comprehensive fallback mechanisms and intelligent caching. The system handles diverse website structures, large HTML pages, and various image metadata standards to ensure maximum data extraction success. Includes a unified `/api/og-image` route that serves as the single source of truth for ALL OpenGraph images across the application.
+To provide resilient OpenGraph metadata extraction and image processing for any URL, with comprehensive fallback mechanisms and intelligent caching. The system handles diverse website structures, large HTML pages, and varied image metadata standards. The `/api/og-image` route resolves persisted, Karakeep, and external image inputs through HTTP redirects.
 
 ## Architecture Overview
 
 The OpenGraph system operates with a multi-layered approach:
 
 ```
-Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store* -> Return
-           |              |              |                        |
-         Next.js        Persistent    HTML Fetch           *Best-effort:
-         (Fast)         (Durable)     (Slow)             data returned even
-                                                     if persistence fails
+Request -> Next.js cache -> PostgreSQL override/metadata -> External fetch + process
+                                                                   |
+                           optional S3 image persistence (background at runtime)
+                                                                   |
+                     best-effort PostgreSQL metadata upsert -> Return fetched metadata
 ```
+
+Runtime image writes are scheduled in the background; batch-mode image writes are awaited. The metadata upsert is awaited, but a failure is logged and the freshly fetched metadata is still returned.
 
 ## Key Components
 
 ### Data Access Layer
 
 - **`lib/data-access/opengraph.ts`**: Core orchestration and caching logic (~280 LoC)
-  - Multi-tier caching strategy (Next.js cache -> S3 -> External)
+  - Multi-tier caching strategy (Next.js cache -> PostgreSQL -> external fetch)
   - Request coalescing to prevent duplicate fetches
   - Background refresh with stale-while-revalidate
   - Delegates to specialized modules for specific tasks
   - Cache validation preserves optional metadata fields (title/description/siteName) while still enforcing schema correctness
 - **`lib/data-access/opengraph-next-cache.ts`**: Next.js cache path with `use cache`
-  - Handles S3 override, validation, circuit breaker, and S3 metadata reads
+  - Handles PostgreSQL override and metadata reads, validation, and circuit breaker checks
   - Delegates refresh to `opengraph-refresh.ts` when external fetch is needed
 - **`lib/data-access/opengraph-refresh.ts`**: Refresh workflow with in-flight dedupe
-  - External fetch, S3 persistence, and fallback handling
+  - External fetch, image persistence, best-effort metadata upsert, and fallback handling
 - **`lib/data-access/opengraph-cache-context.ts`**: Cache guard wrappers
   - Safe wrappers for cache tags/lifetimes; guards forward during build, skip only in CLI scripts
 
@@ -91,56 +93,41 @@ Request -> Cache Check -> S3 Check -> External Fetch -> Process -> Store* -> Ret
   - Stores in S3 with deterministic keys
   - Serves images from S3 storage
 
-### API Routes
+### API Route
 
-- **`app/api/og-image/route.ts`**: Universal OpenGraph image endpoint
-  - Single source of truth for ALL OpenGraph images
-  - Multi-input support: S3 keys, Karakeep asset IDs, external URLs
-  - Hierarchy: Next.js cache-backed data access -> S3 storage -> External fetch -> Karakeep fallback
-  - Security: SSRF protection, domain allowlisting, size limits
-  - Response streaming with background S3 persistence
-  - Contextual fallback images (company, person, OpenGraph card)
-  - Preserves animated formats (GIF, WebP)
+- **`app/api/og-image/route.ts`**: Redirect-only image resolver
+  - Accepts recognized S3 keys, Karakeep asset UUIDs, direct public image URLs, and optional bookmark context
+  - Redirects known assets to the CDN or `/api/assets/[assetId]`
+  - Reads bookmark data to prioritize Karakeep imagery and construct fallbacks
+  - Validates direct image URLs, requires an `image/*` response within 10 seconds, schedules S3 persistence, and redirects to the original URL
+  - Does not call the OpenGraph metadata data-access layer, parse page HTML, stream image bytes, or clone responses
 
 ## Unified OG Image Endpoint
 
-The `/api/og-image` route serves as the single source of truth for all OpenGraph images:
-
-### Input Types
-
-1. **S3 Keys**: `opengraph/images/example.png` -> Redirect to CDN
-2. **Karakeep Asset IDs**: `abc-123-def` -> Proxy to `/api/assets/[id]`
-3. **External URLs**: `https://github.com` -> Fetch, stream, and persist
-
 ### Request Parameters
 
-- `url`: Primary input (S3 key, asset ID, or URL)
-- `assetId`: Optional Karakeep asset ID for better context
-- `bookmarkId`: Optional bookmark ID for domain fallbacks
+- `url`: Required S3 key, asset UUID, local image path, or direct public image URL
+- `assetId`: Optional Karakeep asset ID that redirects to `/api/assets/[assetId]`
+- `bookmarkId`: Optional bookmark lookup used to prioritize Karakeep assets and fallbacks
 
-### Security Features
+### Resolution Order
 
-- **SSRF Protection**: Blocks private IPs and internal networks
-- **Domain Allowlisting**: Production restricts to known safe domains
-- **Size Limits**: 10MB max to prevent DoS
-- **Content Validation**: Ensures response is actually an image
-- **Timeout Protection**: 10s timeout on external fetches
+1. Redirect relative asset paths and asset UUIDs to `/api/assets/[assetId]`
+2. Check recognized S3 keys and redirect existing objects to the CDN
+3. Use an explicit `assetId` or the bookmark's `imageAssetId`
+4. Redirect first-party static images or an existing derived S3 object
+5. Try validated Karakeep `imageUrl` and `screenshotAssetId` fallbacks
+6. Validate and fetch the supplied direct image URL
+7. Schedule background S3 persistence and redirect to the supplied URL
+8. On failure, try remaining Karakeep assets, then a contextual fallback
 
-### Fallback Hierarchy
+### Response and Security
 
-1. Check S3 existence (for S3 keys)
-2. Try Karakeep asset (for asset IDs)
-3. Fetch from OpenGraph data layer (Next.js cache -> S3 -> external)
-4. Direct image fetch if URL points to image
-5. Domain-specific fallbacks (GitHub, Twitter, etc.)
-6. Contextual fallbacks (person, OpenGraph card, company)
-
-### Performance Optimizations
-
-- **Response Streaming**: Streams images while persisting to S3
-- **Response Cloning**: Enables background S3 upload without blocking
-- **S3 Existence Cache**: 5-minute TTL for S3 HEAD checks
-- **Clean Error Logging**: Expected errors logged without stack traces
+- Responses are HTTP 302 redirects; this route does not stream image bodies
+- Public HTTP(S) URLs are accepted without a domain allowlist
+- Private/internal hosts, credentials, unsafe protocols, and unapproved ports are rejected
+- External responses must use an `image/*` content type and complete within 10 seconds
+- S3 checks use direct `HeadObject` calls; there is no route-local five-minute existence cache
 
 ## Module Dependencies
 
@@ -170,7 +157,7 @@ Validate URL -> Normalize -> Generate hash
 ```typescript
 Next.js Cache Components Check (tagged server data access)
   | (miss)
-S3 Metadata Check (opengraph/metadata/{urlHash}.json)
+PostgreSQL Override Check -> PostgreSQL Metadata Check (by URL hash)
   | (miss)
 External Fetch Required
 ```
@@ -192,7 +179,9 @@ Resolve Relative URLs -> Validate Images
 ### 4. Storage Phase
 
 ```typescript
-Store Metadata in S3 -> Persist Images to S3 -> Refresh Tagged Cache
+Runtime: schedule eligible image writes to S3
+Batch mode: await eligible image writes and use their CDN URLs
+Then: attempt PostgreSQL metadata upsert -> return fetched metadata
 ```
 
 ### 5. Background Operations
@@ -203,28 +192,7 @@ Store Metadata in S3 -> Persist Images to S3 -> Refresh Tagged Cache
 
 ## Image Selection Algorithm
 
-```typescript
-function selectBestOpenGraphImage(metadata, pageUrl) {
-  const priority = [
-    "profileImage", // GitHub/Twitter/LinkedIn avatars
-    "image", // Standard og:image
-    "imageSecure", // og:image:secure_url
-    "imageUrl", // og:image:url
-    "twitterImage", // Twitter cards
-    "schemaImage", // Schema.org
-    "msapplicationImage", // Windows tiles
-    "appleTouchIcon", // iOS icons
-    "icon", // Favicons
-  ];
-
-  for (const type of priority) {
-    if (metadata[type] && isValid(metadata[type])) {
-      return resolveUrl(metadata[type], pageUrl);
-    }
-  }
-  return null;
-}
-```
+`lib/opengraph/parser.ts` owns extracted metadata fields, and `lib/opengraph/fetch.ts` selects validated content/profile images before applying fallback data. Documentation does not restate that field priority.
 
 ## Platform-Specific Extraction
 
@@ -257,24 +225,23 @@ function selectBestOpenGraphImage(metadata, pageUrl) {
 - **Invalidation**: `revalidateTag(...)` from refresh/update flows
 - **Implementation**: framework cache (no custom in-process cache map)
 
-### S3 Persistent Storage
+### Persistent Storage
 
-- **Metadata**: `opengraph/metadata/{urlHash}.json`
-- **Images**: `images/opengraph/{idempotencyKey}.{ext}`
-- **Durability**: Survives server restarts
+- **Metadata and overrides**: PostgreSQL rows keyed by normalized URL hash
+- **Images and cached Jina HTML**: S3 objects with deterministic keys
 
 ### Circuit Breaker
 
-- **Failure Threshold**: 3 consecutive failures
-- **Cooldown**: 1 hour
-- **Per-domain tracking**: Prevents hammering failing sites
+- **Failure Threshold**: 5 tracked failures
+- **Open-State Reset Timeout**: 30 minutes
+- **Scope**: In-memory, per-domain tracking
 
 ## Error Handling
 
 ### Graceful Degradation Chain
 
 1. Try Next.js cache-backed server reads (tagged cache path)
-2. Try S3 storage
+2. Try PostgreSQL override and metadata rows
 3. Try external fetch with retries
 4. Use Karakeep fallback data
 5. Use platform-specific fallbacks
@@ -289,7 +256,7 @@ function selectBestOpenGraphImage(metadata, pageUrl) {
 ## Performance Characteristics
 
 - **Cache Hit**: low-latency from Next.js cache-backed server reads
-- **S3 Hit**: 50-200ms
+- **Persistent Metadata Hit**: PostgreSQL-backed cached read
 - **External Fetch**: 500ms-5s (depends on site)
 - **Cold Start**: Up to 10s for slow sites
 
@@ -310,7 +277,7 @@ function selectBestOpenGraphImage(metadata, pageUrl) {
 
 ### API Routes
 
-- `/api/og-image`: Public OpenGraph image proxy
+- `/api/og-image`: Public OpenGraph image redirect resolver
 - Used by external services needing OG images
 
 ### Asset Management

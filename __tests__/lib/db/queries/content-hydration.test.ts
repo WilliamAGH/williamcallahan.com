@@ -35,7 +35,8 @@ vi.mock("@/lib/utils/cdn-utils", () => ({
   getBlogPostImageCdnUrl: vi.fn(),
 }));
 
-vi.mock("@/lib/bookmarks/bookmark-helpers", () => ({
+vi.mock("@/lib/bookmarks/bookmark-helpers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/bookmarks/bookmark-helpers")>()),
   selectBestImage: mockSelectBestImage,
 }));
 

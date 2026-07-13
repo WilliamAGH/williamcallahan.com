@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { BookmarkTag } from "@/types/schemas/bookmark";
@@ -11,7 +11,7 @@ import {
   Clock,
   User,
   Globe,
-  ExternalLink,
+  ExternalLink as ExternalLinkIcon,
   BookOpen,
   Archive,
   Star,
@@ -36,8 +36,8 @@ import { safeExternalHref, getDisplayHostname, isGitHubUrl } from "@/lib/utils/u
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
+import { ExternalLink } from "@/components/ui/external-link.client";
 
-// Helper to avoid rendering the literal "Invalid Date"
 function toDisplayDate(date?: string | Date | number | null): string | null {
   if (date == null) return null;
   const text = formatDate(date);
@@ -50,36 +50,15 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
     cachedAnalysis?.analysis ?? null,
   );
   const { trackDwell, trackExternalClick } = useEngagementTracker();
-  const hasAnalysis = !!analysisData;
-
-  // Subtle parallax for image
+  const hasAnalysis = Boolean(analysisData);
   const imageY = useTransform(scrollY, [0, 300], [0, -20]);
-
-  // Extract domain for display with case-insensitive scheme detection
-  const domain = useMemo(() => getDisplayHostname(bookmark.url), [bookmark.url]);
-
-  // Sanitize URL using the shared utility
-  const safeUrl = useMemo(() => safeExternalHref(bookmark.url), [bookmark.url]);
-
-  // Check if this is a GitHub URL for special styling
-  const isGitHub = useMemo(() => isGitHubUrl(bookmark.url), [bookmark.url]);
-
-  // Calculate reading time display
-  const readingTimeDisplay = useMemo(() => {
-    if (!bookmark.readingTime) return null;
-    const minutes = Math.ceil(bookmark.readingTime);
-    return `${minutes} min`;
-  }, [bookmark.readingTime]);
-
-  // Use helper to prevent "Invalid Date" from appearing
-  const rawPublished = bookmark.content?.datePublished || bookmark.datePublished;
-  const publishedDate = toDisplayDate(rawPublished);
+  const safeUrl = safeExternalHref(bookmark.url);
+  const domain = safeUrl ? getDisplayHostname(safeUrl) : "";
+  const isGitHub = safeUrl ? isGitHubUrl(safeUrl) : false;
+  const readingTimeDisplay = bookmark.readingTime ? `${Math.ceil(bookmark.readingTime)} min` : null;
+  const publishedDate = toDisplayDate(bookmark.content?.datePublished || bookmark.datePublished);
   const bookmarkedDate = toDisplayDate(bookmark.dateBookmarked);
-
-  // Get best image for display
-  const featuredImage = selectBestImage(bookmark, {
-    includeScreenshots: true,
-  });
+  const featuredImage = selectBestImage(bookmark, { includeScreenshots: true });
 
   useEffect(() => {
     return trackDwell("bookmark", bookmark.id);
@@ -89,13 +68,11 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
     <BookmarksWindow
       windowTitle="~/bookmarks"
       windowId={`bookmark-detail-${bookmark.id}`}
-      // Guard against stale runtime variants that still key feed toggle visibility off !titleSlug.
       titleSlug={bookmark.slug || bookmark.id}
       showFeedToggle={false}
     >
       <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          {/* Library Context */}
           <div className="mb-3 sm:mb-4 space-y-1">
             <Link
               href="/bookmarks"
@@ -110,21 +87,17 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
             </div>
           </div>
 
-          {/* Header Section */}
           <div className="mb-6 sm:mb-8">
-            {/* Title - Much larger for proper hierarchy */}
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-5 leading-tight">
-              <a
-                href={safeUrl ?? "/bookmarks"}
-                target={safeUrl ? "_blank" : undefined}
-                rel={safeUrl ? "noopener noreferrer" : undefined}
+              <ExternalLink
+                href={safeUrl}
+                showIcon={false}
                 className="text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 {bookmark.title}
-              </a>
+              </ExternalLink>
             </h1>
 
-            {/* Status Badges - Only if present */}
             {(bookmark.archived || bookmark.isFavorite) && (
               <div className="flex gap-2 mb-3">
                 {bookmark.archived && (
@@ -142,19 +115,18 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
               </div>
             )}
 
-            {/* Clean Metadata Line */}
             <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
-              {/* Domain with link */}
-              <a
-                href={safeUrl ?? "/bookmarks"}
-                target={safeUrl ? "_blank" : undefined}
-                rel={safeUrl ? "noopener noreferrer" : undefined}
-                className="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-gray-100 transition-colors group"
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>{domain}</span>
-                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
+              {safeUrl && (
+                <ExternalLink
+                  href={safeUrl}
+                  showIcon={false}
+                  className="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-gray-100 transition-colors group"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>{domain}</span>
+                  <ExternalLinkIcon className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </ExternalLink>
+              )}
 
               {bookmarkedDate && (
                 <span className="flex items-center gap-1.5">
@@ -179,7 +151,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
             </div>
           </div>
 
-          {/* AI Analysis - Focal point, full width of container */}
           <motion.section
             initial={false}
             animate={{ opacity: 1, y: 0 }}
@@ -193,11 +164,8 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
             />
           </motion.section>
 
-          {/* Main Content Grid - Mobile-first approach */}
           <div className="flex flex-col-reverse lg:grid lg:grid-cols-3 gap-6 lg:gap-10">
-            {/* Main Content Column - Takes up 2/3 on large screens */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              {/* Featured Image - Full width at top of content */}
               {featuredImage && (
                 <motion.div
                   initial={false}
@@ -217,21 +185,20 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                           preload
                           className="!transition-none"
                         />
-                        {/* Hover overlay */}
-                        <a
-                          href={safeUrl ?? "/bookmarks"}
-                          target={safeUrl ? "_blank" : undefined}
-                          rel={safeUrl ? "noopener noreferrer" : undefined}
-                          className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center"
-                          aria-label={`View ${bookmark.title} on ${domain}`}
-                        >
-                          <div className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ArrowUpRight className="w-5 h-5" />
-                          </div>
-                        </a>
+                        {safeUrl && (
+                          <ExternalLink
+                            href={safeUrl}
+                            showIcon={false}
+                            className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center"
+                            aria-label={`View ${bookmark.title} on ${domain}`}
+                          >
+                            <div className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ArrowUpRight className="w-5 h-5" />
+                            </div>
+                          </ExternalLink>
+                        )}
                       </div>
                     </motion.div>
-                    {/* Author and Publisher info under image */}
                     {(bookmark.content?.author || bookmark.content?.publisher) && (
                       <div className="mt-1 pl-2">
                         <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
@@ -254,10 +221,8 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </motion.div>
               )}
 
-              {/* AI Context - domain, format, access, audience */}
               {analysisData && <BookmarkAiContext analysis={analysisData} />}
 
-              {/* Summary Box - hidden when AI analysis is available (shown above grid instead) */}
               {!hasAnalysis && (bookmark.summary || bookmark.description) && (
                 <motion.section
                   initial={false}
@@ -270,7 +235,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                   </h2>
                   <div className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300 space-y-3">
                     {(() => {
-                      // Use shared utilities for consistent formatting
                       const paragraphs = bookmark.summary
                         ? processSummaryText(removeCitations(bookmark.summary)).split("\n\n")
                         : [bookmark.description || ""];
@@ -280,7 +244,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </motion.section>
               )}
 
-              {/* Personal Notes */}
               {bookmark.note && (
                 <motion.section
                   initial={false}
@@ -301,7 +264,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </motion.section>
               )}
 
-              {/* If no content is available, show a placeholder */}
               {!bookmark.description && !bookmark.note && !featuredImage && (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                   <Bookmark className="w-12 h-12 mx-auto mb-4 opacity-20" />
@@ -311,9 +273,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
               )}
             </div>
 
-            {/* Sidebar Column - Shows first on mobile, 1/3 on large screens */}
             <div className="space-y-4 lg:space-y-6">
-              {/* Tags */}
               {bookmark.tags && bookmark.tags.length > 0 && (
                 <motion.section
                   initial={false}
@@ -345,28 +305,28 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </motion.section>
               )}
 
-              {/* Action Buttons */}
               <motion.div
                 initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
                 className="space-y-2 sm:space-y-3"
               >
-                <a
-                  href={safeUrl ?? "/bookmarks"}
-                  target={safeUrl ? "_blank" : undefined}
-                  rel={safeUrl ? "noopener noreferrer" : undefined}
-                  onClick={() => trackExternalClick("bookmark", bookmark.id)}
-                  className={`flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 font-medium rounded-lg transition-colors group ${
-                    isGitHub
-                      ? "bg-[#24292f] dark:bg-[#f0f3f6] text-white dark:text-[#24292f] hover:bg-[#32383f] dark:hover:bg-[#d8dee4]"
-                      : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100"
-                  }`}
-                >
-                  {isGitHub ? <GitHub className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
-                  <span>{isGitHub ? "View on GitHub" : "Visit Site"}</span>
-                  <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                </a>
+                {safeUrl && (
+                  <ExternalLink
+                    href={safeUrl}
+                    showIcon={false}
+                    onClick={() => trackExternalClick("bookmark", bookmark.id)}
+                    className={`flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 font-medium rounded-lg transition-colors group ${
+                      isGitHub
+                        ? "bg-[#24292f] dark:bg-[#f0f3f6] text-white dark:text-[#24292f] hover:bg-[#32383f] dark:hover:bg-[#d8dee4]"
+                        : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100"
+                    }`}
+                  >
+                    {isGitHub ? <GitHub className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                    <span>{isGitHub ? "View on GitHub" : "Visit Site"}</span>
+                    <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </ExternalLink>
+                )}
 
                 <Link
                   href="/bookmarks"
@@ -377,7 +337,6 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </Link>
               </motion.div>
 
-              {/* AI Related resources - beneath action buttons */}
               {analysisData && <BookmarkAiRelated analysis={analysisData} />}
             </div>
           </div>

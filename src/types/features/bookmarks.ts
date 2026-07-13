@@ -39,9 +39,9 @@ type BookmarkCardRequiredFields = Pick<
 export type BookmarkCardClientProps = BookmarkCardRequiredFields &
   Partial<Omit<UnifiedBookmark, keyof BookmarkCardRequiredFields>> & {
     /**
-     * Internal route to this bookmark detail page (e.g. "/bookmarks/github-com-google-gemini-gemini-cli").
+     * Internal route to this bookmark detail page, built by the canonical bookmark path owner.
      *
-     * Behaviour contract:
+     * Behavior contract:
      * 1. On list/grid views (bookmarks root, paginated pages, tag pages) **MUST** be supplied so that the
      *    bookmark image & title link to the internal page instead of the external URL.
      * 2. On the bookmark **detail** page itself the component still receives this value, however the
@@ -51,7 +51,7 @@ export type BookmarkCardClientProps = BookmarkCardRequiredFields &
      * This dual-behavior ensures we never confuse the two link targets while allowing one reusable
      * component to cover both contexts without prop explosions.
      *
-     * NEVER pass an external URL here – it must always start with "/bookmarks/".
+     * Never pass an external URL here; construct this value with `buildBookmarkPath`.
      */
     internalHref?: string;
     showDetails?: boolean;
@@ -62,6 +62,14 @@ export type BookmarkCardClientProps = BookmarkCardRequiredFields &
     preload?: boolean;
     variant?: "default" | "hero" | "compact";
   };
+
+export type BookmarkCardLinkProps = Readonly<{
+  internalHref?: string;
+  externalHref: string | null;
+  title: string;
+  className: string;
+  children: ReactNode;
+}>;
 
 /**
  * Tags list client props - USED in tags-list.client.tsx

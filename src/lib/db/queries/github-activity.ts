@@ -21,10 +21,11 @@ import {
  * Returns the raw payload (unvalidated) or null if no row exists.
  */
 async function readPayload(
+  executor: Pick<typeof db, "select">,
   dataType: (typeof GITHUB_ACTIVITY_DATA_TYPES)[number],
   qualifier: string = GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
 ): Promise<unknown | null> {
-  const rows = await db
+  const rows = await executor
     .select({ payload: githubActivityStore.payload })
     .from(githubActivityStore)
     .where(
@@ -61,8 +62,10 @@ export async function readGitHubActivityUpdatedAt(
 /**
  * Read GitHub activity data (trailing year + cumulative all-time) from PostgreSQL.
  */
-export async function readGitHubActivityFromDb(): Promise<GitHubActivityApiResponse | null> {
-  const payload = await readPayload("activity");
+export async function readGitHubActivityFromDb(
+  executor: Pick<typeof db, "select"> = db,
+): Promise<GitHubActivityApiResponse | null> {
+  const payload = await readPayload(executor, "activity");
   if (payload === null) {
     return null;
   }
@@ -74,7 +77,7 @@ export async function readGitHubActivityFromDb(): Promise<GitHubActivityApiRespo
  * Read GitHub activity summary from PostgreSQL.
  */
 export async function readGitHubSummaryFromDb(): Promise<GitHubActivitySummary | null> {
-  const payload = await readPayload("summary");
+  const payload = await readPayload(db, "summary");
   if (payload === null) {
     return null;
   }
@@ -90,7 +93,7 @@ export async function readRepoWeeklyStatsFromDb(
   repo: string,
 ): Promise<RepoWeeklyStatCache | null> {
   const qualifier = `${owner}/${repo}`;
-  const payload = await readPayload("repo-weekly-stats", qualifier);
+  const payload = await readPayload(db, "repo-weekly-stats", qualifier);
   if (payload === null) {
     return null;
   }
@@ -104,7 +107,7 @@ export async function readRepoWeeklyStatsFromDb(
 export async function readAggregatedWeeklyActivityFromDb(): Promise<
   AggregatedWeeklyActivity[] | null
 > {
-  const payload = await readPayload("aggregated-weekly");
+  const payload = await readPayload(db, "aggregated-weekly");
   if (payload === null) {
     return null;
   }
@@ -130,18 +133,4 @@ export async function readRepoCsvChecksum(owner: string, repo: string): Promise<
     .limit(1);
 
   return rows[0]?.checksum ?? null;
-}
-
-/**
- * List all repo-weekly-stats qualifiers (e.g. "owner/repo") stored in the DB.
- * Replaces the S3-based listRepoStatsFiles().
- */
-export async function listRepoWeeklyStatsQualifiers(): Promise<string[]> {
-  const rows = await db
-    .select({ qualifier: githubActivityStore.qualifier })
-    .from(githubActivityStore)
-    .where(eq(githubActivityStore.dataType, "repo-weekly-stats"))
-    .orderBy(githubActivityStore.qualifier);
-
-  return rows.map((row) => row.qualifier);
 }

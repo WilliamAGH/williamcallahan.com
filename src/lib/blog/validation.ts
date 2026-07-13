@@ -1,53 +1,72 @@
-/**
- * Blog Post Validation
- *
- * Validates blog post data to ensure all required fields are present
- * and properly formatted before processing or display.
- */
+import fs from "node:fs/promises";
+import path from "node:path";
+import matter from "gray-matter";
+import {
+  type BlogFrontmatter,
+  blogFrontmatterSchema,
+  blogSlugSchema,
+} from "@/types/schemas/blog-frontmatter";
 
-import type { BlogPost } from "../../types/blog";
+export const BLOG_POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
-const REQUIRED_FIELDS = ["title", "slug", "excerpt", "publishedAt", "author", "tags"] as const;
-const VALID_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,198}[a-z0-9]$|^[a-z0-9]$/;
+let blogPostFilePathIndexPromise: Promise<Map<string, string>> | null = null;
 
 /** Reject path-like and high-cardinality values before blog lookup or route caching. */
 export function isValidBlogSlug(slug: string): boolean {
-  return VALID_SLUG_PATTERN.test(slug) && !slug.includes("--");
+  return blogSlugSchema.safeParse(slug).success;
 }
 
-/**
- * Validates a blog post object
- *
- * @param {BlogPost} post - The blog post to validate
- * @returns {{ valid: boolean; errors: string[] }} Validation result with any error messages
- */
-export function validatePost(post: BlogPost): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
+export function parseBlogMdxDocument(
+  source: string,
+): { content: string; frontmatter: BlogFrontmatter } | null {
+  const parsed = matter(source);
+  const frontmatter = blogFrontmatterSchema.safeParse(parsed.data);
+  if (!frontmatter.success) return null;
+  return { content: parsed.content, frontmatter: frontmatter.data };
+}
 
-  // Check required fields
-  for (const field of REQUIRED_FIELDS) {
-    if (!post[field]) {
-      errors.push(`Missing required field: ${field}`);
+async function getBlogPostFilePathIndex(): Promise<Map<string, string>> {
+  if (blogPostFilePathIndexPromise) return blogPostFilePathIndexPromise;
+
+  blogPostFilePathIndexPromise = (async () => {
+    const pathsBySlug = new Map<string, string>();
+    const files = await fs.readdir(BLOG_POSTS_DIRECTORY);
+
+    for (const fileName of files) {
+      if (!fileName.endsWith(".mdx")) continue;
+
+      const filePath = path.join(BLOG_POSTS_DIRECTORY, fileName);
+      const document = parseBlogMdxDocument(await fs.readFile(filePath, "utf8"));
+      if (!document) {
+        console.warn(`[blog] Invalid frontmatter in ${fileName}; skipping slug index entry.`);
+        continue;
+      }
+
+      if (pathsBySlug.has(document.frontmatter.slug)) {
+        console.warn(
+          `[blog] Duplicate frontmatter slug "${document.frontmatter.slug}" in ${fileName}.`,
+        );
+        continue;
+      }
+
+      pathsBySlug.set(document.frontmatter.slug, filePath);
     }
-  }
 
-  // Validate slug format
-  if (post.slug && !isValidBlogSlug(post.slug)) {
-    errors.push("Invalid slug format. Use lowercase letters, numbers, and hyphens only.");
-  }
+    return pathsBySlug;
+  })().catch((error) => {
+    blogPostFilePathIndexPromise = null;
+    throw error;
+  });
 
-  // Validate date format
-  if (post.publishedAt && Number.isNaN(Date.parse(post.publishedAt))) {
-    errors.push("Invalid publishedAt date format");
-  }
+  return blogPostFilePathIndexPromise;
+}
 
-  // Validate tags
-  if (post.tags && (!Array.isArray(post.tags) || post.tags.length === 0)) {
-    errors.push("Tags must be a non-empty array");
-  }
+export async function findBlogPostFilePath(slug: string): Promise<string | undefined> {
+  if (!isValidBlogSlug(slug)) return undefined;
+  const pathsBySlug = await getBlogPostFilePathIndex();
+  return pathsBySlug.get(slug);
+}
 
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
+export function clearBlogPostFilePathIndex(): void {
+  blogPostFilePathIndexPromise = null;
 }

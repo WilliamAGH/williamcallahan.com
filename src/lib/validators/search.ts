@@ -5,7 +5,7 @@
  * ReDoS attacks and ensure safe processing.
  */
 
-import { VALID_SCOPES } from "@/types/schemas/search";
+import { VALID_SCOPES, type SearchQueryValidationResult } from "@/types/schemas/search";
 
 /**
  * Validates and sanitizes a search query to prevent ReDoS attacks
@@ -14,11 +14,7 @@ import { VALID_SCOPES } from "@/types/schemas/search";
  * @param query - The raw search query
  * @returns Object with sanitized query and validation status
  */
-export function validateSearchQuery(query: unknown): {
-  isValid: boolean;
-  sanitized: string;
-  error?: string;
-} {
+export function validateSearchQuery(query: unknown): SearchQueryValidationResult {
   // Check if query exists and is a string
   if (!query || typeof query !== "string") {
     return {

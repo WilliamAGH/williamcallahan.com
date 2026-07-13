@@ -8,6 +8,8 @@
  * @module scripts/domain-embedding-text-builders
  */
 
+import { BLOG_POST_EMBEDDING_FIELDS } from "../src/lib/db/embedding-field-specs-content.ts";
+
 export function buildAiAnalysisText(row) {
   const payload = row.payload;
   if (!payload || typeof payload !== "object") return null;
@@ -93,16 +95,38 @@ export function buildBookText(row) {
   return sections.join("\n");
 }
 
+function toDatabaseColumnName(sourceKey) {
+  return sourceKey
+    .replaceAll(".", "_")
+    .replace(/[A-Z]/g, (character) => `_${character.toLowerCase()}`);
+}
+
+function getEmbeddingValue(value) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (!Array.isArray(value)) return null;
+  const values = value
+    .filter((item) => typeof item === "string" && item.trim())
+    .map((item) => item.trim());
+  return values.length > 0 ? values.join(", ") : null;
+}
+
 export function buildBlogPostText(row) {
-  const sections = [`Article Title: ${row.title}`];
-  if (typeof row.excerpt === "string" && row.excerpt.trim())
-    sections.push(`Article Summary: ${row.excerpt.trim()}`);
-  if (Array.isArray(row.tags) && row.tags.length > 0)
-    sections.push(`Topic Tags: ${row.tags.filter(Boolean).join(", ")}`);
-  if (typeof row.author_name === "string" && row.author_name.trim())
-    sections.push(`Article Author: ${row.author_name.trim()}`);
-  if (typeof row.raw_content === "string" && row.raw_content.trim())
-    sections.push(`Article Full Text: ${row.raw_content.trim()}`);
+  const sections = [];
+  for (const field of BLOG_POST_EMBEDDING_FIELDS) {
+    const value = getEmbeddingValue(row[toDatabaseColumnName(field.sourceKey)]);
+    if (value !== null) {
+      sections.push(`${field.label}: ${value}`);
+      continue;
+    }
+
+    if (field.required) {
+      throw new Error(`[blog-posts] Missing required embedding field: ${field.sourceKey}`);
+    }
+  }
   return sections.join("\n");
 }
 

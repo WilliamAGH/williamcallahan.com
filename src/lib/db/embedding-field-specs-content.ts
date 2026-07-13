@@ -10,7 +10,7 @@
  *   bookmark  → src/types/schemas/bookmark.ts (UnifiedBookmark + BookmarkContent)
  *   thought   → src/types/schemas/thought.ts (thoughtSchema)
  *   book      → src/types/schemas/book.ts (bookSchema)
- *   blog      → src/types/blog.ts (BlogPost + BlogPageFrontmatter)
+ *   blog      → src/types/blog.ts (BlogPost) + src/types/schemas/blog-frontmatter.ts
  *
  * @module lib/db/embedding-field-specs-content
  */

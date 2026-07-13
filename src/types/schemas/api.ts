@@ -1,13 +1,75 @@
 import { z } from "zod/v4";
 
-export const productionRefreshResponseSchema = z.object({
-  status: z.string().optional(), // 'success' or 'error'
+export const apiErrorResponseSchema = z.object({
   message: z.string().optional(),
-  data: z.record(z.string(), z.unknown()).optional(), // For success payload
-  error: z.string().optional(), // For error payload
+  error: z.string().optional(),
 });
 
-export type ProductionRefreshResponse = z.infer<typeof productionRefreshResponseSchema>;
+export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
+
+export const clientErrorSchema = z
+  .object({
+    message: z.string().optional(),
+    resource: z.string().optional(),
+    type: z.string().optional(),
+    url: z.string().optional(),
+    stack: z.string().optional(),
+    buildId: z.string().optional(),
+    chunkId: z.string().optional(),
+    performance: z
+      .object({
+        durationMs: z.number().nonnegative(),
+        cached: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .strict();
+
+export type ClientErrorReport = z.infer<typeof clientErrorSchema>;
+
+export const googleIndexingNotificationTypeSchema = z.enum(["URL_UPDATED", "URL_DELETED"]);
+
+export const googleIndexingUrlNotificationSchema = z.object({
+  url: z.url(),
+  type: googleIndexingNotificationTypeSchema,
+});
+
+export type GoogleIndexingUrlNotification = z.infer<typeof googleIndexingUrlNotificationSchema>;
+
+const googleIndexingResponseNotificationSchema = googleIndexingUrlNotificationSchema.extend({
+  notifyTime: z.iso.datetime(),
+});
+
+export const googleIndexingUrlNotificationMetadataSchema = z
+  .object({
+    url: z.url(),
+    latestUpdate: googleIndexingResponseNotificationSchema
+      .extend({ type: z.literal("URL_UPDATED") })
+      .optional(),
+    latestRemove: googleIndexingResponseNotificationSchema
+      .extend({ type: z.literal("URL_DELETED") })
+      .optional(),
+  })
+  .refine(
+    ({ latestUpdate, latestRemove }) => latestUpdate !== undefined || latestRemove !== undefined,
+    "Google Indexing metadata must include a notification",
+  );
+
+export type GoogleIndexingUrlNotificationMetadata = z.infer<
+  typeof googleIndexingUrlNotificationMetadataSchema
+>;
+
+export const googleIndexingPublishResponseSchema = z.object({
+  urlNotificationMetadata: googleIndexingUrlNotificationMetadataSchema,
+});
+
+export const googleIndexingErrorResponseSchema = z.object({
+  error: z.object({
+    code: z.number().int(),
+    message: z.string(),
+    status: z.string(),
+  }),
+});
 
 /**
  * Schema for Cloudflare cf-visitor header JSON
@@ -21,13 +83,15 @@ export type CfVisitor = z.infer<typeof cfVisitorSchema>;
 
 export const standardApiErrorCodeSchema = z.enum(["RATE_LIMITED", "SERVICE_UNAVAILABLE"]);
 
-export const standardApiErrorResponseSchema = z.object({
-  code: standardApiErrorCodeSchema,
-  message: z.string().min(1),
-  retryAfterSeconds: z.number().int().positive(),
-  retryAfterAt: z.string().datetime({ offset: true }),
-  status: z.union([z.literal(429), z.literal(503)]),
-});
+export const standardApiErrorResponseSchema = apiErrorResponseSchema
+  .pick({ message: true })
+  .extend({
+    code: standardApiErrorCodeSchema,
+    message: z.string().min(1),
+    retryAfterSeconds: z.number().int().positive(),
+    retryAfterAt: z.string().datetime({ offset: true }),
+    status: z.union([z.literal(429), z.literal(503)]),
+  });
 
 export type StandardApiErrorCode = z.infer<typeof standardApiErrorCodeSchema>;
 export type StandardApiErrorResponse = z.infer<typeof standardApiErrorResponseSchema>;

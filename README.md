@@ -40,7 +40,7 @@ For production deployment with persistent storage, see the [Deployment Guide](do
 ## Core Features
 
 - **Terminal UI**: Interactive terminal with filesystem-like navigation and command history.
-- **Content Pipeline**: Automated ingestion of bookmarks, GitHub activity, and blog posts to S3.
+- **Content Pipeline**: Automated PostgreSQL ingestion for bookmarks and GitHub activity, with validated MDX blog content.
 - **Semantic Search**: Vector-based search for content and bookmarks.
 - **Logo Caching**: 3-tier caching system (Memory -> Disk -> External) for company logos.
 

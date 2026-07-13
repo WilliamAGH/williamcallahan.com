@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
+import { BookmarksWithOptions } from "@/components/features/bookmarks/bookmarks-with-options.client";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { vi } from "vitest";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Mock next/navigation's router
 vi.mock("next/navigation", () => ({
@@ -20,18 +22,17 @@ vi.mock("@/hooks/use-pagination", () => ({
 }));
 
 const buildBookmarks = (count: number): UnifiedBookmark[] =>
-  Array.from({ length: count }).map(
-    (_, i) =>
-      ({
-        id: `${i}`,
-        url: `https://example.com/${i}`,
-        title: `AI Post ${i}`,
-        description: "demo",
-        slug: `ai-post-${i}`,
-        tags: ["ai"],
-        dateBookmarked: "2024-01-01T00:00:00.000Z",
-        sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-      }) as UnifiedBookmark,
+  Array.from({ length: count }).map((_, i) =>
+    unifiedBookmarkSchema.parse({
+      id: `${i}`,
+      url: `https://example.com/${i}`,
+      title: `AI Post ${i}`,
+      description: "demo",
+      slug: `ai-post-${i}`,
+      tags: ["ai"],
+      dateBookmarked: "2024-01-01T00:00:00.000Z",
+      sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+    }),
   );
 
 describe("Search-mode client pagination", () => {
@@ -94,5 +95,31 @@ describe("Search-mode client pagination", () => {
     // The component should show bookmark placeholders or cards
     const bookmarkElements = container.querySelectorAll('[class*="rounded-3xl"]');
     expect(bookmarkElements.length).toBeGreaterThan(0);
+  });
+});
+
+describe("BookmarksWithOptions internal routes", () => {
+  it("uses the canonical bookmark route when an internal-href map omits a URL-less bookmark", () => {
+    const urlLessBookmark = unifiedBookmarkSchema.parse({
+      id: "url-less-bookmark",
+      url: "about:blank",
+      title: "URL-less bookmark",
+      description: "A bookmark that has no external destination.",
+      slug: "url-less-bookmark",
+      tags: [],
+      dateBookmarked: "2024-01-01T00:00:00Z",
+      sourceUpdatedAt: "2024-01-01T00:00:00Z",
+    });
+
+    render(
+      <BookmarksWithOptions
+        bookmarks={[urlLessBookmark]}
+        showFilterBar={false}
+        internalHrefs={{}}
+      />,
+    );
+
+    const title = screen.getByRole("heading", { name: "URL-less bookmark" });
+    expect(title.closest("a")).toHaveAttribute("href", buildBookmarkPath(urlLessBookmark.slug));
   });
 });

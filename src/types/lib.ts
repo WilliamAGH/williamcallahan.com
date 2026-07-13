@@ -621,18 +621,3 @@ export interface UrlValidationResult {
   error?: string;
   redirectUrl?: string;
 }
-
-/** Google Indexing API notification metadata */
-export interface GoogleIndexingUrlNotificationMetadata {
-  /** The URL that was queried */
-  url: string;
-  /** Latest update information if available */
-  latestUpdate?: {
-    /** The URL that was updated */
-    url: string;
-    /** Type of notification sent */
-    type: "URL_UPDATED" | "URL_DELETED";
-    /** ISO timestamp when the notification was sent */
-    notifyTime: string;
-  };
-}

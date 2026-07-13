@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
-import { ClientErrorSchema, type ClientErrorReport } from "@/types/error";
+import { clientErrorSchema, type ClientErrorReport } from "@/types/schemas/api";
 import { getClientIp } from "@/lib/utils/request-utils";
 
 /**
@@ -13,7 +13,7 @@ import { getClientIp } from "@/lib/utils/request-utils";
 export async function POST(request: NextRequest) {
   try {
     // Cast the parsed JSON to our defined type
-    const errorData = ClientErrorSchema.parse(await request.json());
+    const errorData = clientErrorSchema.parse(await request.json());
     const headerStore = request.headers;
 
     // Add server timestamp and request details

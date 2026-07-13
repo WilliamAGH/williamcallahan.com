@@ -22,20 +22,50 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import Ajv from "ajv";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CF_API_BASE = "https://api.cloudflare.com/client/v4";
 const CF_API_TIMEOUT_MS = 30_000; // 30s timeout for CF API calls
 const PHASE = "http_request_cache_settings";
+const CONFIG_PATH = resolve(__dirname, "../infra/cloudflare/cache-rules.json");
+const SCHEMA_PATH = resolve(__dirname, "../infra/cloudflare/cache-rules.schema.json");
+const schema = JSON.parse(readFileSync(SCHEMA_PATH, "utf-8"));
+const ajv = new Ajv({ allErrors: true });
+const validateCacheRulesSchema = ajv.compile(schema);
 
 // ---------------------------------------------------------------------------
 // Config & env
 // ---------------------------------------------------------------------------
 
+export function validateCacheRulesConfig(config) {
+  if (!validateCacheRulesSchema(config)) {
+    throw new Error(
+      `Invalid Cloudflare cache rules config: ${ajv.errorsText(validateCacheRulesSchema.errors, {
+        separator: "; ",
+      })}`,
+    );
+  }
+  const descriptions = config.rules.map((rule) => rule.description);
+  if (new Set(descriptions).size !== descriptions.length) {
+    throw new Error("Invalid Cloudflare cache rules config: rule descriptions must be unique");
+  }
+  for (const rule of config.rules) {
+    const statusTtls = rule.action_parameters.edge_ttl?.status_code_ttl;
+    if (!statusTtls) continue;
+    for (const { status_code_range: range } of statusTtls) {
+      if (range?.from !== undefined && range.to !== undefined && range.from > range.to) {
+        throw new Error(
+          "Invalid Cloudflare cache rules config: status range from must not exceed to",
+        );
+      }
+    }
+  }
+  return config;
+}
+
 function loadConfig() {
-  const configPath = resolve(__dirname, "../infra/cloudflare/cache-rules.json");
-  const raw = readFileSync(configPath, "utf-8");
-  return JSON.parse(raw);
+  return validateCacheRulesConfig(JSON.parse(readFileSync(CONFIG_PATH, "utf-8")));
 }
 
 function getEnv() {
@@ -237,8 +267,13 @@ async function main() {
   console.log(`Version: ${result.version}`);
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err.message);
-  if (err.stack) console.error(err.stack);
-  process.exit(1);
-});
+const isEntrypoint =
+  process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
+  main().catch((err) => {
+    console.error("Fatal error:", err.message);
+    if (err.stack) console.error(err.stack);
+    process.exit(1);
+  });
+}

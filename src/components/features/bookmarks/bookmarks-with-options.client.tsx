@@ -8,6 +8,7 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarksWithOptionsClientProps } from "@/types/features/bookmarks";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -230,11 +231,11 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       {filteredBookmarks.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
           {filteredBookmarks.map((bookmark, index) => {
-            const internalHrefFromMap = internalHrefs[bookmark.id];
-            const internalHref = internalHrefFromMap ?? bookmark.url;
-            if (!internalHrefFromMap) {
+            const mappedInternalHref = internalHrefs[bookmark.id];
+            const internalHref = mappedInternalHref ?? buildBookmarkPath(bookmark.slug);
+            if (!mappedInternalHref) {
               console.warn(
-                `[BookmarksWithOptions] Missing slug for ${bookmark.id}. Using external URL fallback: ${bookmark.url}`,
+                `[BookmarksWithOptions] Missing mapped internal route for bookmark ${bookmark.id}; using its canonical slug.`,
               );
             }
             return (

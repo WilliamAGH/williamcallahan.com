@@ -28,11 +28,6 @@ export type PageComponentModule = {
   }) => Promise<JSX.Element> | JSX.Element;
 };
 
-export interface BlogFrontmatter {
-  slug: string;
-  // Add other expected frontmatter properties here if needed
-}
-
 export type UmamiMock = Mock & {
   track: Mock;
 };
@@ -61,12 +56,3 @@ export interface MockImageProps {
   fill?: boolean;
   [key: string]: unknown;
 }
-
-export type MockedWindowEntry = {
-  id: string;
-  state: "normal" | "minimized" | "maximized" | "closed";
-  icon: React.ForwardRefExoticComponent<
-    React.SVGProps<SVGSVGElement> & React.RefAttributes<SVGSVGElement>
-  >;
-  title: string;
-};

@@ -21,6 +21,7 @@ import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-ana
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { searchBooks, searchBookmarks } from "./dynamic-searchers";
@@ -111,7 +112,7 @@ const DOMAIN_CONFIGS: Record<AnalysisDomain, AnalysisDomainConfig> = {
   bookmarks: {
     searcher: searchBookmarks,
     prefix: "Bookmarks",
-    getParentUrl: (id) => `/bookmarks/${id}`,
+    getParentUrl: buildBookmarkPath,
     extractSearchableText: extractBookmarkText,
     extractSnippet: (analysis, query) => {
       const a = analysis as BookmarkAiAnalysisResponse;

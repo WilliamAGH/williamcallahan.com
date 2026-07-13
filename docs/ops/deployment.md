@@ -26,6 +26,42 @@ public build configuration as canonical files under `/run/secrets/build`, then p
 only present values before `bun run build`. This preserves ordinary `--build-arg` values
 when the corresponding optional secret is absent.
 
+## Web Release Identity
+
+The web `Dockerfile` owns how a production release identity reaches `next build`. When
+Coolify supplies `GIT_SHA`, that SHA is the identity, so rebuilding the same source revision
+intentionally reuses it. When `GIT_SHA` is absent, Docker creates and logs a UUID fallback;
+that fallback does not prove that the source revision or application build is uncached. The
+build exports the selected value as both `GIT_HASH` and `NEXT_DEPLOYMENT_ID` before `next build`.
+
+Next.js therefore uses one identity for both `generateBuildId` and the `?dpl=<release-id>`
+suffix on advertised JavaScript assets. A same-SHA rebuild retains the same `dpl` value, so
+recovery from an already cached bad asset requires a Cloudflare purge or a new source revision
+with a new `GIT_SHA`. Do not replace this identity with a fixed package-version value or
+configure a Cloudflare cache key that ignores the `dpl` query parameter.
+
+After deployment, configure the web Coolify resource's Post Deployment Command to run
+`bun run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/BUILD_ID)"`.
+The smoke test fails unless
+`/investments` advertises one shared nonempty deployment ID and every advertised script
+loads successfully through the public Cloudflare URL. It verifies JavaScript only; it does
+not inspect CSS assets.
+
+## Cloudflare Cache Rules
+
+`infra/cloudflare/cache-rules.json` is the declarative Cache Rules owner, validated by
+`infra/cloudflare/cache-rules.schema.json`. Preview the live diff before applying it, then deploy
+the same configuration:
+
+```bash
+bun run deploy:cf-cache-rules:dry-run
+bun run deploy:cf-cache-rules
+```
+
+Both commands load `.env` when present and require `CF_ZONE_ID` plus the recommended scoped
+`CF_API_TOKEN` (Zone > Cache Rules > Edit). The only supported alternative is
+`CLOUDFLARE_API_KEY` together with `CLOUDFLARE_EMAIL`.
+
 The pin fixes production failures with
 `controller[kState].transformAlgorithm is not a function`. Node
 [issue #62036](https://github.com/nodejs/node/issues/62036) identifies the Web

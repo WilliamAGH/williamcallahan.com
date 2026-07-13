@@ -13,8 +13,8 @@ import { NextResponse } from "next/server";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
-import { getErrorMessage } from "@/types/api-responses";
-import { productionRefreshResponseSchema } from "@/types/schemas/api";
+import { getErrorMessage } from "@/lib/utils/error-utils";
+import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
 
 /**
  * POST handler for triggering production bookmarks refresh
@@ -129,7 +129,7 @@ export async function POST(): Promise<NextResponse> {
     }
 
     const rawResult: unknown = await response.json();
-    const parseResult = productionRefreshResponseSchema.safeParse(rawResult);
+    const parseResult = bookmarkRefreshResponseSchema.safeParse(rawResult);
 
     if (!parseResult.success) {
       envLogger.log(
@@ -147,6 +147,21 @@ export async function POST(): Promise<NextResponse> {
     }
 
     const result = parseResult.data;
+
+    if (result.status === "error") {
+      envLogger.log(
+        "Production bookmarks refresh returned an error response",
+        { error: result.error },
+        { category: "BookmarksRefresh" },
+      );
+      return NextResponse.json(
+        {
+          message: "Failed to trigger production bookmarks refresh",
+          error: result.error,
+        },
+        { status: 502 },
+      );
+    }
 
     envLogger.log(
       "Production bookmarks refresh triggered successfully",

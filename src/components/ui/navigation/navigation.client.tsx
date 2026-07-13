@@ -98,7 +98,7 @@ export function Navigation() {
             {/* Mobile menu social icons */}
             <div className="px-4 pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-center">
-                <SocialIcons excludePlatforms={["discord", "bluesky"]} />
+                <SocialIcons excludePlatforms={["bluesky"]} />
               </div>
             </div>
           </div>

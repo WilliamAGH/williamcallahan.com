@@ -9,7 +9,17 @@
 
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { blogPosts } from "@/lib/db/schema/blog-posts";
-import type { BlogPostInput } from "@/types/blog";
+import type { BlogPostInput } from "@/types/schemas/blog-frontmatter";
+
+function getSearchableMdxContent(content: string): string {
+  return content
+    .replace(/^import\s+.*$/gm, "")
+    .replace(/<[A-Z][A-Za-z]*\b[^>]*\/>/g, "")
+    .replace(/<[A-Z][A-Za-z]*\b[^>]*>[\s\S]*?<\/[A-Z][A-Za-z]*>/g, "")
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 /**
  * Upsert a batch of blog posts.
@@ -20,38 +30,42 @@ export async function upsertBlogPosts(posts: BlogPostInput[]): Promise<number> {
 
   let upserted = 0;
   for (const post of posts) {
-    const entityId = `mdx-${post.slug}`;
-    const publishedAt = String(post.frontmatter.publishedAt);
-    const updatedAt = post.frontmatter.updatedAt ? String(post.frontmatter.updatedAt) : null;
-    const tags = Array.isArray(post.frontmatter.tags) ? post.frontmatter.tags : null;
+    const { frontmatter } = post;
+    const entityId = `mdx-${frontmatter.slug}`;
+    const publishedAt = String(frontmatter.publishedAt);
+    const updatedAt = frontmatter.updatedAt === undefined ? null : String(frontmatter.updatedAt);
+    const coverImage = frontmatter.coverImage === undefined ? null : frontmatter.coverImage;
+    const rawContent = getSearchableMdxContent(post.rawContent);
+    const draft = frontmatter.draft === true;
 
     await db
       .insert(blogPosts)
       .values({
         id: entityId,
-        title: post.frontmatter.title,
-        slug: post.slug,
-        excerpt: post.frontmatter.excerpt ?? null,
-        authorName: post.frontmatter.author,
-        tags,
+        title: frontmatter.title,
+        slug: frontmatter.slug,
+        excerpt: frontmatter.excerpt,
+        authorName: frontmatter.author,
+        tags: frontmatter.tags,
         publishedAt,
         updatedAt,
-        coverImage: post.frontmatter.coverImage ?? null,
-        draft: false,
-        rawContent: post.rawContent,
+        coverImage,
+        draft,
+        rawContent,
       })
       .onConflictDoUpdate({
         target: blogPosts.id,
         set: {
-          title: post.frontmatter.title,
-          slug: post.slug,
-          excerpt: post.frontmatter.excerpt ?? null,
-          authorName: post.frontmatter.author,
-          tags,
+          title: frontmatter.title,
+          slug: frontmatter.slug,
+          excerpt: frontmatter.excerpt,
+          authorName: frontmatter.author,
+          tags: frontmatter.tags,
           publishedAt,
           updatedAt,
-          coverImage: post.frontmatter.coverImage ?? null,
-          rawContent: post.rawContent,
+          coverImage,
+          draft,
+          rawContent,
         },
       });
     upserted += 1;

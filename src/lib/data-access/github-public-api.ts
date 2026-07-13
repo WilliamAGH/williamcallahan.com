@@ -10,86 +10,45 @@
 import { debug } from "@/lib/utils/debug";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { GITHUB_CACHE_TAGS } from "@/lib/cache/invalidation";
-import { formatPacificDateTime } from "@/lib/utils/date-format";
-import type { StoredGithubActivity, UserActivityView } from "@/types/github";
-import type { GitHubActivityApiResponse } from "@/types/schemas/github-storage";
 import {
-  readGitHubActivityRecord,
-  isFlatStoredGithubActivityFormat,
-  getGitHubActivityMetadata,
-} from "./github-storage";
-
-/**
- * Checks if GitHub activity data is empty or invalid
- */
-function isEmptyData(data: unknown): boolean {
-  if (!data || typeof data !== "object") return true;
-  const obj = data as { trailingYearData?: { data?: unknown[]; totalContributions?: number } };
-  const ty = obj.trailingYearData;
-  if (!ty) return true;
-
-  // Don't treat zero contributions as "empty" - users can legitimately have 0 contributions
-  const hasSeries = Array.isArray(ty.data) && ty.data.length > 0;
-  const hasCount =
-    typeof ty.totalContributions === "number" && Number.isFinite(ty.totalContributions);
-
-  // Empty only if we have neither series data nor a known count
-  return !hasSeries && !hasCount;
-}
+  createUnavailableUserActivityView,
+  publicPriorYearCommitSummarySchema,
+  type GitHubActivityApiResponse,
+  type UserActivityView,
+} from "@/types/schemas/github-storage";
+import { readGitHubActivityRecord, getGitHubActivityMetadata } from "./github-storage";
 
 /**
  * Formats GitHub activity data into a user-friendly view
  */
 function formatActivityView(
   activityRecord: GitHubActivityApiResponse | null,
-  source: UserActivityView["source"],
   lastRefreshed?: string,
 ): UserActivityView {
   if (!activityRecord) {
-    return {
-      source: "empty",
-      trailingYearData: {
-        data: [],
-        totalContributions: 0,
-        linesAdded: 0,
-        linesRemoved: 0,
-        dataComplete: false,
-      },
-      allTimeStats: {
-        totalContributions: 0,
-        linesAdded: 0,
-        linesRemoved: 0,
-      },
-    };
+    return createUnavailableUserActivityView({ source: "empty" });
   }
 
-  const trailingYearData = activityRecord.trailingYearData || {
-    data: [],
-    totalContributions: 0,
-    linesAdded: 0,
-    linesRemoved: 0,
-    dataComplete: false,
-  };
-
-  const allTimeData = activityRecord.cumulativeAllTimeData || trailingYearData;
-  // Only the cumulative record carries prior-year commits; the trailing-year
-  // fallback never has them.
-  const priorYearCommits = activityRecord.cumulativeAllTimeData?.allPriorYearCommits;
+  const { trailingYearData, cumulativeAllTimeData } = activityRecord;
+  const storedPriorYearCommits = cumulativeAllTimeData.allPriorYearCommits;
+  const priorYearCommits = storedPriorYearCommits
+    ? publicPriorYearCommitSummarySchema.parse(storedPriorYearCommits)
+    : undefined;
 
   return {
-    source,
+    source: "db-store",
     error: activityRecord.error,
     trailingYearData: {
-      data: trailingYearData.data || [],
-      totalContributions: trailingYearData.totalContributions || 0,
-      linesAdded: trailingYearData.linesAdded || 0,
-      linesRemoved: trailingYearData.linesRemoved || 0,
-      dataComplete: trailingYearData.dataComplete ?? false,
+      data: trailingYearData.data,
+      totalContributions: trailingYearData.totalContributions,
+      linesAdded: trailingYearData.linesAdded,
+      linesRemoved: trailingYearData.linesRemoved,
+      dataComplete: trailingYearData.dataComplete,
     },
     allTimeStats: {
-      totalContributions: allTimeData.totalContributions || 0,
-      linesAdded: allTimeData.linesAdded || 0,
-      linesRemoved: allTimeData.linesRemoved || 0,
+      totalContributions: cumulativeAllTimeData.totalContributions,
+      linesAdded: cumulativeAllTimeData.linesAdded,
+      linesRemoved: cumulativeAllTimeData.linesRemoved,
     },
     priorYearCommits,
     lastRefreshed,
@@ -104,29 +63,17 @@ function formatActivityView(
 export async function getGithubActivity(): Promise<UserActivityView> {
   debug("[DataAccess/GitHub:getGithubActivity] Starting GitHub activity fetch");
 
-  let activityData = await readGitHubActivityRecord();
+  const activityData = await readGitHubActivityRecord();
 
-  if (!activityData || isEmptyData(activityData)) {
+  if (!activityData) {
     debug("[DataAccess/GitHub:getGithubActivity] No GitHub data found in database");
-    return formatActivityView(null, "error");
+    return formatActivityView(null);
   }
 
   const metadata = await getGitHubActivityMetadata();
-  const lastRefreshed = metadata?.lastModified
-    ? formatPacificDateTime(metadata.lastModified)
-    : undefined;
+  const lastRefreshed = metadata?.lastModified?.toISOString();
 
-  // Handle old flat format (backward compatibility)
-  if (isFlatStoredGithubActivityFormat(activityData)) {
-    debug("[DataAccess/GitHub:getGithubActivity] Converting old flat format to new nested format");
-    const oldFormatData = activityData as StoredGithubActivity;
-    activityData = {
-      trailingYearData: oldFormatData,
-      cumulativeAllTimeData: oldFormatData,
-    };
-  }
-
-  return formatActivityView(activityData, "db-store", lastRefreshed);
+  return formatActivityView(activityData, lastRefreshed);
 }
 
 /**

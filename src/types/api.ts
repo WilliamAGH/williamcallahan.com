@@ -3,10 +3,10 @@
  *
  * SCOPE: Next.js API routes, page contexts, and route parameter types
  * USAGE: Use for API route handlers, page components, and dynamic route contexts
- * OVERLAP PREVENTION: Do NOT add general API response types here - use response-types.ts
+ * OVERLAP PREVENTION: Do NOT add general API response types here; use types/schemas/api.ts
  * DO NOT add business logic types - this is only for Next.js routing infrastructure
  *
- * @see types/response-types.ts for API response/request body types
+ * @see types/schemas/api.ts for validated API response and request body contracts
  * @see types/[domain].ts for business logic types (bookmark, blog, etc.)
  */
 
@@ -80,52 +80,7 @@ export interface ErrorPageProps {
  * @note - Extends domain context with additional search functionality
  */
 export interface DomainPageRedirectorProps extends DomainBookmarkContext {
-  searchParams: { id?: string | string[] };
-}
-
-/**
- * API error response structure
- * @usage - Standard error response from API endpoints
- */
-export interface ErrorResponse {
-  error: string | null;
-}
-
-/**
- * Refresh operation result
- * @usage - Response from refresh API endpoints
- */
-export interface RefreshResult {
-  status: string;
-  message?: string;
-}
-
-/**
- * Google Indexing API URL notification payload
- * @usage - Request payload for Google Indexing API submissions
- */
-export interface UrlNotification {
-  url: string;
-  type: "URL_UPDATED" | "URL_DELETED";
-}
-
-/**
- * Google Indexing API response structure
- * @usage - Response from Google Indexing API endpoint
- */
-export interface IndexingApiResponse {
-  urlNotificationMetadata?: {
-    url: string;
-    latestUpdate: {
-      type: "URL_UPDATED" | "URL_DELETED";
-      notifyTime: string;
-    };
-  };
-  error?: {
-    code: number;
-    message: string;
-    status: string;
-  };
+  searchParams: Promise<{ id?: string | string[] }>;
 }
 
 // Cache clear API is now simplified to only support cache clearing operations

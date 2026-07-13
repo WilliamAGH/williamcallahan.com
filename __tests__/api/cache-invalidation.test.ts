@@ -1,4 +1,4 @@
-import { vi, type MockedFunction } from "vitest";
+import { afterEach, vi, type MockedFunction } from "vitest";
 import { createMocks } from "node-mocks-http";
 import { POST as clearCacheHandler } from "@/app/api/cache/clear/route";
 import {
@@ -9,6 +9,7 @@ import { POST as revalidateBookmarksHandler } from "@/app/api/revalidate/bookmar
 import { GET as healthMetricsHandler } from "@/app/api/health/metrics/route";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
 import { RELATED_CONTENT_CACHE_TAG } from "@/config/related-content.config";
+import { githubActivityRefreshSuccessResponseSchema } from "@/types/schemas/github-storage";
 import { NextRequest } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 
@@ -82,6 +83,8 @@ describe("Cache Invalidation via API Routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  afterEach(() => vi.unstubAllEnvs());
 
   describe("Bookmarks Cache API", () => {
     it("should invalidate bookmarks cache via POST request", async () => {
@@ -213,29 +216,27 @@ describe("Cache Invalidation via API Routes", () => {
       }
     });
 
-    it("should skip refresh during build phase", async () => {
-      // Temporarily set build phase
-      const originalPhase = process.env.NEXT_PHASE;
-      process.env.NEXT_PHASE = "phase-production-build";
+    it("returns the explicit read-only result during build phase", async () => {
+      vi.stubEnv("NEXT_PHASE", "phase-production-build");
+      vi.stubEnv("DEPLOYMENT_ENV", "development");
+      vi.stubEnv("NEXT_PUBLIC_SITE_URL", "http://localhost:3000");
 
-      // Import the route handler
       const { POST } = await import("@/app/api/github-activity/refresh/route");
+      const response = await POST(
+        new NextRequest("http://localhost:3000/api/github-activity/refresh", {
+          method: "POST",
+        }),
+      );
 
-      // Create a mock request
-      const request = new NextRequest("http://localhost:3000/api/github-activity/refresh", {
-        method: "POST",
-      });
-
-      // Call the handler
-      const response = await POST(request);
-      const data = await response.json();
-
-      // Should skip during build
       expect(response.status).toBe(200);
-      expect(data).toHaveProperty("buildPhase", true);
-
-      // Restore original phase
-      process.env.NEXT_PHASE = originalPhase;
+      await expect(response.json()).resolves.toEqual(
+        githubActivityRefreshSuccessResponseSchema.parse({
+          message:
+            "GitHub activity refresh is read-only in this deployment. Refresh production to update the shared dataset.",
+          dataFetched: false,
+          readOnly: true,
+        }),
+      );
     });
   });
 

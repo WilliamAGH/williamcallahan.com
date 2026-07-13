@@ -2,16 +2,23 @@ graph TD
     subgraph "Write Pipeline"
         EXT[External Suppliers<br/>(Karakeep, GitHub, etc.)]
         JOB[Refresh Jobs / Scripts<br/>(cron, selective refresh)]
-        S3[S3 JSON Source of Truth<br/>(bookmarks.json, github_stats_summary.json, ...)]
-        EXT --> JOB --> S3
+        DB[PostgreSQL domain data<br/>(bookmarks, GitHub activity, search artifacts)]
+        S3[S3 binary objects<br/>(images, logos, other assets)]
+        MDX[Validated MDX Blog Content]
+        EXT --> JOB --> DB
+        JOB --> S3
     end
 
     subgraph "Read Pipeline"
         RSC[Next.js Cache Components<br/>('use cache', cacheTag)]
         UI[Pages & RSC Consumers<br/>(bookmarks, blog, related-content, github)]
-        API[API Routes<br/>(noStore, Cache-Control: no-store)]
-        S3 --> RSC --> UI
-        S3 --> API
+        BOOKMARKS_API[/api/bookmarks<br/>unstable_noStore() during handler work<br/>Cache-Control: public, s-maxage=60,<br/>stale-while-revalidate=300]
+        REQUEST_TIME_APIS[/api/search/*,<br/>/api/related-content*<br/>connection() + Cache-Control: no-store]
+        DB --> RSC --> UI
+        MDX --> RSC
+        DB --> BOOKMARKS_API
+        DB --> REQUEST_TIME_APIS
+        S3 --> UI
     end
 
     subgraph "Supporting Layers"
@@ -30,10 +37,8 @@ graph TD
         RSC --> TAG3
     end
 
-    subgraph "API Exclusions"
-        API --> EX[unstable_noStore()<br/>Cache-Control: no-store]
-    end
-
-    style S3 fill:#dff0d8,stroke:#2f6627,stroke-width:2px
+    style DB fill:#dff0d8,stroke:#2f6627,stroke-width:2px
+    style S3 fill:#fff3cd,stroke:#856404,stroke-width:2px
     style RSC fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    style API fill:#fdecea,stroke:#b71c1c,stroke-width:2px
+    style BOOKMARKS_API fill:#fff3cd,stroke:#856404,stroke-width:2px
+    style REQUEST_TIME_APIS fill:#fdecea,stroke:#b71c1c,stroke-width:2px

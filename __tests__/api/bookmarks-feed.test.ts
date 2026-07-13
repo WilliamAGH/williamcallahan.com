@@ -4,6 +4,7 @@ import { getBookmarksIndex, getBookmarksPage } from "@/lib/bookmarks/service.ser
 import { getAllPostsMeta } from "@/lib/blog";
 import { getDiscoveryRankedBookmarks } from "@/lib/db/queries/discovery-scores";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import type { BookmarkSlugMapping, UnifiedBookmark } from "@/types/schemas/bookmark";
 import { NextRequest } from "next/server";
 
@@ -209,7 +210,9 @@ describe("RSS feed route", () => {
     expect(xml).toContain(
       "<description><![CDATA[Context ]]]]><![CDATA[> and <tags> & more]]></description>",
     );
-    expect(xml).toContain("<link>https://williamcallahan.com/bookmarks/slug-bookmark-1</link>");
+    expect(xml).toContain(
+      `<link>https://williamcallahan.com${buildBookmarkPath("slug-bookmark-1")}</link>`,
+    );
     expect(xml).toContain(
       "<description><![CDATA[Bookmark summary ]]]]><![CDATA[> <xml> & more]]></description>",
     );

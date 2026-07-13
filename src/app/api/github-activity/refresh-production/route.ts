@@ -13,7 +13,7 @@ import { NextResponse } from "next/server";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
-import { getErrorMessage } from "@/types/api-responses";
+import { getErrorMessage } from "@/lib/utils/error-utils";
 import { githubActivityRefreshSuccessResponseSchema } from "@/types/schemas/github-storage";
 
 /**

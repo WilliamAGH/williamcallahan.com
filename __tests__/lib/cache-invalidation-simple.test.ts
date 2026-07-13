@@ -1,75 +1,45 @@
-/**
- * Simple test to verify cache invalidation functions exist and can be called
- */
-
-// Mock the github module before imports
-vi.mock("@/lib/data-access/github");
+vi.mock("@/lib/data-access/opengraph");
+vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
+  hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
+  hybridSearchBooks: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/lib/db/queries/query-embedding", () => ({
+  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe("Cache Invalidation Functions", () => {
   describe("Search Cache", () => {
-    it("should have invalidation functions", async () => {
-      // Dynamically import to avoid module loading issues
+    it("invalidates cached search results", async () => {
       const searchModule = await import("@/lib/search/cache-invalidation");
+      const { searchBlogPostsServerSide } = await import("@/lib/blog/server-search");
 
-      expect(searchModule.invalidateSearchCache).toBeDefined();
-      expect(typeof searchModule.invalidateSearchCache).toBe("function");
-
-      expect(searchModule.invalidateSearchQueryCache).toBeDefined();
-      expect(typeof searchModule.invalidateSearchQueryCache).toBe("function");
-
-      // Test that functions can be called without errors
+      await expect(searchBlogPostsServerSide("javascript")).resolves.toEqual([]);
       expect(() => searchModule.invalidateSearchCache()).not.toThrow();
-      expect(() => searchModule.invalidateSearchQueryCache("test")).not.toThrow();
+      expect(() => searchModule.invalidateSearchQueryCache("javascript")).not.toThrow();
+      await expect(searchBlogPostsServerSide("javascript")).resolves.toEqual([]);
     });
   });
 
   describe("Bookmarks Cache", () => {
-    it("should have invalidation functions", async () => {
-      const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+    it("executes the production bookmark invalidators", async () => {
+      const cache = await import("@/lib/bookmarks/cache-management.server");
 
-      expect(bookmarksModule.invalidateBookmarksCache).toBeDefined();
-      expect(typeof bookmarksModule.invalidateBookmarksCache).toBe("function");
-
-      expect(bookmarksModule.invalidateTagCache).toBeDefined();
-      expect(typeof bookmarksModule.invalidateTagCache).toBe("function");
-
-      expect(bookmarksModule.invalidateBookmarksPageCache).toBeDefined();
-      expect(typeof bookmarksModule.invalidateBookmarksPageCache).toBe("function");
-
-      // Test that functions can be called without errors
-      expect(() => bookmarksModule.invalidateBookmarksCache()).not.toThrow();
-      expect(() => bookmarksModule.invalidateTagCache("test")).not.toThrow();
-      expect(() => bookmarksModule.invalidateBookmarksPageCache(1)).not.toThrow();
+      expect(() => cache.invalidateNextJsBookmarksCache()).not.toThrow();
+      expect(() => cache.invalidateTagCache("test")).not.toThrow();
+      expect(() => cache.invalidatePageCache(1)).not.toThrow();
     });
   });
 
   describe("Blog Cache", () => {
-    it("should have invalidation functions", async () => {
+    it("invalidates cached blog posts", async () => {
+      const { getAllPosts } = await import("@/lib/blog");
       const blogModule = await import("@/lib/blog/mdx");
+      const posts = await getAllPosts();
 
-      expect(blogModule.invalidateBlogCache).toBeDefined();
-      expect(typeof blogModule.invalidateBlogCache).toBe("function");
-
-      expect(blogModule.invalidateBlogPostCache).toBeDefined();
-      expect(typeof blogModule.invalidateBlogPostCache).toBe("function");
-
-      // Test that functions can be called without errors
+      expect(posts.length).toBeGreaterThan(0);
       expect(() => blogModule.invalidateBlogCache()).not.toThrow();
       expect(() => blogModule.invalidateBlogPostCache("test-slug")).not.toThrow();
-    });
-  });
-
-  describe("GitHub Cache (Mocked)", () => {
-    it("should expose cached activity readers", async () => {
-      // Clear module cache and use our mock
-      vi.resetModules();
-      const githubModule = await import("@/lib/data-access/github");
-
-      expect(githubModule.refreshGitHubActivityDataFromApi).toBeDefined();
-      expect(typeof githubModule.refreshGitHubActivityDataFromApi).toBe("function");
-      const githubPublicModule = await import("@/lib/data-access/github-public-api");
-      expect(githubPublicModule.getGithubActivityCached).toBeDefined();
-      expect(typeof githubPublicModule.getGithubActivityCached).toBe("function");
+      await expect(getAllPosts()).resolves.toHaveLength(posts.length);
     });
   });
 });
