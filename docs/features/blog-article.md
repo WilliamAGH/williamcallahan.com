@@ -44,7 +44,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 
 ### Content Files
 
-- **data/blog/posts/\*.mdx**: Blog post content files (22 posts)
+- **data/blog/posts/\*.mdx**: Blog post content files (28 posts)
   - Written in MDX format (Markdown with JSX)
   - Includes frontmatter metadata (title, author, date, tags, etc.)
   - Can embed React components like tabs, tweets, and custom elements
@@ -59,7 +59,8 @@ The "blog-article" functionality encompasses components and utilities that manag
 - **lib/blog/mdx.ts**: MDX processing utilities
   - Excellent caching strategy with file modification checks
   - Robust error handling with fallbacks
-- **lib/blog/validation.ts**: Canonical route/cache lookup eligibility guard (`isValidBlogSlug`) and `BlogPost` object validator (`validatePost`); MDX frontmatter checks remain in **lib/blog/mdx.ts**.
+- **types/schemas/blog-frontmatter.ts**: Canonical Zod owner for MDX frontmatter, slug syntax, and the PostgreSQL mutation input.
+- **lib/blog/validation.ts**: Projects the canonical slug schema into the route/cache lookup guard (`isValidBlogSlug`).
 - **lib/utils/tag-utils.ts**: A suite of utility functions for formatting, normalizing, and sanitizing tags, including functions to convert tags to URL-friendly slugs (`tagToSlug`) and back (`slugToTagDisplay`).
 
 ## Logic Flow and Interactions

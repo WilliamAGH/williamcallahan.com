@@ -172,48 +172,33 @@ function toPacificISOString(date: string | Date | undefined): string {
 /**
  * Validates and sanitizes the coverImage value from frontmatter.
  * Automatically maps local blog post images to S3 CDN URLs if available.
- * @param coverImageValue - The value from frontmatter.
- * @param contextSlug - The slug of the post for logging purposes.
- * @param contextFilePath - The file path of the post for logging purposes.
+ * @param coverImage - The validated, non-empty value from frontmatter.
  * @returns Sanitized cover image string (S3 CDN URL if available) or undefined.
  */
-function sanitizeCoverImage(
-  coverImageValue: unknown,
-  contextSlug: string,
-  contextFilePath: string,
-): string | undefined {
-  if (!coverImageValue) {
+function sanitizeCoverImage(coverImage: string | undefined): string | undefined {
+  if (coverImage === undefined) {
     return undefined;
   }
-  if (typeof coverImageValue === "string" && coverImageValue.trim() !== "") {
-    const trimmedValue = coverImageValue.trim();
 
-    // Check if it's a local blog post image path
-    if (trimmedValue.startsWith("/images/posts/")) {
-      try {
-        const cdnUrl = getBlogPostImageCdnUrl(trimmedValue);
-        if (cdnUrl) {
-          logCoverImageInfo(`Mapped ${trimmedValue} to S3 CDN: ${cdnUrl}`);
-          return cdnUrl;
-        }
-        console.warn(`[sanitizeCoverImage] Missing cover image manifest entry for ${trimmedValue}`);
-      } catch (error) {
-        console.warn(
-          `[sanitizeCoverImage] Falling back to local cover image for ${trimmedValue} because CDN resolution failed:`,
-          error,
-        );
-      }
-
-      return trimmedValue;
-    }
-
-    return trimmedValue;
+  if (!coverImage.startsWith("/images/posts/")) {
+    return coverImage;
   }
-  console.warn(
-    `[sanitizeCoverImage] Invalid coverImage frontmatter for slug "${contextSlug}" (file: ${contextFilePath}): Not a non-empty string. Received:`,
-    coverImageValue,
-  );
-  return undefined;
+
+  try {
+    const cdnUrl = getBlogPostImageCdnUrl(coverImage);
+    if (cdnUrl) {
+      logCoverImageInfo(`Mapped ${coverImage} to S3 CDN: ${cdnUrl}`);
+      return cdnUrl;
+    }
+    console.warn(`[sanitizeCoverImage] Missing cover image manifest entry for ${coverImage}`);
+  } catch (error) {
+    console.warn(
+      `[sanitizeCoverImage] Falling back to local cover image for ${coverImage} because CDN resolution failed:`,
+      error,
+    );
+  }
+
+  return coverImage;
 }
 
 /**
@@ -349,20 +334,18 @@ export async function getMDXPost(
 
     // Generate blur data URL from local image path (before S3 mapping)
     // This must happen BEFORE sanitizeCoverImage transforms to CDN URL
-    const rawCoverImagePath =
-      typeof frontmatter.coverImage === "string" ? frontmatter.coverImage.trim() : undefined;
     const coverImageBlurDataURL =
-      rawCoverImagePath && !skipHeavyProcessing
-        ? await generateBlurDataURL(rawCoverImagePath)
+      frontmatter.coverImage && !skipHeavyProcessing
+        ? await generateBlurDataURL(frontmatter.coverImage)
         : undefined;
 
-    const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
+    const coverImage = sanitizeCoverImage(frontmatter.coverImage);
 
     const post: BlogPost = {
       id: `mdx-${frontmatterSlug}`,
       title: frontmatter.title,
       slug: frontmatterSlug,
-      excerpt: frontmatter.excerpt || "",
+      excerpt: frontmatter.excerpt ?? "",
       content: mdxSource,
       rawContent: content,
       publishedAt,

@@ -22,7 +22,7 @@ The "blog" functionality encompasses components and utilities that manage the di
 - **lib/blog/mdx.ts**: Utilities for processing MDX content in blogs.
 - **lib/blog/server-search.ts**: Server-side search functionality for blog content.
 - **src/types/schemas/blog-frontmatter.ts**: Zod single owner of MDX frontmatter and canonical blog slugs; runtime **lib/blog/mdx.ts** and Node **scripts/seed-blog-posts.node.mjs** ingestion parse through it.
-- **lib/blog/validation.ts**: Projects the canonical slug schema into the route/cache lookup guard (`isValidBlogSlug`) and validates hydrated `BlogPost` objects.
+- **lib/blog/validation.ts**: Projects the canonical slug schema into the route/cache lookup guard (`isValidBlogSlug`).
 - **app/blog/page.tsx**: Blog index page with Incremental Static Regeneration (ISR) for optimized performance.
 
 ## Logic Flow and Interactions

@@ -19,6 +19,56 @@ import { blogFrontmatterSchema } from "@/types/schemas/blog-frontmatter";
 const POSTS_DIR = path.join(process.cwd(), "data/blog/posts");
 const FILE = path.join(POSTS_DIR, "how-much-does-techstars-invest.mdx");
 
+const validFrontmatter = {
+  slug: "frontmatter-contract",
+  title: "Frontmatter contract",
+  author: "william-callahan",
+};
+
+describe("Blog frontmatter schema", () => {
+  it("rejects unknown keys, including the removed modifiedAt alias", () => {
+    expect(blogFrontmatterSchema.safeParse({ ...validFrontmatter, unexpected: true }).success).toBe(
+      false,
+    );
+    expect(
+      blogFrontmatterSchema.safeParse({ ...validFrontmatter, modifiedAt: "2026-01-02" }).success,
+    ).toBe(false);
+  });
+
+  it("requires ISO date strings while retaining Date support", () => {
+    expect(
+      blogFrontmatterSchema.safeParse({ ...validFrontmatter, publishedAt: "2026-02-30" }).success,
+    ).toBe(false);
+    expect(
+      blogFrontmatterSchema.safeParse({ ...validFrontmatter, updatedAt: "January 2, 2026" })
+        .success,
+    ).toBe(false);
+    expect(
+      blogFrontmatterSchema.safeParse({
+        ...validFrontmatter,
+        publishedAt: new Date("2026-01-01T00:00:00.000Z"),
+      }).success,
+    ).toBe(true);
+  });
+
+  it("trims optional text and rejects blank values", () => {
+    const parsed = blogFrontmatterSchema.parse({
+      ...validFrontmatter,
+      excerpt: "  Concise summary.  ",
+      coverImage: "  /images/posts/example.png  ",
+    });
+
+    expect(parsed.excerpt).toBe("Concise summary.");
+    expect(parsed.coverImage).toBe("/images/posts/example.png");
+    expect(blogFrontmatterSchema.safeParse({ ...validFrontmatter, excerpt: " \t " }).success).toBe(
+      false,
+    );
+    expect(
+      blogFrontmatterSchema.safeParse({ ...validFrontmatter, coverImage: " \n " }).success,
+    ).toBe(false);
+  });
+});
+
 describe("MDX integration – References markup", () => {
   it("rejects an invalid canonical frontmatter slug", async () => {
     const source = `---
@@ -44,6 +94,20 @@ tags: Testing
 Content`;
 
     expect(await getMDXPost("invalid-tags", FILE, source, true)).toBeNull();
+  });
+
+  it("rejects the removed modifiedAt alias during MDX ingestion", async () => {
+    const source = `---
+title: Removed Alias
+slug: removed-alias
+publishedAt: 2026-01-01
+modifiedAt: 2026-01-02
+author: william-callahan
+tags: [Testing]
+---
+Content`;
+
+    expect(await getMDXPost("removed-alias", FILE, source, true)).toBeNull();
   });
 
   it("compiles without fallback marker and produces no nested <p> in references", async () => {

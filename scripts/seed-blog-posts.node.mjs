@@ -16,7 +16,7 @@ import postgres from "postgres";
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
-import { blogFrontmatterSchema } from "../src/types/schemas/blog-frontmatter.ts";
+import { blogPostInputSchema } from "../src/types/schemas/blog-frontmatter.ts";
 
 const P = "[seed-blog-posts]";
 const PRODUCTION = "production";
@@ -49,40 +49,46 @@ function stripMdxSyntax(body) {
     .trim();
 }
 
+async function readBlogPostInputs(postsDir, mdxFiles) {
+  return Promise.all(
+    mdxFiles.map(async (file) => {
+      const raw = await fs.readFile(path.join(postsDir, file), "utf8");
+      const { content, data } = matter(raw);
+      return blogPostInputSchema.parse({ frontmatter: data, rawContent: content });
+    }),
+  );
+}
+
 async function run() {
   const dry = hasFlag("--dry-run");
   if (!dry) assertProdWrite("seed-blog-posts");
-  const dbUrl = readEnv("DATABASE_URL");
-  const sql = postgres(dbUrl, { ssl: "require", max: 1, connect_timeout: 10 });
+  const postsDir = path.join(process.cwd(), "data/blog/posts");
+  const files = await fs.readdir(postsDir);
+  const mdxFiles = files.filter((file) => file.endsWith(".mdx")).toSorted();
+  const posts = await readBlogPostInputs(postsDir, mdxFiles);
 
-  try {
-    const postsDir = path.join(process.cwd(), "data/blog/posts");
-    const files = await fs.readdir(postsDir);
-    const mdxFiles = files.filter((f) => f.endsWith(".mdx")).toSorted();
+  console.log(`${P} Found ${posts.length} MDX files`);
 
-    console.log(`${P} Found ${mdxFiles.length} MDX files`);
-
-    if (dry) {
-      for (const file of mdxFiles) {
-        const raw = await fs.readFile(path.join(postsDir, file), "utf8");
-        const frontmatter = blogFrontmatterSchema.parse(matter(raw).data);
-        console.log(`  ${frontmatter.slug}: ${frontmatter.title}`);
-      }
-      console.log(`${P} Dry run complete.`);
-      return;
+  if (dry) {
+    for (const { frontmatter } of posts) {
+      console.log(`  ${frontmatter.slug}: ${frontmatter.title}`);
     }
+    console.log(`${P} Dry run complete.`);
+    return;
+  }
 
+  const sql = postgres(readEnv("DATABASE_URL"), {
+    ssl: "require",
+    max: 1,
+    connect_timeout: 10,
+  });
+  try {
     let upserted = 0;
-    for (const file of mdxFiles) {
-      const raw = await fs.readFile(path.join(postsDir, file), "utf8");
-      const { data, content } = matter(raw);
-      const frontmatter = blogFrontmatterSchema.parse(data);
-
+    for (const { frontmatter, rawContent } of posts) {
       const entityId = `mdx-${frontmatter.slug}`;
-      const excerpt = frontmatter.excerpt?.trim() ?? null;
-      const publishedAt = String(frontmatter.publishedAt ?? "");
+      const excerpt = frontmatter.excerpt ?? null;
+      const publishedAt = String(frontmatter.publishedAt);
       const updatedAt = frontmatter.updatedAt ? String(frontmatter.updatedAt) : null;
-      const rawContent = stripMdxSyntax(content);
 
       await sql`
         INSERT INTO blog_posts (
@@ -91,7 +97,7 @@ async function run() {
         ) VALUES (
           ${entityId}, ${frontmatter.title}, ${frontmatter.slug}, ${excerpt}, ${frontmatter.author},
           ${JSON.stringify(frontmatter.tags)}::jsonb,
-          ${publishedAt}, ${updatedAt}, ${frontmatter.coverImage ?? null}, ${frontmatter.draft === true}, ${rawContent}
+          ${publishedAt}, ${updatedAt}, ${frontmatter.coverImage ?? null}, ${frontmatter.draft === true}, ${stripMdxSyntax(rawContent)}
         )
         ON CONFLICT (id) DO UPDATE SET
           title = EXCLUDED.title, slug = EXCLUDED.slug, excerpt = EXCLUDED.excerpt,
