@@ -21,6 +21,7 @@ import type { MockedFunction } from "vitest";
  */
 
 import { getAllPosts, getPostBySlug } from "@/lib/blog";
+import { isValidBlogSlug } from "@/lib/blog/validation";
 import { cacheContextGuards } from "@/lib/cache";
 import { GET as getPostsApi } from "@/app/api/posts/route";
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
@@ -174,6 +175,15 @@ describe("Blog Module", () => {
     it("returns null for non-existent slug", async () => {
       const post = await getPostBySlug("non-existent");
       expect(post).toBeNull();
+    });
+  });
+
+  describe("isValidBlogSlug", () => {
+    it("rejects values that must not enter route cache keys", () => {
+      expect(isValidBlogSlug("valid-blog-slug")).toBe(true);
+      expect(isValidBlogSlug("../../../etc/passwd")).toBe(false);
+      expect(isValidBlogSlug("double--hyphen")).toBe(false);
+      expect(isValidBlogSlug("a".repeat(201))).toBe(false);
     });
   });
 

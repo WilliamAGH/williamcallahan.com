@@ -12,6 +12,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 // Import blog post retrieval utilities from the main blog library
 import { getAllPostsMeta, getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
+import { isValidBlogSlug } from "@/lib/blog/validation";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
@@ -89,7 +90,7 @@ function resolveAuthorUrl(authorUrl: string | null | undefined): string {
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<ExtendedMetadata> {
   // params is already resolved here by Next.js
   const { slug } = await params;
-  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER) {
+  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER || !isValidBlogSlug(slug)) {
     return {
       title: "Post Not Found",
       description: "The blog post you are looking for could not be found.",
@@ -190,7 +191,7 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
 
 async function BlogPostContent({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER) {
+  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER || !isValidBlogSlug(slug)) {
     notFound();
   }
 
