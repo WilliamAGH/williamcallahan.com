@@ -48,6 +48,9 @@ export const safeRevalidateTag = (...tags: string[]): void => {
  * Invalidate all bookmarks-related Next.js caches.
  */
 export function invalidateNextJsBookmarksCache(): void {
+  // RelatedContent owns a Cache Component entry even when legacy bookmark caching is disabled.
+  safeRevalidateTag(RELATED_CONTENT_CACHE_TAG);
+
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("bookmarks");
     safeRevalidateTag("bookmarks-db-full");
@@ -57,7 +60,6 @@ export function invalidateNextJsBookmarksCache(): void {
     safeRevalidateTag("bookmark-slug-mapping");
     safeRevalidateTag("bookmarks-slugs");
     safeRevalidateTag("search-index");
-    safeRevalidateTag(RELATED_CONTENT_CACHE_TAG);
     envLogger.log("Next.js cache invalidated for bookmarks tags", undefined, {
       category: "Bookmarks",
     });
