@@ -10,31 +10,29 @@
 ##  Dockerfile buildpack with Base Directory "/" and this Dockerfile location.)
 ##
 ARG BASE_REGISTRY=public.ecr.aws/debian
-ARG NODE_VERSION=24.15.0
-ARG NODE_AMD64_SHA256=472655581fb851559730c48763e0c9d3bc25975c59d518003fc0849d3e4ba0f6
-ARG NODE_ARM64_SHA256=f3d5a797b5d210ce8e2cb265544c8e482eaedcb8aa409a8b46da7e8595d0dda0
 
 # ---------- Node stage ----------
-# Install the official Node.js release once for both dependency and runtime stages.
-# The fixed checksums are from https://nodejs.org/dist/v24.15.0/SHASUMS256.txt.
+# Install the package.json-declared official Node.js release once for both dependency and runtime stages.
 FROM ${BASE_REGISTRY}/debian:bookworm-slim AS node
-ARG NODE_VERSION
-ARG NODE_AMD64_SHA256
-ARG NODE_ARM64_SHA256
+COPY package.json /tmp/node-runtime/package.json
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl xz-utils \
-    && case "$(dpkg --print-architecture)" in \
-         amd64) NODE_ARCH="x64"; NODE_SHA256="${NODE_AMD64_SHA256}" ;; \
-         arm64) NODE_ARCH="arm64"; NODE_SHA256="${NODE_ARM64_SHA256}" ;; \
-         *) echo "Unsupported architecture: $(dpkg --print-architecture)" && exit 1 ;; \
+    ca-certificates curl jq xz-utils \
+    && node_version="$(jq -er '.engines.node | strings | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' /tmp/node-runtime/package.json)" \
+    && architecture="$(dpkg --print-architecture)" \
+    && case "${architecture}" in \
+         amd64) node_arch="x64" ;; \
+         arm64) node_arch="arm64" ;; \
+         *) echo "Unsupported architecture: ${architecture}" && exit 1 ;; \
        esac \
-    && NODE_ARCHIVE="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
-    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_ARCHIVE}" -o "/tmp/${NODE_ARCHIVE}" \
-    && echo "${NODE_SHA256}  /tmp/${NODE_ARCHIVE}" | sha256sum --check --status \
-    && tar -xJf "/tmp/${NODE_ARCHIVE}" -C /usr/local --strip-components=1 \
-    && node --version | grep -Fx "v${NODE_VERSION}" \
-    && rm -f "/tmp/${NODE_ARCHIVE}" \
-    && apt-get purge -y --auto-remove xz-utils \
+    && node_sha256="$(jq -er --arg architecture "${architecture}" '.runtime.node.linux[$architecture].sha256 | strings | select(test("^[a-f0-9]{64}$"))' /tmp/node-runtime/package.json)" \
+    && node_archive="node-v${node_version}-linux-${node_arch}.tar.xz" \
+    && curl -fsSL "https://nodejs.org/dist/v${node_version}/${node_archive}" -o "/tmp/${node_archive}" \
+    && echo "${node_sha256}  /tmp/${node_archive}" | sha256sum --check --status \
+    && tar -xJf "/tmp/${node_archive}" -C /usr/local --strip-components=1 \
+    && node --version | grep -Fx "v${node_version}" \
+    && rm -f "/tmp/${node_archive}" \
+    && rm -rf /tmp/node-runtime \
+    && apt-get purge -y --auto-remove jq xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------- Dependencies stage ----------
@@ -72,7 +70,7 @@ RUN mkdir -p generated/bookmarks \
     && bun scripts/init-csp-hashes.ts
 
 # ---------- Runtime stage ----------
-# Node.js 24.15.0 (node --run + tsx from node_modules); libvips and fontconfig for image/PDF paths.
+# Package-declared checksum-pinned Node (node --run + tsx from node_modules); libvips and fontconfig for image/PDF paths.
 FROM node AS runner
 WORKDIR /app
 

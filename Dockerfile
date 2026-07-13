@@ -16,15 +16,39 @@ ARG BASE_REGISTRY=public.ecr.aws/debian
 # which requires glibc (Alpine uses musl libc which is incompatible).
 # TODO: Revert to Alpine when switching to self-hosted embeddings API or @chroma-core/openai
 #
+# ---------- Node stage ----------
+# Install the package.json-declared official Node.js release once for every descendant stage.
+FROM ${BASE_REGISTRY}/debian:bookworm-slim AS node
+COPY package.json /tmp/node-runtime/package.json
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl jq xz-utils \
+    && node_version="$(jq -er '.engines.node | strings | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' /tmp/node-runtime/package.json)" \
+    && architecture="$(dpkg --print-architecture)" \
+    && case "${architecture}" in \
+         amd64) node_arch="x64" ;; \
+         arm64) node_arch="arm64" ;; \
+         *) echo "Unsupported architecture: ${architecture}" && exit 1 ;; \
+       esac \
+    && node_sha256="$(jq -er --arg architecture "${architecture}" '.runtime.node.linux[$architecture].sha256 | strings | select(test("^[a-f0-9]{64}$"))' /tmp/node-runtime/package.json)" \
+    && node_archive="node-v${node_version}-linux-${node_arch}.tar.xz" \
+    && curl -fsSL "https://nodejs.org/dist/v${node_version}/${node_archive}" -o "/tmp/${node_archive}" \
+    && echo "${node_sha256}  /tmp/${node_archive}" | sha256sum --check --status \
+    && tar -xJf "/tmp/${node_archive}" -C /usr/local --strip-components=1 \
+    && node --version | grep -Fx "v${node_version}" \
+    && rm -f "/tmp/${node_archive}" \
+    && rm -rf /tmp/node-runtime \
+    && apt-get purge -y --auto-remove jq xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---------- Base stage ----------
 # Bun is installed from GitHub releases to avoid oven/bun Docker Hub dependency.
-FROM ${BASE_REGISTRY}/debian:bookworm-slim AS base
+FROM node AS base
 
 # 1. Install Bun from GitHub releases (avoids Docker Hub dependency on oven/bun image)
 #    Pin to specific version for reproducibility. Supports both x86_64 and arm64.
 ARG BUN_VERSION=1.3.2
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl unzip ca-certificates \
+    unzip \
     && ARCH=$(dpkg --print-architecture) \
     && case "${ARCH}" in \
          amd64) BUN_ARCH="x64" ;; \
@@ -76,8 +100,8 @@ RUN bun install --ignore-scripts --frozen-lockfile
 RUN bun scripts/init-csp-hashes.ts
 
 # ---------- Pre-checks stage (lint + type-check, cached) ----------
-# Use base image (which has Bun) and run checks with Bun instead of npm
-# This avoids the Docker Hub dependency on node:22-bookworm-slim
+# Use base image (which has Bun and checksum-pinned Node.js) and run checks with Bun instead of npm.
+# This avoids the Docker Hub dependency on a floating Node image.
 FROM base AS checks
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -96,20 +120,15 @@ COPY . .
 RUN bun run lint && bun run type-check
 
 # ---------- Build stage (production build) ----------
-# Use Bun image for build stage so `bun` commands are available
+# Use the shared base stage so Bun commands and the exact Node.js runtime are available.
 FROM base AS builder
 
 # 1. System packages (rarely changes) - FIRST for maximum cache reuse
 #    ca-certificates required for HTTPS connectivity checks (S3, CDN)
 #    fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
-#    Node.js 22.x is required so Next.js build runs on Node (not Bun) under cacheComponents.
+#    The package-declared checksum-pinned Node runtime is inherited so Next.js builds on Node.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg bash fontconfig fonts-dejavu-core \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends nodejs \
+    bash fontconfig fonts-dejavu-core ripgrep \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -146,9 +165,6 @@ ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 ARG S3_BUCKET
 ARG S3_SERVER_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
-ARG S3_ACCESS_KEY_ID
-ARG S3_SECRET_ACCESS_KEY
-ARG S3_SESSION_TOKEN
 # Pass these as ENV for build process
 ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
@@ -186,22 +202,16 @@ RUN bash -c 'set -euo pipefail \
 # Build orchestration runs through Bun scripts, but Next.js build runs on Node.
 # This keeps cacheComponents timer semantics aligned with Next.js expectations.
 #
-# BuildKit secrets are mounted directly as environment variables using the
+# BuildKit credentials are mounted directly as environment variables using the
 # idiomatic --mount=type=secret,env= syntax (requires dockerfile:1 syntax
-# directive). This provides credentials just-in-time for generateStaticParams()
-# without leaking secrets into the image layers or build cache.
+# directive). Public build configuration remains on ARG/ENV so an absent optional
+# secret cannot shadow it during generateStaticParams().
 # S3_SESSION_TOKEN is mirrored to AWS_SESSION_TOKEN for SDK compatibility.
 # Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
 RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false \
     --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=false \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN,required=false \
     --mount=type=secret,id=DATABASE_URL,env=DATABASE_URL,required=false \
-    --mount=type=secret,id=S3_BUCKET,env=S3_BUCKET,required=false \
-    --mount=type=secret,id=S3_SERVER_URL,env=S3_SERVER_URL,required=false \
-    --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,env=NEXT_PUBLIC_S3_CDN_URL,required=false \
-    --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,env=NEXT_PUBLIC_SITE_URL,required=false \
-    --mount=type=secret,id=NEXT_PUBLIC_UMAMI_WEBSITE_ID,env=NEXT_PUBLIC_UMAMI_WEBSITE_ID,required=false \
-    --mount=type=secret,id=DEPLOYMENT_ENV,env=DEPLOYMENT_ENV,required=false \
     --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN,required=false \
     --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN,required=false \
     --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN,required=false \
@@ -219,15 +229,9 @@ WORKDIR /app
 # 1. System packages (never changes) - FIRST for maximum cache reuse
 #    Node.js for the Next.js production server, libvips for Sharp image processing,
 #    curl for healthchecks, fontconfig + fonts-dejavu for @react-pdf/renderer
-#    IMPORTANT: Debian Bookworm ships Node.js 18.x but Next.js 16 requires >=20.9.0.
-#    We install Node.js 22.x LTS from NodeSource to meet this requirement.
+#    The package-declared checksum-pinned Node runtime is inherited from the node stage.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg libvips42 bash fontconfig fonts-dejavu-core \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends nodejs \
+    libvips42 bash fontconfig fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Create non-root user (never changes) - standard UID 1001 for Next.js containers

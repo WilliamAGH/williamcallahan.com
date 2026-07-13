@@ -176,6 +176,16 @@ describe("Scheduler and data-updater flag consistency", () => {
     expect(dockerfile).toContain("age>120000");
   });
 
+  it("preserves the public CDN build argument during the web build", async () => {
+    const fs = await import("node:fs/promises");
+    const dockerfile = await fs.readFile("Dockerfile", "utf8");
+
+    expect(dockerfile).toContain("ARG NEXT_PUBLIC_S3_CDN_URL");
+    expect(dockerfile).not.toContain("--mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL");
+    expect(dockerfile).not.toContain("ARG S3_SECRET_ACCESS_KEY");
+    expect(dockerfile).toContain("--mount=type=secret,id=S3_SECRET_ACCESS_KEY");
+  });
+
   it("fails closed when bootstrap cache revalidation cannot reach the web app", () => {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
