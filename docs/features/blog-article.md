@@ -38,6 +38,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 - **app/blog/[slug]/page.tsx**: Individual blog post page
   - Implements ISR with 1-hour revalidation
   - Special handling for software-related posts
+  - Validates slugs via `isValidBlogSlug()` guard before entering cache-wrapped lookups, enforcing the cache-key eligibility contract
   - Owns route-scoped metadata/content caches and establishes Suspense before awaiting params
 - **app/blog/tags/[tagSlug]/page.tsx**: Tag filtering page
 
@@ -58,7 +59,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 - **lib/blog/mdx.ts**: MDX processing utilities
   - Excellent caching strategy with file modification checks
   - Robust error handling with fallbacks
-- **lib/blog/validation.ts**: Blog post validation
+- **lib/blog/validation.ts**: Canonical slug guard and frontmatter validation
 - **lib/utils/tag-utils.ts**: A suite of utility functions for formatting, normalizing, and sanitizing tags, including functions to convert tags to URL-friendly slugs (`tagToSlug`) and back (`slugToTagDisplay`).
 
 ## Logic Flow and Interactions
