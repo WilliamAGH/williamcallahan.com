@@ -128,7 +128,7 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
       },
     };
 
-    const { container } = render(<BookmarkCardClient {...lightweightBookmark} />);
+    render(<BookmarkCardClient {...lightweightBookmark} />);
 
     // Verify the component renders correctly with the LightweightBookmark structure
     expect(screen.getByText("Test Bookmark")).toBeInTheDocument();
