@@ -94,13 +94,13 @@ async function run() {
         ) VALUES (
           ${book.id}, ${book.title}, ${toSlug(book.title)},
           ${book.subtitle ?? null},
-          ${book.authors ? JSON.stringify(book.authors) : null}::jsonb,
+          ${book.authors ? sql.json(book.authors) : null},
           ${book.publisher ?? null}, ${book.publishedYear ?? null},
-          ${book.genres ? JSON.stringify(book.genres) : null}::jsonb,
+          ${book.genres ? sql.json(book.genres) : null},
           ${book.description ?? null},
-          ${JSON.stringify(book.formats ?? ["ebook"])}::jsonb,
+          ${sql.json(book.formats ?? ["ebook"])},
           ${book.isbn10 ?? null}, ${book.isbn13 ?? null}, ${book.asin ?? null},
-          ${book.audioNarrators ? JSON.stringify(book.audioNarrators) : null}::jsonb,
+          ${book.audioNarrators ? sql.json(book.audioNarrators) : null},
           ${book.audioDurationSeconds ?? null}, ${book.audioChapterCount ?? null},
           ${book.coverUrl ?? null}, ${book.coverBlurDataURL ?? null},
           ${book.findMyBookUrl ?? null}, ${book.publisherUrl ?? null},
@@ -127,6 +127,18 @@ async function run() {
 
     const verify = await sql`SELECT count(*)::int as cnt FROM books`;
     console.log(`${P} Total in table: ${verify[0].cnt}`);
+
+    const invalidJsonArrays = await sql`
+      SELECT count(*)::int AS count
+      FROM books
+      WHERE (authors IS NOT NULL AND jsonb_typeof(authors) <> 'array')
+         OR (genres IS NOT NULL AND jsonb_typeof(genres) <> 'array')
+         OR jsonb_typeof(formats) <> 'array'
+         OR (audio_narrators IS NOT NULL AND jsonb_typeof(audio_narrators) <> 'array')`;
+    if (invalidJsonArrays[0].count > 0) {
+      throw new Error(`${P} Found ${invalidJsonArrays[0].count} rows with non-array JSON fields.`);
+    }
+    console.log(`${P} Verified normalized JSON array fields`);
   } finally {
     await sql.end({ timeout: 5 });
   }
