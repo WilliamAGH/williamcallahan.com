@@ -71,14 +71,14 @@ Common tag strategy:
 
 - `bookmarks`, `bookmarks-db-full`, `bookmarks-index-sz-{pageSize}`
 - `bookmarks-page-{pageNumber}`, `bookmarks-page-{pageNumber}-sz-{pageSize}`
-- `bookmarks-tag-slugs`, `bookmarks-tag-{slug}`, and tag page/index variants
+- `bookmarks-tag-slugs`, `bookmarks-tag-{tagSlug}`, `bookmarks-tag-{tagSlug}-page-{pageNumber}-sz-{pageSize}`, `bookmarks-tag-{tagSlug}-index-sz-{pageSize}`
 - `bookmark-slug-mapping`
-- `related-content`
+- `related-content`, `books-related-content`
 - `blog`
 - `github-activity`
-- `logos`, `logo-manifest`, `logo-{domain}`
+- `logo-manifest`
 - `opengraph`, `opengraph-{urlHash}`
-- image-key specific tags where needed
+- `image`, `image-key-${sanitizeCacheTag(key)}`
 
 ### Path Revalidation
 
