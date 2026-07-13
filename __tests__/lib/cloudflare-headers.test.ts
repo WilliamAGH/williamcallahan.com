@@ -76,7 +76,6 @@ describe("Cloudflare header enforcement", () => {
     vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
   });
-
   it("validates when cf-ray and cf-connecting-ip are present", () => {
     const headers = new Headers({
       "cf-ray": "1234abcd",
@@ -214,7 +213,7 @@ describe("Cloudflare header enforcement", () => {
     it("delegates development build identity to Next", async () => {
       clearDeploymentId();
       vi.stubEnv("NODE_ENV", "development");
-      await expect((await loadNextConfig()).generateBuildId()).resolves.toBeNull();
+      await expect(loadNextConfig().then((config) => config.generateBuildId())).resolves.toBeNull();
     });
     it("uses a URL-safe production deployment ID as the release identity", async () => {
       vi.stubEnv("NODE_ENV", "production");

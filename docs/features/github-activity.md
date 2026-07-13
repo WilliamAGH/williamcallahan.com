@@ -148,9 +148,6 @@ GITHUB_REPO_OWNER=username
 # This exposes the secret in client-side code!
 # WRONG: NEXT_PUBLIC_GITHUB_REFRESH_SECRET=secret
 # RIGHT: GITHUB_REFRESH_SECRET=secret (server-only)
-
-# Optional
-GITHUB_CONTRIBUTION_CSV_URL=https://...
 ```
 
 ## Debugging
