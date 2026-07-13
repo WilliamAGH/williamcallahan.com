@@ -57,6 +57,7 @@ let persistedActivity: GitHubActivityApiResponse | undefined;
 let persistedAggregate: AggregatedWeeklyActivity[] | undefined;
 let persistedSummary: GitHubSummaryInput | undefined;
 let persistedIntent: GitHubActivityWriteIntent | undefined;
+let writeOrder: string[] = [];
 
 const zeroSegment: GitHubActivitySegment = {
   source: "api",
@@ -76,6 +77,7 @@ describe("GitHub activity refresh", () => {
     persistedAggregate = undefined;
     persistedSummary = undefined;
     persistedIntent = undefined;
+    writeOrder = [];
 
     mockIsGitHubApiConfigured.mockReturnValue(true);
     mockIsOperationAllowed.mockReturnValue(true);
@@ -85,6 +87,7 @@ describe("GitHub activity refresh", () => {
         data: GitHubActivityApiResponse,
         intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
       ): Promise<boolean> => {
+        writeOrder.push("activity");
         persistedActivity = data;
         persistedIntent = intent;
         return true;
@@ -92,6 +95,7 @@ describe("GitHub activity refresh", () => {
     );
     mockWriteAggregatedWeeklyActivityRecord.mockImplementation(
       async (data: AggregatedWeeklyActivity[]): Promise<boolean> => {
+        writeOrder.push("aggregate");
         if (data.length === 0) {
           persistedAggregate = data;
           return true;
@@ -102,6 +106,7 @@ describe("GitHub activity refresh", () => {
     );
     mockWriteGitHubActivitySummary.mockImplementation(
       async (input: GitHubSummaryInput): Promise<boolean> => {
+        writeOrder.push("summary");
         persistedSummary = input;
         return true;
       },
@@ -125,6 +130,7 @@ describe("GitHub activity refresh", () => {
       GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
     );
     expect(persistedAggregate).toEqual([]);
+    expect(writeOrder).toEqual(["summary", "aggregate", "activity"]);
     expect(persistedSummary).toBeDefined();
     if (persistedSummary === undefined) {
       throw new Error("The zero-repository refresh did not persist its summary.");

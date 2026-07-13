@@ -93,7 +93,7 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 - **`src/lib/data-access/github-storage.ts`**
   - PostgreSQL-first activity persistence interface (`read*Record`/`write*Record`)
   - Delegates runtime JSON reads/writes to PostgreSQL query/mutation modules
-  - Exposes metadata/listing helpers for cache invalidation paths
+  - Exposes activity metadata for public refresh timestamps
 - **`src/lib/data-access/github-repo-stats.ts`**
   - Batch processes repo stats with CSV fallback and category aggregation
 - **`src/lib/data-access/github-commit-counts.ts`**
@@ -130,7 +130,8 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 
 - **`scheduler/scheduler.ts`**: Cron job scheduling
 - **`scheduler/data-updater.ts`**: Data refresh script
-- **`src/types/github.ts`**: Type definitions
+- **`src/types/schemas/github-storage.ts`**: Canonical persisted/public activity schemas, projections, and write intents
+- **`src/types/github.ts`**: Upstream GitHub API and orchestration input types
 
 ## Environment Variables
 

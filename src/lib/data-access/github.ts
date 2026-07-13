@@ -46,14 +46,6 @@ import { fetchTrailingYearContributionCalendar } from "./github-contributions";
 // Configuration
 const GITHUB_REPO_OWNER = getGitHubUsername();
 
-async function writeRequiredGitHubActivitySummary(input: GitHubSummaryInput): Promise<void> {
-  if (await writeGitHubActivitySummary(input)) {
-    return;
-  }
-
-  throw new Error("GitHub activity refresh failed to persist its summary record.");
-}
-
 // --- GitHub Activity Data Refresh ---
 
 /**
@@ -132,11 +124,14 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       trailingYearData: emptyActivityData,
       cumulativeAllTimeData: emptyActivityData,
     };
-    await writeRequiredGitHubActivitySummary({
+    const summaryWritten = await writeGitHubActivitySummary({
       allTimeData: emptyActivityData,
       totalRepositoriesContributedTo: 0,
       allTimeCategoryStats: createEmptyCategoryStats(),
     });
+    if (!summaryWritten) {
+      throw new Error("GitHub activity refresh failed to persist its summary record.");
+    }
     await calculateAndStoreAggregatedWeeklyActivity([]);
     await writeGitHubActivityRecord(
       emptyActivity,
@@ -229,11 +224,14 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     allPriorYearCommits: priorYearCommitStats,
   };
 
-  await writeRequiredGitHubActivitySummary({
+  const summaryWritten = await writeGitHubActivitySummary({
     allTimeData,
     totalRepositoriesContributedTo: uniqueRepoArray.length,
     allTimeCategoryStats,
   });
+  if (!summaryWritten) {
+    throw new Error("GitHub activity refresh failed to persist its summary record.");
+  }
 
   await calculateAndStoreAggregatedWeeklyActivity(
     uniqueRepoArray.map((repository) => repository.nameWithOwner),

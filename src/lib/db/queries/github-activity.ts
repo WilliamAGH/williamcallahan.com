@@ -131,17 +131,3 @@ export async function readRepoCsvChecksum(owner: string, repo: string): Promise<
 
   return rows[0]?.checksum ?? null;
 }
-
-/**
- * List all repo-weekly-stats qualifiers (e.g. "owner/repo") stored in the DB.
- * Replaces the S3-based listRepoStatsFiles().
- */
-export async function listRepoWeeklyStatsQualifiers(): Promise<string[]> {
-  const rows = await db
-    .select({ qualifier: githubActivityStore.qualifier })
-    .from(githubActivityStore)
-    .where(eq(githubActivityStore.dataType, "repo-weekly-stats"))
-    .orderBy(githubActivityStore.qualifier);
-
-  return rows.map((row) => row.qualifier);
-}

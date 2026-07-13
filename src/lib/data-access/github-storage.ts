@@ -13,23 +13,23 @@ import {
   readRepoWeeklyStatsFromDb,
   readAggregatedWeeklyActivityFromDb,
   readGitHubActivityUpdatedAt,
-  listRepoWeeklyStatsQualifiers,
 } from "@/lib/db/queries/github-activity";
 import {
   writeGitHubActivityToDb,
-  writeGitHubSummaryDocumentsToDb,
+  writeGitHubSummaryToDb,
   writeRepoWeeklyStatsToDb,
   writeAggregatedWeeklyActivityToDb,
 } from "@/lib/db/mutations/github-activity";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
+  aggregatedWeeklyActivityArraySchema,
   gitHubActivityApiResponseSchema,
+  gitHubActivitySummarySchema,
 } from "@/types/schemas/github-storage";
 import type {
   AggregatedWeeklyActivity,
   GitHubActivityApiResponse,
   GitHubActivitySummary,
-  GitHubActivitySummaryDocuments,
   GitHubActivityWriteIntent,
   RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
@@ -69,12 +69,10 @@ export async function readGitHubSummaryRecord(): Promise<GitHubActivitySummary |
 }
 
 /**
- * Write both GitHub activity summaries to the database atomically.
+ * Write the all-time GitHub activity summary to the database.
  */
-export async function writeGitHubSummaryRecords(
-  summaries: GitHubActivitySummaryDocuments,
-): Promise<boolean> {
-  return writeGitHubSummaryDocumentsToDb(summaries);
+export async function writeGitHubSummaryRecord(summary: GitHubActivitySummary): Promise<boolean> {
+  return writeGitHubSummaryToDb(gitHubActivitySummarySchema.parse(summary));
 }
 
 /**
@@ -113,16 +111,7 @@ export async function readAggregatedWeeklyActivityRecord(): Promise<
 export async function writeAggregatedWeeklyActivityRecord(
   data: AggregatedWeeklyActivity[],
 ): Promise<boolean> {
-  return writeAggregatedWeeklyActivityToDb(data);
-}
-
-/**
- * List all repository weekly stats qualifiers stored in the database.
- * Returns qualifiers in "owner/repo" format, sorted alphabetically.
- * Replaces object-store key listing for repo weekly stats.
- */
-export async function listRepoStatsFiles(): Promise<string[]> {
-  return listRepoWeeklyStatsQualifiers();
+  return writeAggregatedWeeklyActivityToDb(aggregatedWeeklyActivityArraySchema.parse(data));
 }
 
 /**

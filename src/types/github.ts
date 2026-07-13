@@ -169,9 +169,7 @@ export interface GitHubActivityError extends ExtendedError {
  * Input for writing the GitHub activity summary
  */
 export type GitHubSummaryInput = {
-  trailingYearData: GitHubActivitySegment;
   allTimeData: GitHubActivitySegment;
   totalRepositoriesContributedTo: number;
-  yearCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
   allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
 };

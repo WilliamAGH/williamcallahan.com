@@ -1,11 +1,9 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import {
   githubActivityStore,
   GITHUB_ACTIVITY_DATA_TYPES,
-  GITHUB_ACTIVITY_ALL_TIME_QUALIFIER,
   GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
-  type GitHubActivitySummaryQualifier,
 } from "@/lib/db/schema/github-activity";
 import { readGitHubActivityFromDb } from "@/lib/db/queries/github-activity";
 import { debugLog } from "@/lib/utils/debug";
@@ -14,7 +12,7 @@ import {
   type AggregatedWeeklyActivity,
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
-  type GitHubActivitySummaryDocuments,
+  type GitHubActivitySummary,
   type GitHubActivityWriteIntent,
   type RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
@@ -133,45 +131,12 @@ export async function writeGitHubActivityToDb(
 }
 
 /**
- * Atomically write the trailing-year and all-time GitHub summaries to PostgreSQL.
+ * Write the all-time GitHub activity summary to PostgreSQL.
  */
-export async function writeGitHubSummaryDocumentsToDb(
-  summaries: GitHubActivitySummaryDocuments,
-): Promise<boolean> {
-  assertDatabaseWriteAllowed("writeGitHubSummaryDocumentsToDb");
-
-  const updatedAt = Date.now();
-  const summaryRows = [
-    {
-      dataType: "summary" as const,
-      qualifier: GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
-      payload: summaries.trailingYear,
-      updatedAt,
-    },
-    {
-      dataType: "summary" as const,
-      qualifier: GITHUB_ACTIVITY_ALL_TIME_QUALIFIER,
-      payload: summaries.allTime,
-      updatedAt,
-    },
-  ] satisfies Array<{
-    dataType: "summary";
-    qualifier: GitHubActivitySummaryQualifier;
-    payload: GitHubActivitySummaryDocuments[keyof GitHubActivitySummaryDocuments];
-    updatedAt: number;
-  }>;
-
-  await db
-    .insert(githubActivityStore)
-    .values(summaryRows)
-    .onConflictDoUpdate({
-      target: [githubActivityStore.dataType, githubActivityStore.qualifier],
-      set: {
-        payload: sql`excluded.payload`,
-        updatedAt: sql`excluded.updated_at`,
-      },
-    });
-  debugLog("Successfully wrote trailing-year and all-time GitHub summaries to DB", "info");
+export async function writeGitHubSummaryToDb(summary: GitHubActivitySummary): Promise<boolean> {
+  assertDatabaseWriteAllowed("writeGitHubSummaryToDb");
+  await upsertDocument("summary", GITHUB_ACTIVITY_GLOBAL_QUALIFIER, summary);
+  debugLog("Successfully wrote the all-time GitHub summary to DB", "info");
   return true;
 }
 

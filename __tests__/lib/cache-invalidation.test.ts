@@ -1,7 +1,3 @@
-/**
- * Test suite to verify Next.js 15 cache invalidation is working correctly
- */
-
 vi.mock("@/lib/data-access/github-public-api");
 vi.mock("@/lib/data-access/opengraph");
 

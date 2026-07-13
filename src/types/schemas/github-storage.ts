@@ -63,9 +63,9 @@ export const githubActivitySegmentSchema = z.object({
   source: z.enum(["scraping", "api", "api_multi_file_cache"]),
   data: z.array(contributionDaySchema),
   totalContributions: z.number(),
-  linesAdded: z.number().default(0),
-  linesRemoved: z.number().default(0),
-  dataComplete: z.boolean().default(false),
+  linesAdded: z.number(),
+  linesRemoved: z.number(),
+  dataComplete: z.boolean(),
   error: z.string().optional(),
   details: z.string().optional(),
   allPriorYearCommits: priorYearCommitSummarySchema.optional(),
@@ -167,13 +167,6 @@ export const gitHubActivitySummarySchema = z.object({
 });
 
 export type GitHubActivitySummary = z.infer<typeof gitHubActivitySummarySchema>;
-
-export const gitHubActivitySummaryDocumentsSchema = z.object({
-  trailingYear: gitHubActivitySummarySchema,
-  allTime: gitHubActivitySummarySchema,
-});
-
-export type GitHubActivitySummaryDocuments = z.infer<typeof gitHubActivitySummaryDocumentsSchema>;
 
 export const repoRawWeeklyStatSchema = z.object({
   w: z.number(),
