@@ -55,10 +55,10 @@ function getPackageVersion(): string {
 }
 
 /**
- * Get the current git hash
- * @returns {string} The git hash or a fallback string
+ * Get the canonical release identity.
+ * @returns {string} The exact release identity or a local fallback
  */
-function getGitHash(): string {
+function getReleaseId(): string {
   // Priority 1: Use environment variable if available (e.g., from CI/CD)
   // Railway and other platforms should set this during build
   if (
@@ -71,8 +71,7 @@ function getGitHash(): string {
       process.env.NEXT_PUBLIC_GIT_HASH ||
       process.env.RAILWAY_GIT_COMMIT_SHA ||
       "";
-    // Railway provides full SHA, truncate to short version
-    return hash.slice(0, 7);
+    return hash;
   }
 
   // Priority 2: For local development, try git command
@@ -91,7 +90,7 @@ function getGitHash(): string {
   // Priority 3: Use build-time generated hash if available
   // This should be set during the build process
   if (process.env.BUILD_ID) {
-    return process.env.BUILD_ID.slice(0, 7);
+    return process.env.BUILD_ID;
   }
 
   // Final fallback: Use package version for production builds
@@ -114,9 +113,9 @@ function getGitHash(): string {
 const appVersion = getPackageVersion();
 process.env.NEXT_PUBLIC_APP_VERSION = appVersion;
 
-const gitHash = getGitHash();
-process.env.NEXT_PUBLIC_GIT_HASH = gitHash;
-process.env.SENTRY_RELEASE = gitHash;
+const releaseId = getReleaseId();
+process.env.NEXT_PUBLIC_GIT_HASH = releaseId;
+process.env.SENTRY_RELEASE = releaseId;
 
 const telemetryBundledPackages = [
   "resolve",
@@ -236,23 +235,6 @@ const nextConfig = {
   transpilePackages,
 
   /**
-   * Proxy Umami tracker and API through the same origin to avoid ad-blockers and CORS issues.
-   * Docs: https://stasdeep.com/articles/umami-analytics
-   */
-  async rewrites() {
-    return [
-      {
-        source: "/stats/:path*",
-        destination: "https://umami.iocloudhost.net/:path*",
-      },
-      {
-        source: "/api/send",
-        destination: "https://umami.iocloudhost.net/api/send",
-      },
-    ];
-  },
-
-  /**
    * Redirect legacy paginated bookmarks URLs removed in Feb 2026.
    * Matches historical numeric route shape: /bookmarks/page/[pageNumber]
    */
@@ -278,9 +260,8 @@ const nextConfig = {
    *   freshly emitted JS files.  A fixed ID here WILL trigger ChunkLoadError
    *   when the dev server restarts but the browser cache keeps the old HTML.
    *
-   * • PRODUCTION: We keep a deterministic ID (`v${appVersion}-stable`) so all
-   *   servers share identical asset URLs, enabling long-term CDN caching and
-   *   cache-tag purging.
+   * • PRODUCTION: The deployment platform supplies one exact release identity
+   *   for the build ID and the `dpl` static-asset query key.
    *
    * Never unify these paths: dev ≠ prod.  Breaking this contract re-opens the
    * regression we spent days chasing.
@@ -292,8 +273,7 @@ const nextConfig = {
     if (process.env.NODE_ENV === "development") {
       return null; // Next.js will generate a random ID
     }
-    const gitHash = getGitHash();
-    return `v${appVersion}-${gitHash}`;
+    return getReleaseId();
   },
 
   /**
@@ -490,7 +470,6 @@ const nextConfig = {
       { protocol: "https", hostname: "external-content.duckduckgo.com" },
       // Logo services
       // Analytics and internal hosting platforms
-      { protocol: "https", hostname: "umami.iocloudhost.net" },
       { protocol: "https", hostname: "plausible.iocloudhost.net" },
       { protocol: "https", hostname: "*.iocloudhost.net" }, // Wildcard for iocloudhost subdomains
       /**

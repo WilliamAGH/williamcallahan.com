@@ -43,6 +43,33 @@
                   "default": {
                     "type": "integer",
                     "description": "TTL in seconds (required when mode is override_origin)"
+                  },
+                  "status_code_ttl": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["value"],
+                      "properties": {
+                        "status_code": { "type": "integer", "minimum": 100, "maximum": 599 },
+                        "status_code_range": {
+                          "type": "object",
+                          "required": ["from", "to"],
+                          "properties": {
+                            "from": { "type": "integer", "minimum": 100, "maximum": 599 },
+                            "to": { "type": "integer", "minimum": 100, "maximum": 599 }
+                          }
+                        },
+                        "value": {
+                          "type": "integer",
+                          "minimum": -1,
+                          "description": "TTL in seconds; 0 revalidates and -1 prevents Cloudflare edge storage without modifying origin response headers"
+                        }
+                      },
+                      "oneOf": [
+                        { "required": ["status_code"] },
+                        { "required": ["status_code_range"] }
+                      ]
+                    }
                   }
                 },
                 "required": ["mode"]

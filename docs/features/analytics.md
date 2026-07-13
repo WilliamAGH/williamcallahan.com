@@ -77,16 +77,11 @@ This architecture ensures that analytics are a non-critical, resilient feature t
 
 ### Proxy Rewrites (`/stats/**`, `/api/send`)
 
-All Umami traffic is now routed through the site's own domain. The rewrite lives in `next.config.ts`:
-
-```ts
-async rewrites() {
-  return [
-    { source: "/stats/:path*", destination: "https://umami.iocloudhost.net/:path*" },
-    { source: "/api/send",    destination: "https://umami.iocloudhost.net/api/send" },
-  ];
-}
-```
+All Umami traffic is routed through the site's own domain. `src/proxy.ts` owns both
+the external rewrite and the response cache policy: it preserves the request query string
+and sets explicit `no-store` browser and CDN directives on the rewritten response. Its matcher
+includes `/stats/:path*`; the API matcher covers `/api/send`. Do not duplicate these rewrites
+in `next.config.ts`, whose external-rewrite path cannot preserve proxy response headers.
 
 Tracker tag (inside `Analytics` component):
 

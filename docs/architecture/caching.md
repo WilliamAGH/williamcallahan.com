@@ -26,6 +26,10 @@ See `docs/architecture/caching.mmd` for the current write/read/supporting flow.
 
 - API routes (`/api/*`) that must always read fresh state call `unstable_noStore()`.
 - RSC/server data functions use `"use cache"` and explicit `cacheLife/cacheTag` profiles.
+- Next.js static assets use release-scoped `dpl` query keys. The Cloudflare rule owner
+  `infra/cloudflare/cache-rules.json` honors the origin policy for successful responses and
+  prevents Cloudflare edge storage of `/_next/static` responses from 400 through 599 with
+  `status_code_ttl: -1`; that edge setting does not add or mutate origin `Cache-Control` headers.
 - Cache behavior is intentional per route type; APIs do not rely on UI cache directives.
 
 ## Implementation Pattern
@@ -137,6 +141,7 @@ rg "Date\.now\(\)" src/lib src/components
 - `src/lib/data-access/opengraph.ts`
 - `src/lib/image-handling/image-manifest-loader.ts`
 - `src/app/api/cache/bookmarks/route.ts`
+- `infra/cloudflare/cache-rules.json`
 
 ## Performance Expectations
 

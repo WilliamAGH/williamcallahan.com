@@ -6,7 +6,30 @@
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-utils";
 import { GET as getIp } from "@/app/api/ip/route";
-import { NextRequest } from "next/server";
+import { UMAMI_ORIGIN } from "@/config/csp";
+import { config as proxyConfig, proxy } from "@/proxy";
+import {
+  getRewrittenUrl,
+  isRewrite,
+  unstable_doesMiddlewareMatch,
+} from "next/experimental/testing/server";
+import { NextRequest, NextResponse } from "next/server";
+
+const originalRewrite = Object.getOwnPropertyDescriptor(NextResponse, "rewrite");
+
+const createRewriteResponse: typeof NextResponse.rewrite = (destination, init) => {
+  const response = NextResponse.next(init);
+  response.headers.set("x-middleware-rewrite", destination.toString());
+  return response;
+};
+
+function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
+  const request = new NextRequest(url, { method });
+  if (!Reflect.set(request, "nextUrl", new URL(url))) {
+    throw new Error("Could not set NextRequest.nextUrl for proxy behavior test");
+  }
+  return request;
+}
 
 describe("Cloudflare header enforcement", () => {
   const ORIGINAL_ENV = { ...process.env };
@@ -14,6 +37,20 @@ describe("Cloudflare header enforcement", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
+    Object.defineProperty(NextResponse, "rewrite", {
+      configurable: true,
+      value: createRewriteResponse,
+    });
+  });
+
+  afterEach(() => {
+    if (originalRewrite) {
+      Object.defineProperty(NextResponse, "rewrite", originalRewrite);
+      return;
+    }
+    if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
+      throw new Error("Could not remove NextResponse.rewrite test implementation");
+    }
   });
 
   afterAll(() => {
@@ -130,5 +167,57 @@ describe("Cloudflare header enforcement", () => {
     const response = await getIp(request);
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toBe("99.9.208.198");
+  });
+
+  it("matches both same-origin Umami endpoints before the external rewrite", () => {
+    expect(
+      unstable_doesMiddlewareMatch({
+        config: proxyConfig,
+        url: "https://williamcallahan.com/stats/script.js",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config: proxyConfig,
+        url: "https://williamcallahan.com/api/send",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config: proxyConfig,
+        url: "https://williamcallahan.com/_next/static/chunks/app.js",
+      }),
+    ).toBe(false);
+  });
+
+  it("rewrites the GET tracker request with its exact query and no-store headers", async () => {
+    const response = await proxy(
+      createProxyRequest(
+        "https://williamcallahan.com/stats/script.js?cache=123&source=home",
+        "GET",
+      ),
+    );
+
+    expect(isRewrite(response)).toBe(true);
+    expect(getRewrittenUrl(response)).toBe(`${UMAMI_ORIGIN}/script.js?cache=123&source=home`);
+    expect(response.headers.get("cache-control")).toBe(
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    expect(response.headers.get("cdn-cache-control")).toBe("no-store, max-age=0");
+    expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store, max-age=0");
+  });
+
+  it("rewrites the POST event request with its exact query and no-store headers", async () => {
+    const response = await proxy(
+      createProxyRequest("https://williamcallahan.com/api/send?event=pageview&source=home", "POST"),
+    );
+
+    expect(isRewrite(response)).toBe(true);
+    expect(getRewrittenUrl(response)).toBe(`${UMAMI_ORIGIN}/api/send?event=pageview&source=home`);
+    expect(response.headers.get("cache-control")).toBe(
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    expect(response.headers.get("cdn-cache-control")).toBe("no-store, max-age=0");
+    expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store, max-age=0");
   });
 });

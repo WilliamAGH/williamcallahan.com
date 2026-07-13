@@ -21,10 +21,11 @@ for _ in {1..5}; do
 done
 ```
 
-## Static Asset Verification
+## Advertised JavaScript Verification
 
-Verify both outcomes after convergence. A rebuild alone is not proof that asset hashes
-or CDN contents changed.
+Verify advertised JavaScript after convergence. A rebuild alone is not proof that bundle
+hashes or CDN contents changed. This procedure and `scripts/smoke-test-production.ts` inspect
+JavaScript only; they do not verify CSS assets.
 
 ```bash
 BASE_URL="https://[domain]"
@@ -36,30 +37,60 @@ ASSET_PATHS="$(printf '%s' "$HTML" |
   cut -d '"' -f 2 |
   sort -u)"
 test -n "$ASSET_PATHS"
+DEPLOYMENT_IDS="$(printf '%s\n' "$ASSET_PATHS" |
+  sed -n 's/.*[?&]dpl=\([^&]*\).*/\1/p' |
+  sort -u)"
+test "$(printf '%s\n' "$DEPLOYMENT_IDS" | sed '/^$/d' | wc -l | tr -d ' ')" = 1
+test "$(printf '%s\n' "$ASSET_PATHS" | wc -l | tr -d ' ')" = \
+  "$(printf '%s\n' "$ASSET_PATHS" | rg -c '[?&]dpl=[^&]+')"
 printf '%s\n' "$ASSET_PATHS" | while read -r asset_path; do
   test "$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL$asset_path")" = 200
 done
 ```
 
-Then request one unique missing chunk twice at the identical URL. Both responses must
-be `404`, each must omit public and CDN cache directives, and the repeated response
-must not have `CF-Cache-Status: HIT` or `Age`.
+Then request one unique missing chunk twice at the identical URL and one cache-busted
+same-origin analytics tracker URL twice. The origin/proxy response must have `Cache-Control`
+containing `no-store`; `CDN-Cache-Control` and `Cloudflare-CDN-Cache-Control` may be absent,
+but each must contain `no-store` when emitted. Independently, neither response may report
+`CF-Cache-Status: HIT` or an `Age` header. Cloudflare's `status_code_ttl: -1` rule prevents
+edge storage of failed static chunks; it does not mutate their origin response headers. The
+missing chunk must be `404`; the analytics tracker must be `200`.
 
 ```bash
+set -euo pipefail
+
+assert_no_store_response() {
+  local response="$1"
+  local expected_status="$2"
+
+  printf '%s\n' "$response" | rg -q "^status=${expected_status}$"
+  printf '%s\n' "$response" | rg -qi '^cache-control:.*no-store'
+  for cache_header in cdn-cache-control cloudflare-cdn-cache-control; do
+    if printf '%s\n' "$response" | rg -qi "^${cache_header}:"; then
+      printf '%s\n' "$response" | rg -qi "^${cache_header}:.*no-store"
+    fi
+  done
+  ! printf '%s\n' "$response" | rg -qi '^(cf-cache-status:[[:space:]]*HIT|age:)'
+}
+
 MISSING_URL="$BASE_URL/_next/static/chunks/smoke-missing-$(uuidgen | tr '[:upper:]' '[:lower:]').js"
-FIRST_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$MISSING_URL")"
-SECOND_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$MISSING_URL")"
-for response in "$FIRST_RESPONSE" "$SECOND_RESPONSE"; do
-  printf '%s\n' "$response" | rg -q '^status=404$'
-  ! printf '%s\n' "$response" |
-    rg -qi '^(cache-control:.*public|cdn-cache-control:|cloudflare-cdn-cache-control:)'
+FIRST_MISSING_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$MISSING_URL")"
+SECOND_MISSING_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$MISSING_URL")"
+for response in "$FIRST_MISSING_RESPONSE" "$SECOND_MISSING_RESPONSE"; do
+  assert_no_store_response "$response" 404
 done
-! printf '%s\n' "$SECOND_RESPONSE" | rg -qi '^(cf-cache-status:[[:space:]]*HIT|age:)'
+
+ANALYTICS_URL="$BASE_URL/stats/script.js?smoke=$(uuidgen | tr '[:upper:]' '[:lower:]')"
+FIRST_ANALYTICS_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$ANALYTICS_URL")"
+SECOND_ANALYTICS_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$ANALYTICS_URL")"
+for response in "$FIRST_ANALYTICS_RESPONSE" "$SECOND_ANALYTICS_RESPONSE"; do
+  assert_no_store_response "$response" 200
+done
 ```
 
 `bun run deploy:smoke-test -- https://[domain]` performs the same `/investments`
-content and advertised-script assertion plus the negative static-asset assertion
-alongside the other production user-path checks.
+content and advertised-script assertion plus the missing-static-chunk and analytics-script
+cache assertions alongside the other production user-path checks.
 
 ## Cache Purge
 
@@ -67,6 +98,13 @@ When a prior response incorrectly cached an asset or a negative asset response, 
 the affected URL or deploy cache in Cloudflare after the corrected release is serving.
 Use a full purge only when targeted purging cannot cover the stale entries. Purging is
 not a substitute for the positive and negative verification above.
+
+For immediate diagnosis, appending a fresh URL-safe `?dpl=<diagnostic-id>` to an asset request
+selects a new Cloudflare cache key under this zone's default query-string policy. A successful
+response proves the origin has the asset, but it does not evict the poisoned object or change
+the Docker-owned deployment identity. A same-SHA rebuild deliberately retains its `dpl` value,
+so recovery requires a Cloudflare exact-URL/deployment purge or a new source revision with a
+new `GIT_SHA`.
 
 ## Baseline Browser Mapping Warning
 

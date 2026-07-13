@@ -10,6 +10,35 @@ class ProductionSmokeTests {
     this.authToken = authToken;
     console.log(`🔥 Running smoke tests against: ${this.baseUrl}`);
   }
+
+  private fetchSameOrigin(path: string): Promise<Response> {
+    return fetch(this.baseUrl + path, {
+      headers: { "User-Agent": "Smoke-Test/1.0" },
+      signal: AbortSignal.timeout(10000),
+    });
+  }
+
+  private async hasNoStoreRepeat(
+    path: string,
+    response: Response,
+    expectedStatus: number,
+  ): Promise<boolean> {
+    const repeatedResponse = await this.fetchSameOrigin(path);
+    return [response, repeatedResponse].every((candidate) => {
+      const cacheControl = candidate.headers.get("cache-control")?.toLowerCase();
+      return (
+        candidate.status === expectedStatus &&
+        cacheControl?.includes("no-store") === true &&
+        ["cdn-cache-control", "cloudflare-cdn-cache-control"].every((header) => {
+          const cdnCacheControl = candidate.headers.get(header)?.toLowerCase();
+          return cdnCacheControl === undefined || cdnCacheControl.includes("no-store");
+        }) &&
+        candidate.headers.get("cf-cache-status")?.toUpperCase().includes("HIT") !== true &&
+        candidate.headers.get("age") === null
+      );
+    });
+  }
+
   private async testEndpoint(
     name: string,
     path: string,
@@ -96,14 +125,18 @@ class ProductionSmokeTests {
               ),
             ),
           ];
-          if (!html.includes("Investment Portfolio") || scripts.length === 0) return false;
+          const deploymentIds = new Set(
+            scripts.map((script) => new URL(script, this.baseUrl).searchParams.get("dpl")),
+          );
+          if (
+            !html.includes("Investment Portfolio") ||
+            scripts.length === 0 ||
+            deploymentIds.size !== 1 ||
+            deploymentIds.has(null)
+          )
+            return false;
           const responses = await Promise.all(
-            scripts.map((script) =>
-              fetch(this.baseUrl + script, {
-                headers: { "User-Agent": "Smoke-Test/1.0" },
-                signal: AbortSignal.timeout(10000),
-              }),
-            ),
+            scripts.map((script) => this.fetchSameOrigin(script)),
           );
           return responses.every((script) => script.status === 200);
         },
@@ -132,29 +165,14 @@ class ProductionSmokeTests {
     this.results.push(
       await this.testEndpoint("Missing static chunk is not edge-cached", missingStaticChunk, {
         expectedStatus: 404,
-        validateResponse: async (response) => {
-          const repeatedResponse = await fetch(this.baseUrl + missingStaticChunk, {
-            headers: { "User-Agent": "Smoke-Test/1.0" },
-            signal: AbortSignal.timeout(10000),
-          });
-          const hasExpectedHeaders = (candidate: Response): boolean => {
-            const cacheControl = candidate.headers.get("cache-control")?.toLowerCase();
-            return (
-              candidate.status === 404 &&
-              cacheControl?.includes("public") !== true &&
-              ["cdn-cache-control", "cloudflare-cdn-cache-control"].every(
-                (header) => !candidate.headers.has(header),
-              )
-            );
-          };
-          return (
-            hasExpectedHeaders(response) &&
-            hasExpectedHeaders(repeatedResponse) &&
-            repeatedResponse.headers.get("cf-cache-status")?.toUpperCase().includes("HIT") !==
-              true &&
-            repeatedResponse.headers.get("age") === null
-          );
-        },
+        validateResponse: (response) => this.hasNoStoreRepeat(missingStaticChunk, response, 404),
+      }),
+    );
+    const analyticsScript = "/stats/script.js?smoke=" + crypto.randomUUID();
+    this.results.push(
+      await this.testEndpoint("Analytics script is not edge-cached", analyticsScript, {
+        expectedStatus: 200,
+        validateResponse: (response) => this.hasNoStoreRepeat(analyticsScript, response, 200),
       }),
     );
   }
@@ -216,10 +234,8 @@ class ProductionSmokeTests {
   async runDataIntegrityTests(): Promise<void> {
     console.log("\n🔍 Testing Data Integrity...\n");
 
-    const diagnosticsResult = await this.testEndpoint(
-      "Bookmarks Data Integrity",
-      "/api/bookmarks/diagnostics",
-      {
+    this.results.push(
+      await this.testEndpoint("Bookmark Data Integrity", "/api/bookmarks/diagnostics", {
         expectedStatus: this.authToken ? 200 : 401,
         requiresAuth: true,
         validateJson: (data) => {
@@ -231,31 +247,19 @@ class ProductionSmokeTests {
             : parsed.data.environment.resolved === "production";
           return isCorrectEnv;
         },
-      },
+      }),
     );
 
-    this.results.push({
-      ...diagnosticsResult,
-      name: "Bookmark Data Integrity",
-    });
-
-    const bookmarkSlugTest = await this.testEndpoint(
-      "Bookmark Slug Resolution",
-      "/bookmarks/test-slug-that-should-404",
-      {
+    this.results.push(
+      await this.testEndpoint("Bookmark 404 Handling", "/bookmarks/test-slug-that-should-404", {
         expectedStatus: 200,
         validateResponse: async (response) => {
           if (response.headers.get("x-nextjs-postponed") !== "1") return false;
           const body = await response.text();
           return body.includes('<meta name="robots" content="noindex"/>');
         },
-      },
+      }),
     );
-
-    this.results.push({
-      ...bookmarkSlugTest,
-      name: "Bookmark 404 Handling",
-    });
   }
 
   generateReport(): void {

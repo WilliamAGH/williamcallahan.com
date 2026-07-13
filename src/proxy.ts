@@ -15,6 +15,7 @@
 // See: https://nextjs.org/docs/app/getting-started/proxy
 // Using `edge` here (not deprecated `experimental-edge`).
 
+import { UMAMI_ORIGIN } from "@/config/csp";
 import { buildCspHeader } from "@/lib/middleware/csp-header";
 import { NextResponse, type NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
@@ -51,6 +52,13 @@ const SECURITY_HEADERS = {
 } as const;
 
 const NO_CACHE_VALUE = "no-store, no-cache, must-revalidate, proxy-revalidate" as const;
+const ANALYTICS_CACHE_HEADERS = {
+  "Cache-Control": NO_CACHE_VALUE,
+  Pragma: "no-cache",
+  Expires: "0",
+  "CDN-Cache-Control": "no-store, max-age=0",
+  "Cloudflare-CDN-Cache-Control": "no-store, max-age=0",
+} as const;
 
 function setSecurityHeaders(response: NextResponse): void {
   for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
@@ -58,23 +66,23 @@ function setSecurityHeaders(response: NextResponse): void {
   }
 }
 
-function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): void {
-  // Analytics is proxied through same-origin rewrites (/stats/*, /api/send),
-  // so host-based checks miss these requests.
-  const isAnalyticsScript =
-    (url.startsWith("/stats/") && url.endsWith("/script.js")) || url === "/api/send";
+function createAnalyticsRewriteResponse(request: NextRequest): NextResponse | null {
+  const { pathname, search } = request.nextUrl;
+  const destination = new URL(UMAMI_ORIGIN);
 
-  if (isAnalyticsScript) {
-    // Prevent caching for analytics scripts
-    response.headers.set("Cache-Control", NO_CACHE_VALUE);
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-    // Add Cloudflare specific cache control
-    response.headers.set("CDN-Cache-Control", "no-store, max-age=0");
-    response.headers.set("Cloudflare-CDN-Cache-Control", "no-store, max-age=0");
-    return;
+  if (pathname === "/api/send") {
+    destination.pathname = pathname;
+  } else if (pathname === "/stats" || pathname.startsWith("/stats/")) {
+    destination.pathname = pathname.slice("/stats".length) || "/";
+  } else {
+    return null;
   }
 
+  destination.search = search;
+  return NextResponse.rewrite(destination, { headers: ANALYTICS_CACHE_HEADERS });
+}
+
+function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): void {
   if (isDev) {
     response.headers.set("Cache-Control", NO_CACHE_VALUE);
     response.headers.set("Pragma", "no-cache");
@@ -120,13 +128,15 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const analyticsResponse = createAnalyticsRewriteResponse(request);
+
   // If the request is for a .map file, let Next.js handle it directly
   // without applying our custom headers or logic.
-  if (pathname.endsWith(".map")) {
+  if (pathname.endsWith(".map") && !analyticsResponse) {
     return NextResponse.next(); // Pass through without modifications
   }
 
-  const response = NextResponse.next();
+  const response = analyticsResponse ?? NextResponse.next();
   const ip = getClientIp(request.headers);
 
   setSecurityHeaders(response);
@@ -138,7 +148,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const url = request.nextUrl.pathname;
   const isDev = process.env.NODE_ENV === "development";
 
-  setCacheHeaders(response, url, isDev);
+  if (!analyticsResponse) setCacheHeaders(response, url, isDev);
 
   if (shouldLogRequest(pathname, request.method)) {
     // Log the request with the real IP
@@ -241,5 +251,6 @@ export const config = {
     "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/ai/chat|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api(?!/ai/chat)|trpc)(.*)",
     "/_next/image(.*)",
+    "/stats/:path*",
   ],
 };

@@ -12,6 +12,30 @@
       "enabled": true
     },
     {
+      "description": "[managed] Prevent Cloudflare edge storage of failed Next.js static assets (/_next/static)",
+      "expression": "starts_with(http.request.uri.path, \"/_next/static/\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "respect_origin",
+          "status_code_ttl": [
+            {
+              "status_code_range": {
+                "from": 400,
+                "to": 599
+              },
+              "value": -1
+            }
+          ]
+        },
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
+      },
+      "enabled": true
+    },
+    {
       "description": "[managed] Cache Next.js optimized images (/_next/image)",
       "expression": "starts_with(http.request.uri.path, \"/_next/image\")",
       "action": "set_cache_settings",
