@@ -59,7 +59,7 @@ const collectBookmarkEntriesFromPages = async (
       const lastModified = resolveBookmarkLastModified(bookmark);
       latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, lastModified);
       bookmarkEntries.push({
-        url: `${siteUrl}${buildBookmarkPath(sanitizePathSegment(slug))}`,
+        url: `${siteUrl}${buildBookmarkPath(slug)}`,
         lastModified,
         changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
         priority: BOOKMARK_PRIORITY,
@@ -91,7 +91,7 @@ export const collectBookmarkSitemapData = async (
     const bookmarkEntriesFromMapping: MetadataRoute.Sitemap | null =
       slugMapping && Object.keys(slugMapping.slugs).length > 0
         ? Object.values(slugMapping.slugs).map((entry) => ({
-            url: `${siteUrl}${buildBookmarkPath(sanitizePathSegment(entry.slug))}`,
+            url: `${siteUrl}${buildBookmarkPath(entry.slug)}`,
             lastModified: latestBookmarkUpdateTime,
             changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
             priority: BOOKMARK_PRIORITY,

@@ -32,7 +32,6 @@ export type LightweightBookmark = Omit<
   import("./schemas/bookmark").UnifiedBookmark,
   "ogImage" | "logoData" | "scrapedContentText"
 > & {
-  slug: string; // Explicitly include slug as required
   content?: Pick<
     import("./schemas/bookmark").BookmarkContent,
     | "type"

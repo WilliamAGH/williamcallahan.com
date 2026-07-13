@@ -82,6 +82,10 @@ describe("Bookmark Slug Mapping", () => {
       expect(mapping.reverseMap["stable-github-slug"]).toBe("bookmark2");
     });
 
+    it("rejects an existing slug that is not a valid detail segment", () => {
+      expect(() => generateSlugMapping([{ ...mockBookmarks[0], slug: "invalid/path" }])).toThrow();
+    });
+
     it("should handle duplicate domains with numeric suffixes", () => {
       const mapping = generateSlugMapping(mockBookmarks);
 
@@ -179,6 +183,12 @@ describe("Bookmark Slug Mapping", () => {
       const result = await loadSlugMapping();
 
       expect(result).toBeNull();
+    });
+
+    it("rejects an invalid detail slug loaded from PostgreSQL", async () => {
+      mockGetSlugMappingRows.mockResolvedValue([{ ...mockMappingRows[0], slug: "invalid/path" }]);
+
+      await expect(loadSlugMapping()).resolves.toBeNull();
     });
   });
 

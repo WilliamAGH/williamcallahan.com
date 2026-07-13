@@ -22,6 +22,7 @@ const appRelativeAssetUrlSchema = z.string().startsWith("/api/assets/");
 
 /** Reusable nullable-optional string */
 const stringOrNullSchema = z.string().nullable().optional();
+export const bookmarkDetailSlugSchema = z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._~-]+$/);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tag Schemas
@@ -134,7 +135,7 @@ export const unifiedBookmarkSchema = z.object({
   url: bookmarkUrlSchema,
   title: z.string().min(1),
   description: z.string(),
-  slug: z.string().min(1),
+  slug: bookmarkDetailSlugSchema,
   tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
   ogImage: z.union([z.url(), appRelativeAssetUrlSchema]).optional(),
   dateBookmarked: z.string(),
@@ -181,7 +182,7 @@ const baseBookmarkSchema = z.object({
   url: bookmarkUrlSchema,
   title: z.string().min(1),
   description: stringOrNullSchema,
-  slug: z.string().min(1),
+  slug: bookmarkDetailSlugSchema,
   dateBookmarked: z.string(),
   dateCreated: z.string().optional(),
   isPrivate: z.boolean().default(false),
@@ -279,7 +280,7 @@ export type BookmarkRefreshResponse = z.infer<typeof bookmarkRefreshResponseSche
 
 const discoverSerializableBookmarkSchema = z.object({
   id: z.string(),
-  slug: z.string().min(1),
+  slug: bookmarkDetailSlugSchema,
   title: z.string().min(1),
   url: bookmarkUrlSchema,
   description: z.string(),
@@ -334,7 +335,7 @@ export type DiscoverGroupedApiResponse = z.infer<typeof discoverGroupedApiRespon
 // ─────────────────────────────────────────────────────────────────────────────
 export const bookmarkSlugEntrySchema = z.object({
   id: z.string(),
-  slug: z.string().min(1),
+  slug: bookmarkDetailSlugSchema,
   url: bookmarkUrlSchema,
   title: z.string(),
 });

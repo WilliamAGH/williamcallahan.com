@@ -19,6 +19,7 @@ import type {
   BookmarkSlugMapping,
   BookmarkSlugSource,
 } from "@/types/schemas/bookmark";
+import { bookmarkSlugMappingSchema } from "@/types/schemas/bookmark";
 import logger from "@/lib/utils/logger";
 import { envLogger } from "@/lib/utils/env-logger";
 import { createHash } from "node:crypto";
@@ -110,7 +111,7 @@ export function generateSlugMapping(bookmarks: BookmarkSlugSource[]): BookmarkSl
     .map((id) => [id, slugs[id]?.slug]);
   const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
 
-  const mapping: BookmarkSlugMapping = {
+  const mapping = {
     version: "1.0.0",
     generated: new Date(getDeterministicTimestamp()).toISOString(),
     count: bookmarks.length,
@@ -118,7 +119,7 @@ export function generateSlugMapping(bookmarks: BookmarkSlugSource[]): BookmarkSl
     slugs,
     reverseMap,
   };
-  return mapping;
+  return bookmarkSlugMappingSchema.parse(mapping);
 }
 
 /**
@@ -226,14 +227,14 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
       .map((id) => [id, slugs[id]?.slug]);
     const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
 
-    const mapping: BookmarkSlugMapping = {
+    const mapping = bookmarkSlugMappingSchema.parse({
       version: "1.0.0",
       generated: new Date(getDeterministicTimestamp()).toISOString(),
       count: slugRows.length,
       checksum,
       slugs,
       reverseMap,
-    };
+    });
 
     if (isSlugManagerLoggingEnabled) {
       logger.info(
