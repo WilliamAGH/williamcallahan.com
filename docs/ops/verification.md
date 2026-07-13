@@ -23,26 +23,43 @@ done
 
 ## Static Asset Verification
 
-Verify both outcomes after convergence. Use a known deployed chunk and a token that
-exists only in the intended release; a rebuild alone is not proof that asset hashes or
-CDN contents changed.
+Verify both outcomes after convergence. A rebuild alone is not proof that asset hashes
+or CDN contents changed.
 
 ```bash
-curl -fsS "https://[domain]/_next/static/chunks/[known-chunk].js" \
-  | grep -F "[unique-release-token]"
+BASE_URL="https://[domain]"
+ROUTE="/investments"
+HTML="$(curl -fsS "$BASE_URL$ROUTE")"
+printf '%s' "$HTML" | rg -q 'Investment Portfolio'
+ASSET_PATHS="$(printf '%s' "$HTML" |
+  rg -o 'src="/_next/static/[^"]+\.js[^"]*"' |
+  cut -d '"' -f 2 |
+  sort -u)"
+test -n "$ASSET_PATHS"
+printf '%s\n' "$ASSET_PATHS" | while read -r asset_path; do
+  test "$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL$asset_path")" = 200
+done
 ```
 
-Then verify the negative path with a unique missing chunk. It must return `404`, omit
-`CDN-Cache-Control` and `Cloudflare-CDN-Cache-Control`, and never send a public
-`Cache-Control` policy.
+Then request one unique missing chunk twice at the identical URL. Both responses must
+be `404`, each must omit public and CDN cache directives, and the repeated response
+must not have `CF-Cache-Status: HIT` or `Age`.
 
 ```bash
-MISSING_CHUNK="smoke-missing-$(uuidgen | tr '[:upper:]' '[:lower:]').js"
-curl -sS -D - -o /dev/null "https://[domain]/_next/static/chunks/$MISSING_CHUNK"
+MISSING_URL="$BASE_URL/_next/static/chunks/smoke-missing-$(uuidgen | tr '[:upper:]' '[:lower:]').js"
+FIRST_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$MISSING_URL")"
+SECOND_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$MISSING_URL")"
+for response in "$FIRST_RESPONSE" "$SECOND_RESPONSE"; do
+  printf '%s\n' "$response" | rg -q '^status=404$'
+  ! printf '%s\n' "$response" |
+    rg -qi '^(cache-control:.*public|cdn-cache-control:|cloudflare-cdn-cache-control:)'
+done
+! printf '%s\n' "$SECOND_RESPONSE" | rg -qi '^(cf-cache-status:[[:space:]]*HIT|age:)'
 ```
 
-`bun run deploy:smoke-test -- https://[domain]` performs the same negative-path
-assertion alongside the production user-path checks.
+`bun run deploy:smoke-test -- https://[domain]` performs the same `/investments`
+content and advertised-script assertion plus the negative static-asset assertion
+alongside the other production user-path checks.
 
 ## Cache Purge
 

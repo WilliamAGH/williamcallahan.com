@@ -1,19 +1,15 @@
 #!/usr/bin/env bun
-
 import type { SmokeTestEndpointOptions, TestResult } from "@/types/scripts";
 import { bookmarkDiagnosticsResponseSchema, healthResponseSchema } from "@/types/schemas/api";
-
 class ProductionSmokeTests {
   private baseUrl: string;
   private results: TestResult[] = [];
   private authToken?: string;
-
   constructor(baseUrl: string, authToken?: string) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.authToken = authToken;
     console.log(`🔥 Running smoke tests against: ${this.baseUrl}`);
   }
-
   private async testEndpoint(
     name: string,
     path: string,
@@ -21,30 +17,25 @@ class ProductionSmokeTests {
   ): Promise<TestResult> {
     const startTime = Date.now();
     const endpoint = `${this.baseUrl}${path}`;
-
     try {
       const headers = new Headers(options.headers);
       headers.set("User-Agent", "Smoke-Test/1.0");
       if (options.requiresAuth && this.authToken) {
         headers.set("Authorization", `Bearer ${this.authToken}`);
       }
-
       const method = options.method === undefined ? "GET" : options.method;
       const fetchOptions: RequestInit = {
         method,
         headers,
         signal: AbortSignal.timeout(10000),
       };
-
       if (method !== "GET" && options.body !== undefined) {
         fetchOptions.body = JSON.stringify(options.body);
       }
-
       const response = await fetch(endpoint, fetchOptions);
       const responseTime = Date.now() - startTime;
       const expectedStatus = options.expectedStatus === undefined ? 200 : options.expectedStatus;
       let passed = response.status === expectedStatus;
-
       if (passed && options.validateResponse) {
         passed = await options.validateResponse(response);
       } else if (passed && response.status === 200 && options.validateJson) {
@@ -55,7 +46,6 @@ class ProductionSmokeTests {
           passed = false;
         }
       }
-
       return {
         name,
         endpoint,
@@ -96,6 +86,30 @@ class ProductionSmokeTests {
     }
 
     this.results.push(
+      await this.testEndpoint("Investments content and scripts", "/investments", {
+        validateResponse: async (response) => {
+          const html = await response.text();
+          const scripts = [
+            ...new Set(
+              [...html.matchAll(/src=["'](\/_next\/static\/[^"']+\.js[^"']*)["']/g)].flatMap(
+                (match) => (match[1] ? [match[1]] : []),
+              ),
+            ),
+          ];
+          if (!html.includes("Investment Portfolio") || scripts.length === 0) return false;
+          const responses = await Promise.all(
+            scripts.map((script) =>
+              fetch(this.baseUrl + script, {
+                headers: { "User-Agent": "Smoke-Test/1.0" },
+                signal: AbortSignal.timeout(10000),
+              }),
+            ),
+          );
+          return responses.every((script) => script.status === 200);
+        },
+      }),
+    );
+    this.results.push(
       await this.testEndpoint("Public HTML has no global CORS or client IP headers", "/", {
         validateResponse: async (response) =>
           response.headers.get("access-control-allow-origin") === null &&
@@ -114,18 +128,34 @@ class ProductionSmokeTests {
           response.headers.get("access-control-allow-origin") === null,
       }),
     );
+    const missingStaticChunk = "/_next/static/chunks/smoke-missing-" + crypto.randomUUID() + ".js";
     this.results.push(
-      await this.testEndpoint(
-        "Missing static chunk is not publicly cached",
-        `/_next/static/chunks/smoke-missing-${crypto.randomUUID()}.js`,
-        {
-          expectedStatus: 404,
-          validateResponse: async (response) =>
-            response.headers.get("cdn-cache-control") === null &&
-            response.headers.get("cloudflare-cdn-cache-control") === null &&
-            !response.headers.get("cache-control")?.toLowerCase().includes("public"),
+      await this.testEndpoint("Missing static chunk is not edge-cached", missingStaticChunk, {
+        expectedStatus: 404,
+        validateResponse: async (response) => {
+          const repeatedResponse = await fetch(this.baseUrl + missingStaticChunk, {
+            headers: { "User-Agent": "Smoke-Test/1.0" },
+            signal: AbortSignal.timeout(10000),
+          });
+          const hasExpectedHeaders = (candidate: Response): boolean => {
+            const cacheControl = candidate.headers.get("cache-control")?.toLowerCase();
+            return (
+              candidate.status === 404 &&
+              cacheControl?.includes("public") !== true &&
+              ["cdn-cache-control", "cloudflare-cdn-cache-control"].every(
+                (header) => !candidate.headers.has(header),
+              )
+            );
+          };
+          return (
+            hasExpectedHeaders(response) &&
+            hasExpectedHeaders(repeatedResponse) &&
+            repeatedResponse.headers.get("cf-cache-status")?.toUpperCase().includes("HIT") !==
+              true &&
+            repeatedResponse.headers.get("age") === null
+          );
         },
-      ),
+      }),
     );
   }
 
@@ -170,41 +200,17 @@ class ProductionSmokeTests {
   async runPerformanceTests(): Promise<void> {
     console.log("\n⚡ Testing Performance Thresholds...\n");
 
-    const performanceThresholds = {
-      homepage: 2000, // 2 seconds
-      api: 1000, // 1 second
-      static: 500, // 500ms
-    };
-
-    const homepageResult = await this.testEndpoint("Homepage Performance", "/", {
-      expectedStatus: 200,
-    });
-
-    this.results.push({
-      ...homepageResult,
-      name: "Homepage Load Time",
-      passed: homepageResult.passed && homepageResult.responseTime < performanceThresholds.homepage,
-    });
-
-    const apiResult = await this.testEndpoint("API Performance", "/api/health", {
-      expectedStatus: 200,
-    });
-
-    this.results.push({
-      ...apiResult,
-      name: "API Response Time",
-      passed: apiResult.passed && apiResult.responseTime < performanceThresholds.api,
-    });
-
-    const staticResult = await this.testEndpoint("Static Asset", "/favicon.ico", {
-      expectedStatus: 200,
-    });
-
-    this.results.push({
-      ...staticResult,
-      name: "Static Asset Load Time",
-      passed: staticResult.passed && staticResult.responseTime < performanceThresholds.static,
-    });
+    for (const [name, path, threshold] of [
+      ["Homepage Load Time", "/", 2000],
+      ["API Response Time", "/api/health", 1000],
+      ["Static Asset Load Time", "/favicon.ico", 500],
+    ] as const) {
+      const result = await this.testEndpoint(name, path);
+      this.results.push({
+        ...result,
+        passed: result.passed && result.responseTime < threshold,
+      });
+    }
   }
 
   async runDataIntegrityTests(): Promise<void> {
@@ -273,12 +279,8 @@ class ProductionSmokeTests {
       failed.forEach((test) => {
         console.log(`  ✗ ${test.name}`);
         console.log(`    Endpoint: ${test.endpoint}`);
-        if (test.statusCode) {
-          console.log(`    Status: ${test.statusCode}`);
-        }
-        if (test.error) {
-          console.log(`    Error: ${test.error}`);
-        }
+        if (test.statusCode) console.log(`    Status: ${test.statusCode}`);
+        if (test.error) console.log(`    Error: ${test.error}`);
         console.log(`    Response Time: ${test.responseTime}ms`);
       });
     }
@@ -298,11 +300,6 @@ class ProductionSmokeTests {
       console.log("✅ ALL SMOKE TESTS PASSED - Deployment Successful!");
     } else {
       console.log(`⚠️  ${failed.length} TESTS FAILED - Investigation Required`);
-      console.log("\nRecommended Actions:");
-      console.log("1. Check server logs for errors");
-      console.log("2. Verify environment variables are set correctly");
-      console.log("3. Ensure S3 data is accessible from production");
-      console.log("4. Check that all services are running");
     }
     console.log("=".repeat(70) + "\n");
 
@@ -334,9 +331,7 @@ if (!baseUrl) {
   process.exit(1);
 }
 
-if (!baseUrl.startsWith("http")) {
-  baseUrl = `https://${baseUrl}`;
-}
+if (!baseUrl.startsWith("http")) baseUrl = `https://${baseUrl}`;
 
 const tester = new ProductionSmokeTests(baseUrl, authToken);
 tester.run().catch((error) => {
