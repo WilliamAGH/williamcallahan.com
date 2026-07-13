@@ -5,7 +5,12 @@
 
 import { vi } from "vitest";
 import { BookmarkCardClient } from "@/components/features/bookmarks/bookmark-card.client";
+import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
+import { ExternalLink } from "@/components/ui/external-link.client";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
+import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 import { render, screen } from "@testing-library/react";
+import { usePathname } from "next/navigation";
 import React from "react";
 
 // Mock next/link since we're not testing navigation behavior
@@ -20,7 +25,37 @@ vi.mock("next/link", () => ({ default: MockNextLink }));
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/bookmarks",
+  usePathname: vi.fn(),
+}));
+
+vi.mock("framer-motion", () => ({
+  motion: {
+    section: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+    div: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  },
+  useScroll: () => ({ scrollY: null }),
+  useTransform: () => 0,
+}));
+
+vi.mock("@/components/features/bookmarks/bookmarks-window.client", () => ({
+  BookmarksWindow: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/features/bookmarks/bookmark-ai-analysis.client", () => ({
+  BookmarkAiAnalysis: () => null,
+  BookmarkAiContext: () => null,
+  BookmarkAiRelated: () => null,
+}));
+
+vi.mock("@/components/ui/context-notes/terminal-context.client", () => ({
+  TerminalContext: () => null,
+}));
+
+vi.mock("@/hooks/use-engagement-tracker", () => ({
+  useEngagementTracker: () => ({
+    trackDwell: () => undefined,
+    trackExternalClick: () => undefined,
+  }),
 }));
 
 describe("BookmarkCardClient screenshotAssetId handling", () => {
@@ -44,6 +79,7 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(usePathname).mockReturnValue("/bookmarks");
   });
 
   it("should use screenshotAssetId for image fallback when no ogImage is available", () => {
@@ -84,6 +120,7 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
   it.each(["default", "compact"] as const)(
     "does not render an outbound link or domain for an about:blank %s bookmark",
     (variant) => {
+      const internalHref = buildBookmarkPath("unknown-url");
       const { container } = render(
         <BookmarkCardClient
           {...mockBookmark}
@@ -91,15 +128,42 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
           slug="unknown-url"
           tags={[]}
           variant={variant}
-          internalHref="/bookmarks/unknown-url"
+          internalHref={internalHref}
         />,
       );
 
       expect(container.querySelector('a[target="_blank"]')).not.toBeInTheDocument();
       expect(container.querySelector('a[href="about:blank"]')).not.toBeInTheDocument();
-      expect(container.querySelector('a[href="/bookmarks/unknown-url"]')).toBeInTheDocument();
+      expect(container.querySelector(`a[href="${internalHref}"]`)).toBeInTheDocument();
       expect(screen.queryByText("about:blank")).not.toBeInTheDocument();
       expect(screen.queryByText("website")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["default", "compact"] as const)(
+    "renders an unlinked title and image for an about:blank %s detail route",
+    (variant) => {
+      const internalHref = buildBookmarkPath("unknown-url");
+      vi.mocked(usePathname).mockReturnValue(internalHref);
+
+      const { container } = render(
+        <BookmarkCardClient
+          {...mockBookmark}
+          url="about:blank"
+          slug="unknown-url"
+          tags={[]}
+          variant={variant}
+          internalHref={internalHref}
+        />,
+      );
+
+      const title = screen.getByRole("heading", { name: "Test Bookmark" });
+      expect(container.querySelector('a[target="_blank"]')).not.toBeInTheDocument();
+      expect(container.querySelector(`a[href="${internalHref}"]`)).not.toBeInTheDocument();
+      expect(title).toBeVisible();
+      expect(screen.getByAltText("Test Bookmark")).toBeVisible();
+      expect(container.querySelector(".aspect-video > span > div")).not.toBeInTheDocument();
+      expect(title.parentElement?.tagName).not.toBe("SPAN");
     },
   );
 
@@ -138,5 +202,36 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
       "src",
       "/api/assets/test-screenshot-asset-id",
     );
+  });
+});
+
+describe("Bookmark URL-less link behavior", () => {
+  const urlLessBookmark = unifiedBookmarkSchema.parse({
+    id: "url-less-bookmark",
+    url: "about:blank",
+    title: "URL-less bookmark",
+    description: "A bookmark that has no external destination.",
+    slug: "url-less-bookmark",
+    tags: [],
+    dateBookmarked: "2024-01-01T00:00:00Z",
+    sourceUpdatedAt: "2024-01-01T00:00:00Z",
+  });
+
+  it("renders a span when an external href is null", () => {
+    render(<ExternalLink href={null}>Unavailable destination</ExternalLink>);
+
+    const fallback = screen.getByText("Unavailable destination");
+    expect(fallback.tagName).toBe("SPAN");
+    expect(screen.queryByRole("link", { name: "Unavailable destination" })).not.toBeInTheDocument();
+  });
+
+  it("keeps a URL-less bookmark detail page free of outbound anchors", () => {
+    const { container } = render(<BookmarkDetail bookmark={urlLessBookmark} />);
+
+    const title = screen.getByRole("heading", { name: "URL-less bookmark" });
+    expect(title.querySelector("a")).not.toBeInTheDocument();
+    expect(title.querySelector("span")).toHaveTextContent("URL-less bookmark");
+    expect(container.querySelector('a[target="_blank"]')).not.toBeInTheDocument();
+    expect(container.querySelector('a[href="about:blank"]')).not.toBeInTheDocument();
   });
 });

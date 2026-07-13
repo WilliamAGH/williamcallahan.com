@@ -18,6 +18,7 @@ import {
   convertSerializableBookmarksToUnified,
 } from "@/lib/bookmarks/utils";
 import { getSafeBookmarkSlug } from "@/lib/bookmarks/slug-helpers";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type {
@@ -74,7 +75,7 @@ export async function BookmarksServer({
     const missing: UnifiedBookmark[] = [];
     for (const bookmark of bookmarkList) {
       if (bookmark.slug && bookmark.slug.length > 0) {
-        internalHrefs.set(bookmark.id, `/bookmarks/${bookmark.slug}`);
+        internalHrefs.set(bookmark.id, buildBookmarkPath(bookmark.slug));
       } else {
         missing.push(bookmark);
       }
@@ -87,7 +88,7 @@ export async function BookmarksServer({
     for (const bookmark of missing) {
       const slug = await getSafeBookmarkSlug(bookmark.id, bookmarkList);
       if (slug) {
-        internalHrefs.set(bookmark.id, `/bookmarks/${slug}`);
+        internalHrefs.set(bookmark.id, buildBookmarkPath(slug));
       }
     }
   };

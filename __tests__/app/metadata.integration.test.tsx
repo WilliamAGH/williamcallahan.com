@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { generateMetadata as generateBookmarkDetailMetadata } from "@/app/bookmarks/[slug]/page";
 import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page";
 import { getBookmarkById } from "@/lib/bookmarks/service.server";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 
@@ -86,13 +87,14 @@ describe("Metadata Integration Tests", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
-      const metadata = await generateBookmarkDetailMetadata({ params: { slug } });
+      const metadata = await generateBookmarkDetailMetadata({ params: Promise.resolve({ slug }) });
 
       expect(metadata.description).toBe(
         "A bookmark from website that I've saved for future reference.",
       );
-      expect(metadata.alternates?.canonical).toBe(`https://williamcallahan.com/bookmarks/${slug}`);
-      expect(metadata.openGraph?.url).toBe(`https://williamcallahan.com/bookmarks/${slug}`);
+      const bookmarkPath = buildBookmarkPath(slug);
+      expect(metadata.alternates?.canonical).toBe(`https://williamcallahan.com${bookmarkPath}`);
+      expect(metadata.openGraph?.url).toBe(`https://williamcallahan.com${bookmarkPath}`);
       expect(errorSpy).not.toHaveBeenCalled();
     } finally {
       errorSpy.mockRestore();

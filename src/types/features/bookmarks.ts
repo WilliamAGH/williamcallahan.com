@@ -63,6 +63,14 @@ export type BookmarkCardClientProps = BookmarkCardRequiredFields &
     variant?: "default" | "hero" | "compact";
   };
 
+export type BookmarkCardLinkProps = Readonly<{
+  internalHref?: string;
+  externalHref: string | null;
+  title: string;
+  className: string;
+  children: ReactNode;
+}>;
+
 /**
  * Tags list client props - USED in tags-list.client.tsx
  */

@@ -261,12 +261,20 @@ export const bookmarksRefreshResponseSchema = z.object({
   meta: z.unknown().optional(),
 });
 export type BookmarksRefreshResponse = z.infer<typeof bookmarksRefreshResponseSchema>;
-export const bookmarkRefreshResponseSchema = z.object({
-  status: z.enum(["success", "error"]).optional(),
-  message: z.string().optional(),
-  data: z.record(z.string(), z.unknown()).optional(),
-  error: z.string().optional(),
+const bookmarkRefreshSuccessResponseSchema = z.object({
+  status: z.literal("success"),
+  message: z.string(),
+  data: z.record(z.string(), z.unknown()),
 });
+const bookmarkRefreshErrorResponseSchema = z.object({
+  status: z.literal("error"),
+  message: z.string(),
+  error: z.string(),
+});
+export const bookmarkRefreshResponseSchema = z.discriminatedUnion("status", [
+  bookmarkRefreshSuccessResponseSchema,
+  bookmarkRefreshErrorResponseSchema,
+]);
 export type BookmarkRefreshResponse = z.infer<typeof bookmarkRefreshResponseSchema>;
 
 const discoverSerializableBookmarkSchema = z.object({

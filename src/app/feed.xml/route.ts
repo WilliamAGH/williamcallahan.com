@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAllPostsMeta } from "@/lib/blog";
 import { getBookmarksPage } from "@/lib/bookmarks/service.server";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { metadata } from "@/data/metadata";
 import { sanitizeControlChars } from "@/lib/utils/sanitize";
 
@@ -67,7 +68,7 @@ export async function GET() {
       return [
         {
           title: bookmark.title,
-          url: `${siteUrl}/bookmarks/${bookmark.slug}`,
+          url: `${siteUrl}${buildBookmarkPath(bookmark.slug)}`,
           date,
           description: pickDescription(bookmark.description, bookmark.summary),
           category: "Bookmark" as const,

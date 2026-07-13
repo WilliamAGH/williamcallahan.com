@@ -23,7 +23,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
-import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
+import { buildBookmarkPath, selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
@@ -75,9 +75,9 @@ async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | nu
 
     envLogger.log(`Slug mapped to ID`, { slug, bookmarkId }, { category: "BookmarkPage" });
 
-    const bookmark = (await getBookmarkById(bookmarkId, {
+    const bookmark = await getBookmarkById(bookmarkId, {
       includeImageData: true,
-    })) as UnifiedBookmark | null;
+    });
 
     if (bookmark) {
       envLogger.log(
@@ -120,13 +120,9 @@ async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null>
 /**
  * Generate metadata for this bookmark page
  */
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
-  const { slug } = await Promise.resolve(params);
-  const path = `/bookmarks/${slug}`;
+export async function generateMetadata({ params }: BookmarkPageContext): Promise<Metadata> {
+  const { slug } = await params;
+  const path = buildBookmarkPath(slug);
   const bookmark = await findBookmarkBySlug(slug);
 
   if (!bookmark) {
@@ -195,7 +191,7 @@ export async function generateMetadata({
   };
 }
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
-  const { slug } = await Promise.resolve(params);
+  const { slug } = await params;
   envLogger.log(`Page rendering`, { slug }, { category: "BookmarkPage" });
   const foundBookmark = await findBookmarkBySlug(slug);
 
@@ -264,7 +260,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     : "This is a bookmark I saved and found useful.";
 
   // Generate schema for this individual bookmark page
-  const path = `/bookmarks/${slug}`;
+  const path = buildBookmarkPath(slug);
   const pageMetadata = PAGE_METADATA.bookmarks;
   const schemaParams = {
     path,

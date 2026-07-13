@@ -15,6 +15,7 @@ import {
   getTagBookmarksIndex,
 } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 
 import {
   BOOKMARK_CHANGE_FREQUENCY,
@@ -58,7 +59,7 @@ const collectBookmarkEntriesFromPages = async (
       const lastModified = resolveBookmarkLastModified(bookmark);
       latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, lastModified);
       bookmarkEntries.push({
-        url: `${siteUrl}/bookmarks/${sanitizePathSegment(slug)}`,
+        url: `${siteUrl}${buildBookmarkPath(sanitizePathSegment(slug))}`,
         lastModified,
         changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
         priority: BOOKMARK_PRIORITY,
@@ -90,7 +91,7 @@ export const collectBookmarkSitemapData = async (
     const bookmarkEntriesFromMapping: MetadataRoute.Sitemap | null =
       slugMapping && Object.keys(slugMapping.slugs).length > 0
         ? Object.values(slugMapping.slugs).map((entry) => ({
-            url: `${siteUrl}/bookmarks/${sanitizePathSegment(entry.slug)}`,
+            url: `${siteUrl}${buildBookmarkPath(sanitizePathSegment(entry.slug))}`,
             lastModified: latestBookmarkUpdateTime,
             changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
             priority: BOOKMARK_PRIORITY,

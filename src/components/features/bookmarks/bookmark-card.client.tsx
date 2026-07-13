@@ -4,7 +4,7 @@ import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils
 import { formatDate as utilFormatDate } from "@/lib/utils";
 import { Calendar, Clock, ExternalLink as LucideExternalLinkIcon, Star } from "lucide-react";
 import Link from "next/link";
-import { type JSX } from "react";
+import { Fragment, type JSX } from "react";
 import { getDisplayHostname, safeExternalHref } from "@/lib/utils/url-utils";
 import { ExternalLink } from "../../ui/external-link.client";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { usePathname } from "next/navigation";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
-import type { BookmarkCardClientProps } from "@/types/features/bookmarks";
+import type { BookmarkCardClientProps, BookmarkCardLinkProps } from "@/types/features/bookmarks";
 
 // Display configuration
 const MAX_TITLE_WORDS = 10;
@@ -21,6 +21,32 @@ const MAX_TITLE_WORDS = 10;
 const MIN_DATE_PARTS = 3;
 /** Index of the year part in a formatted date string */
 const DATE_YEAR_INDEX = 2;
+
+function BookmarkCardLink({
+  internalHref,
+  externalHref,
+  title,
+  className,
+  children,
+}: BookmarkCardLinkProps): JSX.Element {
+  if (internalHref) {
+    return (
+      <Link href={internalHref} title={title} className={className} prefetch={false}>
+        {children}
+      </Link>
+    );
+  }
+
+  if (externalHref) {
+    return (
+      <ExternalLink href={externalHref} title={title} showIcon={false} className={className}>
+        {children}
+      </ExternalLink>
+    );
+  }
+
+  return <Fragment>{children}</Fragment>;
+}
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
   const {
@@ -82,29 +108,16 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     return (
       <div className="relative flex h-[23rem] flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-0 transition-[box-shadow,transform] duration-200 hover:scale-[1.005] hover:shadow-2xl dark:bg-gray-800">
         <div className="relative w-full aspect-video overflow-hidden rounded-t-2xl bg-gray-100 dark:bg-gray-800">
-          {effectiveInternalHref ? (
-            <Link
-              href={effectiveInternalHref}
-              title={title}
-              className="absolute inset-0 block"
-              prefetch={false}
-            >
-              <div className="relative w-full h-full">
-                <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
-              </div>
-            </Link>
-          ) : (
-            <ExternalLink
-              href={externalHref}
-              title={title}
-              showIcon={false}
-              className="absolute inset-0 block"
-            >
-              <div className="relative w-full h-full">
-                <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
-              </div>
-            </ExternalLink>
-          )}
+          <BookmarkCardLink
+            internalHref={effectiveInternalHref}
+            externalHref={externalHref}
+            title={title}
+            className="absolute inset-0 block"
+          >
+            <div className="relative w-full h-full">
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
+            </div>
+          </BookmarkCardLink>
           {displayHostname !== null && (
             <ExternalLink
               href={externalHref}
@@ -119,25 +132,14 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         </div>
         <div className="flex min-h-0 flex-1 flex-col p-3">
           <div className="min-h-0 flex-1 overflow-hidden">
-            {effectiveInternalHref ? (
-              <Link
-                href={effectiveInternalHref}
-                title={displayTitle}
-                className="text-gray-900 transition-colors hover:text-blue-600 dark:text-white"
-                prefetch={false}
-              >
-                <h3 className="line-clamp-3 text-sm font-semibold leading-5">{displayTitle}</h3>
-              </Link>
-            ) : (
-              <ExternalLink
-                href={externalHref}
-                title={displayTitle}
-                showIcon={false}
-                className="text-gray-900 transition-colors hover:text-blue-600 dark:text-white"
-              >
-                <h3 className="line-clamp-3 text-sm font-semibold leading-5">{displayTitle}</h3>
-              </ExternalLink>
-            )}
+            <BookmarkCardLink
+              internalHref={effectiveInternalHref}
+              externalHref={externalHref}
+              title={displayTitle}
+              className="text-gray-900 transition-colors hover:text-blue-600 dark:text-white"
+            >
+              <h3 className="line-clamp-3 text-sm font-semibold leading-5">{displayTitle}</h3>
+            </BookmarkCardLink>
             {rawTags.length > 0 && (
               <div className="mt-2 flex flex-wrap content-start gap-1.5 overflow-hidden">
                 {rawTags.slice(0, COMPACT_TAG_LIMIT).map((raw) => (
@@ -184,34 +186,17 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       {/* Image Section with domain overlay */}
       <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
         {/* Image background - clickable link */}
-        {effectiveInternalHref ? (
-          // When on list/grid views, link to internal bookmark page
-          // prefetch={false} reduces request volume in list contexts (see docs/standards/nextjs-framework.md §Link Prefetch)
-          <Link
-            href={effectiveInternalHref}
-            title={title}
-            className="absolute inset-0 block"
-            prefetch={false}
-          >
-            <div className="relative w-full h-full">
-              {/* Display OpenGraph image, screenshot, or placeholder */}
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
-            </div>
-          </Link>
-        ) : (
-          // When on individual bookmark page, link to external URL in new tab
-          <ExternalLink
-            href={externalHref}
-            title={title}
-            showIcon={false}
-            className="absolute inset-0 block"
-          >
-            <div className="relative w-full h-full">
-              {/* Display OpenGraph image, screenshot, or placeholder */}
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
-            </div>
-          </ExternalLink>
-        )}
+        <BookmarkCardLink
+          internalHref={effectiveInternalHref}
+          externalHref={externalHref}
+          title={title}
+          className="absolute inset-0 block"
+        >
+          <div className="relative w-full h-full">
+            {/* Display OpenGraph image, screenshot, or placeholder */}
+            <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
+          </div>
+        </BookmarkCardLink>
         {/* Clickable domain overlay - links to external URL */}
         {displayHostname !== null && (
           <ExternalLink
@@ -228,31 +213,16 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
         {/* Title */}
-        {effectiveInternalHref ? (
-          // When on list/grid views, link to internal bookmark page
-          <Link
-            href={effectiveInternalHref}
-            title={displayTitle}
-            className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
-            prefetch={false}
-          >
-            <h3 className={isHero ? "text-3xl font-semibold" : "text-2xl font-semibold"}>
-              {displayTitle}
-            </h3>
-          </Link>
-        ) : (
-          // When on individual bookmark page, link to external URL in new tab
-          <ExternalLink
-            href={externalHref}
-            title={displayTitle}
-            showIcon={false}
-            className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
-          >
-            <h3 className={isHero ? "text-3xl font-semibold" : "text-2xl font-semibold"}>
-              {displayTitle}
-            </h3>
-          </ExternalLink>
-        )}
+        <BookmarkCardLink
+          internalHref={effectiveInternalHref}
+          externalHref={externalHref}
+          title={displayTitle}
+          className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
+        >
+          <h3 className={isHero ? "text-3xl font-semibold" : "text-2xl font-semibold"}>
+            {displayTitle}
+          </h3>
+        </BookmarkCardLink>
 
         {/* Description */}
         <p

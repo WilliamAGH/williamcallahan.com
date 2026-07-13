@@ -1,5 +1,6 @@
 import type { SerializableBookmark } from "@/types/features/bookmarks";
 import type { BookmarkForDiscovery } from "@/types/features/discovery";
+import { buildBookmarkPath } from "./bookmark-helpers";
 
 export function serializeBookmark(bookmark: BookmarkForDiscovery): SerializableBookmark {
   return {
@@ -35,7 +36,7 @@ export function createSerializeWithHref(
   internalHrefs: Record<string, string>,
 ): (bookmark: BookmarkForDiscovery) => SerializableBookmark {
   return (bookmark: BookmarkForDiscovery) => {
-    internalHrefs[bookmark.id] = `/bookmarks/${bookmark.slug}`;
+    internalHrefs[bookmark.id] = buildBookmarkPath(bookmark.slug);
     return serializeBookmark(bookmark);
   };
 }

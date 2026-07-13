@@ -10,11 +10,11 @@ import { connection } from "next/server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getDomainSlug } from "@/lib/utils/domain-utils";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { redirect } from "next/navigation";
 
 import type { DomainPageRedirectorProps } from "@/types/api";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 export default async function DomainPageRedirector({
   params,
@@ -23,12 +23,12 @@ export default async function DomainPageRedirector({
   // Ensure request-time execution - this redirector uses searchParams and dynamic data
   await connection();
 
-  const allBookmarks = (await getBookmarks({
+  const allBookmarks = await getBookmarks({
     ...DEFAULT_BOOKMARK_OPTIONS,
     includeImageData: false,
     skipExternalFetch: false,
     force: false,
-  })) as UnifiedBookmark[];
+  });
 
   // Load slug mapping - REQUIRED for idempotency
   const slugMapping = await loadSlugMapping();
@@ -37,11 +37,8 @@ export default async function DomainPageRedirector({
     redirect("/bookmarks"); // Fallback to main bookmarks page
   }
 
-  // Make sure to await the params object
-  const paramsResolved = await Promise.resolve(params);
-  const { domainSlug } = paramsResolved;
-  const searchParamsResolved = await Promise.resolve(searchParams);
-  const rawId = searchParamsResolved.id;
+  const { domainSlug } = await params;
+  const { id: rawId } = await searchParams;
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
   // If ID is provided, find that specific bookmark
@@ -50,7 +47,7 @@ export default async function DomainPageRedirector({
     if (bookmark) {
       const uniqueSlug = getSlugForBookmark(slugMapping, bookmark.id);
       if (uniqueSlug) {
-        redirect(`/bookmarks/${uniqueSlug}`);
+        redirect(buildBookmarkPath(uniqueSlug));
       } else {
         console.error(`[DomainRedirect] No slug found for bookmark ${bookmark.id}`);
       }
@@ -69,7 +66,7 @@ export default async function DomainPageRedirector({
   if (bookmarkWithDomain) {
     const uniqueSlug = getSlugForBookmark(slugMapping, bookmarkWithDomain.id);
     if (uniqueSlug) {
-      redirect(`/bookmarks/${uniqueSlug}`);
+      redirect(buildBookmarkPath(uniqueSlug));
     } else {
       console.error(`[DomainRedirect] No slug found for bookmark ${bookmarkWithDomain.id}`);
     }
