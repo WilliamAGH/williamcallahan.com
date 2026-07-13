@@ -17,7 +17,7 @@ import { useRegisteredWindowState } from "@/lib/context/global-window-registry-c
 import { cn } from "@/lib/utils";
 import { Landmark } from "lucide-react";
 import Link from "next/link";
-import { type JSX, useEffect } from "react";
+import type { JSX } from "react";
 import { WindowControls } from "../../../components/ui/navigation/window-controls";
 import type { InvestmentsClientProps } from "@/types/features/investments";
 import { InvestmentCardClient } from "./investment-card.client";
@@ -49,16 +49,6 @@ export function InvestmentsClient({
     isRegistered,
   } = useRegisteredWindowState(INVESTMENTS_WINDOW_ID, Landmark, "Restore Investments", "normal");
 
-  // Log state changes (optional, for debugging)
-  useEffect(() => {
-    if (isRegistered) {
-      console.log(
-        `InvestmentsClient Render (${INVESTMENTS_WINDOW_ID}) - Window State:`,
-        windowState,
-      );
-    }
-  }, [windowState, isRegistered]);
-
   // Determine the effective state for this render. While the window is
   // unregistered on the server (or the very first client paint), we fall back
   // to a sane default of `normal` so that the UI is still rendered. Once the
@@ -69,9 +59,6 @@ export function InvestmentsClient({
   // closed or minimized. This prevents the initial blank screen while keeping
   // the intended behavior afterwards.
   if (isRegistered && (effectiveState === "closed" || effectiveState === "minimized")) {
-    console.log(
-      `InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering null (state: ${effectiveState})`,
-    );
     return null;
   }
 
@@ -104,7 +91,6 @@ export function InvestmentsClient({
   }
 
   // Render normal or maximized view
-  console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering ${effectiveState} view`);
   const isMaximized = effectiveState === "maximized";
 
   return (
