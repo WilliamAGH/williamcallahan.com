@@ -29,17 +29,14 @@ import {
   getGitHubUsername,
 } from "./github-api";
 
-import { writeGitHubActivityRecord } from "./github-storage";
-import { writeGitHubActivitySummary } from "./github-activity-summaries";
+import { writeGitHubActivityRefreshRecord } from "./github-storage";
+import { createGitHubActivitySummary } from "./github-activity-summaries";
 import { detectAndRepairCsvFiles } from "./github-csv-repair";
 import { calculateAllTimeCommitCount } from "./github-commit-counts";
 import { processRepositoryStats } from "./github-repo-stats";
 import { GITHUB_REFRESH_RATE_LIMIT_CONFIG } from "@/lib/constants";
 
-import {
-  calculateAndStoreAggregatedWeeklyActivity,
-  createEmptyCategoryStats,
-} from "./github-processing";
+import { calculateAggregatedWeeklyActivity, createEmptyCategoryStats } from "./github-processing";
 import { fetchTrailingYearContributionCalendar } from "./github-contributions";
 
 // Configuration
@@ -123,22 +120,24 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       trailingYearData: emptyActivityData,
       cumulativeAllTimeData: emptyActivityData,
     };
-    const activityWritten = await writeGitHubActivityRecord(
-      emptyActivity,
-      GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
-    );
-    if (!activityWritten) {
-      throw new Error("GitHub activity refresh preserved its existing activity record.");
-    }
-    const summaryWritten = await writeGitHubActivitySummary({
+    const summary = createGitHubActivitySummary({
       allTimeData: emptyActivityData,
       totalRepositoriesContributedTo: 0,
       linesOfCodeByCategory: createEmptyCategoryStats(),
     });
-    if (!summaryWritten) {
-      throw new Error("GitHub activity refresh failed to persist its summary record.");
+    const aggregate = await calculateAggregatedWeeklyActivity([]);
+    if (aggregate === null) {
+      throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
     }
-    await calculateAndStoreAggregatedWeeklyActivity([]);
+    const refreshWritten = await writeGitHubActivityRefreshRecord(
+      emptyActivity,
+      summary,
+      aggregate.aggregatedActivity,
+      GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
+    );
+    if (!refreshWritten) {
+      throw new Error("GitHub activity refresh preserved its existing activity record.");
+    }
     return { trailingYearData: emptyActivityData, allTimeData: emptyActivityData };
   }
 
@@ -230,22 +229,24 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     trailingYearData,
     cumulativeAllTimeData: allTimeData,
   };
-  const activityWritten = await writeGitHubActivityRecord(combinedActivityData);
-  if (!activityWritten) {
-    throw new Error("GitHub activity refresh preserved its existing activity record.");
-  }
-
-  const summaryWritten = await writeGitHubActivitySummary({
+  const summary = createGitHubActivitySummary({
     allTimeData,
     totalRepositoriesContributedTo: uniqueRepoArray.length,
     linesOfCodeByCategory: allTimeCategoryStats,
   });
-  if (!summaryWritten) {
-    throw new Error("GitHub activity refresh failed to persist its summary record.");
-  }
-
-  await calculateAndStoreAggregatedWeeklyActivity(
+  const aggregate = await calculateAggregatedWeeklyActivity(
     uniqueRepoArray.map((repository) => repository.nameWithOwner),
   );
+  if (aggregate === null) {
+    throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
+  }
+  const refreshWritten = await writeGitHubActivityRefreshRecord(
+    combinedActivityData,
+    summary,
+    aggregate.aggregatedActivity,
+  );
+  if (!refreshWritten) {
+    throw new Error("GitHub activity refresh preserved its existing activity record.");
+  }
   return { trailingYearData, allTimeData };
 }

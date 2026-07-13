@@ -67,7 +67,7 @@ Canonical runtime records live in PostgreSQL table `github_activity_store`:
 
 No active GitHub runtime or repair path falls back to S3. If historical GitHub CSV artifacts are retained, they are legacy migration or archival material only.
 
-A confirmed empty current repository set is intentionally persisted as complete zero activity and an empty weekly aggregate, replacing prior healthy aggregates rather than retaining stale repository data. This requires the canonical explicit replacement intent; nonzero or incomplete payloads are rejected, and summary persistence must succeed before the refresh reports success.
+A confirmed empty current repository set is intentionally persisted as complete zero activity and an empty weekly aggregate, replacing prior healthy aggregates rather than retaining stale repository data. This requires the canonical explicit replacement intent; nonzero or incomplete payloads are rejected. Each accepted refresh commits its activity, all-time summary, and weekly aggregate in one database transaction, so a refusal or persistence failure leaves all three prior records intact.
 
 ## Scheduled Data Refresh
 
@@ -103,9 +103,9 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 - **`src/lib/data-access/github-csv-repair.ts`**
   - PostgreSQL repository-weekly integrity checks, checksum comparison, and repair workflow
 - **`src/lib/data-access/github-activity-summaries.ts`**
-  - Writes the single all-time summary-card payload to `summary/global`
+  - Builds the single all-time summary-card payload for the atomic refresh write
 - **`src/lib/data-access/github-processing.ts`**
-  - Shared processing helpers (category stats and in-memory repository-weekly normalization)
+  - Shared processing helpers (category stats, weekly aggregation, and in-memory repository-weekly normalization)
 
 ### API Endpoints
 

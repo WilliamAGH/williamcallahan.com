@@ -4,18 +4,14 @@ const {
   mockIsOperationAllowed,
   mockProcessSingleRepository,
   mockReadRepoWeeklyStatsRecord,
-  mockWriteAggregatedWeeklyActivityRecord,
-  mockWriteGitHubActivitySummary,
-  mockWriteGitHubActivityRecord,
+  mockWriteGitHubActivityRefreshRecord,
 } = vi.hoisted(() => ({
   mockFetchContributedRepositories: vi.fn(),
   mockIsGitHubApiConfigured: vi.fn(),
   mockIsOperationAllowed: vi.fn(),
   mockProcessSingleRepository: vi.fn(),
   mockReadRepoWeeklyStatsRecord: vi.fn(),
-  mockWriteAggregatedWeeklyActivityRecord: vi.fn(),
-  mockWriteGitHubActivitySummary: vi.fn(),
-  mockWriteGitHubActivityRecord: vi.fn(),
+  mockWriteGitHubActivityRefreshRecord: vi.fn(),
 }));
 
 vi.mock("@/lib/data-access/github-api", () => ({
@@ -25,22 +21,20 @@ vi.mock("@/lib/data-access/github-api", () => ({
 }));
 vi.mock("@/lib/data-access/github-storage", () => ({
   readRepoWeeklyStatsRecord: mockReadRepoWeeklyStatsRecord,
-  writeAggregatedWeeklyActivityRecord: mockWriteAggregatedWeeklyActivityRecord,
-  writeGitHubActivityRecord: mockWriteGitHubActivityRecord,
+  writeGitHubActivityRefreshRecord: mockWriteGitHubActivityRefreshRecord,
 }));
 vi.mock("@/lib/data-access/github-repo-processor", () => ({
   processSingleRepository: mockProcessSingleRepository,
-}));
-vi.mock("@/lib/data-access/github-activity-summaries", () => ({
-  writeGitHubActivitySummary: mockWriteGitHubActivitySummary,
 }));
 vi.mock("@/lib/rate-limiter", () => ({
   isOperationAllowed: mockIsOperationAllowed,
 }));
 
 import { refreshGitHubActivityDataFromApi } from "../../src/lib/data-access/github";
+import { createGitHubActivitySummary } from "@/lib/data-access/github-activity-summaries";
+import type { writeGitHubActivityRefreshRecord } from "@/lib/data-access/github-storage";
 import {
-  calculateAndStoreAggregatedWeeklyActivity,
+  calculateAggregatedWeeklyActivity,
   createEmptyCategoryStats,
 } from "@/lib/data-access/github-processing";
 import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
@@ -59,17 +53,12 @@ import type {
   SingleRepoProcessingInput,
   SingleRepoProcessingResult,
 } from "@/types/features/github-processing";
-import type { GitHubSummaryInput } from "@/types/github";
 
 type RefreshGitHubActivityResult = NonNullable<
   Awaited<ReturnType<typeof refreshGitHubActivityDataFromApi>>
 >;
 
-let persistedActivity: GitHubActivityApiResponse | undefined;
-let persistedAggregate: AggregatedWeeklyActivity[] | undefined;
-let persistedSummary: GitHubSummaryInput | undefined;
-let persistedIntent: GitHubActivityWriteIntent | undefined;
-let writeOrder: string[] = [];
+let persistedRefresh: Parameters<typeof writeGitHubActivityRefreshRecord> | undefined;
 
 const zeroSegment: GitHubActivitySegment = {
   source: "api",
@@ -114,42 +103,20 @@ describe("GitHub activity refresh", () => {
     vi.clearAllMocks();
     process.env.AUTO_REPAIR_CSV_FILES = "false";
     process.env.DRY_RUN = "false";
-    persistedActivity = undefined;
-    persistedAggregate = undefined;
-    persistedSummary = undefined;
-    persistedIntent = undefined;
-    writeOrder = [];
+    persistedRefresh = undefined;
 
     mockIsGitHubApiConfigured.mockReturnValue(true);
     mockIsOperationAllowed.mockReturnValue(true);
     mockProcessSingleRepository.mockReset();
     mockReadRepoWeeklyStatsRecord.mockReset();
-    mockWriteGitHubActivityRecord.mockImplementation(
+    mockWriteGitHubActivityRefreshRecord.mockImplementation(
       async (
-        data: GitHubActivityApiResponse,
+        activity: GitHubActivityApiResponse,
+        summary: GitHubActivitySummary,
+        aggregatedActivity: AggregatedWeeklyActivity[],
         intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
       ): Promise<boolean> => {
-        writeOrder.push("activity");
-        persistedActivity = data;
-        persistedIntent = intent;
-        return true;
-      },
-    );
-    mockWriteAggregatedWeeklyActivityRecord.mockImplementation(
-      async (data: AggregatedWeeklyActivity[]): Promise<boolean> => {
-        writeOrder.push("aggregate");
-        if (data.length === 0) {
-          persistedAggregate = data;
-          return true;
-        }
-
-        throw new Error("The zero-repository refresh must persist an empty aggregate.");
-      },
-    );
-    mockWriteGitHubActivitySummary.mockImplementation(
-      async (input: GitHubSummaryInput): Promise<boolean> => {
-        writeOrder.push("summary");
-        persistedSummary = input;
+        persistedRefresh = [activity, summary, aggregatedActivity, intent];
         return true;
       },
     );
@@ -160,10 +127,15 @@ describe("GitHub activity refresh", () => {
       trailingYearData: zeroSegment,
       allTimeData: zeroSegment,
     };
-    persistedAggregate = [{ weekStartDate: "2026-01-01", linesAdded: 123, linesRemoved: 45 }];
     mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
 
     await expect(refreshGitHubActivityDataFromApi()).resolves.toEqual(expectedResult);
+    if (persistedRefresh === undefined) {
+      throw new Error("The zero-repository refresh was not persisted.");
+    }
+    const [persistedActivity, persistedSummary, persistedAggregate, persistedIntent] =
+      persistedRefresh;
+    expect(mockWriteGitHubActivityRefreshRecord).toHaveBeenCalledOnce();
     expect(persistedActivity).toEqual({
       trailingYearData: zeroSegment,
       cumulativeAllTimeData: zeroSegment,
@@ -172,26 +144,22 @@ describe("GitHub activity refresh", () => {
       GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
     );
     expect(persistedAggregate).toEqual([]);
-    expect(writeOrder).toEqual(["activity", "summary", "aggregate"]);
-    expect(persistedSummary).toBeDefined();
-    if (persistedSummary === undefined) {
-      throw new Error("The zero-repository refresh did not persist its summary.");
-    }
-    expect(persistedSummary.allTimeData).toEqual(zeroSegment);
+    expect(persistedSummary.totalContributions).toBe(0);
+    expect(persistedSummary.totalLinesAdded).toBe(0);
+    expect(persistedSummary.totalLinesRemoved).toBe(0);
     expect(persistedSummary.totalRepositoriesContributedTo).toBe(0);
     expect(persistedSummary.linesOfCodeByCategory).toEqual(createEmptyCategoryStats());
   });
 
-  it("does not write derived records when activity preservation refuses the refresh", async () => {
+  it("does not persist any refresh record when activity preservation refuses the refresh", async () => {
     mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
-    mockWriteGitHubActivityRecord.mockResolvedValue(false);
+    mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
       "preserved its existing activity record",
     );
-    expect(persistedActivity).toBeUndefined();
-    expect(persistedAggregate).toBeUndefined();
-    expect(persistedSummary).toBeUndefined();
+    expect(mockWriteGitHubActivityRefreshRecord).toHaveBeenCalledTimes(1);
+    expect(persistedRefresh).toBeUndefined();
   });
 
   it("propagates the original GraphQL failure without persisting stale data", async () => {
@@ -199,18 +167,25 @@ describe("GitHub activity refresh", () => {
     mockFetchContributedRepositories.mockRejectedValue(graphQlFailure);
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toBe(graphQlFailure);
-    expect(persistedActivity).toBeUndefined();
-    expect(persistedAggregate).toBeUndefined();
-    expect(persistedSummary).toBeUndefined();
+    expect(persistedRefresh).toBeUndefined();
   });
 
   it("returns null without persisting when GitHub API configuration is absent", async () => {
     mockIsGitHubApiConfigured.mockReturnValue(false);
 
     await expect(refreshGitHubActivityDataFromApi()).resolves.toBeNull();
-    expect(persistedActivity).toBeUndefined();
-    expect(persistedAggregate).toBeUndefined();
-    expect(persistedSummary).toBeUndefined();
+    expect(persistedRefresh).toBeUndefined();
+  });
+
+  it("does not persist a partial refresh in dry-run mode", async () => {
+    process.env.DRY_RUN = "true";
+    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
+
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
+      "skipped aggregate calculation in dry-run mode",
+    );
+    expect(mockWriteGitHubActivityRefreshRecord).not.toHaveBeenCalled();
+    expect(persistedRefresh).toBeUndefined();
   });
 
   it("aggregates only the current repository identifiers", async () => {
@@ -221,9 +196,7 @@ describe("GitHub activity refresh", () => {
       status: "complete",
       stats: [{ w: Date.parse("2026-07-06T00:00:00.000Z") / 1000, a: 12, d: 3, c: 1 }],
     });
-    mockWriteAggregatedWeeklyActivityRecord.mockResolvedValue(true);
-
-    const result = await calculateAndStoreAggregatedWeeklyActivity(["current-owner/current-repo"]);
+    const result = await calculateAggregatedWeeklyActivity(["current-owner/current-repo"]);
 
     expect(mockReadRepoWeeklyStatsRecord).toHaveBeenCalledExactlyOnceWith(
       "current-owner",
@@ -274,41 +247,27 @@ describe("GitHub activity refresh", () => {
   });
 });
 
-describe("GitHub activity summary persistence", () => {
-  it("preserves distinct all-time repository counts by category", async () => {
-    vi.resetModules();
-    vi.doUnmock("@/lib/data-access/github-activity-summaries");
-    let writtenSummary: GitHubActivitySummary | undefined;
-    const writeGitHubSummaryRecord = vi.fn(
-      async (summary: GitHubActivitySummary): Promise<boolean> => {
-        writtenSummary = summary;
-        return true;
-      },
-    );
-    vi.doMock("@/lib/data-access/github-storage", () => ({
-      writeGitHubSummaryRecord,
-    }));
-
-    const { writeGitHubActivitySummary } =
-      await import("@/lib/data-access/github-activity-summaries");
+describe("GitHub activity summary", () => {
+  it("preserves distinct all-time repository counts by category", () => {
     const allTimeCategoryStats = createEmptyCategoryStats();
     allTimeCategoryStats.frontend.repoCount = 2;
     allTimeCategoryStats.backend.repoCount = 1;
 
-    await expect(
-      writeGitHubActivitySummary({
-        allTimeData: { ...zeroSegment, totalContributions: 42 },
-        totalRepositoriesContributedTo: 3,
-        linesOfCodeByCategory: allTimeCategoryStats,
-      }),
-    ).resolves.toBe(true);
-    expect(writeGitHubSummaryRecord).toHaveBeenCalledTimes(1);
-    if (writtenSummary === undefined) {
-      throw new Error("The all-time summary was not persisted.");
-    }
-    expect(writtenSummary.totalContributions).toBe(42);
-    expect(writtenSummary.totalRepositoriesContributedTo).toBe(3);
-    expect(writtenSummary.linesOfCodeByCategory).toEqual(allTimeCategoryStats);
+    const summary = createGitHubActivitySummary({
+      allTimeData: {
+        ...zeroSegment,
+        totalContributions: 42,
+        linesAdded: 14,
+        linesRemoved: 5,
+      },
+      totalRepositoriesContributedTo: 3,
+      linesOfCodeByCategory: allTimeCategoryStats,
+    });
+
+    expect(summary.totalContributions).toBe(42);
+    expect(summary.netLinesOfCode).toBe(9);
+    expect(summary.totalRepositoriesContributedTo).toBe(3);
+    expect(summary.linesOfCodeByCategory).toEqual(allTimeCategoryStats);
   });
 });
 

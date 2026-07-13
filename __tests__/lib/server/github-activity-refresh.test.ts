@@ -1,13 +1,18 @@
 import * as Sentry from "@sentry/nextjs";
+import { GET as getGitHubActivity } from "@/app/api/github-activity/route";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
+import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { runGitHubActivityRefresh } from "@/lib/server/github-activity-refresh";
 import { getMonotonicTime } from "@/lib/utils";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
+import { createUnavailableUserActivityView } from "@/types/schemas/github-storage";
+import { connection, NextRequest } from "next/server";
 
 vi.mock("@/lib/data-access/github", () => ({
   refreshGitHubActivityDataFromApi: vi.fn(),
 }));
+vi.mock("@/lib/data-access/github-public-api", () => ({ getGithubActivityCached: vi.fn() }));
 vi.mock("@/lib/db/connection", () => ({
   resolveDatabaseAccessMode: vi.fn(),
 }));
@@ -26,6 +31,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 const mockedRefreshGitHubActivityDataFromApi = vi.mocked(refreshGitHubActivityDataFromApi);
+const mockedGetGithubActivityCached = vi.mocked(getGithubActivityCached);
 const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
 const mockedGetMonotonicTime = vi.mocked(getMonotonicTime);
 const mockedInvalidateAllGitHubCaches = vi.mocked(invalidateAllGitHubCaches);
@@ -49,6 +55,36 @@ const refreshedActivity = {
     dataComplete: true,
   },
 } satisfies NonNullable<Awaited<ReturnType<typeof refreshGitHubActivityDataFromApi>>>;
+
+const unavailableGitHubActivity = createUnavailableUserActivityView({ source: "empty" });
+const githubActivityUrl = "http://localhost:3000/api/github-activity";
+
+function expectNoStoreResponse(response: Response, status: number): void {
+  expect(response.status).toBe(status);
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(connection).toHaveBeenCalledOnce();
+}
+
+describe("GET /api/github-activity", () => {
+  it("returns no-store after calling connection on activity data", async () => {
+    mockedGetGithubActivityCached.mockResolvedValueOnce(unavailableGitHubActivity);
+    const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
+    expectNoStoreResponse(response, 200);
+  });
+
+  it("returns no-store after calling connection on refresh guidance", async () => {
+    const response = await getGitHubActivity(new NextRequest(`${githubActivityUrl}?refresh=true`));
+    expectNoStoreResponse(response, 400);
+  });
+
+  it("returns no-store after calling connection on data access failure", async () => {
+    mockedGetGithubActivityCached.mockRejectedValueOnce(
+      new Error("GitHub activity data access failed"),
+    );
+    const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
+    expectNoStoreResponse(response, 500);
+  });
+});
 
 describe("runGitHubActivityRefresh", () => {
   beforeEach(() => {

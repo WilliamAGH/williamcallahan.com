@@ -15,10 +15,8 @@ import {
   readGitHubActivityUpdatedAt,
 } from "@/lib/db/queries/github-activity";
 import {
-  writeGitHubActivityToDb,
-  writeGitHubSummaryToDb,
+  writeGitHubActivityRefreshToDb,
   writeRepoWeeklyStatsToDb,
-  writeAggregatedWeeklyActivityToDb,
 } from "@/lib/db/mutations/github-activity";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
@@ -46,19 +44,19 @@ export async function readGitHubActivityRecord(): Promise<GitHubActivityApiRespo
   return activityRecord;
 }
 
-/**
- * Write GitHub activity data with non-degrading write protection.
- */
-export async function writeGitHubActivityRecord(
-  data: GitHubActivityApiResponse,
+/** Validate and atomically persist every public record produced by one GitHub refresh. */
+export async function writeGitHubActivityRefreshRecord(
+  activity: GitHubActivityApiResponse,
+  summary: GitHubActivitySummary,
+  aggregatedActivity: AggregatedWeeklyActivity[],
   intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
 ): Promise<boolean> {
-  const parsedData = gitHubActivityApiResponseSchema.safeParse(data);
-  if (!parsedData.success) {
-    throw new Error(`Invalid GitHub activity record: ${parsedData.error.message}`);
-  }
-
-  return writeGitHubActivityToDb(parsedData.data, intent);
+  return writeGitHubActivityRefreshToDb(
+    gitHubActivityApiResponseSchema.parse(activity),
+    gitHubActivitySummarySchema.parse(summary),
+    aggregatedWeeklyActivityArraySchema.parse(aggregatedActivity),
+    intent,
+  );
 }
 
 /**
@@ -66,13 +64,6 @@ export async function writeGitHubActivityRecord(
  */
 export async function readGitHubSummaryRecord(): Promise<GitHubActivitySummary | null> {
   return readGitHubSummaryFromDb();
-}
-
-/**
- * Write the all-time GitHub activity summary to the database.
- */
-export async function writeGitHubSummaryRecord(summary: GitHubActivitySummary): Promise<boolean> {
-  return writeGitHubSummaryToDb(gitHubActivitySummarySchema.parse(summary));
 }
 
 /**
@@ -103,15 +94,6 @@ export async function readAggregatedWeeklyActivityRecord(): Promise<
   AggregatedWeeklyActivity[] | null
 > {
   return readAggregatedWeeklyActivityFromDb();
-}
-
-/**
- * Write aggregated weekly activity to the database.
- */
-export async function writeAggregatedWeeklyActivityRecord(
-  data: AggregatedWeeklyActivity[],
-): Promise<boolean> {
-  return writeAggregatedWeeklyActivityToDb(aggregatedWeeklyActivityArraySchema.parse(data));
 }
 
 /**

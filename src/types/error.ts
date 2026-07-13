@@ -1,7 +1,7 @@
 /**
  * Error Types
  *
- * SCOPE: Core error types and client-error reporting payloads.
+ * SCOPE: Core application error contracts with reusable semantics.
  * This file defines the fundamental shapes for handling errors across the application.
  *
  * === INCLUSION RULES ===

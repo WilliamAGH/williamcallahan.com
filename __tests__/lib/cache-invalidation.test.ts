@@ -23,12 +23,16 @@ import {
 } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getAllPosts } from "@/lib/blog";
 import { invalidateBlogCache } from "@/lib/blog/mdx";
+import { createGitHubActivitySummary } from "@/lib/data-access/github-activity-summaries";
+import { createEmptyCategoryStats } from "@/lib/data-access/github-processing";
 import type { GraphQLRepoNode } from "@/types/github";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
+  gitHubActivityApiResponseSchema,
   publicPriorYearCommitSummarySchema,
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
+  type GitHubActivityWriteIntent,
   type PriorYearCommitSummary,
 } from "@/types/schemas/github-storage";
 
@@ -68,35 +72,56 @@ const readGithubActivityView = async (record: GitHubActivityApiResponse, lastMod
   }
 };
 
-const loadGitHubActivityWriter = async (initialActivity: GitHubActivityApiResponse) => {
+const loadGitHubActivityWriter = async (
+  initialActivity: GitHubActivityApiResponse,
+  rejectInsert = false,
+) => {
   vi.resetModules();
   let storedActivity = initialActivity;
+  const transactionExecutor = {
+    execute: vi.fn(),
+    select: () => ({
+      from: () => ({
+        where: () => ({ limit: async () => [{ payload: storedActivity }] }),
+      }),
+    }),
+    insert: () => ({
+      values: (records: Array<{ dataType: string; payload: unknown }>) => ({
+        onConflictDoUpdate: async () => {
+          if (rejectInsert) throw new Error("atomic insert failed");
+          const activityRecord = records.find((record) => record.dataType === "activity");
+          if (activityRecord === undefined) throw new Error("Atomic refresh omitted activity.");
+          storedActivity = gitHubActivityApiResponseSchema.parse(activityRecord.payload);
+        },
+      }),
+    }),
+  };
   vi.doMock("@/lib/db/connection", () => ({
     assertDatabaseWriteAllowed: vi.fn(),
     db: {
-      insert: () => ({
-        values: (record: { payload: GitHubActivityApiResponse }) => ({
-          onConflictDoUpdate: async () => {
-            storedActivity = record.payload;
-          },
-        }),
-      }),
+      transaction: (callback: (executor: typeof transactionExecutor) => Promise<boolean>) =>
+        callback(transactionExecutor),
     },
   }));
-  vi.doMock("@/lib/db/queries/github-activity", () => ({
-    readGitHubActivityFromDb: () => Promise.resolve(storedActivity),
-  }));
-  const { writeGitHubActivityToDb } = await import("@/lib/db/mutations/github-activity");
-  return { getStoredActivity: () => storedActivity, writeGitHubActivityToDb };
+  const { writeGitHubActivityRefreshToDb } = await import("@/lib/db/mutations/github-activity");
+  const publishActivity = (
+    activity: GitHubActivityApiResponse,
+    intent: GitHubActivityWriteIntent,
+  ) =>
+    writeGitHubActivityRefreshToDb(
+      activity,
+      createGitHubActivitySummary({
+        allTimeData: activity.cumulativeAllTimeData,
+        totalRepositoriesContributedTo: 0,
+        linesOfCodeByCategory: createEmptyCategoryStats(),
+      }),
+      [],
+      intent,
+    );
+  return { getStoredActivity: () => storedActivity, publishActivity };
 };
 
 describe("Next.js Cache Invalidation", () => {
-  const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE === "true";
-
-  beforeAll(() => {
-    console.log(`Testing with USE_NEXTJS_CACHE: ${USE_NEXTJS_CACHE}`);
-  });
-
   describe("Search Cache", () => {
     it("should cache and invalidate search results", async () => {
       const query = "javascript";
@@ -104,48 +129,26 @@ describe("Next.js Cache Invalidation", () => {
       const results1 = await searchBlogPostsServerSide(query);
       expect(results1).toBeDefined();
       expect(Array.isArray(results1)).toBe(true);
-
-      const start = Date.now();
       const results2 = await searchBlogPostsServerSide(query);
-      const cachedTime = Date.now() - start;
       expect(results2).toBeDefined();
 
       invalidateSearchCache();
       invalidateSearchQueryCache(query);
 
-      const start2 = Date.now();
       const results3 = await searchBlogPostsServerSide(query);
-      const freshTime = Date.now() - start2;
       expect(results3).toBeDefined();
-
-      console.log(`Search cache test - Cached: ${cachedTime}ms, Fresh: ${freshTime}ms`);
     });
   });
 
   describe("Bookmarks Cache", () => {
     it("should cache and invalidate bookmarks data", async () => {
-      try {
-        const page1 = await getBookmarksPage(1);
-        expect(page1).toBeDefined();
-        expect(Array.isArray(page1)).toBe(true);
+      const page1 = await getBookmarksPage(1);
+      expect(Array.isArray(page1)).toBe(true);
+      await expect(getBookmarksPage(1)).resolves.toHaveLength(page1.length);
 
-        const start = Date.now();
-        const page2 = await getBookmarksPage(1);
-        const cachedTime = Date.now() - start;
-        expect(page2.length).toBe(page1.length);
+      invalidateBookmarksCache();
 
-        invalidateBookmarksCache();
-
-        const start2 = Date.now();
-        const page3 = await getBookmarksPage(1);
-        const freshTime = Date.now() - start2;
-        expect(page3.length).toBe(page1.length);
-
-        console.log(`Bookmarks cache test - Cached: ${cachedTime}ms, Fresh: ${freshTime}ms`);
-      } catch {
-        console.log("Bookmarks test skipped - S3 not configured");
-        expect(true).toBe(true); // Pass the test
-      }
+      await expect(getBookmarksPage(1)).resolves.toHaveLength(page1.length);
     });
   });
 
@@ -255,11 +258,11 @@ describe("Next.js Cache Invalidation", () => {
     });
 
     it("preserves healthy activity when an incomplete refresh arrives", async () => {
-      const { getStoredActivity, writeGitHubActivityToDb } =
+      const { getStoredActivity, publishActivity } =
         await loadGitHubActivityWriter(healthyActivity);
 
       await expect(
-        writeGitHubActivityToDb(
+        publishActivity(
           buildGitHubActivity({
             data: [{ date: "2026-06-10", count: 5, level: 2 }],
             totalContributions: 150,
@@ -280,10 +283,10 @@ describe("Next.js Cache Invalidation", () => {
         linesRemoved: 0,
         dataComplete: true,
       });
-      const { getStoredActivity, writeGitHubActivityToDb } =
+      const { getStoredActivity, publishActivity } =
         await loadGitHubActivityWriter(healthyActivity);
 
-      await writeGitHubActivityToDb(
+      await publishActivity(
         emptyActivity,
         GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
       );
@@ -291,36 +294,40 @@ describe("Next.js Cache Invalidation", () => {
       expect(getStoredActivity()).toEqual(emptyActivity);
     });
 
-    it("rejects nonzero and incomplete empty-repository replacements", async () => {
-      const { getStoredActivity, writeGitHubActivityToDb } =
+    it("keeps the previous activity when the atomic insert fails", async () => {
+      const { getStoredActivity, publishActivity } = await loadGitHubActivityWriter(
+        healthyActivity,
+        true,
+      );
+
+      await expect(
+        publishActivity(healthyActivity, GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY),
+      ).rejects.toThrow("atomic insert failed");
+      expect(getStoredActivity()).toEqual(healthyActivity);
+    });
+
+    it.each([
+      ["nonzero", { totalContributions: 1 }],
+      ["incomplete", { dataComplete: false }],
+      ["added", { linesAdded: 1 }],
+      ["removed", { linesRemoved: 1 }],
+    ])("rejects %s empty-repository replacements", async (_name, overrides) => {
+      const { getStoredActivity, publishActivity } =
         await loadGitHubActivityWriter(healthyActivity);
 
       await expect(
-        writeGitHubActivityToDb(
-          buildGitHubActivity({ data: [], totalContributions: 1, dataComplete: true }),
+        publishActivity(
+          buildGitHubActivity({
+            data: [],
+            totalContributions: 0,
+            linesAdded: 0,
+            linesRemoved: 0,
+            dataComplete: true,
+            ...overrides,
+          }),
           GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
         ),
       ).rejects.toThrow("complete, zero-contribution activity data");
-      await expect(
-        writeGitHubActivityToDb(
-          buildGitHubActivity({ data: [], totalContributions: 0, dataComplete: false }),
-          GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
-        ),
-      ).rejects.toThrow("complete, zero-contribution activity data");
-      for (const metric of ["linesAdded", "linesRemoved"] as const) {
-        await expect(
-          writeGitHubActivityToDb(
-            buildGitHubActivity({
-              data: [],
-              totalContributions: 0,
-              [metric]: 1,
-              dataComplete: true,
-            }),
-            GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
-          ),
-        ).rejects.toThrow("complete, zero-contribution activity data");
-      }
-
       expect(getStoredActivity()).toEqual(healthyActivity);
     });
   });
@@ -331,20 +338,13 @@ describe("Next.js Cache Invalidation", () => {
       expect(posts1).toBeDefined();
       expect(Array.isArray(posts1)).toBe(true);
       expect(posts1.length).toBeGreaterThan(0);
-
-      const start = Date.now();
       const posts2 = await getAllPosts();
-      const cachedTime = Date.now() - start;
       expect(posts2.length).toBe(posts1.length);
 
       invalidateBlogCache();
 
-      const start2 = Date.now();
       const posts3 = await getAllPosts();
-      const freshTime = Date.now() - start2;
       expect(posts3.length).toBe(posts1.length);
-
-      console.log(`Blog cache test - Cached: ${cachedTime}ms, Fresh: ${freshTime}ms`);
     }, 30000); // 30 second timeout for MDX processing
   });
 });

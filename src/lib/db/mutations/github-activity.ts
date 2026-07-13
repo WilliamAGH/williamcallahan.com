@@ -1,14 +1,14 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import {
   githubActivityStore,
   GITHUB_ACTIVITY_DATA_TYPES,
   GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
 } from "@/lib/db/schema/github-activity";
-import { readGitHubActivityFromDb } from "@/lib/db/queries/github-activity";
 import { debugLog } from "@/lib/utils/debug";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
+  gitHubActivityApiResponseSchema,
   type AggregatedWeeklyActivity,
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
@@ -16,6 +16,8 @@ import {
   type GitHubActivityWriteIntent,
   type RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
+
+const GITHUB_ACTIVITY_REFRESH_LOCK = "github-activity-refresh-global";
 
 /**
  * Upsert a document into the github_activity_store table.
@@ -64,17 +66,12 @@ const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
   return { hasData, hasCount, contributions, isEmpty, isIncomplete, isComplete: !isIncomplete };
 };
 
-/**
- * Write GitHub activity data to PostgreSQL with non-degrading write protection.
- * Avoids overwriting a healthy dataset with empty/incomplete results.
- * @returns `true` when the activity row was written, or `false` when the existing row was preserved.
- */
-export async function writeGitHubActivityToDb(
+/** Apply non-degrading protection to an activity row read under the refresh transaction lock. */
+function canPublishGitHubActivity(
   data: GitHubActivityApiResponse,
   intent: GitHubActivityWriteIntent,
-): Promise<boolean> {
-  assertDatabaseWriteAllowed("writeGitHubActivityToDb");
-
+  existing: GitHubActivityApiResponse | null,
+): boolean {
   const newQ = classifyDataset(data);
   const replacesEmptyCurrentRepositorySet =
     intent === GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET;
@@ -96,7 +93,6 @@ export async function writeGitHubActivityToDb(
   }
 
   if (!replacesEmptyCurrentRepositorySet && newQ.isIncomplete) {
-    const existing = await readGitHubActivityFromDb();
     const existingQ = classifyDataset(existing);
     const existingIsHealthy = !!existing && !existingQ.isEmpty;
 
@@ -126,19 +122,69 @@ export async function writeGitHubActivityToDb(
     }
   }
 
-  await upsertDocument("activity", GITHUB_ACTIVITY_GLOBAL_QUALIFIER, data);
-  debugLog("Successfully wrote GitHub activity to DB", "info");
   return true;
 }
 
-/**
- * Write the all-time GitHub activity summary to PostgreSQL.
- */
-export async function writeGitHubSummaryToDb(summary: GitHubActivitySummary): Promise<boolean> {
-  assertDatabaseWriteAllowed("writeGitHubSummaryToDb");
-  await upsertDocument("summary", GITHUB_ACTIVITY_GLOBAL_QUALIFIER, summary);
-  debugLog("Successfully wrote the all-time GitHub summary to DB", "info");
-  return true;
+/** Persist the refresh's public activity, summary, and aggregate as one database commit. */
+export async function writeGitHubActivityRefreshToDb(
+  activity: GitHubActivityApiResponse,
+  summary: GitHubActivitySummary,
+  aggregatedActivity: AggregatedWeeklyActivity[],
+  intent: GitHubActivityWriteIntent,
+): Promise<boolean> {
+  assertDatabaseWriteAllowed("writeGitHubActivityRefreshToDb");
+  const published = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${GITHUB_ACTIVITY_REFRESH_LOCK}))`);
+    const existingRows = await tx
+      .select({ payload: githubActivityStore.payload })
+      .from(githubActivityStore)
+      .where(
+        and(
+          eq(githubActivityStore.dataType, "activity"),
+          eq(githubActivityStore.qualifier, GITHUB_ACTIVITY_GLOBAL_QUALIFIER),
+        ),
+      )
+      .limit(1);
+    const existingPayload = existingRows[0]?.payload;
+    const existingActivity =
+      existingPayload === undefined ? null : gitHubActivityApiResponseSchema.parse(existingPayload);
+    if (!canPublishGitHubActivity(activity, intent, existingActivity)) {
+      return false;
+    }
+
+    const updatedAt = Date.now();
+    await tx
+      .insert(githubActivityStore)
+      .values([
+        {
+          dataType: "activity",
+          qualifier: GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
+          payload: activity,
+          updatedAt,
+        },
+        {
+          dataType: "summary",
+          qualifier: GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
+          payload: summary,
+          updatedAt,
+        },
+        {
+          dataType: "aggregated-weekly",
+          qualifier: GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
+          payload: aggregatedActivity,
+          updatedAt,
+        },
+      ])
+      .onConflictDoUpdate({
+        target: [githubActivityStore.dataType, githubActivityStore.qualifier],
+        set: { payload: sql`excluded.payload`, updatedAt },
+      });
+    return true;
+  });
+  if (published) {
+    debugLog("Successfully wrote the GitHub activity refresh to DB", "info");
+  }
+  return published;
 }
 
 /**
@@ -154,19 +200,6 @@ export async function writeRepoWeeklyStatsToDb(
   const qualifier = `${owner}/${repo}`;
   await upsertDocument("repo-weekly-stats", qualifier, cache);
   debugLog("Successfully wrote repo weekly stats to DB", "info", { qualifier });
-  return true;
-}
-
-/**
- * Write aggregated weekly activity to PostgreSQL.
- */
-export async function writeAggregatedWeeklyActivityToDb(
-  data: AggregatedWeeklyActivity[],
-): Promise<boolean> {
-  assertDatabaseWriteAllowed("writeAggregatedWeeklyActivityToDb");
-
-  await upsertDocument("aggregated-weekly", GITHUB_ACTIVITY_GLOBAL_QUALIFIER, data);
-  debugLog("Successfully wrote aggregated weekly activity to DB", "info");
   return true;
 }
 

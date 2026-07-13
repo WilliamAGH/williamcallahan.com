@@ -16,7 +16,7 @@ import type {
   RepoRawWeeklyStat,
 } from "@/types/schemas/github-storage";
 import { debug } from "@/lib/utils/debug";
-import { readRepoWeeklyStatsRecord, writeAggregatedWeeklyActivityRecord } from "./github-storage";
+import { readRepoWeeklyStatsRecord } from "./github-storage";
 
 /**
  * Creates an empty category stats object for LOC tracking
@@ -29,16 +29,6 @@ export function createEmptyCategoryStats(): GitHubActivitySummary["linesOfCodeBy
     dataEngineer: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
     other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
   };
-}
-
-// Type-safe global override declarations
-declare global {
-  var calculateAndStoreAggregatedWeeklyActivityOverride:
-    | (() => Promise<{
-        aggregatedActivity: AggregatedWeeklyActivity[];
-        overallDataComplete: boolean;
-      } | null>)
-    | undefined;
 }
 
 /**
@@ -193,14 +183,13 @@ export function repairCsvData(
 }
 
 /**
- * Aggregates weekly lines added and removed across all repository CSV files and stores the
- * result in PostgreSQL.
+ * Aggregates weekly lines added and removed across current repository records.
  *
  * @returns A promise that resolves to an object containing the aggregated weekly activity array and a flag indicating whether all data was processed successfully, or null if in DRY_RUN mode.
  *
  * @remark If any repository CSV is missing or unreadable, the `overallDataComplete` flag will be set to `false`.
  */
-export async function calculateAndStoreAggregatedWeeklyActivity(
+export async function calculateAggregatedWeeklyActivity(
   currentRepoStatIdentifiers: readonly string[],
 ): Promise<{
   aggregatedActivity: AggregatedWeeklyActivity[];
@@ -211,10 +200,6 @@ export async function calculateAndStoreAggregatedWeeklyActivity(
       "[DataAccess/GitHub-Store] DRY RUN mode: skipping aggregated weekly activity calculation.",
     );
     return null;
-  }
-  const overrideCalc = globalThis.calculateAndStoreAggregatedWeeklyActivityOverride;
-  if (typeof overrideCalc === "function") {
-    return overrideCalc();
   }
   console.log("[DataAccess/GitHub-Store] Calculating aggregated weekly activity...");
   let overallDataComplete = true;
@@ -228,7 +213,6 @@ export async function calculateAndStoreAggregatedWeeklyActivity(
     debug(
       "[DataAccess/GitHub-Store] Aggregation: No repo weekly stats found. Nothing to aggregate.",
     );
-    await writeAggregatedWeeklyActivityRecord([]);
     return { aggregatedActivity: [], overallDataComplete: true }; // No files means data is "complete" in terms of processing what's there
   }
   for (const identifier of repoStatIdentifiers) {
@@ -289,9 +273,8 @@ export async function calculateAndStoreAggregatedWeeklyActivity(
       linesRemoved: totals.removed,
     }))
     .toSorted((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
-  await writeAggregatedWeeklyActivityRecord(aggregatedActivity);
   console.log(
-    `[DataAccess/GitHub-Store] Aggregated weekly activity persisted to PostgreSQL. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`,
+    `[DataAccess/GitHub-Store] Aggregated weekly activity calculated. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`,
   );
   return { aggregatedActivity, overallDataComplete };
 }

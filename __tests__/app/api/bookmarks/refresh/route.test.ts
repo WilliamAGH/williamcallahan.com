@@ -1,18 +1,11 @@
-import fs from "node:fs";
 import { POST as refreshBookmarksProduction } from "@/app/api/bookmarks/refresh-production/route";
-import { GET as getGitHubActivity } from "@/app/api/github-activity/route";
 import { POST as refreshGitHubActivityProduction } from "@/app/api/github-activity/refresh-production/route";
 import { POST as refreshGitHubActivity } from "@/app/api/github-activity/refresh/route";
-import { POST as logClientError } from "@/app/api/log-client-error/route";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
-import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
-import { getErrorMessage } from "@/lib/utils/error-utils";
-import { apiErrorResponseSchema, clientErrorSchema } from "@/types/schemas/api";
 import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
-import { createUnavailableUserActivityView } from "@/types/schemas/github-storage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { connection, NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 
 const mockedAuth = vi.hoisted(() => vi.fn((userId: string | null = null) => ({ userId })));
 
@@ -21,7 +14,6 @@ vi.mock("@/lib/data-access/github", () => ({
   refreshGitHubActivityDataFromApi: vi.fn(),
 }));
 
-vi.mock("@/lib/data-access/github-public-api", () => ({ getGithubActivityCached: vi.fn() }));
 vi.mock("@/lib/db/connection", () => ({
   resolveDatabaseAccessMode: vi.fn(),
 }));
@@ -33,75 +25,7 @@ const productionRefreshRoutes = [
 
 const relayFetch = vi.fn();
 const mockedRefreshGitHubActivityDataFromApi = vi.mocked(refreshGitHubActivityDataFromApi);
-const mockedGetGithubActivityCached = vi.mocked(getGithubActivityCached);
 const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
-const unavailableGitHubActivity = createUnavailableUserActivityView({ source: "empty" });
-const githubActivityUrl = "http://localhost:3000/api/github-activity";
-function expectNoStoreResponse(response: Response, status: number): void {
-  expect(response.status).toBe(status);
-  expect(response.headers.get("Cache-Control")).toBe("no-store");
-  expect(connection).toHaveBeenCalledOnce();
-}
-
-describe("API error response handling", () => {
-  it("validates typed client-error telemetry fields and rejects unknown keys", () => {
-    const telemetry = {
-      message: "Chunk failed to load",
-      chunkId: "app-layout",
-      performance: { durationMs: 125, cached: false },
-    };
-
-    expect(clientErrorSchema.parse(telemetry)).toEqual(telemetry);
-    expect(
-      clientErrorSchema.safeParse({ ...telemetry, diagnostics: { retryCount: 2 } }).success,
-    ).toBe(false);
-  });
-
-  it("writes typed client-error telemetry to the server log", async () => {
-    const appendFile = vi.spyOn(fs.promises, "appendFile").mockResolvedValue();
-    const existsSync = vi.spyOn(fs, "existsSync").mockReturnValue(true);
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const telemetry = {
-      message: "Chunk failed to load",
-      chunkId: "app-layout",
-      performance: { durationMs: 125 },
-    };
-
-    try {
-      const request = Object.assign(
-        new NextRequest("http://localhost:3000/api/log-client-error", { method: "POST" }),
-        { json: async () => telemetry },
-      );
-      const response = await logClientError(request);
-
-      expect(response.status).toBe(200);
-      await expect(response.json()).resolves.toEqual({ success: true });
-      expect(appendFile).toHaveBeenCalledOnce();
-      expect(String(appendFile.mock.calls[0]?.[1])).toContain('"chunkId":"app-layout"');
-    } finally {
-      appendFile.mockRestore();
-      existsSync.mockRestore();
-      consoleError.mockRestore();
-    }
-  });
-
-  it("returns a parsed message error", () => {
-    const error = apiErrorResponseSchema.parse({ message: "Message error" });
-
-    expect(getErrorMessage(error, "Fallback error")).toBe("Message error");
-  });
-
-  it("returns a parsed error field", () => {
-    const error = apiErrorResponseSchema.parse({ error: "Error field" });
-
-    expect(getErrorMessage(error, "Fallback error")).toBe("Error field");
-  });
-
-  it("falls back for missing and malformed error payloads", () => {
-    expect(getErrorMessage({}, "Fallback error")).toBe("Fallback error");
-    expect(getErrorMessage({ error: 500 }, "Fallback error")).toBe("Fallback error");
-  });
-});
 
 describe("bookmark refresh response contract", () => {
   it("rejects malformed refresh payloads", () => {
@@ -119,27 +43,6 @@ describe("bookmark refresh response contract", () => {
         message: "Refresh complete",
       }).success,
     ).toBe(false);
-  });
-});
-
-describe("GitHub activity GET route", () => {
-  it("returns no-store after calling connection on activity data", async () => {
-    mockedGetGithubActivityCached.mockResolvedValueOnce(unavailableGitHubActivity);
-    const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
-    expectNoStoreResponse(response, 200);
-  });
-
-  it("returns no-store after calling connection on refresh guidance", async () => {
-    const response = await getGitHubActivity(new NextRequest(`${githubActivityUrl}?refresh=true`));
-    expectNoStoreResponse(response, 400);
-  });
-
-  it("returns no-store after calling connection on data access failure", async () => {
-    mockedGetGithubActivityCached.mockRejectedValueOnce(
-      new Error("GitHub activity data access failed"),
-    );
-    const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
-    expectNoStoreResponse(response, 500);
   });
 });
 
