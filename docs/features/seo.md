@@ -724,6 +724,6 @@ grep -n "TODO" data/metadata.ts
 ## Related Documentation
 
 - **[`opengraph.md`](./opengraph.md)**: Deep dive into OG system
-- **[`s3-object-storage.md`](./s3-object-storage.md)**: Image persistence details
-- **[`caching.md`](./caching.md)**: Cache strategies for SEO
+- **[`s3-storage.md`](../architecture/s3-storage.md)**: Image persistence details
+- **[`caching.md`](../architecture/caching.md)**: Cache strategies for SEO
 - **[`react-patterns.md`](../standards/react-patterns.md)**: Server component patterns
