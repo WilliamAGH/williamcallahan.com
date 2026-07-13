@@ -9,7 +9,7 @@
 
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { blogPosts } from "@/lib/db/schema/blog-posts";
-import type { BlogPostInput } from "@/types/blog";
+import type { BlogPostInput } from "@/types/schemas/blog-frontmatter";
 
 /**
  * Upsert a batch of blog posts.
@@ -20,37 +20,38 @@ export async function upsertBlogPosts(posts: BlogPostInput[]): Promise<number> {
 
   let upserted = 0;
   for (const post of posts) {
-    const entityId = `mdx-${post.slug}`;
+    const entityId = `mdx-${post.frontmatter.slug}`;
     const publishedAt = String(post.frontmatter.publishedAt);
     const updatedAt = post.frontmatter.updatedAt ? String(post.frontmatter.updatedAt) : null;
-    const tags = Array.isArray(post.frontmatter.tags) ? post.frontmatter.tags : null;
+    const draft = post.frontmatter.draft === true;
 
     await db
       .insert(blogPosts)
       .values({
         id: entityId,
         title: post.frontmatter.title,
-        slug: post.slug,
+        slug: post.frontmatter.slug,
         excerpt: post.frontmatter.excerpt ?? null,
         authorName: post.frontmatter.author,
-        tags,
+        tags: post.frontmatter.tags,
         publishedAt,
         updatedAt,
         coverImage: post.frontmatter.coverImage ?? null,
-        draft: false,
+        draft,
         rawContent: post.rawContent,
       })
       .onConflictDoUpdate({
         target: blogPosts.id,
         set: {
           title: post.frontmatter.title,
-          slug: post.slug,
+          slug: post.frontmatter.slug,
           excerpt: post.frontmatter.excerpt ?? null,
           authorName: post.frontmatter.author,
-          tags,
+          tags: post.frontmatter.tags,
           publishedAt,
           updatedAt,
           coverImage: post.frontmatter.coverImage ?? null,
+          draft,
           rawContent: post.rawContent,
         },
       });

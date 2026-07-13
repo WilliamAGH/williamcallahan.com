@@ -28,11 +28,6 @@ export type PageComponentModule = {
   }) => Promise<JSX.Element> | JSX.Element;
 };
 
-export interface BlogFrontmatter {
-  slug: string;
-  // Add other expected frontmatter properties here if needed
-}
-
 export type UmamiMock = Mock & {
   track: Mock;
 };

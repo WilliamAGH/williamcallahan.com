@@ -16,6 +16,7 @@ import postgres from "postgres";
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
+import { blogFrontmatterSchema } from "../src/types/schemas/blog-frontmatter.ts";
 
 const P = "[seed-blog-posts]";
 const PRODUCTION = "production";
@@ -64,35 +65,23 @@ async function run() {
     if (dry) {
       for (const file of mdxFiles) {
         const raw = await fs.readFile(path.join(postsDir, file), "utf8");
-        const { data } = matter(raw);
-        console.log(`  ${data.slug ?? file}: ${data.title ?? "(no title)"}`);
+        const frontmatter = blogFrontmatterSchema.parse(matter(raw).data);
+        console.log(`  ${frontmatter.slug}: ${frontmatter.title}`);
       }
       console.log(`${P} Dry run complete.`);
       return;
     }
 
     let upserted = 0;
-    let skipped = 0;
     for (const file of mdxFiles) {
       const raw = await fs.readFile(path.join(postsDir, file), "utf8");
       const { data, content } = matter(raw);
+      const frontmatter = blogFrontmatterSchema.parse(data);
 
-      const slug = typeof data.slug === "string" ? data.slug.trim() : "";
-      if (!slug) {
-        console.warn(`${P} Skipping ${file}: missing slug`);
-        skipped++;
-        continue;
-      }
-
-      const entityId = `mdx-${slug}`;
-      const title = typeof data.title === "string" ? data.title.trim() : file;
-      const excerpt = typeof data.excerpt === "string" ? data.excerpt.trim() : null;
-      const authorName = typeof data.author === "string" ? data.author.trim() : "unknown";
-      const tags = Array.isArray(data.tags) ? data.tags.filter(Boolean) : null;
-      const publishedAt = String(data.publishedAt ?? "");
-      const updatedAt = data.updatedAt ? String(data.updatedAt) : null;
-      const coverImage = typeof data.coverImage === "string" ? data.coverImage.trim() : null;
-      const draft = data.draft === true;
+      const entityId = `mdx-${frontmatter.slug}`;
+      const excerpt = frontmatter.excerpt?.trim() ?? null;
+      const publishedAt = String(frontmatter.publishedAt ?? "");
+      const updatedAt = frontmatter.updatedAt ? String(frontmatter.updatedAt) : null;
       const rawContent = stripMdxSyntax(content);
 
       await sql`
@@ -100,9 +89,9 @@ async function run() {
           id, title, slug, excerpt, author_name, tags,
           published_at, updated_at, cover_image, draft, raw_content
         ) VALUES (
-          ${entityId}, ${title}, ${slug}, ${excerpt}, ${authorName},
-          ${tags ? JSON.stringify(tags) : null}::jsonb,
-          ${publishedAt}, ${updatedAt}, ${coverImage}, ${draft}, ${rawContent}
+          ${entityId}, ${frontmatter.title}, ${frontmatter.slug}, ${excerpt}, ${frontmatter.author},
+          ${JSON.stringify(frontmatter.tags)}::jsonb,
+          ${publishedAt}, ${updatedAt}, ${frontmatter.coverImage ?? null}, ${frontmatter.draft === true}, ${rawContent}
         )
         ON CONFLICT (id) DO UPDATE SET
           title = EXCLUDED.title, slug = EXCLUDED.slug, excerpt = EXCLUDED.excerpt,
@@ -112,7 +101,7 @@ async function run() {
           raw_content = EXCLUDED.raw_content`;
       upserted++;
     }
-    console.log(`${P} Upserted ${upserted} blog posts${skipped ? `, skipped ${skipped}` : ""}`);
+    console.log(`${P} Upserted ${upserted} blog posts`);
 
     const verify = await sql`SELECT count(*)::int as cnt FROM blog_posts`;
     console.log(`${P} Total in table: ${verify[0].cnt}`);

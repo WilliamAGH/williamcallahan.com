@@ -249,7 +249,7 @@ File/Path Functionality Description
   - [x] `index.ts` `blog` - Removed; import blog library modules directly
   - [x] `mdx.ts` `blog` - MDX processing utilities
   - [x] `server-search.ts` `blog` - Server-side blog search
-  - [x] `validation.ts` `blog` - Blog data validation schemas
+  - [x] `validation.ts` `blog` - Projects `blogSlugSchema` into the route/cache lookup guard and validates hydrated `BlogPost` objects
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
@@ -453,6 +453,7 @@ File/Path Functionality Description
 - [x] **db/**
   - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmark row/insert type exports for DB modules
 - [ ] **schemas/**
+  - [x] `blog-frontmatter.ts` `blog` - Zod single owner of MDX frontmatter and `blogSlugSchema`; runtime MDX and Node seed ingestion parse through it
   - [x] `og-image.ts` `opengraph` - Zod schemas for OG image entity types, per-entity params, and layout props
   - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
 - [ ] **global/**
@@ -521,7 +522,7 @@ File/Path Functionality Description
 - [x] `.gitignore` `config` - Git ignore file
 - [x] `bun.lock` `deps` - Bun lockfile
 - [x] `components.json` `config` - ShadCN UI component configuration
-- [x] `Dockerfile` `deployment` - Docker container configuration
+- [x] `Dockerfile` `deployment` - Web image build with one release identity for Next build IDs and `dpl` asset cache keys
 - [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
 - [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`

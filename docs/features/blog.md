@@ -21,12 +21,13 @@ The "blog" functionality encompasses components and utilities that manage the di
 - **lib/blog/\***: Blog library modules are imported directly from concrete files (barrel removed).
 - **lib/blog/mdx.ts**: Utilities for processing MDX content in blogs.
 - **lib/blog/server-search.ts**: Server-side search functionality for blog content.
-- **lib/blog/validation.ts**: Canonical route/cache lookup eligibility guard (`isValidBlogSlug`) and `BlogPost` object validator (`validatePost`); MDX frontmatter checks remain in **lib/blog/mdx.ts**.
+- **src/types/schemas/blog-frontmatter.ts**: Zod single owner of MDX frontmatter and canonical blog slugs; runtime **lib/blog/mdx.ts** and Node **scripts/seed-blog-posts.node.mjs** ingestion parse through it.
+- **lib/blog/validation.ts**: Projects the canonical slug schema into the route/cache lookup guard (`isValidBlogSlug`) and validates hydrated `BlogPost` objects.
 - **app/blog/page.tsx**: Blog index page with Incremental Static Regeneration (ISR) for optimized performance.
 
 ## Logic Flow and Interactions
 
-- Blog content starts with data processing in **lib/blog.ts** and related utilities. Route/cache lookup slug eligibility is delegated to **lib/blog/validation.ts**, while **lib/blog/mdx.ts** performs MDX frontmatter checks during ingestion.
+- Blog content starts with data processing in **lib/blog.ts** and related utilities. Route/cache lookup slug eligibility projects **src/types/schemas/blog-frontmatter.ts** through **lib/blog/validation.ts**, while **lib/blog/mdx.ts** validates ingestion against that same schema.
 - The **app/blog/page.tsx** serves as the entry point, rendering the blog index using server-side components like **blog-list.server.tsx** for initial load performance.
 - Client-side components such as **blog-window.client.tsx** and **blog.client.tsx** manage interactive elements and dynamic content loading.
 - UI components like **blog-card.tsx**, **blog-author.tsx**, and **blog-tags.tsx** provide modular pieces for blog presentation.

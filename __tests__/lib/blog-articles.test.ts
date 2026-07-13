@@ -183,6 +183,7 @@ describe("Blog Module", () => {
       expect(isValidBlogSlug("valid-blog-slug")).toBe(true);
       expect(isValidBlogSlug("../../../etc/passwd")).toBe(false);
       expect(isValidBlogSlug("double--hyphen")).toBe(false);
+      expect(isValidBlogSlug(" valid-blog-slug ")).toBe(false);
       expect(isValidBlogSlug("a".repeat(201))).toBe(false);
     });
   });

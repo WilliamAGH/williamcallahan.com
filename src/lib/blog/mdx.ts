@@ -21,7 +21,7 @@ assertServerOnly(); // Ensure this module runs only on the server
 import { assertServerOnly } from "../utils/ensure-server-only";
 // rehype-raw removed to avoid conflicts with MDX v3 JSX nodes
 import { formatSeoDate } from "../seo/utils"; // Import the Pacific Time formatter
-import type { Frontmatter } from "@/types/features/blog";
+import { blogFrontmatterSchema, blogSlugSchema } from "@/types/schemas/blog-frontmatter";
 
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -269,19 +269,21 @@ export async function getMDXPost(
 
     // Parse frontmatter
     const parsed = matter(fileContents);
-    const frontmatter = parsed.data as Frontmatter;
+    const frontmatterResult = blogFrontmatterSchema.safeParse(parsed.data);
+    if (!frontmatterResult.success) {
+      console.warn(
+        `[getMDXPost] Invalid frontmatter for file ${filePathForPost}: ${frontmatterResult.error.message}`,
+      );
+      return null;
+    }
+    const frontmatter = frontmatterResult.data;
     const content = parsed.content;
 
     // Validate frontmatter slug consistency
-    const normalizedParam = frontmatterSlug.trim();
-    if (
-      !frontmatter.slug ||
-      typeof frontmatter.slug !== "string" ||
-      frontmatter.slug.trim() === "" ||
-      frontmatter.slug.trim() !== normalizedParam
-    ) {
+    const slugResult = blogSlugSchema.safeParse(frontmatterSlug);
+    if (!slugResult.success || frontmatter.slug !== slugResult.data) {
       console.warn(
-        `[getMDXPost] Mismatch or invalid slug in frontmatter for file ${filePathForPost}. Expected "${normalizedParam}", got "${frontmatter.slug}". Skipping.`,
+        `[getMDXPost] Mismatch or invalid slug in frontmatter for file ${filePathForPost}. Expected "${frontmatterSlug}", got "${frontmatter.slug}". Skipping.`,
       );
       return null;
     }
@@ -343,9 +345,7 @@ export async function getMDXPost(
 
     // Use frontmatter dates, ensuring they are Pacific Time ISO strings
     const publishedAt = toPacificISOString(frontmatter.publishedAt || fileDates.created);
-    const updatedAt = toPacificISOString(
-      frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified,
-    );
+    const updatedAt = toPacificISOString(frontmatter.updatedAt || fileDates.modified);
 
     // Generate blur data URL from local image path (before S3 mapping)
     // This must happen BEFORE sanitizeCoverImage transforms to CDN URL
@@ -368,7 +368,7 @@ export async function getMDXPost(
       publishedAt,
       updatedAt,
       author,
-      tags: frontmatter.tags || [],
+      tags: frontmatter.tags,
       ...(frontmatter.readingTime !== undefined && { readingTime: frontmatter.readingTime }),
       coverImage,
       coverImageBlurDataURL,
@@ -465,25 +465,14 @@ export async function getAllMDXPosts(skipHeavyProcessing = false): Promise<BlogP
       let frontmatterSlug: string | null = null;
       try {
         const fileContents = await fs.readFile(fullPath, "utf8");
-        // Parse frontmatter just to get the slug
-        // gray-matter returns { data, content, ... }; extract with proper typing
-        const matterResult: unknown = matter(fileContents);
-        const { data: frontmatter } = matterResult as {
-          data: Frontmatter;
-          content: string;
-        };
-
-        if (
-          !frontmatter.slug ||
-          typeof frontmatter.slug !== "string" ||
-          frontmatter.slug.trim() === ""
-        ) {
+        const frontmatterResult = blogFrontmatterSchema.safeParse(matter(fileContents).data);
+        if (!frontmatterResult.success) {
           console.warn(
-            `[getAllMDXPosts] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`,
+            `[getAllMDXPosts] MDX file ${fileName} has invalid frontmatter: ${frontmatterResult.error.message}. Skipping.`,
           );
           return null; // Skip this file
         }
-        frontmatterSlug = frontmatter.slug.trim();
+        frontmatterSlug = frontmatterResult.data.slug;
 
         // Now fully process the post using its frontmatter slug as the identifier,
         // and pass the fullPath and pre-read fileContents.

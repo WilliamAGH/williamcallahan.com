@@ -290,24 +290,6 @@ export interface ReadingTime {
 }
 
 /**
- * Frontmatter data extracted from an MDX file
- */
-export interface Frontmatter {
-  slug: string;
-  title: string;
-  author: string;
-  publishedAt?: string | Date;
-  updatedAt?: string | Date;
-  modifiedAt?: string | Date; // Alias for updatedAt
-  excerpt?: string;
-  tags?: string[];
-  readingTime?: number;
-  coverImage?: unknown; // Keep as unknown for sanitizeCoverImage to handle
-  /** Whether this post is a draft (hidden from public listings) */
-  draft?: boolean;
-}
-
-/**
  * @fileoverview Type definitions for blog-related features.
  * @description Contains types for blog posts, articles, and schema.org metadata.
  * @module types/features/blog

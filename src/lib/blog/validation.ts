@@ -6,13 +6,13 @@
  */
 
 import type { BlogPost } from "../../types/blog";
+import { blogSlugSchema } from "@/types/schemas/blog-frontmatter";
 
 const REQUIRED_FIELDS = ["title", "slug", "excerpt", "publishedAt", "author", "tags"] as const;
-const VALID_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,198}[a-z0-9]$|^[a-z0-9]$/;
 
 /** Reject path-like and high-cardinality values before blog lookup or route caching. */
 export function isValidBlogSlug(slug: string): boolean {
-  return VALID_SLUG_PATTERN.test(slug) && !slug.includes("--");
+  return blogSlugSchema.safeParse(slug).success;
 }
 
 /**

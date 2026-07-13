@@ -101,27 +101,6 @@ export interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export interface BlogPageFrontmatter {
-  title: string;
-  publishedAt: string | Date; // gray-matter can parse dates
-  tags: string[];
-  author: string; // Assuming author in frontmatter is an ID string for this simplified getter
-  excerpt?: string;
-  updatedAt?: string | Date;
-  coverImage?: string;
-}
-
-// ============================================================================
-// Mutation Input Types
-// ============================================================================
-
-/** Input shape for upserting a blog post from parsed MDX frontmatter. */
-export interface BlogPostInput {
-  slug: string;
-  frontmatter: BlogPageFrontmatter;
-  rawContent: string;
-}
-
 // ============================================================================
 // Post Lookup Result Types
 // ============================================================================

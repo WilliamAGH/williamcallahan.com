@@ -16,6 +16,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
 import { isValidBlogSlug } from "./blog/validation";
+import { blogFrontmatterSchema } from "@/types/schemas/blog-frontmatter";
 
 /** Whether to include draft posts (only in development) */
 const INCLUDE_DRAFTS = process.env.NODE_ENV === "development";
@@ -24,10 +25,8 @@ const INCLUDE_DRAFTS = process.env.NODE_ENV === "development";
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
 function readMatterSlug(data: unknown): string {
-  if (!data || typeof data !== "object") return "";
-  if (!("slug" in data)) return "";
-  const slugValue = (data as { slug?: unknown }).slug;
-  return typeof slugValue === "string" ? slugValue.trim() : "";
+  const frontmatterResult = blogFrontmatterSchema.safeParse(data);
+  return frontmatterResult.success ? frontmatterResult.data.slug : "";
 }
 
 function getErrnoCode(error: unknown): string | undefined {
