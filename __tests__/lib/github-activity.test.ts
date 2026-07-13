@@ -266,10 +266,10 @@ describe("GitHub activity atomic persistence", () => {
     let records: Array<{ dataType: string; updatedAt: number }> = [];
     const tx = {
       execute: () => (events.push("lock"), Promise.resolve()),
-      select: () => {
-        events.push("read");
-        return { from: () => ({ where: () => ({ limit: async () => [{ payload: existing }] }) }) };
-      },
+      select: () => (
+        events.push("read"),
+        { from: () => ({ where: () => ({ limit: async () => [{ payload: existing }] }) }) }
+      ),
       insert: () => {
         events.push("write");
         return {
@@ -293,7 +293,6 @@ describe("GitHub activity atomic persistence", () => {
   it("locks, reads, and writes every projection with one timestamp", async () => {
     const { events, getRecords, writeGitHubActivityRefreshToDb } =
       await loadWriter(healthyActivity);
-
     await expect(
       writeGitHubActivityRefreshToDb(
         healthyActivity,
@@ -303,11 +302,49 @@ describe("GitHub activity atomic persistence", () => {
       ),
     ).resolves.toBe(true);
     expect(events).toEqual(["lock", "read", "write"]);
-    expect(
-      getRecords()
-        .map(({ dataType }) => dataType)
-        .toSorted(),
-    ).toEqual(["activity", "aggregated-weekly", "summary"]);
-    expect(new Set(getRecords().map(({ updatedAt }) => updatedAt))).toHaveLength(1);
+    const records = getRecords();
+    const dataTypes = records.map(({ dataType }) => dataType).toSorted();
+    expect(dataTypes).toEqual(["activity", "aggregated-weekly", "summary"]);
+    expect(new Set(records.map(({ updatedAt }) => updatedAt))).toHaveLength(1);
+  });
+
+  it("refuses degrading and invalid empty-set publications before insertion", async () => {
+    const incomplete = {
+      ...healthyActivity,
+      trailingYearData: { ...healthyActivity.trailingYearData, dataComplete: false },
+    };
+    const refused = await loadWriter(healthyActivity);
+    await expect(
+      refused.writeGitHubActivityRefreshToDb(
+        incomplete,
+        summaryFor(incomplete),
+        [],
+        GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+      ),
+    ).resolves.toBe(false);
+    expect(refused.events).toEqual(["lock", "read"]);
+    const invalid = await loadWriter(healthyActivity);
+    await expect(
+      invalid.writeGitHubActivityRefreshToDb(
+        healthyActivity,
+        summaryFor(healthyActivity),
+        [],
+        GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
+      ),
+    ).rejects.toThrow("complete, zero-contribution activity data");
+    expect(invalid.events).toEqual(["lock", "read"]);
+  });
+
+  it("leaves projections untouched when the atomic insert fails", async () => {
+    const writer = await loadWriter(healthyActivity, true);
+    await expect(
+      writer.writeGitHubActivityRefreshToDb(
+        healthyActivity,
+        summaryFor(healthyActivity),
+        [],
+        GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+      ),
+    ).rejects.toThrow("atomic insert failed");
+    expect(writer.getRecords()).toEqual([]);
   });
 });
