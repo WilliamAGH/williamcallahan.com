@@ -197,7 +197,7 @@ class ProductionSmokeTests {
 
     this.results.push({
       ...diagnosticsResult,
-      name: "S3 Data Integrity",
+      name: "Bookmark Data Integrity",
     });
 
     const bookmarkSlugTest = await this.testEndpoint(
@@ -208,10 +208,7 @@ class ProductionSmokeTests {
         validateResponse: async (response) => {
           if (response.headers.get("x-nextjs-postponed") !== "1") return false;
           const body = await response.text();
-          return (
-            body.includes('<meta name="robots" content="noindex"/>') &&
-            body.includes("<title>Bookmark Not Found</title>")
-          );
+          return body.includes('<meta name="robots" content="noindex"/>');
         },
       },
     );

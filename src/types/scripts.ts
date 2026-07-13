@@ -7,11 +7,16 @@ export interface TestResult {
   error?: string;
 }
 
-export interface SmokeTestEndpointOptions {
+interface SmokeTestEndpointBaseOptions {
   expectedStatus?: number;
   requiresAuth?: boolean;
   method?: string;
   body?: unknown;
-  validateJson?: (data: unknown) => boolean;
-  validateResponse?: (response: Response) => Promise<boolean>;
 }
+
+export type SmokeTestEndpointOptions = SmokeTestEndpointBaseOptions &
+  (
+    | { validateJson: (data: unknown) => boolean; validateResponse?: never }
+    | { validateJson?: never; validateResponse: (response: Response) => Promise<boolean> }
+    | { validateJson?: never; validateResponse?: never }
+  );

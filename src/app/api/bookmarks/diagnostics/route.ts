@@ -65,7 +65,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     slugMapOk: slugMapping !== null,
   };
 
-  const allOk = checks.indexOk && checks.firstPageOk && checks.tagStateOk;
+  const allOk = Object.values(checks).every(Boolean);
 
   return NextResponse.json(
     bookmarkDiagnosticsResponseSchema.parse({
