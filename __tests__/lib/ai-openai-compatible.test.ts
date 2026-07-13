@@ -157,17 +157,17 @@ describe("OpenAI-Compatible AI Utilities", () => {
   });
 
   describe("upstream-request-queue", () => {
-    it("updates maxParallel when re-requested for the same key", async () => {
+    it("keeps maxParallel immutable for a shared upstream", async () => {
       vi.resetModules();
       const { getUpstreamRequestQueue } =
         await import("@/lib/ai/openai-compatible/upstream-request-queue");
       const first = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 1 });
       expect(first.snapshot.maxParallel).toBe(1);
-      const increased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 5 });
-      expect(increased).toBe(first);
-      expect(increased.snapshot.maxParallel).toBe(5);
-      const decreased = getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 2 });
-      expect(decreased.snapshot.maxParallel).toBe(2);
+      expect(getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 1 })).toBe(first);
+      expect(() => getUpstreamRequestQueue({ key: "test-upstream", maxParallel: 5 })).toThrow(
+        "Conflicting maxParallel values for shared upstream test-upstream: 1 and 5",
+      );
+      expect(first.snapshot.maxParallel).toBe(1);
     });
 
     it("rejects result when aborting a running task", async () => {
@@ -755,16 +755,45 @@ describe("OpenAI-Compatible AI Utilities", () => {
     });
 
     it("reports successful analysis persistence", async () => {
-      const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(Response.json({ success: true, persisted: true }, { status: 200 }));
       vi.stubGlobal("fetch", fetchMock);
 
       const result = await persistAnalysis("bookmarks", "bookmark-1", { summary: "ok" });
 
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, persisted: true });
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/ai/analysis/bookmarks/bookmark-1",
         expect.objectContaining({ method: "POST" }),
       );
+    });
+
+    it("reports successful read-only analysis persistence skips", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(Response.json({ success: true, persisted: false }, { status: 200 })),
+      );
+
+      await expect(persistAnalysis("bookmarks", "bookmark-1", { summary: "ok" })).resolves.toEqual({
+        success: true,
+        persisted: false,
+      });
+    });
+
+    it("rejects malformed successful persistence responses", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(Response.json({ success: true }, { status: 200 })),
+      );
+
+      await expect(persistAnalysis("bookmarks", "bookmark-1", { summary: "ok" })).resolves.toEqual({
+        success: false,
+        message: "Invalid analysis persistence response",
+        status: 200,
+      });
     });
 
     it("returns failed persistence details without hiding the API error", async () => {

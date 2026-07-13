@@ -63,7 +63,7 @@ describe("instrumentation register", () => {
     expect(nodeModule.register).not.toHaveBeenCalled();
   });
 
-  it("forwards request error context to Sentry synchronously", async () => {
+  it("forwards redacted request error context to Sentry synchronously", async () => {
     const captureRequestError = vi.fn();
     vi.doMock("@sentry/nextjs", () => ({ captureRequestError }));
     mockRuntimeModules();
@@ -73,17 +73,37 @@ describe("instrumentation register", () => {
     const request = {
       path: "/books/node",
       method: "GET",
-      headers: { host: "williamcallahan.com" },
+      headers: {
+        host: "williamcallahan.com",
+        Authorization: "Bearer secret",
+        cookie: "session=secret",
+        "X-API-Key": "secret-key",
+        "x-refresh-secret": "refresh-secret",
+      },
     } as const;
     const context = {
       routerKind: "App Router",
       routePath: "/books/[book-slug]",
       routeType: "render",
+      revalidateReason: undefined,
     } as const;
 
     onRequestError(error, request, context);
 
-    expect(captureRequestError).toHaveBeenCalledWith(error, request, context);
+    expect(captureRequestError).toHaveBeenCalledWith(
+      error,
+      {
+        ...request,
+        headers: {
+          host: "williamcallahan.com",
+          Authorization: "[REDACTED]",
+          cookie: "[REDACTED]",
+          "X-API-Key": "[REDACTED]",
+          "x-refresh-secret": "[REDACTED]",
+        },
+      },
+      context,
+    );
   });
 });
 

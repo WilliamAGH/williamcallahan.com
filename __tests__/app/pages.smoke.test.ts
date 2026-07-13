@@ -5,6 +5,16 @@ import { GlobalWindowRegistryProvider } from "../../src/lib/context/global-windo
 import type { PageComponentModule } from "@/types/test";
 // The import is correct - we're importing the component, not using it as a type
 
+type ResolveBookmarkIdFromSlug =
+  typeof import("@/lib/bookmarks/slug-helpers").resolveBookmarkIdFromSlug;
+
+const mockResolveBookmarkIdFromSlug = vi.hoisted(() => vi.fn<ResolveBookmarkIdFromSlug>());
+
+vi.mock("@/lib/bookmarks/slug-helpers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/bookmarks/slug-helpers")>()),
+  resolveBookmarkIdFromSlug: mockResolveBookmarkIdFromSlug,
+}));
+
 const staticPageRoutes = [
   { name: "Contact", path: "@/app/contact/page", needsProvider: true },
   { name: "Education", path: "@/app/education/page", skipRender: true }, // Has server-only imports
@@ -199,5 +209,27 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
       }),
     ).rejects.toBe(redirectError);
     expect(permanentRedirect).toHaveBeenCalledWith("/projects/company-research-tui");
+  });
+
+  it("renders a missing bookmark through notFound without logging an error", async () => {
+    vi.resetModules();
+    mockResolveBookmarkIdFromSlug.mockResolvedValueOnce(null);
+    const { notFound } = await import("next/navigation");
+    const notFoundError = new Error("NEXT_HTTP_ERROR_FALLBACK;404");
+    vi.mocked(notFound).mockImplementationOnce(() => {
+      throw notFoundError;
+    });
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const pageModule = await import("@/app/bookmarks/[slug]/page");
+      await expect(
+        pageModule.default({ params: Promise.resolve({ slug: "missing-bookmark" }) }),
+      ).rejects.toBe(notFoundError);
+      expect(notFound).toHaveBeenCalledOnce();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

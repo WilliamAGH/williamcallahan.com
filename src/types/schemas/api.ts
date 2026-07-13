@@ -31,3 +31,41 @@ export const standardApiErrorResponseSchema = z.object({
 
 export type StandardApiErrorCode = z.infer<typeof standardApiErrorCodeSchema>;
 export type StandardApiErrorResponse = z.infer<typeof standardApiErrorResponseSchema>;
+
+export const healthResponseSchema = z.object({
+  status: z.literal("healthy"),
+  timestamp: z.iso.datetime(),
+});
+
+export const bookmarkDiagnosticsResponseSchema = z.object({
+  status: z.enum(["ok", "fail"]),
+  environment: z.object({
+    NODE_ENV: z.string().optional(),
+    resolved: z.enum(["development", "production", "test"]),
+    suffix: z.string(),
+    siteUrl: z.string().nullable(),
+    apiBaseUrl: z.string().nullable(),
+  }),
+  storage: z.object({
+    backend: z.literal("postgres"),
+    indexExists: z.boolean(),
+    bookmarkCount: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
+    lastFetchedAt: z.number().int().nullable(),
+    lastModified: z.string().nullable(),
+    checksum: z.string().nullable(),
+  }),
+  checks: z.object({
+    indexOk: z.boolean(),
+    firstPageOk: z.boolean(),
+    tagStateOk: z.boolean(),
+    slugMapOk: z.boolean(),
+  }),
+  details: z.object({
+    firstPageCount: z.number().int().nonnegative(),
+    tagSlugCount: z.number().int().nonnegative(),
+    sampleTagSlugs: z.array(z.string()),
+    slugMappingCount: z.number().int().nonnegative(),
+    slugMappingGeneratedAt: z.string().nullable(),
+  }),
+});

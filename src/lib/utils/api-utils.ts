@@ -9,6 +9,7 @@
 
 import { unstable_noStore as noStore } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { getEnvironment } from "@/lib/config/environment";
 import logger from "@/lib/utils/logger";
 import { validateCloudflareHeaders } from "@/lib/utils/request-utils";
@@ -23,6 +24,12 @@ export const RATE_LIMITED_MESSAGE =
   "You've reached a rate limit. Please wait a few minutes and try again.";
 export const SERVICE_UNAVAILABLE_MESSAGE =
   "The server is temporarily under heavy load. Please wait a few minutes and try again.";
+const CLERK_MIDDLEWARE_MISSING_MESSAGE =
+  "Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware().";
+
+export function isMissingClerkMiddlewareError(error: unknown): error is Error {
+  return error instanceof Error && error.message.startsWith(CLERK_MIDDLEWARE_MISSING_MESSAGE);
+}
 
 /**
  * Opt out of static caching for the current request.
@@ -51,8 +58,17 @@ export function validateAuthSecret(request: NextRequest, secret: string | undefi
   const authHeader = request.headers.get("authorization");
   if (!authHeader) return false;
 
-  // Check simple match or Bearer token
-  return authHeader === secret || authHeader === `Bearer ${secret}`;
+  const compare = (candidate: string): boolean => {
+    const candidateBytes = Buffer.from(candidate, "utf8");
+    const secretBytes = Buffer.from(secret, "utf8");
+    return (
+      candidateBytes.length === secretBytes.length && timingSafeEqual(candidateBytes, secretBytes)
+    );
+  };
+
+  const directMatch = compare(authHeader);
+  const bearerMatch = authHeader.startsWith("Bearer ") && compare(authHeader.slice(7));
+  return directMatch || bearerMatch;
 }
 
 /**

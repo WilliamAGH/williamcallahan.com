@@ -1,7 +1,3 @@
-/**
- * Integration test for cache invalidation via API routes
- */
-
 import { vi, type MockedFunction } from "vitest";
 import { createMocks } from "node-mocks-http";
 import { POST as clearCacheHandler } from "@/app/api/cache/clear/route";
@@ -12,12 +8,11 @@ import {
 import { POST as revalidateBookmarksHandler } from "@/app/api/revalidate/bookmarks/route";
 import { GET as healthMetricsHandler } from "@/app/api/health/metrics/route";
 import { getSystemMetrics } from "@/lib/health/status-monitor.server";
+import { RELATED_CONTENT_CACHE_TAG } from "@/config/related-content.config";
 import { NextRequest } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 vi.mock("next/cache");
-
-// Mock the cache library
 vi.mock("@/lib/cache", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/cache")>();
   return {
@@ -42,7 +37,6 @@ vi.mock("@/lib/db/queries/bookmarks", () => {
   };
 });
 
-// Mock bookmark data access
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
   return {
     invalidateBookmarksCache: vi.fn().mockReturnValue({
@@ -54,7 +48,6 @@ vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
   };
 });
 
-// Mock refresh function
 vi.mock("@/lib/bookmarks", () => {
   return {
     refreshBookmarksData: vi.fn().mockResolvedValue({
@@ -68,7 +61,6 @@ vi.mock("@/lib/bookmarks", () => {
   };
 });
 
-// Mock DataFetchManager
 vi.mock("@/lib/server/data-fetch-manager", () => {
   class MockDataFetchManager {
     fetchData = vi
@@ -87,12 +79,6 @@ const mockedRevalidatePath = vi.mocked(revalidatePath);
 const mockedRevalidateTag = vi.mocked(revalidateTag);
 
 describe("Cache Invalidation via API Routes", () => {
-  beforeAll(() => {
-    // Fetch polyfills are already set up in global-mocks.ts
-    const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE === "true";
-    console.log(`Testing with USE_NEXTJS_CACHE: ${USE_NEXTJS_CACHE}`);
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -187,6 +173,7 @@ describe("Cache Invalidation via API Routes", () => {
       expect(mockedRevalidateTag).toHaveBeenCalledWith("bookmarks-db-full", "max");
       expect(mockedRevalidateTag).toHaveBeenCalledWith("bookmark-slug-mapping", "max");
       expect(mockedRevalidateTag).toHaveBeenCalledWith("search-index", "max");
+      expect(mockedRevalidateTag).toHaveBeenCalledWith("related-content", "max");
     });
   });
 
@@ -274,6 +261,7 @@ describe("Cache Invalidation via API Routes", () => {
       expect(data).toHaveProperty("status", "success");
       expect(data).toHaveProperty("message", "All Next.js caches cleared successfully");
       expect(mockedRevalidateTag).toHaveBeenCalledWith("logo-manifest", "max");
+      expect(mockedRevalidateTag).toHaveBeenCalledWith("related-content", "max");
 
       // Restore environment
       process.env.CACHE_API_KEY = originalApiKey;
@@ -338,5 +326,25 @@ describe("Cache Invalidation via API Routes", () => {
         error: "probe failed",
       });
     });
+  });
+
+  it("invalidates the Cache Component tag when the shipped cache flag is false", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/cache", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/lib/cache")>()),
+      USE_NEXTJS_CACHE: false,
+    }));
+    try {
+      const { revalidateTag: falsePathRevalidateTag } = await import("next/cache");
+      const bookmarkCacheManagement = await import("@/lib/bookmarks/cache-management.server");
+      const mockedFalsePathRevalidateTag = vi.mocked(falsePathRevalidateTag);
+      mockedFalsePathRevalidateTag.mockClear();
+      bookmarkCacheManagement.invalidateNextJsBookmarksCache();
+      expect(mockedFalsePathRevalidateTag).toHaveBeenCalledTimes(1);
+      expect(mockedFalsePathRevalidateTag).toHaveBeenCalledWith(RELATED_CONTENT_CACHE_TAG, "max");
+    } finally {
+      vi.doUnmock("@/lib/cache");
+      vi.resetModules();
+    }
   });
 });

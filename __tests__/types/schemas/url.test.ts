@@ -49,6 +49,59 @@ describe("URL Schema Validation", () => {
       }
     });
 
+    it.each([
+      { label: "accepts public hosts", url: "https://example.com/", expectedSuccess: true },
+      {
+        label: "rejects terminal-dot localhost",
+        url: "http://localhost./",
+        expectedSuccess: false,
+      },
+      {
+        label: "rejects terminal-dot local domains",
+        url: "http://internal.local./",
+        expectedSuccess: false,
+      },
+      { label: "rejects the start of IPv4 0/8", url: "http://0.0.0.1/", expectedSuccess: false },
+      {
+        label: "rejects the end of IPv4 0/8",
+        url: "http://0.255.255.255/",
+        expectedSuccess: false,
+      },
+      { label: "rejects IPv6 unspecified", url: "http://[::]/", expectedSuccess: false },
+      {
+        label: "rejects dotted IPv4-compatible IPv6",
+        url: "http://[::127.0.0.1]/",
+        expectedSuccess: false,
+      },
+      {
+        label: "rejects normalized IPv4-compatible IPv6",
+        url: "http://[::7f00:1]/",
+        expectedSuccess: false,
+      },
+      {
+        label: "rejects expanded IPv4-compatible IPv6",
+        url: "http://[0:0:0:0:0:0:7f00:1]/",
+        expectedSuccess: false,
+      },
+      {
+        label: "rejects the start of IPv6 fe80::/10",
+        url: "http://[fe80::1]/",
+        expectedSuccess: false,
+      },
+      {
+        label: "rejects the middle of IPv6 fe80::/10",
+        url: "http://[fe90::1]/",
+        expectedSuccess: false,
+      },
+      {
+        label: "rejects the end of IPv6 fe80::/10",
+        url: "http://[febf::1]/",
+        expectedSuccess: false,
+      },
+    ])("$label", ({ url, expectedSuccess }) => {
+      expect(safeUrlSchema.safeParse(url).success).toBe(expectedSuccess);
+    });
+
     it("should reject non-HTTP(S) protocols", () => {
       const invalidProtocols = [
         "file:///etc/passwd",
@@ -149,6 +202,11 @@ describe("URL Schema Validation", () => {
       // Should reject file protocol
       expect(() => openGraphUrlSchema.parse("file:///etc/passwd")).toThrow(/not safe|Invalid/);
     });
+
+    it.each(["http://metadata.google.internal", "http://metadata.google.internal."])(
+      "should reject cloud metadata host %s",
+      (url) => expect(openGraphUrlSchema.safeParse(url).success).toBe(false),
+    );
   });
 
   describe("s3KeySchema", () => {

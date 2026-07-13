@@ -8,9 +8,11 @@
  */
 
 import { Suspense } from "react";
+import { cacheLife, cacheTag } from "next/cache";
 import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 // Import blog post retrieval utilities from the main blog library
 import { getAllPostsMeta, getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
+import { isValidBlogSlug } from "@/lib/blog/validation";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
@@ -24,6 +26,22 @@ import { RelatedContent } from "@/components/features/related-content/related-co
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 
 const BLOG_STATIC_PARAM_PLACEHOLDER = "__placeholder__";
+
+async function getCachedBlogPost(slug: string) {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("blog");
+  cacheTag(`blog-post-${slug}`);
+  return getPostBySlug(slug);
+}
+
+async function getCachedBlogPostMetadata(slug: string) {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("blog");
+  cacheTag(`blog-post-${slug}`);
+  return getPostMetaBySlug(slug);
+}
 
 export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
   const posts = await getAllPostsMeta();
@@ -72,14 +90,14 @@ function resolveAuthorUrl(authorUrl: string | null | undefined): string {
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<ExtendedMetadata> {
   // params is already resolved here by Next.js
   const { slug } = await params;
-  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER) {
+  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER || !isValidBlogSlug(slug)) {
     return {
       title: "Post Not Found",
       description: "The blog post you are looking for could not be found.",
     };
   }
   // Use getPostMetaBySlug for lightweight metadata (skips MDX compilation + blur generation)
-  const post = await getPostMetaBySlug(slug);
+  const post = await getCachedBlogPostMetadata(slug);
 
   if (!post) {
     console.warn(`[generateMetadata] Post not found for slug: ${slug}. Returning empty metadata.`);
@@ -163,120 +181,112 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
  * Note: We use JsonLdScript directly in the component to ensure the schema data is
  * injected into the page at render time, which can help with immediate indexing
  */
-export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  // params is already resolved here by Next.js
+export default function BlogPostPage({ params }: BlogPostPageProps) {
+  return (
+    <Suspense fallback={null}>
+      <BlogPostContent params={params} />
+    </Suspense>
+  );
+}
+
+async function BlogPostContent({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER) {
+  if (slug === BLOG_STATIC_PARAM_PLACEHOLDER || !isValidBlogSlug(slug)) {
     notFound();
   }
 
-  try {
-    // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
-    const post = await getPostBySlug(slug);
+  // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
+  const post = await getCachedBlogPost(slug);
 
-    // If post not found, use Next.js built-in 404 page
-    if (!post) {
-      console.log(`Blog post not found: ${slug} - Returning 404 page`);
-      notFound();
-    }
+  // If post not found, use Next.js built-in 404 page
+  if (!post) {
+    notFound();
+  }
 
-    // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
-    // Use canonical post.slug for consistency (not route param)
-    const softwareDetails = getSoftwareDetails(post.slug);
-    const pageType: "software" | "article" = softwareDetails ? "software" : "article";
+  // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
+  // Use canonical post.slug for consistency (not route param)
+  const softwareDetails = getSoftwareDetails(post.slug);
+  const pageType: "software" | "article" = softwareDetails ? "software" : "article";
 
-    const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
+  const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
 
-    const authorUrl = resolveAuthorUrl(post.author.url);
+  const authorUrl = resolveAuthorUrl(post.author.url);
 
-    const schemaParams = {
-      path: `/blog/${post.slug}`,
-      title: post.title,
-      description: post.excerpt,
-      datePublished: new Date(post.publishedAt).toISOString(),
-      dateModified: new Date(post.updatedAt ?? post.publishedAt).toISOString(),
-      type: pageType,
-      articleBody: post.rawContent ?? post.excerpt,
-      keywords: post.tags,
-      image: absoluteImageUrl
-        ? {
-            url: absoluteImageUrl,
-            width: 1200,
-            height: 630,
-          }
-        : undefined,
-      images: absoluteImageUrl ? [absoluteImageUrl] : undefined,
-      breadcrumbs: [
-        { path: "/", name: "Home" },
-        { path: "/blog", name: "Blog" },
-        { path: `/blog/${post.slug}`, name: post.title },
-      ],
-      authors: [
-        {
-          name: post.author.name,
-          url: authorUrl,
-        },
-      ],
-      ...(softwareDetails && {
-        softwareMetadata: {
-          name: softwareDetails.name,
-          operatingSystem: softwareDetails.operatingSystem,
-          applicationCategory: softwareDetails.applicationCategory,
-          downloadUrl: softwareDetails.downloadUrl,
-          softwareVersion: softwareDetails.softwareVersion,
-          screenshot: softwareDetails.screenshot,
-          isFree: true,
-        },
-      }),
-    };
+  const schemaParams = {
+    path: `/blog/${post.slug}`,
+    title: post.title,
+    description: post.excerpt,
+    datePublished: new Date(post.publishedAt).toISOString(),
+    dateModified: new Date(post.updatedAt ?? post.publishedAt).toISOString(),
+    type: pageType,
+    articleBody: post.rawContent ?? post.excerpt,
+    keywords: post.tags,
+    image: absoluteImageUrl
+      ? {
+          url: absoluteImageUrl,
+          width: 1200,
+          height: 630,
+        }
+      : undefined,
+    images: absoluteImageUrl ? [absoluteImageUrl] : undefined,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/blog", name: "Blog" },
+      { path: `/blog/${post.slug}`, name: post.title },
+    ],
+    authors: [
+      {
+        name: post.author.name,
+        url: authorUrl,
+      },
+    ],
+    ...(softwareDetails && {
+      softwareMetadata: {
+        name: softwareDetails.name,
+        operatingSystem: softwareDetails.operatingSystem,
+        applicationCategory: softwareDetails.applicationCategory,
+        downloadUrl: softwareDetails.downloadUrl,
+        softwareVersion: softwareDetails.softwareVersion,
+        screenshot: softwareDetails.screenshot,
+        isFree: true,
+      },
+    }),
+  };
 
-    const jsonLdData = generateSchemaGraph(schemaParams);
+  const jsonLdData = generateSchemaGraph(schemaParams);
 
-    // Import MDXContent server component here at the page level
-    const { MDXContent } = await import("@/components/features/blog/blog-article/mdx-content");
+  // Import MDXContent server component here at the page level
+  const { MDXContent } = await import("@/components/features/blog/blog-article/mdx-content");
 
-    return (
-      <>
-        <JsonLdScript data={jsonLdData} />
-        <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
+  return (
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
 
-        {/* Similar Content Section */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Suspense
-            fallback={
-              <RelatedContentFallback
-                title="Similar Content"
-                className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
-                cardCount={3}
-              />
-            }
-          >
-            <RelatedContent
-              sourceType="blog"
-              sourceId={post.id}
-              sectionTitle="Similar Content"
-              options={{
-                maxPerType: 3,
-                maxTotal: 12,
-                excludeTypes: [], // Include all content types
-              }}
+      {/* Similar Content Section */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Suspense
+          fallback={
+            <RelatedContentFallback
+              title="Similar Content"
               className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+              cardCount={3}
             />
-          </Suspense>
-        </div>
-      </>
-    );
-  } catch (error: unknown) {
-    // Log the error with details
-    if (error instanceof Error) {
-      console.error(`Error rendering blog post ${slug}:`, error);
-    } else {
-      const errorMessage = String(error);
-      console.error(`Error rendering blog post ${slug}:`, errorMessage);
-    }
-
-    // Return 404 page for any error in blog post rendering
-    // This prevents server crashes and provides a better user experience
-    notFound();
-  }
+          }
+        >
+          <RelatedContent
+            sourceType="blog"
+            sourceId={post.id}
+            sectionTitle="Similar Content"
+            options={{
+              maxPerType: 3,
+              maxTotal: 12,
+              excludeTypes: [], // Include all content types
+            }}
+            className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+          />
+        </Suspense>
+      </div>
+    </>
+  );
 }

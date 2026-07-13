@@ -227,7 +227,6 @@ export class UnifiedImageService {
       devStreamImagesToS3: this.devStreamImagesToS3,
       isDev: this.isDev,
       s3Ops: this.s3Ops,
-      logoFetcher: this.logoFetcher,
       placeholderBuffer: UnifiedImageService.TRANSPARENT_PNG_PLACEHOLDER,
       fetchTimeout: this.CONFIG.FETCH_TIMEOUT,
     });

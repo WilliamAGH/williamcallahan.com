@@ -19,6 +19,7 @@ import {
   getEnvironmentSuffix,
   logEnvironmentConfig,
 } from "@/lib/config/environment";
+import { bookmarkDiagnosticsResponseSchema } from "@/types/schemas/api";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -64,10 +65,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     slugMapOk: slugMapping !== null,
   };
 
-  const allOk = checks.indexOk && checks.firstPageOk && checks.tagStateOk;
+  const allOk = Object.values(checks).every(Boolean);
 
   return NextResponse.json(
-    {
+    bookmarkDiagnosticsResponseSchema.parse({
       status: allOk ? "ok" : "fail",
       environment: {
         NODE_ENV: process.env.NODE_ENV,
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         slugMappingCount: slugMapping?.count ?? 0,
         slugMappingGeneratedAt: slugMapping?.generated ?? null,
       },
-    },
+    }),
     { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
   );
 }

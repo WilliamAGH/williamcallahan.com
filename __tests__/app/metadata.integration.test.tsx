@@ -59,6 +59,7 @@ describe("Metadata Integration Tests", () => {
     });
 
     it("treats API_BASE_URL production as production even when NEXT_PUBLIC_SITE_URL differs", async () => {
+      vi.stubEnv("NODE_ENV", "production");
       process.env.API_BASE_URL = "https://williamcallahan.com";
       process.env.NEXT_PUBLIC_SITE_URL = "https://dev.williamcallahan.com";
 

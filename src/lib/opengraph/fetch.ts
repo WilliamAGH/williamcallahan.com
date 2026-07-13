@@ -235,7 +235,7 @@ async function performFetchWithRetry(
 
     return result;
   } catch (finalError: unknown) {
-    // retryWithOptions failed - handle the error
+    // retryWithThrow preserves the terminal error for classification here.
     const error = finalError instanceof Error ? finalError : new Error(String(finalError));
     const errorMessage = error.message;
 
@@ -248,7 +248,6 @@ async function performFetchWithRetry(
     const isHttpError =
       errorMessage.includes("HTTP 4") ||
       errorMessage.includes("HTTP 5") ||
-      errorMessage.includes("retries") ||
       errorMessage.includes("All OpenGraph fetch attempts failed");
 
     if (isNetworkError) {

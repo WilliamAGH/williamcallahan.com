@@ -8,17 +8,12 @@
  */
 
 import { z } from "zod/v4";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
 
 /**
  * Source categories for chat messages
  */
-export const aiChatSourceSchema = z.enum([
-  "terminal_chat",
-  "bookmark-analysis",
-  "book-analysis",
-  "project-analysis",
-  "unknown",
-]);
+export const aiChatSourceSchema = aiFeatureIdentifierSchema.or(z.literal("unknown"));
 
 export type AiChatSource = z.infer<typeof aiChatSourceSchema>;
 

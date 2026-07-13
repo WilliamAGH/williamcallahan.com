@@ -72,7 +72,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 1. `selectBestImage` (bookmarks) or `selectBestOpenGraphImage` (OG fetch path) chooses between CDN hashes, Karakeep `imageAssetId`, `screenshotAssetId`, or standard OG URLs.
 2. `/api/assets/[assetId]` (Karakeep proxy) validates UUID, resolves S3 keys by canonical `assetId + extension`, and writes missing assets using `createMonitoredStream` + `writeBinaryS3`.
-3. `/api/og-image` handles S3 keys, asset IDs, direct URLs, and bookmark fallbacks. It uses `openGraphUrlSchema`, `sanitizePath`, `IMAGE_SECURITY_HEADERS`, and `getUnifiedImageService().getImage()` for external fetches.
+3. `/api/og-image` handles S3 keys, asset IDs, direct URLs, and bookmark fallbacks. It uses `openGraphUrlSchema`, `sanitizePath`, `IMAGE_SECURITY_HEADERS`, and `getUnifiedImageService().getImage()` for external fetches. Generic image requests preserve the supplied URL; only explicit `getLogo()` calls start domain-level logo discovery.
 4. `<OptimizedCardImage>` uses Next/Image to render whichever URL results. If the URL points to `/api/assets` or `/api/og-image`, the API response returns a CDN redirect or raw bytes with 1-year TTLs.
 
 ### Social / Twitter Proxy
@@ -110,7 +110,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 ## Security & Reliability Invariants
 
-1. **SSRF Defense** – `openGraphUrlSchema`, `assetIdSchema`, `sanitizePath`, `isLogoUrl`, and `url-utils` block private IP ranges, non-HTTP schemes, credentials, suspicious ports.
+1. **SSRF Defense** – `safeUrlSchema`, inherited by `openGraphUrlSchema` and `logoUrlSchema`, blocks private IP ranges, non-HTTP schemes, credentials, and suspicious ports. `sanitizePath` separately validates local paths.
 2. **Hostname Allowing** – All remote origins must appear in `CALLAHAN_IMAGE_HOSTS` or explicit `remotePatterns`. CDN URL validation compares parsed host + base path to prevent prefix spoofing before proxying requests. Adding a CDN requires updating env vars + `next.config.ts`.
 3. **Bounded IO Paths** – large fetch/upload flows use explicit size/time boundaries and streaming fallback paths.
 4. **Streaming Re-fetch** – When a streaming upload consumes the response body and fails, the image service re-fetches before buffering; Response bodies are single-use, so buffering must use a fresh fetch.
@@ -190,6 +190,7 @@ Per Next.js docs: without `sizes`, the browser assumes the image is viewport-wid
 
 - **`next.config.ts` is the source of truth.** `images.localPatterns` lists `/images/**`, `/api/assets`, `/api/cache/images`, `/api/logo`, `/api/logo/invert`, `/api/og-image`. Real CDN hostnames live in `images.remotePatterns`.
 - **API routes stream bytes.** `/api/cache/images` resolves CDN redirects server-side, decodes double-encoded `url` params, and streams the body so `_next/image` never receives a 302.
+- **API routes own cache policy.** `src/proxy.ts` adds security headers but does not replace `/api/*` cache headers; `/api/cache/images` therefore retains its route-owned immutable browser and CDN policy.
 - **Placeholders stay static.** Anything under `/images/**` in `public/` is imported statically so Next infers width/height.
 - **Tracking pixels use plain `<img>`.** Noscript analytics pixels (1x1 GIFs from domains not in `remotePatterns` like `simpleanalyticscdn.com`, `getclicky.com`) must use `<img>` to avoid failed optimizer requests.
 

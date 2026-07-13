@@ -39,11 +39,11 @@ describe("Search API Guards", () => {
   });
 
   describe("getClientIp", () => {
-    it("extracts IP from x-forwarded-for header", () => {
+    it("uses the reverse-proxy peer from x-forwarded-for", () => {
       const request = new NextRequest("http://localhost/api/search", {
         headers: { "x-forwarded-for": "192.168.1.1, 10.0.0.1" },
       });
-      expect(getClientIp(request)).toBe("192.168.1.1");
+      expect(getClientIp(request)).toBe("10.0.0.1");
     });
 
     it("returns anonymous when no x-forwarded-for header", () => {

@@ -2,9 +2,19 @@
 
 ## Overview
 
-Rate limiting operates at the proxy layer:
+Rate limiting operates at the proxy layer and applies profiles by request class:
 
-- **Rate limiting** (`sitewide-rate-limit.ts`) uses a **navigation-first** strategy: only `document` and `api` request classes are throttled. `rsc`, `prefetch`, and `image` subrequests pass through to avoid partial-render failures where HTML succeeds but dependent resources are independently blocked.
+- `document`, `rsc`, `prefetch`, and `image` share the bounded `page` profile so spoofable framework headers cannot bypass or multiply the allowance.
+- `api` uses the `api` profile, except `/api/tunnel`, which uses the higher-volume `sentryTunnel` profile.
+- `OPTIONS`, health checks, and the `other` request class are not throttled.
+
+## In-Memory Store Bounds
+
+`src/lib/rate-limiter.ts` owns the in-memory lifecycle policy:
+
+- Direct client lookups and counter updates use a `Map` instead of materializing the whole store.
+- Incremental cleanup scans at most `RATE_LIMIT_STORE_CLEANUP_BATCH_SIZE` entries every `RATE_LIMIT_STORE_CLEANUP_INTERVAL` operations using a persistent cursor. No background interval is created.
+- Each namespace is capped by `RATE_LIMIT_STORE_MAX_ENTRIES`; a new client at capacity evicts the oldest tracked client.
 
 ## Request Classification
 
@@ -16,6 +26,10 @@ Proxy request classes are derived in `src/lib/utils/request-utils.ts` using path
 - `prefetch`: Next prefetch hints (`next-router-prefetch`, `purpose=prefetch`, `sec-purpose=prefetch`)
 - `image`: `/_next/image`
 - `other`: everything else
+
+## Client Identity
+
+Traefik is the client-IP trust boundary for both Cloudflare and direct-origin traffic. Its entrypoints must keep `forwardedHeaders.insecure=false` and append the connection's `RemoteAddr` to `X-Forwarded-For`; trusting all forwarded headers or preserving a chain without that final hop violates this contract. The application uses the last valid `X-Forwarded-For` hop (or Traefik's `X-Real-IP` fallback) as the immediate peer. Cloudflare's client header is accepted only when that peer belongs to Cloudflare's published network ranges; direct-origin requests always use the Traefik-derived peer and ignore forged Cloudflare identity headers.
 
 ## Deterministic Response Contracts
 
@@ -29,10 +43,10 @@ Proxy request classes are derived in `src/lib/utils/request-utils.ts` using path
 - User-facing message:
   - `You've reached a rate limit. Please wait a few minutes and try again.`
 
-### Document vs API Format
+### Document vs Subrequest/API Format
 
 - `document`: HTML error page with unambiguous message + status (`429`)
-- `api`: JSON schema:
+- `api`, `rsc`, `prefetch`, and `image`: JSON schema:
   - `code`: `RATE_LIMITED`
   - `message`: user-safe message
   - `retryAfterSeconds`: integer

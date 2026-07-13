@@ -1,12 +1,9 @@
 // __tests__/smoke/update-data.smoke.test.ts
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { execSync } from "node:child_process";
-import path from "node:path";
-import { createDataUpdaterStderrLogger } from "../../scheduler/background-data-populator";
 import type { GraphQLRepoNode } from "@/types/github";
 
-// Path to the script relative to the project root
-const SCRIPT_PATH = path.join(process.cwd(), "scheduler/data-updater.ts");
+const UPDATE_DATA_COMMAND = "node --run update-data";
 // S3 Bucket name from environment for log verification
 const S3_BUCKET = process.env.S3_BUCKET;
 const IS_S3_CONFIGURED = Boolean(
@@ -34,7 +31,7 @@ describe("scheduler/data-updater.ts Smoke Test", () => {
   it(
     `should execute successfully in ${displayMode} mode`,
     () => {
-      console.log(`[Smoke Test] Executing script in ${displayMode} mode: ${SCRIPT_PATH}`);
+      console.log(`[Smoke Test] Executing script in ${displayMode} mode: ${UPDATE_DATA_COMMAND}`);
       console.log(`[Smoke Test] S3_TEST_MODE: ${testMode}`);
 
       let stdout = "";
@@ -59,11 +56,7 @@ describe("scheduler/data-updater.ts Smoke Test", () => {
       // FULL mode runs without restrictions
 
       try {
-        // Use environment variable or default to 'bun' in PATH
-        const bunPath = process.env.BUN_PATH || "bun";
-        const command = `${bunPath} ${SCRIPT_PATH}`;
-
-        stdout = execSync(command, {
+        stdout = execSync(UPDATE_DATA_COMMAND, {
           env: envVars,
           encoding: "utf8",
           stdio: ["inherit", "pipe", "pipe"],
@@ -191,35 +184,6 @@ describe("GitHub stats updater log severity", () => {
       vi.doUnmock("@/lib/data-access/github-storage");
       vi.doUnmock("@/lib/db/queries/github-activity");
       vi.doUnmock("@/lib/db/mutations/github-activity");
-    }
-  });
-});
-
-describe("background data populator stderr logging", () => {
-  it("classifies complete stderr lines after chunk boundaries", () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-    try {
-      const stderrLogger = createDataUpdaterStderrLogger();
-      stderrLogger.write("[WARN] GitHub stats");
-      expect(warnSpy).not.toHaveBeenCalled();
-      expect(errorSpy).not.toHaveBeenCalled();
-
-      stderrLogger.write(" pending\nUnexpected failure\n[Book");
-      expect(warnSpy).toHaveBeenCalledWith("[DataUpdater WARN] [WARN] GitHub stats pending");
-      expect(errorSpy).toHaveBeenCalledWith("[DataUpdater ERROR] Unexpected failure");
-
-      stderrLogger.write("marksDataAccess] Metadata-only refresh failed\nPartial failure");
-      stderrLogger.flush();
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        "[DataUpdater WARN] [BookmarksDataAccess] Metadata-only refresh failed",
-      );
-      expect(errorSpy).toHaveBeenCalledWith("[DataUpdater ERROR] Partial failure");
-    } finally {
-      warnSpy.mockRestore();
-      errorSpy.mockRestore();
     }
   });
 });

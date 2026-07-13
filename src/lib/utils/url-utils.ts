@@ -87,20 +87,6 @@ export function extractDomainWithoutWww(url: string): string {
 }
 
 /**
- * Check if URL likely points to a logo or favicon
- */
-export function isLogoUrl(url: string): boolean {
-  const pathname = extractPathname(url).toLowerCase();
-  return (
-    pathname.includes("logo") ||
-    pathname.includes("favicon") ||
-    pathname.includes("icon") ||
-    pathname.includes("brand") ||
-    pathname.endsWith(".ico")
-  );
-}
-
-/**
  * Check if URL likely points to an image
  */
 export function isImageUrl(url: string): boolean {

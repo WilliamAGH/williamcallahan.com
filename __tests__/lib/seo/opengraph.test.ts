@@ -8,6 +8,9 @@ import { metadata as siteMetadata } from "@/data/metadata";
 import { isPacificDateString, type OpenGraphImage } from "@/types/seo";
 import { ogMetadataSchema } from "@/types/seo/opengraph";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { fetchWithTimeout } from "@/lib/utils/http-client";
+import { getDomainType, validateOgUrl } from "@/lib/utils/opengraph-utils";
+import { openGraphUrlSchema } from "@/types/schemas/url";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 
@@ -22,6 +25,43 @@ afterAll(() => {
   } else {
     process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
   }
+});
+
+describe("OpenGraph URL security", () => {
+  it.each(["https://example.com", "http://127.0.0.1", "javascript:alert(1)"])(
+    "projects the canonical schema for %s",
+    (url) => expect(validateOgUrl(url)).toBe(openGraphUrlSchema.safeParse(url).success),
+  );
+
+  it.each([
+    ["https://gist.github.com/openai", "GitHub"],
+    ["https://attacker-github.com/openai", "Website"],
+    ["https://x.com/openai", "X"],
+    ["https://attacker-twitter.com/openai", "Website"],
+    ["https://www.linkedin.com/in/openai", "LinkedIn"],
+    ["https://fake-linkedin.com/in/openai", "Website"],
+    ["https://cdn.bsky.app/img/avatar", "Bluesky"],
+    ["https://fake-bsky.app/img/avatar", "Website"],
+  ])("classifies %s as %s", (url, domainType) => expect(getDomainType(url)).toBe(domainType));
+
+  it("blocks an unsafe redirect before a second outbound request", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(null, { status: 302, headers: { Location: "http://127.0.0.1/private" } }),
+      );
+
+    try {
+      await expect(fetchWithTimeout("https://example.com")).rejects.toThrow(/Unsafe redirect URL/);
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "https://example.com",
+        expect.objectContaining({ redirect: "manual" }),
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });
 
 describe("OpenGraph Metadata", () => {

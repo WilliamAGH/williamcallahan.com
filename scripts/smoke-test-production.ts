@@ -1,13 +1,7 @@
 #!/usr/bin/env bun
 
-/**
- * Production Smoke Test Suite
- *
- * Run this immediately after deployment to verify critical functionality
- * works in the production environment.
- */
-
-import type { TestResult } from "@/types/scripts";
+import type { SmokeTestEndpointOptions, TestResult } from "@/types/scripts";
+import { bookmarkDiagnosticsResponseSchema, healthResponseSchema } from "@/types/schemas/api";
 
 class ProductionSmokeTests {
   private baseUrl: string;
@@ -23,13 +17,7 @@ class ProductionSmokeTests {
   private async testEndpoint(
     name: string,
     path: string,
-    options: {
-      expectedStatus?: number;
-      requiresAuth?: boolean;
-      method?: string;
-      body?: unknown;
-      validateResponse?: (data: unknown) => boolean;
-    } = {},
+    options: SmokeTestEndpointOptions = {},
   ): Promise<TestResult> {
     const startTime = Date.now();
     const endpoint = `${this.baseUrl}${path}`;
@@ -43,7 +31,7 @@ class ProductionSmokeTests {
         headers.Authorization = `Bearer ${this.authToken}`;
       }
 
-      const method = options.method || "GET";
+      const method = options.method === undefined ? "GET" : options.method;
       const fetchOptions: RequestInit = {
         method,
         headers,
@@ -51,22 +39,21 @@ class ProductionSmokeTests {
       };
 
       // Only add body for non-GET requests
-      if (method !== "GET" && options.body) {
+      if (method !== "GET" && options.body !== undefined) {
         fetchOptions.body = JSON.stringify(options.body);
       }
 
       const response = await fetch(endpoint, fetchOptions);
-
       const responseTime = Date.now() - startTime;
-      const expectedStatus = options.expectedStatus || 200;
-
+      const expectedStatus = options.expectedStatus === undefined ? 200 : options.expectedStatus;
       let passed = response.status === expectedStatus;
 
-      // Additional validation if provided (only validate JSON on 200 responses)
-      if (passed && response.status === 200 && options.validateResponse) {
+      if (passed && options.validateResponse) {
+        passed = await options.validateResponse(response);
+      } else if (passed && response.status === 200 && options.validateJson) {
         try {
-          const data = await response.json();
-          passed = options.validateResponse(data);
+          const data: unknown = await response.json();
+          passed = options.validateJson(data);
         } catch {
           passed = false;
         }
@@ -93,51 +80,22 @@ class ProductionSmokeTests {
   async runCriticalPathTests(): Promise<void> {
     console.log("\n📍 Testing Critical User Paths...\n");
 
-    // 1. Homepage
-    this.results.push(
-      await this.testEndpoint("Homepage", "/", {
-        expectedStatus: 200,
-      }),
-    );
-
-    // 2. Bookmarks List
-    this.results.push(
-      await this.testEndpoint("Bookmarks List", "/bookmarks", {
-        expectedStatus: 200,
-      }),
-    );
-
-    // 3. Individual Bookmark (requires knowing a slug)
-    this.results.push(
-      await this.testEndpoint(
+    const paths = [
+      ["Homepage", "/", 200],
+      ["Bookmarks List", "/bookmarks", 200],
+      [
         "Individual Bookmark",
         "/bookmarks/textual-textualize-io-blog-2024-12-12-algorithms-for-high-performance-terminal-apps",
-        {
-          expectedStatus: 200,
-        },
-      ),
-    );
+        200,
+      ],
+      ["Blog", "/blog", 200],
+      ["Projects", "/projects", 200],
+      ["404 Error Page", "/this-page-should-not-exist-12345", 404],
+    ] as const;
 
-    // 4. Blog
-    this.results.push(
-      await this.testEndpoint("Blog", "/blog", {
-        expectedStatus: 200,
-      }),
-    );
-
-    // 5. Projects
-    this.results.push(
-      await this.testEndpoint("Projects", "/projects", {
-        expectedStatus: 200,
-      }),
-    );
-
-    // 6. 404 Page
-    this.results.push(
-      await this.testEndpoint("404 Error Page", "/this-page-should-not-exist-12345", {
-        expectedStatus: 404,
-      }),
-    );
+    for (const [name, path, expectedStatus] of paths) {
+      this.results.push(await this.testEndpoint(name, path, { expectedStatus }));
+    }
   }
 
   async runAPITests(): Promise<void> {
@@ -147,11 +105,7 @@ class ProductionSmokeTests {
     this.results.push(
       await this.testEndpoint("Health Check API", "/api/health", {
         expectedStatus: 200,
-        validateResponse: (data: unknown) => {
-          if (!data || typeof data !== "object") return false;
-          const status = (data as { status?: unknown }).status;
-          return status === "healthy";
-        },
+        validateJson: (data) => healthResponseSchema.safeParse(data).success,
       }),
     );
 
@@ -160,41 +114,20 @@ class ProductionSmokeTests {
       await this.testEndpoint("Bookmarks Diagnostics", "/api/bookmarks/diagnostics", {
         expectedStatus: this.authToken ? 200 : 401,
         requiresAuth: true,
-        validateResponse: (data: unknown) => {
-          if (!data || typeof data !== "object") return false;
-          const checks = (
-            data as { checks?: { datasetOk?: unknown; indexOk?: unknown; slugMapOk?: unknown } }
-          ).checks;
-          if (!checks || typeof checks !== "object") return false;
-          const datasetOk = (checks as { datasetOk?: unknown }).datasetOk === true;
-          const indexOk = (checks as { indexOk?: unknown }).indexOk === true;
-          const slugMapOk = (checks as { slugMapOk?: unknown }).slugMapOk === true;
-          // Check for critical S3 data
-          return datasetOk && indexOk && slugMapOk;
+        validateJson: (data) => {
+          const parsed = bookmarkDiagnosticsResponseSchema.safeParse(data);
+          return parsed.success && Object.values(parsed.data.checks).every(Boolean);
         },
       }),
     );
 
-    // 3. Sitemap
-    this.results.push(
-      await this.testEndpoint("Sitemap", "/sitemap.xml", {
-        expectedStatus: 200,
-      }),
-    );
-
-    // 4. RSS Feed
-    this.results.push(
-      await this.testEndpoint("RSS Feed", "/feed.xml", {
-        expectedStatus: 200,
-      }),
-    );
-
-    // 5. Robots.txt
-    this.results.push(
-      await this.testEndpoint("Robots.txt", "/robots.txt", {
-        expectedStatus: 200,
-      }),
-    );
+    for (const [name, path] of [
+      ["Sitemap", "/sitemap.xml"],
+      ["RSS Feed", "/feed.xml"],
+      ["Robots.txt", "/robots.txt"],
+    ] as const) {
+      this.results.push(await this.testEndpoint(name, path));
+    }
   }
 
   async runPerformanceTests(): Promise<void> {
@@ -250,47 +183,33 @@ class ProductionSmokeTests {
       {
         expectedStatus: this.authToken ? 200 : 401,
         requiresAuth: true,
-        validateResponse: (data: unknown) => {
-          if (!data || typeof data !== "object") return false;
-          const obj = data as {
-            checks?: {
-              datasetOk?: unknown;
-              indexOk?: unknown;
-              firstPageOk?: unknown;
-              slugMapOk?: unknown;
-            };
-            environment?: { resolved?: unknown };
-          };
-          if (!obj.checks) return false;
-
-          // All critical data should be present
-          const allChecksPass =
-            obj.checks?.datasetOk === true &&
-            obj.checks?.indexOk === true &&
-            obj.checks?.firstPageOk === true &&
-            obj.checks?.slugMapOk === true;
-
-          // Environment should match production
+        validateJson: (data) => {
+          const parsed = bookmarkDiagnosticsResponseSchema.safeParse(data);
+          if (!parsed.success) return false;
+          if (!Object.values(parsed.data.checks).every(Boolean)) return false;
           const isCorrectEnv = this.baseUrl.includes("dev.")
-            ? obj.environment?.resolved === "development"
-            : obj.environment?.resolved === "production";
-
-          return allChecksPass && isCorrectEnv;
+            ? parsed.data.environment.resolved === "development"
+            : parsed.data.environment.resolved === "production";
+          return isCorrectEnv;
         },
       },
     );
 
     this.results.push({
       ...diagnosticsResult,
-      name: "S3 Data Integrity",
+      name: "Bookmark Data Integrity",
     });
 
-    // Test that bookmark slugs resolve
     const bookmarkSlugTest = await this.testEndpoint(
       "Bookmark Slug Resolution",
       "/bookmarks/test-slug-that-should-404",
       {
-        expectedStatus: 404, // Should return 404 for non-existent slug
+        expectedStatus: 200,
+        validateResponse: async (response) => {
+          if (response.headers.get("x-nextjs-postponed") !== "1") return false;
+          const body = await response.text();
+          return body.includes('<meta name="robots" content="noindex"/>');
+        },
       },
     );
 

@@ -15,6 +15,7 @@ import {
   getCircuitBreakerState,
   isOperationAllowed,
   isOperationAllowedWithCircuitBreaker,
+  RATE_LIMIT_STORE_MAX_ENTRIES,
   waitForPermit,
 } from "@/lib/rate-limiter";
 import {
@@ -109,7 +110,7 @@ describe("Rate Limiter", () => {
       );
     });
 
-    it("should clean up expired entries", () => {
+    it("should lazily reset expired clients", () => {
       const config = { maxRequests: 1, windowMs: 1000 };
 
       // Create multiple clients
@@ -124,6 +125,19 @@ describe("Rate Limiter", () => {
       expect(isOperationAllowed("test-store-7", "client-1", config)).toBe(true);
       expect(isOperationAllowed("test-store-7", "client-2", config)).toBe(true);
       expect(isOperationAllowed("test-store-7", "client-3", config)).toBe(true);
+    });
+
+    it("should cap each store under high-cardinality traffic", () => {
+      const storeName = "bounded-cardinality-store";
+      const config = { maxRequests: 1, windowMs: 60_000 };
+
+      for (let index = 0; index < RATE_LIMIT_STORE_MAX_ENTRIES * 2; index++) {
+        if (index === RATE_LIMIT_STORE_MAX_ENTRIES) {
+          expect(isOperationAllowed(storeName, "client-0", config)).toBe(false);
+        }
+        expect(isOperationAllowed(storeName, `client-${index}`, config)).toBe(true);
+      }
+      expect(isOperationAllowed(storeName, "client-0", config)).toBe(true);
     });
   });
 
@@ -229,17 +243,11 @@ describe("Rate Limiter", () => {
   });
 
   describe("Default configurations", () => {
-    it("should have reasonable default API endpoint limits", () => {
+    it("should expose the expected limits and store identifiers", () => {
       expect(DEFAULT_API_ENDPOINT_LIMIT_CONFIG.maxRequests).toBe(5);
       expect(DEFAULT_API_ENDPOINT_LIMIT_CONFIG.windowMs).toBe(60000);
-    });
-
-    it("should have reasonable default OpenGraph fetch limits", () => {
       expect(DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG.maxRequests).toBe(10);
       expect(DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG.windowMs).toBe(1000);
-    });
-
-    it("should define proper store names and context IDs", () => {
       expect(API_ENDPOINT_STORE_NAME).toBe("apiEndpoints");
       expect(OPENGRAPH_FETCH_STORE_NAME).toBe("outgoingOpenGraph");
       expect(OPENGRAPH_FETCH_CONTEXT_ID).toBe("global");

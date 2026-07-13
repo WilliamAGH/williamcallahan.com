@@ -4,6 +4,7 @@ import { checkIfS3ObjectExists } from "@/lib/s3/objects";
 import { writeBinaryS3 } from "@/lib/s3/binary";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
+import { retryWithThrow } from "@/lib/utils/retry";
 import type { LogoSource } from "@/types/logo";
 
 // Mock dependencies
@@ -246,13 +247,14 @@ describe("Logos Batch Performance Optimizations", () => {
   });
 
   describe("BatchProcessor Result Tracking", () => {
-    it("records failures when retryWithOptions returns null", async () => {
+    it("records the root error when retries fail", async () => {
       const { BatchProcessor } = await import("@/lib/batch-processing");
+      const rootError = new Error("Non-retryable failure");
 
       const processor = new BatchProcessor<string, string>(
-        "batch-null-result",
+        "batch-failure",
         () => {
-          throw new Error("Non-retryable failure");
+          throw rootError;
         },
         {
           retryOptions: {
@@ -266,7 +268,31 @@ describe("Logos Batch Performance Optimizations", () => {
 
       expect(result.successful.size).toBe(0);
       expect(result.failed.size).toBe(1);
+      expect(result.failed.get("item-1")).toBe(rootError);
       expect(result.skipped.length).toBe(0);
+    });
+
+    it("records null as a successful processor result", async () => {
+      const { BatchProcessor } = await import("@/lib/batch-processing");
+      const processor = new BatchProcessor<string, null>("batch-null-result", async () => null, {
+        retryOptions: { maxRetries: 0 },
+      });
+
+      const result = await processor.processBatch(["item-1"]);
+
+      expect(result.successful.get("item-1")).toBeNull();
+      expect(result.failed.size).toBe(0);
+    });
+
+    it("retryWithThrow rejects with the root error", async () => {
+      const rootError = new Error("Permanent failure");
+
+      await expect(
+        retryWithThrow(() => Promise.reject(rootError), {
+          maxRetries: 0,
+          isRetryable: () => false,
+        }),
+      ).rejects.toBe(rootError);
     });
   });
 });

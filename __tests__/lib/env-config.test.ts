@@ -1,21 +1,3 @@
-/**
- * Environment variable configuration testing - validates dynamic config loading and fallback behavior
- *
- * Tests environment variable handling across OpenGraph fetch, S3 script configuration,
- * and critical application variables with proper module isolation and state restoration
- *
- * Covers: default value fallbacks, environment override behavior, invalid value handling,
- * critical variable validation, and module reset patterns for reliable testing
- *
- * @fileoverview Part of configuration validation infrastructure ensuring robust environment handling
- */
-
-/**
- * Environment variable configuration test suite with module isolation
- *
- * Uses Vitest module isolation to test dynamic configuration loading from environment variables
- * while maintaining clean test state through proper setup and teardown
- */
 describe("Environment Variable Configuration", () => {
   /** Original process.env snapshot for restoration after each test */
   const originalEnv = { ...process.env };
@@ -219,6 +201,44 @@ describe("Environment Variable Configuration", () => {
       });
 
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe("Validated Environment Module", () => {
+    it.each([
+      ["development", undefined],
+      ["production", "true"],
+    ])(
+      "fails explicitly instead of supplying fallback credentials in %s",
+      async (nodeEnv, dryRun) => {
+        const { mkdtempSync, rmSync } = await import("node:fs");
+        const originalCwd = process.cwd();
+        const tempDir = mkdtempSync("/tmp/env-validation-");
+
+        try {
+          process.chdir(tempDir);
+          vi.stubEnv("NODE_ENV", nodeEnv);
+          vi.stubEnv("DRY_RUN", dryRun);
+          Reflect.deleteProperty(process.env, "S3_BUCKET");
+
+          await expect(import("@/lib/env")).rejects.toThrow();
+        } finally {
+          process.chdir(originalCwd);
+          rmSync(tempDir, { recursive: true, force: true });
+        }
+      },
+    );
+  });
+
+  describe("Environment Detection", () => {
+    it("keeps the test suffix when a configured API URL is production", async () => {
+      vi.stubEnv("NODE_ENV", "test");
+      vi.stubEnv("API_BASE_URL", "https://williamcallahan.com");
+
+      const { getEnvironment, getEnvironmentSuffix } = await import("@/lib/config/environment");
+
+      expect(getEnvironment()).toBe("test");
+      expect(getEnvironmentSuffix()).toBe("-test");
     });
   });
 

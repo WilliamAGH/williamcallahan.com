@@ -9,17 +9,27 @@ import {
   getSlugForBookmark,
   getBookmarkIdFromSlug,
 } from "@/lib/bookmarks/slug-manager";
+import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import type { BookmarkSlugMapping } from "@/types/schemas/bookmark";
-import { getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
+import { getBookmarkIdBySlug, getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
+
+const queryMocks = vi.hoisted(() => ({
+  getBookmarkIdBySlug: vi.fn<(slug: string) => Promise<string | null>>(),
+  getBookmarkSelectById: vi.fn<(id: string) => Promise<boolean>>(),
+}));
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
   getSlugMappingRowsFromDatabase: vi.fn(),
   getBookmarkBySlugFromDatabase: vi.fn(),
+  getBookmarkIdBySlug: queryMocks.getBookmarkIdBySlug,
+  getBookmarkSelectById: async (id: string) =>
+    (await queryMocks.getBookmarkSelectById(id)) ? { id } : null,
 }));
 
 vi.mock("@/lib/utils/logger");
 
 const mockGetSlugMappingRows = vi.mocked(getSlugMappingRowsFromDatabase);
+const mockGetBookmarkIdBySlug = vi.mocked(getBookmarkIdBySlug);
 
 describe("Bookmark Slug Mapping", () => {
   const mockBookmarks: Parameters<typeof generateSlugMapping>[0] = [
@@ -229,6 +239,31 @@ describe("Bookmark Slug Mapping", () => {
     it("should return null for non-existent slug", () => {
       const id = getBookmarkIdFromSlug(mockMapping, "unknown-slug");
       expect(id).toBeNull();
+    });
+  });
+
+  describe("resolveBookmarkIdFromSlug", () => {
+    it("returns an indexed slug match without querying by ID", async () => {
+      mockGetBookmarkIdBySlug.mockResolvedValue("bookmark1");
+
+      await expect(resolveBookmarkIdFromSlug("example-com")).resolves.toBe("bookmark1");
+      expect(queryMocks.getBookmarkSelectById).not.toHaveBeenCalled();
+    });
+
+    it("accepts an existing bookmark ID after the slug lookup misses", async () => {
+      mockGetBookmarkIdBySlug.mockResolvedValue(null);
+      queryMocks.getBookmarkSelectById.mockResolvedValue(true);
+
+      await expect(resolveBookmarkIdFromSlug("bookmark1")).resolves.toBe("bookmark1");
+      expect(queryMocks.getBookmarkSelectById).toHaveBeenCalledWith("bookmark1");
+    });
+
+    it("returns null after two indexed misses", async () => {
+      mockGetBookmarkIdBySlug.mockResolvedValue(null);
+      queryMocks.getBookmarkSelectById.mockResolvedValue(false);
+
+      await expect(resolveBookmarkIdFromSlug("missing")).resolves.toBeNull();
+      expect(mockGetSlugMappingRows).not.toHaveBeenCalled();
     });
   });
 

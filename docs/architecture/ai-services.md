@@ -158,7 +158,7 @@ Terminal chat injects a full inventory catalog of repo-local and dynamic content
 All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so we do not exceed provider concurrency limits.
 
 - **Queue key:** `{upstreamUrl}::${primaryModel}` built by `buildUpstreamQueueKey(...)`, where `upstreamUrl` is mode-specific and `primaryModel` is the first model in the configured model list.
-- **Max parallelism:** `AI_<FEATURE>_MAX_PARALLEL` (or `AI_DEFAULT_MAX_PARALLEL`), defaulting to `1`.
+- **Max parallelism:** `AI_<FEATURE>_MAX_PARALLEL` (or `AI_DEFAULT_MAX_PARALLEL`), defaulting to `1`. Features resolving to the same queue key must configure the same value; conflicting capacity fails explicitly instead of mutating a live shared queue.
 - **Priority:** request body `priority` (higher runs sooner). We use this to keep interactive terminal chat responsive while allowing background analyses to wait their turn.
 - **UI feedback:** the route emits queue lifecycle events (`queued` / `queue` / `started`) plus model stream events (`message_start` / `message_delta` / `message_done`) and final `done`.
 

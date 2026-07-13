@@ -219,19 +219,19 @@ const DETECTION_STRATEGIES: Array<() => Environment | null> = [
   detectFromDevSubdomain,
   detectFromProductionUrl,
 ];
-
 /**
- * Get the current environment based on URL configuration
+ * Test runs retain NODE_ENV=test before URL configuration is considered.
  * Uses API_BASE_URL or NEXT_PUBLIC_SITE_URL to determine environment
  *
  * CRITICAL: During build time, we MUST use explicit environment variables
  * because the deployment URL is not yet known. The DEPLOYMENT_ENV variable
  * should be set in CI/CD to match the target deployment.
  *
- * GITHUB ACTIVITY FIX: Always prefer DEPLOYMENT_ENV for consistency between
- * build-time and runtime to prevent environment-specific file mismatches.
+ * DEPLOYMENT_ENV keeps build-time and runtime selection consistent.
  */
 export function getEnvironment(): Environment {
+  if (process.env.NODE_ENV === "test") return "test";
+
   for (const strategy of DETECTION_STRATEGIES) {
     const result = strategy();
     if (result) return result;

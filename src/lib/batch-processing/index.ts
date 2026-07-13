@@ -53,11 +53,11 @@ export class BatchProcessor<T, R> {
           }
 
           // Process with retry logic
-          const result = await monitoredAsync(
+          const retryResult = await monitoredAsync(
             null,
             `${this.name}-process`,
-            async () => {
-              return await retryWithOptions(() => this.processor(item), {
+            () =>
+              retryWithOptions(() => this.processor(item), {
                 maxRetries: 3,
                 baseDelay: 1000,
                 maxBackoff: 10000,
@@ -71,15 +71,14 @@ export class BatchProcessor<T, R> {
                     });
                   }
                 },
-              });
-            },
+              }),
             { timeoutMs: this.options.timeout },
           );
 
-          if (result === null) {
-            throw new Error(`[${this.name}] Retry exhausted or non-retryable error`);
+          if (!retryResult.success) {
+            throw retryResult.error;
           }
-          successful.set(item, result);
+          successful.set(item, retryResult.data);
         } catch (error: unknown) {
           const err = error instanceof Error ? error : new Error(String(error));
           failed.set(item, err);

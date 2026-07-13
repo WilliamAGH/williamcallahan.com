@@ -73,6 +73,22 @@ describe("URL Validation Functions", () => {
         expect(result.data).toBeUndefined();
       }
     });
+
+    it.each([
+      { label: "terminal-dot hostname", url: "http://localhost./image.png" },
+      { label: "IPv4 0/8 address", url: "http://0.0.0.1/image.png" },
+      { label: "IPv6 unspecified address", url: "http://[::]/image.png" },
+      { label: "normalized IPv4-compatible IPv6", url: "http://[::7f00:1]/image.png" },
+      { label: "IPv6 link-local address", url: "http://[fe90::1]/image.png" },
+    ])("rejects $label through both external URL validators", async ({ url }) => {
+      const [logoResult, openGraphResult] = await Promise.all([
+        validateLogoUrl(url),
+        validateOpenGraphUrl(url),
+      ]);
+
+      expect(logoResult.success).toBe(false);
+      expect(openGraphResult.success).toBe(false);
+    });
   });
 
   describe("validateS3Key", () => {

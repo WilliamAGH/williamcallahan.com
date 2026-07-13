@@ -155,7 +155,6 @@ export interface ImageFetchConfig {
   devStreamImagesToS3: boolean;
   isDev: boolean;
   s3Ops: import("@/lib/services/image/s3-operations").S3Operations;
-  logoFetcher: import("@/lib/services/image/logo-fetcher").LogoFetcher;
   placeholderBuffer: Buffer;
   fetchTimeout: number;
 }

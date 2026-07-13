@@ -15,23 +15,13 @@ import { getMonotonicTime } from "@/lib/utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
+import { isValidBlogSlug } from "./blog/validation";
 
 /** Whether to include draft posts (only in development) */
 const INCLUDE_DRAFTS = process.env.NODE_ENV === "development";
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
-
-/**
- * Valid slug pattern: lowercase alphanumeric with hyphens, 1-200 chars.
- * This prevents path traversal attacks (e.g., "../../../etc/passwd") and
- * limits memory growth from arbitrary slug requests.
- */
-const VALID_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,198}[a-z0-9]$|^[a-z0-9]$/;
-
-function isValidSlug(slug: string): boolean {
-  return VALID_SLUG_PATTERN.test(slug) && !slug.includes("--");
-}
 
 function readMatterSlug(data: unknown): string {
   if (!data || typeof data !== "object") return "";
@@ -347,7 +337,7 @@ export async function getAllPostsMeta(includeDrafts = INCLUDE_DRAFTS): Promise<B
  */
 export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> {
   // Security: validate slug to prevent path traversal and limit memory growth
-  if (!isValidSlug(slug)) {
+  if (!isValidBlogSlug(slug)) {
     console.warn(`[getPostMetaBySlug] Invalid slug rejected: "${slug}"`);
     return null;
   }
@@ -388,7 +378,7 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
  */
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   // Security: validate slug to prevent path traversal and limit memory growth
-  if (!isValidSlug(slug)) {
+  if (!isValidBlogSlug(slug)) {
     console.warn(`[getPostBySlug] Invalid slug rejected: "${slug}"`);
     return null;
   }

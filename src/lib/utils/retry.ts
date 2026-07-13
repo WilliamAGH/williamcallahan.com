@@ -6,8 +6,8 @@
  * @module lib/utils/retry
  */
 
-import type { RetryConfig } from "@/types/lib";
-import { isRetryableError } from "./error-utils";
+import type { Result, RetryConfig } from "@/types/lib";
+import { isRetryableError, normalizeError } from "./error-utils";
 import { debug, debugWarn, debugError } from "./debug";
 
 // Local wrapper to provide leveled debug logging consistent within this module
@@ -42,20 +42,21 @@ export const RETRY_CONFIGS = {
     baseDelay: 1000,
     maxBackoff: 30000,
     jitter: true,
-    isRetryable: (error: Error) => isRetryableError(error, "github"),
-    onRetry: (error: Error, attempt: number) => {
-      const isRateLimit = error.message.includes("403") || error.message.includes("429");
-      const is202 = error.message.includes("202");
+    isRetryable: (error: unknown) => isRetryableError(error, "github"),
+    onRetry: (error: unknown, attempt: number) => {
+      const errorMessage = normalizeError(error).message;
+      const isRateLimit = errorMessage.includes("403") || errorMessage.includes("429");
+      const is202 = errorMessage.includes("202");
 
       if (isRateLimit) {
         debugLog(`GitHub API rate limit hit`, "warn", { attempt });
       } else if (is202) {
         debugLog(`GitHub API data generation in progress`, "info", { attempt });
       } else {
-        debugLog(`GitHub API retry attempt ${attempt}`, "warn", { error: error.message });
+        debugLog(`GitHub API retry attempt ${attempt}`, "warn", { error: errorMessage });
       }
     },
-  } as RetryConfig,
+  } satisfies RetryConfig,
 
   // S3 operations configuration
   S3_OPERATIONS: {
@@ -63,11 +64,13 @@ export const RETRY_CONFIGS = {
     baseDelay: 100,
     maxBackoff: 10000,
     jitter: true,
-    isRetryable: (error: Error) => isRetryableError(error, "s3"),
-    onRetry: (error: Error, attempt: number) => {
-      debugLog(`S3 operation retry attempt ${attempt}`, "warn", { error: error.message });
+    isRetryable: (error: unknown) => isRetryableError(error, "s3"),
+    onRetry: (error: unknown, attempt: number) => {
+      debugLog(`S3 operation retry attempt ${attempt}`, "warn", {
+        error: normalizeError(error).message,
+      });
     },
-  } as RetryConfig,
+  } satisfies RetryConfig,
 
   // OpenGraph fetch configuration
   OPENGRAPH_FETCH: {
@@ -75,11 +78,13 @@ export const RETRY_CONFIGS = {
     baseDelay: 1000,
     maxBackoff: 10000,
     jitter: true,
-    isRetryable: (error: Error) => isRetryableError(error),
-    onRetry: (error: Error, attempt: number) => {
-      debugLog(`OpenGraph fetch retry attempt ${attempt}`, "warn", { error: error.message });
+    isRetryable: (error: unknown) => isRetryableError(error),
+    onRetry: (error: unknown, attempt: number) => {
+      debugLog(`OpenGraph fetch retry attempt ${attempt}`, "warn", {
+        error: normalizeError(error).message,
+      });
     },
-  } as RetryConfig,
+  } satisfies RetryConfig,
 
   // HTTP client configuration
   HTTP_CLIENT: {
@@ -87,11 +92,13 @@ export const RETRY_CONFIGS = {
     baseDelay: 1000,
     maxBackoff: 30000,
     jitter: true,
-    isRetryable: (error: Error) => isRetryableError(error),
-    onRetry: (error: Error, attempt: number) => {
-      debugLog(`HTTP client retry attempt ${attempt}`, "warn", { error: error.message });
+    isRetryable: (error: unknown) => isRetryableError(error),
+    onRetry: (error: unknown, attempt: number) => {
+      debugLog(`HTTP client retry attempt ${attempt}`, "warn", {
+        error: normalizeError(error).message,
+      });
     },
-  } as RetryConfig,
+  } satisfies RetryConfig,
 
   // Image processing configuration
   IMAGE_PROCESSING: {
@@ -99,11 +106,13 @@ export const RETRY_CONFIGS = {
     baseDelay: 2000,
     maxBackoff: 30000,
     jitter: true,
-    isRetryable: (error: Error) => isRetryableError(error),
-    onRetry: (error: Error, attempt: number) => {
-      debugLog(`Image processing retry attempt ${attempt}`, "warn", { error: error.message });
+    isRetryable: (error: unknown) => isRetryableError(error),
+    onRetry: (error: unknown, attempt: number) => {
+      debugLog(`Image processing retry attempt ${attempt}`, "warn", {
+        error: normalizeError(error).message,
+      });
     },
-  } as RetryConfig,
+  } satisfies RetryConfig,
 
   // Default configuration
   DEFAULT: {
@@ -111,11 +120,11 @@ export const RETRY_CONFIGS = {
     baseDelay: 1000,
     maxBackoff: 30000,
     jitter: false,
-    isRetryable: (error: Error) => isRetryableError(error),
-    onRetry: (error: Error, attempt: number) => {
-      debugLog(`Retry attempt ${attempt}`, "warn", { error: error.message });
+    isRetryable: (error: unknown) => isRetryableError(error),
+    onRetry: (error: unknown, attempt: number) => {
+      debugLog(`Retry attempt ${attempt}`, "warn", { error: normalizeError(error).message });
     },
-  } as RetryConfig,
+  } satisfies RetryConfig,
 } as const;
 
 // =============================================================================
@@ -127,7 +136,7 @@ export const RETRY_CONFIGS = {
  * @template T - The return type of the operation.
  * @param operation - The asynchronous operation to retry, as a function that returns a Promise.
  * @param options - Configuration options for retry behavior.
- * @returns Promise resolving to the operation's result if successful, or null if all retries fail.
+ * @returns A discriminated result containing either the value or the terminal error.
  * @example
  * ```typescript
  * const result = await retryWithOptions(
@@ -144,7 +153,7 @@ export const RETRY_CONFIGS = {
 export async function retryWithOptions<T>(
   operation: () => Promise<T>,
   options: RetryConfig = {},
-): Promise<T | null> {
+): Promise<Result<T>> {
   const {
     maxRetries = 3,
     maxBackoff = 30000,
@@ -156,18 +165,16 @@ export async function retryWithOptions<T>(
   } = options;
 
   let retries = 0;
-  let lastError: Error | null = null;
 
-  while (retries <= maxRetries) {
+  while (true) {
     try {
       const result = await operation();
       if (debug && retries > 0) {
         debugLog(`[Retry] Operation succeeded after ${retries} retries`);
       }
-      return result;
+      return { success: true, data: result };
     } catch (error) {
-      const currentError = error as Error;
-      lastError = currentError;
+      const currentError = normalizeError(error);
 
       if (!isRetryable(currentError)) {
         if (debug) {
@@ -175,26 +182,25 @@ export async function retryWithOptions<T>(
             error: currentError.message,
           });
         }
-        return null;
+        return { success: false, error: currentError };
       }
 
-      retries++;
-
       if (debug) {
-        debugLog(`[Retry] Operation failed (attempt ${retries}/${maxRetries})`, "warn", {
+        debugLog(`[Retry] Operation failed (attempt ${retries + 1}/${maxRetries + 1})`, "warn", {
           error: currentError.message,
         });
       }
 
-      if (retries > maxRetries) {
+      if (retries >= maxRetries) {
         if (debug) {
-          debugLog(`[Retry] All ${maxRetries} attempts failed. Giving up.`, "error", {
-            lastError: lastError?.message,
+          debugLog(`[Retry] All ${maxRetries + 1} attempts failed. Giving up.`, "error", {
+            lastError: currentError.message,
           });
         }
-        return null;
+        return { success: false, error: currentError };
       }
 
+      retries++;
       onRetry(currentError, retries);
 
       // Calculate exponential backoff with optional jitter
@@ -213,8 +219,6 @@ export async function retryWithOptions<T>(
       await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
-
-  return null;
 }
 
 /**
@@ -223,7 +227,7 @@ export async function retryWithOptions<T>(
 export async function retryWithDomainConfig<T>(
   operation: () => Promise<T>,
   domain: keyof typeof RETRY_CONFIGS,
-): Promise<T | null> {
+): Promise<Result<T>> {
   return retryWithOptions(operation, RETRY_CONFIGS[domain]);
 }
 
@@ -235,10 +239,10 @@ export async function retryWithThrow<T>(
   options: RetryConfig = {},
 ): Promise<T> {
   const result = await retryWithOptions(operation, options);
-  if (result === null) {
-    throw new Error(`Operation failed after ${options.maxRetries || 3} retries`);
+  if (!result.success) {
+    throw result.error;
   }
-  return result;
+  return result.data;
 }
 
 /**

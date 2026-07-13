@@ -10,9 +10,6 @@ declare global {
   var INSTRUMENTATION_NODE_INSTALLED: boolean | undefined;
 }
 
-// Cache the Sentry module during register() so onRequestError can use it synchronously
-let SentryModule: typeof import("@sentry/nextjs") | null = null;
-
 // Canonical Sentry environment resolver — shared across Node, Edge, and Client.
 // See src/lib/sentry/resolve-environment.ts for documentation.
 // Dynamic import is used in register() to keep this module side-effect-free.
@@ -22,7 +19,8 @@ export async function register(): Promise<void> {
     process.env.SENTRY_RELEASE ||
     process.env.NEXT_PUBLIC_GIT_HASH ||
     process.env.NEXT_PUBLIC_APP_VERSION;
-  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  const phaseKey = "NEXT_PHASE";
+  const isBuildPhase = process.env[phaseKey] === "phase-production-build";
   if (isBuildPhase) return;
 
   // If we've already registered in this process (e.g., due to HMR), skip re-registering
@@ -46,7 +44,6 @@ export async function register(): Promise<void> {
   /** Sentry (Node) **/
   if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
     const Sentry = await import("@sentry/nextjs");
-    SentryModule = Sentry; // Cache for synchronous use in onRequestError
     // Ref: @sentry/nextjs 10.27.0 server/index.js:111 — SDK defaults environment to
     // SENTRY_ENVIRONMENT || VERCEL_ENV || NODE_ENV. We override with a deployment-
     // specific name derived from NEXT_PUBLIC_SITE_URL so Sentry issues distinguish
@@ -116,7 +113,7 @@ export async function register(): Promise<void> {
 
   /** Schedule bookmark preloads (production runtime only, skip during phase-production-build) **/
   const isProductionRuntime =
-    process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
+    process.env.NODE_ENV === "production" && process.env[phaseKey] !== "phase-production-build";
   if (isProductionRuntime) {
     try {
       const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
@@ -131,114 +128,3 @@ export async function register(): Promise<void> {
 
 // DO NOT call register() immediately - it should only be invoked by the
 // instrumentation hook in src/instrumentation.ts after the dynamic import.
-
-function getRoutePathFromErrorContext(errorContext: Record<string, unknown>): string | null {
-  const routePath = errorContext.routePath;
-  return typeof routePath === "string" && routePath.length > 0 ? routePath : null;
-}
-
-function normalizeRequestErrorForCapture(
-  error: unknown,
-  requestPath: string,
-  routePath: string | null,
-): unknown {
-  if (!(error instanceof Error)) {
-    return error;
-  }
-
-  if (error.message.trim().length > 0) {
-    return error;
-  }
-
-  const resolvedRoute = routePath ?? requestPath;
-  const normalized = new Error(`Request error with empty message (route: ${resolvedRoute})`);
-  normalized.name = error.name;
-  normalized.stack = error.stack;
-  return normalized;
-}
-
-/**
- * onRequestError hook – invoked by the Sentry SDK (Next.js ≥15.4)
- * to capture errors originating from nested React Server Components.
- *
- * The function signature is dictated by the Sentry SDK:
- *   (error: unknown) => void
- *
- * It must synchronously call `Sentry.captureRequestError` so that the
- * SDK can link the error to the current request context.
- *
- * @see https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#errors-from-nested-react-server-components
- */
-export function onRequestError(
-  error: unknown,
-  request:
-    | RequestInfo
-    | Request
-    | { path: string; method: string; headers: Record<string, string | string[] | undefined> },
-  errorContext: Record<string, unknown>,
-): void {
-  // Use cached Sentry module for synchronous request context linking
-  // SentryModule is populated during register() when SENTRY_DSN is set
-  if (!SentryModule) {
-    // Fallback: if register() hasn't completed but Sentry is configured,
-    // do a lazy import (loses request context but still captures error)
-    if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
-      void (async () => {
-        const Sentry = await import("@sentry/nextjs");
-        Sentry.captureException?.(error);
-      })();
-    }
-    return;
-  }
-
-  const Sentry = SentryModule;
-
-  const normalizeRequest = (
-    req: typeof request,
-  ): { path: string; method: string; headers: Record<string, string | string[] | undefined> } => {
-    if (typeof req === "string") {
-      return { path: req, method: "GET", headers: {} };
-    }
-    if (req instanceof Request) {
-      return {
-        path: new URL(req.url).pathname,
-        method: req.method,
-        headers: Object.fromEntries(req.headers.entries()),
-      };
-    }
-    return req;
-  };
-
-  const safeRequest = normalizeRequest(request);
-  const routePath = getRoutePathFromErrorContext(errorContext);
-  const captureError = normalizeRequestErrorForCapture(error, safeRequest.path, routePath);
-  if (typeof Sentry.captureRequestError === "function") {
-    // Forward all required parameters per SDK typing
-    if (
-      errorContext &&
-      typeof errorContext === "object" &&
-      "routerKind" in errorContext &&
-      "routePath" in errorContext &&
-      "routeType" in errorContext &&
-      typeof (errorContext as { routerKind: unknown }).routerKind === "string" &&
-      typeof (errorContext as { routePath: unknown }).routePath === "string" &&
-      typeof (errorContext as { routeType: unknown }).routeType === "string"
-    ) {
-      Sentry.captureRequestError(
-        captureError,
-        safeRequest,
-        errorContext as {
-          routerKind: string;
-          routePath: string;
-          routeType: string;
-        },
-      );
-    } else {
-      // Fallback: still capture error without context
-      Sentry.captureException?.(captureError);
-    }
-  } else {
-    // Fallback to the generic captureException for older SDKs
-    Sentry.captureException?.(captureError);
-  }
-}

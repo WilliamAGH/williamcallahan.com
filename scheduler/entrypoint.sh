@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Scheduler container entrypoint: database gate, one-time sitemap submission,
-# background data populator, then the cron scheduler as PID 1.
+# Scheduler container entrypoint: database gate, initial data bootstrap,
+# one-time sitemap submission, then the scoped cron scheduler as PID 1.
 # The web container (scripts/entrypoint.sh) serves traffic only.
 set -euo pipefail
 
@@ -16,12 +16,28 @@ echo "🔑 [Entrypoint] Ensuring cache directory exists..."
 mkdir -p /app/cache/s3_data
 
 is_scheduler_command() {
-    [ "$#" -ge 3 ] && [ "$1" = "node" ] && [ "$2" = "--run" ] && [ "$3" = "scheduler" ]
+    [ "$#" -eq 3 ] && [ "$1" = "node" ] && [ "$2" = "--run" ] && [ "$3" = "scheduler" ]
 }
 
 if ! is_scheduler_command "$@"; then
     echo "[Entrypoint] Running one-shot command: $*"
     exec "$@"
+fi
+
+echo "📦 [Entrypoint] Running initial data bootstrap..."
+if node --run update-data; then
+    echo "✅ [Entrypoint] Initial data bootstrap completed"
+else
+    echo "❌ [Entrypoint] Initial data bootstrap failed; scheduler will not start" >&2
+    exit 1
+fi
+
+echo "♻️  [Entrypoint] Revalidating web caches after bootstrap..."
+if node --run scheduler -- --revalidate-bootstrap-caches; then
+    echo "✅ [Entrypoint] Bootstrap web-cache revalidation completed"
+else
+    echo "❌ [Entrypoint] Bootstrap web-cache revalidation failed; scheduler will not start" >&2
+    exit 1
 fi
 
 echo "🗺️  [Entrypoint] Submitting sitemap..."
@@ -35,16 +51,9 @@ else
     echo "⚠️  [Entrypoint] Missing Google sitemap credentials; skipping submission"
 fi
 
-# The populator is idempotent and no-ops when data already exists.
-echo "📦 [Entrypoint] Starting background data populator..."
-touch /tmp/needs-initial-data-population
-npx tsx scheduler/background-data-populator.ts &
-echo "✅ [Entrypoint] Background data populator started (PID: $!)"
-
 echo "🕒 [Entrypoint] Starting scheduler..."
 
 # Execute the command passed to the entrypoint (CMD in Dockerfile),
 # e.g. ["node", "--run", "scheduler"]. exec makes the scheduler PID 1 so it
-# receives SIGTERM directly for graceful shutdown; the populator is short-lived
-# and is reaped with the container.
+# receives SIGTERM directly for graceful shutdown.
 exec "$@"

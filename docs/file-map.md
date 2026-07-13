@@ -67,8 +67,8 @@ File/Path Functionality Description
     - [x] `standard-tweet-embed.client.tsx` `blog-article` - Standard tweet embedding component
     - [x] `tweet-embed.tsx` `blog-article` - Embeds tweets using react-tweet and an image proxy
   - [x] **blog-article/**
-    - [x] `blog-article.client.tsx` `blog-article` - Renders article content and metadata
-    - [x] `blog-wrapper.tsx` `blog-article` - Dynamic import wrapper for hydration
+    - [x] `blog-article.client.tsx` `blog-article` - Server-owned article shell; interactive leaves retain client boundaries
+    - [x] `blog-wrapper.tsx` `blog-article` - Legacy unreferenced dynamic wrapper outside the active detail route
     - [x] `index.ts` `blog-article` - Removed; import blog article components from concrete files
     - [x] `mdx-content.tsx` `blog-article` - Server wrapper for the MDX renderer, now delegating to a React 19-safe cached evaluator instead of `next-mdx-remote`
     - [x] `software-schema.tsx` `terminal` - Inserts SoftwareApplication schema.org metadata
@@ -253,6 +253,7 @@ File/Path Functionality Description
 - [ ] **bookmarks/**
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
+  - [x] `slug-helpers.ts` `bookmarks` - Indexed slug and bookmark-ID resolution
   - [x] **analysis/**
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
     - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
@@ -379,7 +380,7 @@ File/Path Functionality Description
   - [x] `config.ts` `s3-object-storage` - S3 configuration validation
   - [x] `errors.ts` `s3-object-storage` - Canonical S3 error types
   - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
-  - [x] `stream.ts` `s3-object-storage` - Stream-to-buffer helpers
+  - [x] `stream.ts` `s3-object-storage` - Bounded stream-to-buffer conversion with premature-close cleanup
 - [x] **seo/**
   - [x] `constants.ts` `seo` - SEO constants
   - [x] `dynamic-metadata.ts` `seo` - Dynamic title generation with length limits
@@ -394,7 +395,7 @@ File/Path Functionality Description
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
 - [ ] **services/**
-  - [x] `image-streaming.ts` `image-handling` - Streaming pipeline for image uploads
+  - [x] `image-streaming.ts` `image-handling` - Error-propagating streaming pipeline for image uploads
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
   - [x] **image/**
     - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
@@ -413,8 +414,8 @@ File/Path Functionality Description
   - [x] `formatters.ts` `string-manipulation` - Data formatting functions
   - [x] `image-s3-utils.ts` `s3-object-storage` - Image-specific S3 utilities
   - [x] `logger.ts` `log-error-debug-handling` - Shared logger utility
-  - [x] `opengraph-utils.ts` `opengraph` - OpenGraph utility functions (URL validation, image selection, etc.)
-  - [x] `retry.ts` `log-error-debug-handling` - Retry logic for async operations
+  - [x] `opengraph-utils.ts` `opengraph` - Canonical-schema URL validation and OpenGraph domain/image utilities
+  - [x] `retry.ts` `log-error-debug-handling` - Result-based retry execution that preserves root errors
   - [x] `revalidate-path.ts` `caching` - Next.js path revalidation helper
   - [x] `runtime-guards.ts` `overview` - Runtime type guards
   - [x] `svg-transform-fix.ts` `image-handling` - SVG transform fix utility
@@ -524,7 +525,7 @@ File/Path Functionality Description
 - [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
-- [x] `instrumentation.ts` `log-error-debug-handling` - Server-side instrumentation setup
+- [x] `instrumentation.ts` `log-error-debug-handling` - Runtime instrumentation dispatch and request-error header redaction
 - [x] `src/proxy.ts` `middleware` - Next.js Proxy (middleware) entrypoint (Next.js 16)
 - [x] `next-env.d.ts` `config` - Next.js environment type definitions
 - [x] `next.config.ts` `config` - Next.js configuration
@@ -665,9 +666,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
-- [x] `background-data-populator.ts` `batch-fetch-update` - Idempotent initial data population at scheduler container startup
 - [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
-- [x] `entrypoint.sh` `deployment` - Scheduler container entrypoint (DB gate, sitemap submission, populator, cron scheduler)
+- [x] `entrypoint.sh` `deployment` - Scheduler container entrypoint (DB gate, Node data bootstrap, web-cache revalidation, sitemap submission, cron scheduler)
 - [x] `Dockerfile` `deployment` - Scheduler image (deps + tsx runtime, no Next.js build)
 - [x] `docker-compose.yml` `deployment` - Coolify compose service with 1-CPU / 3G limits
 - [x] `diagnose-scheduler.sh` `batch-fetch-update` - Scheduler diagnostic report script

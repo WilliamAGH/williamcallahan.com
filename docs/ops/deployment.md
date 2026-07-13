@@ -2,12 +2,51 @@
 
 Production runs as **two containers built from this repository**:
 
-| Container | Dockerfile             | Entrypoint                | Runs                                                                             |
-| --------- | ---------------------- | ------------------------- | -------------------------------------------------------------------------------- |
-| Web       | `Dockerfile`           | `scripts/entrypoint.sh`   | Next.js server only                                                              |
-| Scheduler | `scheduler/Dockerfile` | `scheduler/entrypoint.sh` | Cron jobs (`scheduler/scheduler.ts`), initial data populator, sitemap submission |
+| Container | Dockerfile             | Entrypoint                | Runs                                                                                                              |
+| --------- | ---------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Web       | `Dockerfile`           | `scripts/entrypoint.sh`   | Next.js server only                                                                                               |
+| Scheduler | `scheduler/Dockerfile` | `scheduler/entrypoint.sh` | Initial Node data bootstrap, web-cache revalidation, sitemap submission, and cron jobs (`scheduler/scheduler.ts`) |
 
 Both entrypoints share the DATABASE_URL rewrite + readiness gate via `scripts/entrypoint-db-gate.sh`.
+
+## Node Runtime
+
+`package.json` is the canonical Node runtime manifest: `engines.node` declares the
+exact version and `runtime.node.linux` declares the architecture checksums. Both
+Dockerfiles parse it with `jq`; each `node` stage supplies the current Node.js 24.18.0
+projection to its descendant stages. It downloads the official Node archive for the
+target architecture, checks it against the matching fixed
+SHA-256 in Node's
+[24.18.0 `SHASUMS256.txt`](https://nodejs.org/dist/v24.18.0/SHASUMS256.txt), and rejects
+unsupported architectures. Do not replace that stage with a floating NodeSource
+`node_*.x` channel or application-level compatibility code.
+
+Coolify exposes build-time variables as BuildKit secrets. The web Dockerfile mounts
+public build configuration as canonical files under `/run/secrets/build`, then promotes
+only present values before `bun run build`. This preserves ordinary `--build-arg` values
+when the corresponding optional secret is absent.
+
+The pin fixes production failures with
+`controller[kState].transformAlgorithm is not a function`. Node
+[issue #62036](https://github.com/nodejs/node/issues/62036) identifies the Web
+`TransformStream` cancel/write race; Node [pull request #62040](https://github.com/nodejs/node/pull/62040)
+fixes it. The repair shipped in Node 24.15.0 and remains present in the pinned
+[24.18.0 LTS release](https://nodejs.org/en/blog/release/v24.18.0). The runtime upgrade
+is the repair; do not add retries, polyfills, or error suppression around the application
+stream path.
+
+For a runtime update, change `package.json`'s version and both architecture checksums
+together from the matching official release manifest, then verify each projected stage
+before deploying:
+
+```bash
+docker buildx build --target node --build-arg BASE_REGISTRY=docker.io/library --load \
+  -t williamcallahan-com-node-runtime-check:24.18.0 .
+docker run --rm williamcallahan-com-node-runtime-check:24.18.0 node --version
+docker buildx build --target node --build-arg BASE_REGISTRY=docker.io/library --load \
+  -f scheduler/Dockerfile -t williamcallahan-scheduler-node-runtime-check:24.18.0 .
+docker run --rm williamcallahan-scheduler-node-runtime-check:24.18.0 node --version
+```
 
 ## Scheduler Service (Coolify)
 
@@ -41,7 +80,15 @@ the deployment helper.
 
 The scheduler image does **not** run `next build` — it installs dependencies and runs
 TypeScript directly via tsx, so its builds take minutes, not tens of minutes. No ports
-are exposed; health is a `pgrep` check on the scheduler process.
+are exposed. Docker allows 15 minutes for startup work; afterward, health requires the
+scheduler heartbeat to be no more than two minutes old.
+
+Scheduler startup waits for the database gate, then runs `node --run update-data` with no
+operation flags. The data updater owns that default operation set, including books and search
+indexes. The scheduler next reuses its canonical authenticated endpoint inventory to invalidate
+bookmark, books, and GitHub web caches before sitemap submission and cron. A bootstrap or cache
+revalidation failure logs an error and exits instead of serving stale data; the compose service's
+`unless-stopped` restart policy retries it.
 
 Local build + one-shot data prefetch:
 
@@ -50,60 +97,13 @@ bun run docker:build:scheduler
 bun run docker:prefetch
 ```
 
-## Quick Start (Ephemeral)
+## Quick Start
 
-Run the container with ephemeral storage (logos clear on restart):
+Run the web container locally:
 
 ```bash
 docker build -t williamcallahan-com .
 docker run -d -p 3000:3000 --name williamcallahan-com williamcallahan-com
-```
-
-## Production Setup (Persistent)
-
-For production, mount a volume to persist downloaded logos:
-
-```bash
-# 1. Create storage volume
-docker volume create logo_storage
-
-# 2. Build image
-docker build -t williamcallahan-com .
-
-# 3. Run with volume mount
-docker run -d \
-  -p 3000:3000 \
-  -v logo_storage:/app/data/images/logos \
-  --name williamcallahan-com \
-  williamcallahan-com
-```
-
-## Maintenance Operations
-
-### Fix Permissions
-
-If you encounter permission issues with the volume:
-
-```bash
-docker run --rm -v logo_storage:/data alpine chown -R 1001:1001 /data
-```
-
-### Backup Logos
-
-Create a tarball of the logo storage:
-
-```bash
-docker run --rm -v logo_storage:/data:ro -v "$(pwd):/backup" alpine \
-  tar czf /backup/logos-backup-$(date +%Y%m%d).tar.gz -C /data .
-```
-
-### Restore Logos
-
-Restore from a backup tarball:
-
-```bash
-docker run --rm -v logo_storage:/data -v "$(pwd):/backup" alpine \
-  sh -c "tar xzf /backup/logos-backup-YYYYMMDD.tar.gz -C /data && chown -R 1001:1001 /data"
 ```
 
 ## Health Checks

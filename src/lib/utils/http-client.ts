@@ -11,6 +11,8 @@ import type { RetryConfig } from "@/types/lib";
 import type { FetchOptions } from "@/types/http";
 import { logoUrlSchema, openGraphUrlSchema } from "@/types/schemas/url";
 
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
 function stripQueryAndHash(url: string): string {
   try {
     const urlObj = new URL(url);
@@ -81,19 +83,13 @@ function setupAbortSignal(
 
   if (!signal) return state;
 
-  if (signal.aborted) {
+  const abort = () => {
     state.abortedByExternalSignal = true;
     controller.abort(signal.reason);
-  } else {
-    signal.addEventListener(
-      "abort",
-      () => {
-        state.abortedByExternalSignal = true;
-        controller.abort(signal.reason);
-      },
-      { once: true },
-    );
-  }
+  };
+
+  if (signal.aborted) abort();
+  else signal.addEventListener("abort", abort, { once: true });
 
   return state;
 }
@@ -111,21 +107,32 @@ function handleFetchError(
     throw new Error(`Fetch failed: ${String(error)}`, { cause: error });
   }
 
-  if (error.name !== "AbortError") {
-    throw error;
+  if (error.name === "AbortError") {
+    if (abortedByExternalSignal) {
+      throw new DOMException("Request aborted", "AbortError");
+    }
+
+    throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
+      cause: error,
+    });
   }
 
-  // If aborted by external signal (user cancellation), re-throw as AbortError
-  // so callers can distinguish from timeout and skip retries
-  if (abortedByExternalSignal) {
-    throw new DOMException("Request aborted", "AbortError");
+  throw error;
+}
+
+function getValidatedRedirectUrl(response: Response, requestUrl: string): string | null {
+  if (!REDIRECT_STATUSES.has(response.status)) return null;
+
+  const location = response.headers.get("location");
+  if (!location) return null;
+
+  const redirectUrl = new URL(location, requestUrl).toString();
+  const validation = openGraphUrlSchema.safeParse(redirectUrl);
+  if (!validation.success) {
+    throw new Error(`Unsafe redirect URL: ${stripQueryAndHash(redirectUrl)}`);
   }
 
-  // Internal timeout - wrap with timeout message
-  // Strip query params to prevent leaking tokens/secrets in error messages
-  throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
-    cause: error,
-  });
+  return validation.data;
 }
 
 /**
@@ -141,6 +148,8 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
     handle202Retry = false,
     useBrowserHeaders = false,
     signal,
+    followRedirects = true,
+    maxRedirects = 3,
     ...fetchOptions
   } = options;
 
@@ -150,35 +159,43 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
   const controller = new AbortController();
   const { abortedByExternalSignal } = setupAbortSignal(controller, signal);
   const timeoutId = setTimeout(() => controller.abort(), timeout);
+  let requestUrl = effectiveUrl;
+  let redirectCount = 0;
 
   try {
-    const response = await fetch(effectiveUrl, {
-      ...fetchOptions,
-      signal: controller.signal,
-      headers: {
-        ...defaultHeaders,
-        ...(userAgent && { "User-Agent": userAgent }),
-        ...headers,
-      },
-    });
-
-    // Handle 202 Accepted status if requested (GitHub API pattern)
-    const HTTP_ACCEPTED = 202;
-    if (handle202Retry && response.status === HTTP_ACCEPTED) {
-      clearTimeout(timeoutId);
-
-      const retryAfter = response.headers.get("Retry-After");
-      const retryDelay = retryAfter ? Number.parseInt(retryAfter, 10) * 1000 : 5000;
-
-      debugLog(`Received 202 status, will retry after ${retryDelay}ms`, "info", {
-        url: effectiveUrl,
+    while (true) {
+      const response = await fetch(requestUrl, {
+        ...fetchOptions,
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          ...defaultHeaders,
+          ...(userAgent && { "User-Agent": userAgent }),
+          ...headers,
+        },
       });
 
-      // Return the 202 response - caller should handle retry logic
-      return response;
-    }
+      // Handle 202 Accepted status if requested (GitHub API pattern)
+      const HTTP_ACCEPTED = 202;
+      if (handle202Retry && response.status === HTTP_ACCEPTED) {
+        const retryAfter = response.headers.get("Retry-After");
+        const retryDelay = retryAfter ? Number.parseInt(retryAfter, 10) * 1000 : 5000;
 
-    return response;
+        debugLog(`Received 202 status, will retry after ${retryDelay}ms`, "info", {
+          url: requestUrl,
+        });
+        return response;
+      }
+
+      const redirectUrl = followRedirects ? getValidatedRedirectUrl(response, requestUrl) : null;
+      if (!redirectUrl) return response;
+      if (redirectCount >= maxRedirects) {
+        throw new Error(`Redirect limit exceeded for ${stripQueryAndHash(effectiveUrl)}`);
+      }
+
+      redirectCount += 1;
+      requestUrl = redirectUrl;
+    }
   } catch (error) {
     handleFetchError(error, abortedByExternalSignal, timeout, effectiveUrl);
   } finally {
@@ -265,44 +282,14 @@ export function createRetryingFetch(
       ...customRetryConfig,
     };
 
-    const response = await retryWithOptions(async () => fetchWithTimeout(url, options), config);
+    const result = await retryWithOptions(async () => fetchWithTimeout(url, options), config);
 
-    if (!response) {
-      throw new Error(`All ${maxRetries} retries failed for ${stripQueryAndHash(url)}`);
+    if (!result.success) {
+      throw result.error;
     }
 
-    return response;
+    return result.data;
   };
-}
-
-/**
- * Try fetching with a single URL/proxy configuration
- */
-async function trySingleFetch(
-  urlConfig: string | { url: string; proxy: string },
-  maxRetries: number,
-  baseDelay: number,
-  fetchOptions: FetchOptions,
-): Promise<Response> {
-  const targetUrl = typeof urlConfig === "string" ? urlConfig : urlConfig.url;
-  const proxyUrl = typeof urlConfig === "string" ? undefined : urlConfig.proxy;
-
-  const retryingFetch = createRetryingFetch(maxRetries, baseDelay);
-  return retryingFetch(targetUrl, {
-    ...fetchOptions,
-    proxyUrl,
-  });
-}
-
-/**
- * Build debug message for failed fetch
- */
-function buildFetchErrorMessage(targetUrl: string, proxyUrl: string | undefined): string {
-  const baseMessage = `Failed to fetch ${targetUrl}`;
-  if (!proxyUrl) {
-    return baseMessage;
-  }
-  return `${baseMessage} via proxy ${proxyUrl}`;
 }
 
 /**
@@ -318,32 +305,21 @@ export async function fetchWithRetryAndProxy(
   } = {},
 ): Promise<Response> {
   const { proxies = [], maxRetries = 3, baseDelay = 1000, ...fetchOptions } = options;
+  const retryingFetch = createRetryingFetch(maxRetries, baseDelay);
+  const attempts = [undefined, ...proxies];
 
-  // Try direct fetch first, then proxies if provided
-  const urlsToTry: Array<string | { url: string; proxy: string }> = [
-    url,
-    ...proxies.map((proxy) => ({ url, proxy })),
-  ];
-
-  for (let i = 0; i < urlsToTry.length; i++) {
-    const urlConfig = urlsToTry[i]!;
-    const targetUrl = typeof urlConfig === "string" ? urlConfig : urlConfig.url;
-    const proxyUrl = typeof urlConfig === "string" ? undefined : urlConfig.proxy;
-    const isLastAttempt = i === urlsToTry.length - 1;
-
+  for (const [index, proxyUrl] of attempts.entries()) {
     try {
-      return await trySingleFetch(urlConfig, maxRetries, baseDelay, fetchOptions);
+      return await retryingFetch(url, { ...fetchOptions, proxyUrl });
     } catch (error) {
-      const errorMessage = buildFetchErrorMessage(targetUrl, proxyUrl);
-      debugLog(errorMessage, "warn", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      if (!isLastAttempt) {
-        continue;
-      }
-
-      throw error;
+      debugLog(
+        `Failed to fetch ${stripQueryAndHash(url)}${proxyUrl ? ` via proxy ${proxyUrl}` : ""}`,
+        "warn",
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      if (index === attempts.length - 1) throw error;
     }
   }
 

@@ -146,11 +146,9 @@ export function useAiAnalysis<TEntity, TAnalysis>(
 
         if (signal?.aborted) throw new DOMException("Analysis aborted", "AbortError");
 
-        // Persistence is an optimization, not a precondition for display: the
-        // analysis was generated successfully, so always render it. Failures
-        // are already Sentry-captured inside persistAnalysis; environments
-        // where the DB write guard blocks writes (e.g. dev subdomain) would
-        // otherwise show a permanent dead-end error.
+        // Persistence is an optimization, not a precondition for display.
+        // Read-only environments report a successful skip; real failures are
+        // captured inside persistAnalysis without discarding generated output.
         const persistResult = await persistAnalysis(persistenceKey, entityId, parsedAnalysis);
 
         if (signal?.aborted) throw new DOMException("Analysis aborted", "AbortError");
@@ -160,7 +158,7 @@ export function useAiAnalysis<TEntity, TAnalysis>(
           console.warn(
             `[useAiAnalysis] Analysis displayed but not persisted: ${persistResult.message}`,
           );
-        } else {
+        } else if (persistResult.persisted) {
           router.refresh();
         }
       } catch (error) {

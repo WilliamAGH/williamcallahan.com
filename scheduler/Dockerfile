@@ -11,13 +11,37 @@
 ##
 ARG BASE_REGISTRY=public.ecr.aws/debian
 
+# ---------- Node stage ----------
+# Install the package.json-declared official Node.js release once for both dependency and runtime stages.
+FROM ${BASE_REGISTRY}/debian:bookworm-slim AS node
+COPY package.json /tmp/node-runtime/package.json
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl jq xz-utils \
+    && node_version="$(jq -er '.engines.node | strings | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' /tmp/node-runtime/package.json)" \
+    && architecture="$(dpkg --print-architecture)" \
+    && case "${architecture}" in \
+         amd64) node_arch="x64" ;; \
+         arm64) node_arch="arm64" ;; \
+         *) echo "Unsupported architecture: ${architecture}" && exit 1 ;; \
+       esac \
+    && node_sha256="$(jq -er --arg architecture "${architecture}" '.runtime.node.linux[$architecture].sha256 | strings | select(test("^[a-f0-9]{64}$"))' /tmp/node-runtime/package.json)" \
+    && node_archive="node-v${node_version}-linux-${node_arch}.tar.xz" \
+    && curl -fsSL "https://nodejs.org/dist/v${node_version}/${node_archive}" -o "/tmp/${node_archive}" \
+    && echo "${node_sha256}  /tmp/${node_archive}" | sha256sum --check --status \
+    && tar -xJf "/tmp/${node_archive}" -C /usr/local --strip-components=1 \
+    && node --version | grep -Fx "v${node_version}" \
+    && rm -f "/tmp/${node_archive}" \
+    && rm -rf /tmp/node-runtime \
+    && apt-get purge -y --auto-remove jq xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---------- Dependencies stage ----------
 # Bun is installed only here, to produce node_modules from bun.lock.
-FROM ${BASE_REGISTRY}/debian:bookworm-slim AS deps
+FROM node AS deps
 
 ARG BUN_VERSION=1.3.2
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl unzip ca-certificates \
+    unzip \
     && ARCH=$(dpkg --print-architecture) \
     && case "${ARCH}" in \
          amd64) BUN_ARCH="x64" ;; \
@@ -46,17 +70,12 @@ RUN mkdir -p generated/bookmarks \
     && bun scripts/init-csp-hashes.ts
 
 # ---------- Runtime stage ----------
-# Node.js 22 only (node --run + tsx from node_modules); libvips and fontconfig for image/PDF paths.
-FROM ${BASE_REGISTRY}/debian:bookworm-slim AS runner
+# Package-declared checksum-pinned Node (node --run + tsx from node_modules); libvips and fontconfig for image/PDF paths.
+FROM node AS runner
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg libvips42 bash procps fontconfig fonts-dejavu-core \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends nodejs \
+    libvips42 bash procps fontconfig fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 1001 nodejs \
@@ -66,6 +85,7 @@ ENV NODE_ENV=production
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
 ENV XDG_CACHE_HOME=/home/nextjs/.cache
+ENV SCHEDULER_HEARTBEAT_FILE=/tmp/scheduler-heartbeat
 
 ARG GIT_SHA=unknown
 ENV GIT_SHA=${GIT_SHA}
@@ -93,9 +113,9 @@ RUN chmod +x /app/scheduler/entrypoint.sh /app/scheduler/diagnose-scheduler.sh \
 
 USER nextjs
 
-# The scheduler exposes no HTTP server; healthy = cron process alive.
-HEALTHCHECK --interval=60s --timeout=5s --start-period=60s --retries=3 \
-  CMD pgrep -f "[s]cheduler/scheduler.ts" > /dev/null || exit 1
+# The scheduler exposes no HTTP server; its event loop refreshes this heartbeat every 30 seconds.
+HEALTHCHECK --interval=60s --timeout=5s --start-period=15m --retries=3 \
+  CMD node -e 'const fs=require("node:fs");const timestamp=Number(fs.readFileSync(process.env.SCHEDULER_HEARTBEAT_FILE,"utf8"));const age=Date.now()-timestamp;if(!Number.isFinite(age)||age>120000)process.exit(1)'
 
 ENTRYPOINT ["/app/scheduler/entrypoint.sh"]
 CMD ["node", "--run", "scheduler"]

@@ -8,7 +8,9 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { jsonrepair } from "jsonrepair";
+import { persistAnalysisSuccessResponseSchema } from "@/types/schemas/ai-analysis-persisted";
 import type { AnalysisDomain } from "@/types/ai-analysis";
+import type { PersistAnalysisSuccessResponse } from "@/types/schemas/ai-analysis-persisted";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JSON Parsing Utilities
@@ -208,7 +210,7 @@ export async function persistAnalysis(
   domain: AnalysisDomain,
   id: string,
   analysis: unknown,
-): Promise<{ success: true } | { success: false; message: string; status?: number }> {
+): Promise<PersistAnalysisSuccessResponse | { success: false; message: string; status?: number }> {
   const context = { id, domain };
 
   try {
@@ -228,7 +230,18 @@ export async function persistAnalysis(
       return { success: false, message, status: response.status };
     }
 
-    return { success: true };
+    const responseBody: unknown = await response.json();
+    const parsedResponse = persistAnalysisSuccessResponseSchema.safeParse(responseBody);
+    if (!parsedResponse.success) {
+      const message = "Invalid analysis persistence response";
+      Sentry.captureMessage(`${domain} AI analysis persist returned invalid data`, {
+        level: "warning",
+        extra: { ...context, status: response.status, issues: parsedResponse.error.issues },
+      });
+      return { success: false, message, status: response.status };
+    }
+
+    return parsedResponse.data;
   } catch (error) {
     Sentry.captureException(error, {
       extra: context,

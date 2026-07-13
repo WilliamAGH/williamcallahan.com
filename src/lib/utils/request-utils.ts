@@ -7,40 +7,79 @@
  * @module lib/utils/request-utils
  */
 
-import { isIP } from "node:net";
+import { BlockList, isIPv4, isIPv6 } from "node:net";
 import type { CloudflareHeaderValidation } from "@/types/http";
 import type { ProxyRequestClass } from "@/types/middleware";
-
-/**
- * Standard IP header precedence order.
- * Cloudflare headers are prioritized, followed by standard proxy headers.
- */
-const IP_HEADERS = ["True-Client-IP", "CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"] as const;
 
 const CLOUDFLARE_REQUIRED_HEADERS = ["CF-Ray"] as const;
 const CLOUDFLARE_IP_HEADERS = ["CF-Connecting-IP", "True-Client-IP"] as const;
 const PREFETCH_HINT_VALUES = new Set(["prefetch", "prerender"]);
 
-/**
- * Extracts the first IP address from a comma-separated header value.
- * X-Forwarded-For headers often contain multiple IPs: "client, proxy1, proxy2"
- *
- * @param headerValue - The raw header value (may be null)
- * @returns The first IP address or null if not found
- *
- * @example
- * getFirstIpFromHeader("203.0.113.195, 70.41.3.18, 150.172.238.178")
- * // Returns: "203.0.113.195"
- */
-export function getFirstIpFromHeader(headerValue: string | null): string | null {
-  if (!headerValue) return null;
-  return headerValue.split(",")[0]?.trim() || null;
+// Canonical source: https://www.cloudflare.com/ips/
+const CLOUDFLARE_IPV4_SUBNETS = [
+  ["173.245.48.0", 20],
+  ["103.21.244.0", 22],
+  ["103.22.200.0", 22],
+  ["103.31.4.0", 22],
+  ["141.101.64.0", 18],
+  ["108.162.192.0", 18],
+  ["190.93.240.0", 20],
+  ["188.114.96.0", 20],
+  ["197.234.240.0", 22],
+  ["198.41.128.0", 17],
+  ["162.158.0.0", 15],
+  ["104.16.0.0", 13],
+  ["104.24.0.0", 14],
+  ["172.64.0.0", 13],
+  ["131.0.72.0", 22],
+] as const;
+const CLOUDFLARE_IPV6_SUBNETS = [
+  ["2400:cb00::", 32],
+  ["2606:4700::", 32],
+  ["2803:f800::", 32],
+  ["2405:b500::", 32],
+  ["2405:8100::", 32],
+  ["2a06:98c0::", 29],
+  ["2c0f:f248::", 32],
+] as const;
+
+const CLOUDFLARE_NETWORKS = new BlockList();
+for (const [network, prefix] of CLOUDFLARE_IPV4_SUBNETS) {
+  CLOUDFLARE_NETWORKS.addSubnet(network, prefix, "ipv4");
+}
+for (const [network, prefix] of CLOUDFLARE_IPV6_SUBNETS) {
+  CLOUDFLARE_NETWORKS.addSubnet(network, prefix, "ipv6");
+}
+
+function getValidIp(value: string | undefined): string | undefined {
+  const candidate = value?.trim();
+  return candidate && (isIPv4(candidate) || isIPv6(candidate)) ? candidate : undefined;
+}
+
+function getProxyPeerIp(headers: Headers): string | undefined {
+  const forwardedChain = headers.get("x-forwarded-for")?.split(",").toReversed();
+  const forwardedPeer = forwardedChain?.map((value) => getValidIp(value)).find(Boolean);
+  return forwardedPeer ?? getValidIp(headers.get("x-real-ip") ?? undefined);
+}
+
+function isCloudflareIp(ip: string): boolean {
+  if (isIPv4(ip)) return CLOUDFLARE_NETWORKS.check(ip, "ipv4");
+  if (isIPv6(ip)) return CLOUDFLARE_NETWORKS.check(ip, "ipv6");
+  return false;
+}
+
+function getCloudflareClientIp(headers: Headers): string | undefined {
+  for (const header of CLOUDFLARE_IP_HEADERS) {
+    const ip = getValidIp(headers.get(header)?.split(",")[0]);
+    if (ip) return ip;
+  }
+  return undefined;
 }
 
 /**
  * Extracts the client IP address from HTTP headers.
- * Checks standard proxy headers in precedence order: True-Client-IP, CF-Connecting-IP,
- * X-Forwarded-For (first IP), X-Real-IP.
+ * Uses the reverse proxy's immediate peer and accepts a Cloudflare-provided
+ * client address only when that peer belongs to a published Cloudflare range.
  *
  * @param headers - The Headers object from the request
  * @param options - Configuration options
@@ -53,35 +92,16 @@ export function getFirstIpFromHeader(headerValue: string | null): string | null 
  * // With custom fallback:
  * const ip = getClientIp(request.headers, { fallback: "anonymous" });
  */
-export function getClientIp(
-  headers: Headers,
-  options: { headerPrecedence?: readonly string[]; fallback?: string } = {},
-): string {
-  const { headerPrecedence = IP_HEADERS, fallback = "unknown" } = options;
-
-  for (const header of headerPrecedence) {
-    const value = headers.get(header);
-    // For X-Forwarded-For, extract first IP from comma-separated list
-    if (header === "X-Forwarded-For") {
-      const ip = getFirstIpFromHeader(value);
-      if (ip) return ip;
-    } else if (value) {
-      return value.trim();
-    }
-  }
-
-  return fallback;
+export function getClientIp(headers: Headers, options: { fallback?: string } = {}): string {
+  const peerIp = getProxyPeerIp(headers);
+  if (!peerIp) return options.fallback ?? "unknown";
+  if (!isCloudflareIp(peerIp)) return peerIp;
+  return getCloudflareClientIp(headers) ?? peerIp;
 }
 
 function normalizeHeaderValue(value: string | null): string | undefined {
   const trimmed = value?.trim();
   return trimmed || undefined;
-}
-
-function normalizeIpHeader(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const first = value.split(",")[0]?.trim();
-  return first || undefined;
 }
 
 export function validateCloudflareHeaders(headers: Headers): CloudflareHeaderValidation {
@@ -90,7 +110,8 @@ export function validateCloudflareHeaders(headers: Headers): CloudflareHeaderVal
   const cfConnectingIp = normalizeHeaderValue(headers.get(CLOUDFLARE_IP_HEADERS[0]));
   const trueClientIp = normalizeHeaderValue(headers.get(CLOUDFLARE_IP_HEADERS[1]));
   const forwardedProto = normalizeHeaderValue(headers.get("x-forwarded-proto"));
-  const candidateIp = normalizeIpHeader(cfConnectingIp ?? trueClientIp);
+  const peerIp = getProxyPeerIp(headers);
+  const candidateIp = (cfConnectingIp ?? trueClientIp)?.split(",")[0]?.trim();
 
   const reasons: string[] = [];
 
@@ -98,9 +119,13 @@ export function validateCloudflareHeaders(headers: Headers): CloudflareHeaderVal
     reasons.push("missing_cf_ray");
   }
 
+  if (!peerIp || !isCloudflareIp(peerIp)) {
+    reasons.push("untrusted_proxy");
+  }
+
   if (!candidateIp) {
     reasons.push("missing_cf_ip");
-  } else if (isIP(candidateIp) === 0) {
+  } else if (!getValidIp(candidateIp)) {
     reasons.push("invalid_cf_ip");
   }
 
@@ -180,4 +205,9 @@ export function classifyProxyRequest(
   }
 
   return "other";
+}
+
+/** True when the proxy must prevent browser/CDN caching for an HTML route. */
+export function shouldApplyHtmlCachePolicy(pathname: string): boolean {
+  return !pathname.startsWith("/api/") && (pathname === "/" || !pathname.includes("."));
 }

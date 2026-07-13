@@ -145,6 +145,9 @@ Client events → POST /api/engagement → content_engagement table
                         Client SWR receives ranked bookmarks
 ```
 
+Engagement collection runs only on the canonical production hostname. Development and preview
+deployments remain read-only and do not send engagement requests.
+
 **Engagement Events** (validated by Zod schema in `types/schemas/engagement.ts`):
 
 - `impression`: Bookmark enters viewport (IntersectionObserver)
@@ -218,7 +221,7 @@ Core data model with fields for:
 
 ### Bookmark Slug Storage
 
-Bookmark arrays, list/page/tag indexes, and slug lookups are PostgreSQL-backed. Detail routes resolve the slug directly from the bookmarks table before falling back to the in-memory reverse map built from PostgreSQL rows.
+Bookmark arrays, list/page/tag indexes, and slug lookups are PostgreSQL-backed. Detail routes resolve a slug with one indexed lookup, then check the same value as a bookmark ID with a second indexed lookup.
 
 Embedded slugs are treated as the source of truth during refreshes; metadata-only updates preserve existing slugs
 to avoid URL churn when titles or OpenGraph descriptions change.
@@ -330,7 +333,7 @@ These operations only need metadata and can safely use `includeImageData: false`
 
 ## Deployment & Automatic Data Population
 
-Background population belongs to the scheduler container. The web entrypoint only gates database readiness and starts the Next.js server; `scheduler/entrypoint.sh` runs the initial populator and then starts cron scheduling.
+Background population belongs to the scheduler container. The web entrypoint only gates database readiness and starts the Next.js server; `scheduler/entrypoint.sh` runs the canonical `node --run update-data` bootstrap, revalidates affected web caches, and starts cron scheduling only after both succeed.
 
 ### Manual Ops
 

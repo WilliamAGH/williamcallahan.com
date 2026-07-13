@@ -5,7 +5,7 @@
  * by using pre-computed mappings instead of generating slugs on-the-fly.
  */
 
-import { getBookmarkIdBySlug } from "@/lib/db/queries/bookmarks";
+import { getBookmarkIdBySlug, getBookmarkSelectById } from "@/lib/db/queries/bookmarks";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
 import { getSlugCacheTTL } from "@/config/related-content.config";
 import { cacheContextGuards, USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
@@ -212,24 +212,16 @@ export function resetSlugCache(): void {
   cacheContextGuards.revalidateTag("SlugHelpers", SLUG_MAPPING_CACHE_TAG);
 }
 
-async function loadReverseSlugMap(): Promise<Map<string, string> | null> {
-  const mapping = await resolveSlugMapping();
-  if (!mapping) {
+export async function resolveBookmarkIdFromSlug(slug: string): Promise<string | null> {
+  if (slug.trim().length === 0) {
     return null;
   }
 
-  const normalized = normalizeReverseMap(mapping).normalized;
-  return new Map<string, string>(Object.entries(normalized.reverseMap));
-}
-
-export async function resolveBookmarkIdFromSlug(slug: string): Promise<string | null> {
-  if (slug.trim().length > 0) {
-    const bookmarkId = await getBookmarkIdBySlug(slug);
-    if (bookmarkId) {
-      return bookmarkId;
-    }
+  const bookmarkId = await getBookmarkIdBySlug(slug);
+  if (bookmarkId) {
+    return bookmarkId;
   }
 
-  const reverse = await loadReverseSlugMap();
-  return reverse?.get(slug) ?? null;
+  const bookmark = await getBookmarkSelectById(slug);
+  return bookmark?.id ?? null;
 }

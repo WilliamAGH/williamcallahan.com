@@ -24,7 +24,7 @@ async function fetchCommitsPage(
 ): Promise<PageFetchResult> {
   const url = `https://api.github.com/repos/${owner}/${name}/commits?author=${githubRepoOwner}&per_page=${COMMITS_PER_PAGE}&page=${page}`;
 
-  const res = await retryWithDomainConfig(async () => {
+  const retryResult = await retryWithDomainConfig(async () => {
     await waitForPermit("github-rest", "github-api-call", GITHUB_API_RATE_LIMIT_CONFIG);
     return await githubHttpClient(url, {
       headers: {
@@ -35,11 +35,16 @@ async function fetchCommitsPage(
     });
   }, "GITHUB_API");
 
-  if (!res?.ok) {
-    return { status: "error", message: `HTTP ${res?.status || "unknown"}` };
+  if (!retryResult.success) {
+    return { status: "error", message: retryResult.error.message };
   }
 
-  const commitApiResponse: unknown = await res.json();
+  const response = retryResult.data;
+  if (!response.ok) {
+    return { status: "error", message: `HTTP ${response.status}` };
+  }
+
+  const commitApiResponse: unknown = await response.json();
   const parsed = CommitResponseSchema.safeParse(commitApiResponse);
   if (!parsed.success) {
     return { status: "invalid_data" };

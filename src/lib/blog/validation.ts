@@ -8,6 +8,12 @@
 import type { BlogPost } from "../../types/blog";
 
 const REQUIRED_FIELDS = ["title", "slug", "excerpt", "publishedAt", "author", "tags"] as const;
+const VALID_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,198}[a-z0-9]$|^[a-z0-9]$/;
+
+/** Reject path-like and high-cardinality values before blog lookup or route caching. */
+export function isValidBlogSlug(slug: string): boolean {
+  return VALID_SLUG_PATTERN.test(slug) && !slug.includes("--");
+}
 
 /**
  * Validates a blog post object
@@ -26,7 +32,7 @@ export function validatePost(post: BlogPost): { valid: boolean; errors: string[]
   }
 
   // Validate slug format
-  if (post.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(post.slug)) {
+  if (post.slug && !isValidBlogSlug(post.slug)) {
     errors.push("Invalid slug format. Use lowercase letters, numbers, and hyphens only.");
   }
 

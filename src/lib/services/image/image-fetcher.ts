@@ -10,10 +10,8 @@ import { getS3Client } from "@/lib/s3/client";
 import { fetchWithTimeout, DEFAULT_IMAGE_HEADERS } from "@/lib/utils/http-client";
 import { normalizeError } from "@/lib/utils/error-utils";
 import { DEFAULT_IMAGE_CONTENT_TYPE, DEFAULT_BINARY_CONTENT_TYPE } from "@/lib/utils/content-type";
-import { isLogoUrl, extractDomain } from "@/lib/utils/url-utils";
 import { maybeStreamImageToS3 } from "../image-streaming";
 import type { ImageServiceOptions, FetchProcessResult, ImageFetchConfig } from "@/types/image";
-import type { LogoFetcher } from "./logo-fetcher";
 
 /**
  * Attempts to stream the image response to S3
@@ -73,24 +71,13 @@ export async function fetchAndProcessImage(
   options: ImageServiceOptions,
   config: ImageFetchConfig,
 ): Promise<FetchProcessResult> {
-  const {
-    devProcessingDisabled,
-    devStreamImagesToS3,
-    logoFetcher,
-    placeholderBuffer,
-    fetchTimeout,
-  } = config;
+  const { devProcessingDisabled, devStreamImagesToS3, placeholderBuffer, fetchTimeout } = config;
 
   const timeout = options.timeoutMs ?? fetchTimeout;
 
   // Dev gating: skip fetch/processing entirely when disabled in development
   if (devProcessingDisabled && !devStreamImagesToS3) {
     return { buffer: placeholderBuffer, contentType: DEFAULT_IMAGE_CONTENT_TYPE };
-  }
-
-  // Handle logo URLs specially
-  if (isLogoUrl(url)) {
-    return handleLogoUrl(url, logoFetcher);
   }
 
   // Fetch the image
@@ -139,19 +126,4 @@ export async function fetchAndProcessImage(
     // ER2 Compliance: Preserve error context for non-Error objects
     throw normalizeError(error, { operation: "fetchAndProcess", url });
   }
-}
-
-/** Handle logo URL by delegating to logo fetcher */
-async function handleLogoUrl(url: string, logoFetcher: LogoFetcher): Promise<FetchProcessResult> {
-  const logoResult = await logoFetcher.fetchExternalLogo(extractDomain(url));
-  if (!logoResult?.buffer) {
-    throw new Error("Failed to fetch logo");
-  }
-  const result = {
-    buffer: logoResult.buffer,
-    contentType: logoResult.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
-  };
-  // Clear the original buffer to help GC
-  logoResult.buffer = Buffer.alloc(0);
-  return result;
 }

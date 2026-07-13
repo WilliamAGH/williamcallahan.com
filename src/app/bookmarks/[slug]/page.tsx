@@ -220,8 +220,6 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   const foundBookmark = await findBookmarkBySlug(slug);
 
   if (!foundBookmark) {
-    console.error(`[BookmarkPage] BOOKMARK NOT FOUND for slug: "${slug}" - returning 404`);
-
     // Check if this might be a blog post slug that was incorrectly routed
     if (slug.startsWith("blog-") || slug.includes("-blog-")) {
       // This looks like a blog post slug, suggest the correct URL

@@ -7,6 +7,7 @@
 
 import { USE_NEXTJS_CACHE, cacheContextGuards } from "@/lib/cache";
 import { envLogger } from "@/lib/utils/env-logger";
+import { RELATED_CONTENT_CACHE_TAG } from "@/config/related-content.config";
 
 // ============================================================================
 // Next.js Cache Integration
@@ -47,6 +48,9 @@ export const safeRevalidateTag = (...tags: string[]): void => {
  * Invalidate all bookmarks-related Next.js caches.
  */
 export function invalidateNextJsBookmarksCache(): void {
+  // RelatedContent owns a Cache Component entry even when legacy bookmark caching is disabled.
+  safeRevalidateTag(RELATED_CONTENT_CACHE_TAG);
+
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("bookmarks");
     safeRevalidateTag("bookmarks-db-full");

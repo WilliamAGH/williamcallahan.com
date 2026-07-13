@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { exec as _exec } from "node:child_process";
 import type { DeploymentReadinessCheckResult } from "@/types/health";
+import { bookmarkDiagnosticsResponseSchema } from "@/types/schemas/api";
 
 const colors = {
   reset: "\x1b[0m",
@@ -161,44 +162,42 @@ class DeploymentVerifier {
     });
   }
 
-  // 3. S3 Connectivity Check
-  async checkS3Connectivity(): Promise<void> {
-    this.log("\n🔍 Checking S3 Connectivity...", colors.cyan);
+  // 3. Bookmark data check
+  async checkBookmarkData(): Promise<void> {
+    this.log("\n🔍 Checking Bookmark Data...", colors.cyan);
 
     try {
       const response = await fetch("http://localhost:3001/api/bookmarks/diagnostics");
       if (response.ok) {
-        const data = await response.json();
-
+        const payload: unknown = await response.json();
+        const parsed = bookmarkDiagnosticsResponseSchema.safeParse(payload);
+        if (!parsed.success) {
+          this.addCheck({
+            name: "Bookmark Diagnostics Contract",
+            category: "Data",
+            passed: false,
+            message: "Diagnostics response did not match its canonical schema",
+            severity: "critical",
+            details: parsed.error.issues.map((issue) => issue.message),
+          });
+          return;
+        }
+        const failedChecks = Object.entries(parsed.data.checks)
+          .filter(([, passed]) => !passed)
+          .map(([name]) => name);
         this.addCheck({
-          name: "S3 Configuration",
-          category: "S3",
-          passed: data.s3Config?.bucketSet && data.s3Config?.endpointSet,
-          message:
-            data.s3Config?.bucketSet && data.s3Config?.endpointSet
-              ? "S3 properly configured"
-              : "S3 configuration incomplete",
+          name: "Bookmark Data Availability",
+          category: "Data",
+          passed: failedChecks.length === 0,
+          message: "Bookmark data health check",
           severity: "critical",
-          details: !data.s3Config?.bucketSet ? ["S3_BUCKET not set"] : [],
-        });
-
-        this.addCheck({
-          name: "S3 Data Availability",
-          category: "S3",
-          passed: data.checks?.datasetOk && data.checks?.indexOk && data.checks?.slugMapOk,
-          message: "S3 bookmark data health check",
-          severity: "critical",
-          details: [
-            !data.checks?.datasetOk && "Bookmarks dataset missing",
-            !data.checks?.indexOk && "Bookmarks index missing",
-            !data.checks?.slugMapOk && "Slug mapping missing",
-          ].filter(Boolean) as string[],
+          details: failedChecks.map((name) => `${name} failed`),
         });
       }
     } catch {
       this.addCheck({
-        name: "S3 Diagnostics API",
-        category: "S3",
+        name: "Bookmark Diagnostics API",
+        category: "Data",
         passed: false,
         message: "Could not reach diagnostics endpoint (is dev server running on port 3001?)",
         severity: "warning",
@@ -356,7 +355,7 @@ class DeploymentVerifier {
 
     await this.checkEnvironmentConfig();
     await this.checkRouteConfiguration();
-    await this.checkS3Connectivity();
+    await this.checkBookmarkData();
     await this.checkBuildIntegrity();
     await this.checkCriticalRoutes();
     await this.checkPerformance();

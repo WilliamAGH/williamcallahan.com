@@ -14,6 +14,10 @@ vi.mock("@/lib/s3/objects", () => ({
 }));
 
 import type { BlogFrontmatter } from "@/types/test";
+import { renderToReadableStream } from "react-dom/server";
+import React from "react";
+import { notFound } from "next/navigation";
+import type { BlogPost } from "@/types/blog";
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
@@ -22,6 +26,29 @@ vi.doUnmock("next-mdx-remote/serialize");
 vi.doUnmock("next-mdx-remote");
 
 import { getMDXPost } from "../../src/lib/blog/mdx";
+
+type GetPostBySlug = typeof import("@/lib/blog").getPostBySlug;
+type GenerateSchemaGraph = typeof import("@/lib/seo/schema").generateSchemaGraph;
+type BlogPostPageComponent = typeof import("@/app/blog/[slug]/page").default;
+
+const { mockGenerateSchemaGraph, mockGetPostBySlug } = vi.hoisted(() => ({
+  mockGenerateSchemaGraph: vi.fn<GenerateSchemaGraph>(),
+  mockGetPostBySlug: vi.fn<GetPostBySlug>(),
+}));
+
+vi.mock("@/lib/blog.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/blog")>()),
+  getPostBySlug: mockGetPostBySlug,
+}));
+
+vi.mock("@/lib/seo/schema", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/seo/schema")>();
+  mockGenerateSchemaGraph.mockImplementation(actual.generateSchemaGraph);
+  return {
+    ...actual,
+    generateSchemaGraph: mockGenerateSchemaGraph,
+  };
+});
 
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
@@ -96,5 +123,126 @@ describe("Blog MDX Smoke Tests", () => {
         }
       }),
     );
+  });
+});
+
+const BLOG_POST_FOR_RENDER_ERROR = {
+  id: "blog-post",
+  title: "Blog post",
+  slug: "blog-post",
+  excerpt: "A test blog post.",
+  content: {
+    compiledSource: "",
+    scope: {},
+    frontmatter: {},
+  },
+  publishedAt: "2026-01-01T00:00:00.000Z",
+  author: {
+    id: "author",
+    name: "Author",
+  },
+  tags: [],
+} satisfies BlogPost;
+
+describe("Blog post 404 control flow", () => {
+  let BlogPostPage: BlogPostPageComponent;
+
+  beforeAll(async () => {
+    const pageModule = await import("@/app/blog/[slug]/page");
+    BlogPostPage = pageModule.default;
+  });
+
+  beforeEach(() => {
+    mockGenerateSchemaGraph.mockReset();
+    mockGetPostBySlug.mockReset();
+    vi.mocked(notFound).mockReset();
+  });
+
+  async function captureBlogPostRenderOutcome(slug: string): Promise<{
+    completionError: Error | undefined;
+    reportedError: Error | undefined;
+  }> {
+    let reportedError: Error | undefined;
+    const stream = await renderToReadableStream(
+      React.createElement(BlogPostPage, {
+        params: Promise.resolve({ slug }),
+      }),
+      {
+        onError(error) {
+          if (reportedError === undefined && error instanceof Error) {
+            reportedError = error;
+          }
+        },
+      },
+    );
+
+    const completionError = await stream.allReady.then(
+      () => undefined,
+      (error: unknown) => {
+        if (!(error instanceof Error)) {
+          throw error;
+        }
+        return error;
+      },
+    );
+    const reader = stream.getReader();
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) {
+        break;
+      }
+    }
+
+    return { completionError, reportedError };
+  }
+
+  it("preserves Next's notFound error for a missing post without logging", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const notFoundError = new Error("NEXT_HTTP_ERROR_FALLBACK;404");
+      vi.mocked(notFound).mockImplementation(() => {
+        throw notFoundError;
+      });
+      mockGetPostBySlug.mockResolvedValueOnce(null);
+
+      const outcome = await captureBlogPostRenderOutcome("missing-post");
+      expect(outcome.reportedError).toBe(notFoundError);
+      expect(outcome.completionError).toBeUndefined();
+      expect(notFound).toHaveBeenCalledOnce();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("propagates a post lookup failure instead of converting it to notFound", async () => {
+    const lookupError = new Error("Blog post lookup failed");
+    const notFoundError = new Error("NEXT_HTTP_ERROR_FALLBACK;404");
+    vi.mocked(notFound).mockImplementation(() => {
+      throw notFoundError;
+    });
+    mockGetPostBySlug.mockRejectedValueOnce(lookupError);
+
+    const outcome = await captureBlogPostRenderOutcome("available-post");
+    expect(outcome.reportedError).toBe(lookupError);
+    expect(outcome.completionError).toBeUndefined();
+    expect(notFound).not.toHaveBeenCalled();
+  });
+
+  it("propagates a render failure instead of converting it to notFound", async () => {
+    const renderError = new Error("Blog post schema rendering failed");
+    const notFoundError = new Error("NEXT_HTTP_ERROR_FALLBACK;404");
+    vi.mocked(notFound).mockImplementation(() => {
+      throw notFoundError;
+    });
+    mockGetPostBySlug.mockResolvedValueOnce(BLOG_POST_FOR_RENDER_ERROR);
+    mockGenerateSchemaGraph.mockImplementationOnce(() => {
+      throw renderError;
+    });
+
+    const outcome = await captureBlogPostRenderOutcome("blog-post");
+    expect(outcome.reportedError).toBe(renderError);
+    expect(outcome.completionError).toBeUndefined();
+    expect(notFound).not.toHaveBeenCalled();
   });
 });

@@ -26,7 +26,7 @@ function coerceMaxParallel(value: number): number {
 }
 
 export class UpstreamRequestQueue {
-  private maxParallel: number;
+  private readonly maxParallel: number;
   private running = 0;
   private readonly pendingByPriority = new Map<
     number,
@@ -59,13 +59,6 @@ export class UpstreamRequestQueue {
     let total = 0;
     for (const tasks of this.pendingByPriority.values()) total += tasks.length;
     return total;
-  }
-
-  public setMaxParallel(requestedMaxParallel: number): void {
-    const next = coerceMaxParallel(requestedMaxParallel);
-    if (next === this.maxParallel) return;
-    this.maxParallel = next;
-    this.drain();
   }
 
   public getPosition(taskId: string): AiUpstreamQueuePosition {
@@ -271,7 +264,12 @@ export function getUpstreamRequestQueue(args: {
 }): UpstreamRequestQueue {
   const existing = queues.get(args.key);
   if (existing) {
-    existing.setMaxParallel(args.maxParallel);
+    const requestedMaxParallel = coerceMaxParallel(args.maxParallel);
+    if (existing.snapshot.maxParallel !== requestedMaxParallel) {
+      throw new Error(
+        `Conflicting maxParallel values for shared upstream ${args.key}: ${existing.snapshot.maxParallel} and ${requestedMaxParallel}`,
+      );
+    }
     return existing;
   }
 
