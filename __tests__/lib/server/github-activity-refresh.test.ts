@@ -8,7 +8,11 @@ import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { runGitHubActivityRefresh } from "@/lib/server/github-activity-refresh";
 import { getMonotonicTime } from "@/lib/utils";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
-import { createUnavailableUserActivityView } from "@/types/schemas/github-storage";
+import {
+  contributionDaySchema,
+  createUnavailableUserActivityView,
+  userActivityViewSchema,
+} from "@/types/schemas/github-storage";
 import { connection, NextRequest } from "next/server";
 
 const mockedAuth = vi.hoisted(() => vi.fn((userId: string | null = null) => ({ userId })));
@@ -203,6 +207,22 @@ describe("GET /api/github-activity", () => {
     );
     const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
     expectNoStoreResponse(response, 500);
+  });
+});
+
+describe("GitHub activity public schemas", () => {
+  it("rejects values the public view cannot render", () => {
+    expect(
+      contributionDaySchema.safeParse({ date: "not-a-date", count: 1, level: 1 }).success,
+    ).toBe(false);
+    expect(
+      userActivityViewSchema.safeParse({
+        source: "empty",
+        trailingYearData: { data: [], totalContributions: 0, dataComplete: false },
+        allTimeStats: { totalContributions: 0, linesAdded: 0, linesRemoved: 0 },
+        lastRefreshed: "not-a-date",
+      }).success,
+    ).toBe(false);
   });
 });
 

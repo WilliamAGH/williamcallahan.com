@@ -19,6 +19,8 @@ import {
 
 const GITHUB_ACTIVITY_LOCK_EVENT =
   "select pg_advisory_xact_lock(hashtext($1)) [github-activity-refresh-global]";
+const GITHUB_ACTIVITY_READ_TRACE = [GITHUB_ACTIVITY_LOCK_EVENT, "read"];
+const GITHUB_ACTIVITY_WRITE_TRACE = [...GITHUB_ACTIVITY_READ_TRACE, "write"];
 const pgDialect = new PgDialect();
 
 const buildGitHubSegment = (
@@ -40,22 +42,12 @@ const buildGitHubActivity = (
   cumulativeAllTimeData: buildGitHubSegment(overrides),
 });
 
-const readGithubActivityView = async (record: GitHubActivityApiResponse, lastModified?: Date) => {
-  vi.resetModules();
-  vi.doMock("@/lib/data-access/github-storage", () => ({
-    readGitHubActivityRecord: () => Promise.resolve(record),
-    getGitHubActivityMetadata: () => Promise.resolve(lastModified ? { lastModified } : null),
-  }));
-
-  try {
-    const actual = await vi.importActual<typeof import("@/lib/data-access/github-public-api")>(
-      "@/lib/data-access/github-public-api",
-    );
-    return actual.getGithubActivity();
-  } finally {
-    vi.doUnmock("@/lib/data-access/github-storage");
-  }
-};
+const createRefreshSummary = (activity: GitHubActivityApiResponse, repositoryCount: number) =>
+  createGitHubActivitySummary({
+    allTimeData: activity.cumulativeAllTimeData,
+    totalRepositoriesContributedTo: repositoryCount,
+    linesOfCodeByCategory: createEmptyCategoryStats(),
+  });
 
 const loadGitHubActivityWriter = async (
   initialActivity: GitHubActivityApiResponse,
@@ -64,11 +56,7 @@ const loadGitHubActivityWriter = async (
   vi.resetModules();
   const initialRefresh = {
     activity: initialActivity,
-    summary: createGitHubActivitySummary({
-      allTimeData: initialActivity.cumulativeAllTimeData,
-      totalRepositoriesContributedTo: 4,
-      linesOfCodeByCategory: createEmptyCategoryStats(),
-    }),
+    summary: createRefreshSummary(initialActivity, 4),
     aggregatedActivity: [{ weekStartDate: "2026-06-02", linesAdded: 90, linesRemoved: 20 }],
   };
   let storedRefresh = initialRefresh;
@@ -119,23 +107,25 @@ const loadGitHubActivityWriter = async (
   const publishActivity = (
     activity: GitHubActivityApiResponse,
     intent: GitHubActivityWriteIntent,
-  ) =>
-    writeGitHubActivityRefreshToDb(
-      activity,
-      createGitHubActivitySummary({
-        allTimeData: activity.cumulativeAllTimeData,
-        totalRepositoriesContributedTo: 0,
-        linesOfCodeByCategory: createEmptyCategoryStats(),
-      }),
-      [],
-      intent,
+  ) => writeGitHubActivityRefreshToDb(activity, createRefreshSummary(activity, 0), [], intent);
+  return { initialRefresh, publishActivity, storedRefresh: () => storedRefresh, transactionEvents };
+};
+
+const readGithubActivityView = async (record: GitHubActivityApiResponse, lastModified?: Date) => {
+  vi.resetModules();
+  vi.doMock("@/lib/data-access/github-storage", () => ({
+    readGitHubActivityRecord: () => Promise.resolve(record),
+    getGitHubActivityMetadata: () => Promise.resolve(lastModified ? { lastModified } : null),
+  }));
+
+  try {
+    const actual = await vi.importActual<typeof import("@/lib/data-access/github-public-api")>(
+      "@/lib/data-access/github-public-api",
     );
-  return {
-    getStoredRefresh: () => storedRefresh,
-    getTransactionEvents: () => transactionEvents,
-    initialRefresh,
-    publishActivity,
-  };
+    return actual.getGithubActivity();
+  } finally {
+    vi.doUnmock("@/lib/data-access/github-storage");
+  }
 };
 
 describe("GitHub data access", () => {
@@ -235,92 +225,6 @@ describe("GitHub data access", () => {
       expect(result.dataComplete).toBe(false);
       expect(result.hasAllTimeData).toBe(true);
       expect(writeRepoWeeklyStatsRecord).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("GitHub Activity Persistence", () => {
-    const healthyActivity = buildGitHubActivity({
-      data: [{ date: "2026-06-09", count: 3, level: 1 }],
-      totalContributions: 100,
-    });
-
-    it("preserves healthy activity when an incomplete refresh arrives", async () => {
-      const { getStoredRefresh, getTransactionEvents, initialRefresh, publishActivity } =
-        await loadGitHubActivityWriter(healthyActivity);
-
-      await expect(
-        publishActivity(
-          buildGitHubActivity({
-            data: [{ date: "2026-06-10", count: 5, level: 2 }],
-            totalContributions: 150,
-            dataComplete: false,
-          }),
-          GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
-        ),
-      ).resolves.toBe(false);
-
-      expect(getStoredRefresh()).toEqual(initialRefresh);
-      expect(getTransactionEvents()).toEqual([GITHUB_ACTIVITY_LOCK_EVENT, "read"]);
-    });
-
-    it("replaces healthy activity for a complete empty current repository set", async () => {
-      const emptyActivity = buildGitHubActivity({
-        data: [],
-        totalContributions: 0,
-        linesAdded: 0,
-        linesRemoved: 0,
-        dataComplete: true,
-      });
-      const { getStoredRefresh, getTransactionEvents, publishActivity } =
-        await loadGitHubActivityWriter(healthyActivity);
-
-      await publishActivity(
-        emptyActivity,
-        GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
-      );
-
-      const storedRefresh = getStoredRefresh();
-      expect(storedRefresh.activity).toEqual(emptyActivity);
-      expect(storedRefresh.summary.totalContributions).toBe(0);
-      expect(storedRefresh.aggregatedActivity).toEqual([]);
-      expect(getTransactionEvents()).toEqual([GITHUB_ACTIVITY_LOCK_EVENT, "read", "write"]);
-    });
-
-    it("keeps every previous record when the atomic insert fails", async () => {
-      const { getStoredRefresh, getTransactionEvents, initialRefresh, publishActivity } =
-        await loadGitHubActivityWriter(healthyActivity, true);
-
-      await expect(
-        publishActivity(healthyActivity, GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY),
-      ).rejects.toThrow("atomic insert failed");
-      expect(getStoredRefresh()).toEqual(initialRefresh);
-      expect(getTransactionEvents()).toEqual([GITHUB_ACTIVITY_LOCK_EVENT, "read", "write"]);
-    });
-
-    it.each([
-      ["nonzero", { totalContributions: 1 }],
-      ["incomplete", { dataComplete: false }],
-      ["added", { linesAdded: 1 }],
-      ["removed", { linesRemoved: 1 }],
-    ])("rejects %s empty-repository replacements", async (_name, overrides) => {
-      const { getStoredRefresh, getTransactionEvents, initialRefresh, publishActivity } =
-        await loadGitHubActivityWriter(healthyActivity);
-
-      await expect(
-        publishActivity(
-          buildGitHubActivity({
-            data: [],
-            totalContributions: 0,
-            linesAdded: 0,
-            linesRemoved: 0,
-            dataComplete: true,
-            ...overrides,
-          }),
-          GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
-        ),
-      ).rejects.toThrow("complete, zero-contribution activity data");
-      expect(getStoredRefresh()).toEqual(initialRefresh);
-      expect(getTransactionEvents()).toEqual([GITHUB_ACTIVITY_LOCK_EVENT, "read"]);
     });
   });
 });

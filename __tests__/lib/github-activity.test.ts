@@ -40,14 +40,12 @@ import {
 import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
 import { GraphQLRepoNodeSchema } from "@/types/github";
 import {
-  contributionDaySchema,
   GITHUB_ACTIVITY_WRITE_INTENTS,
   type AggregatedWeeklyActivity,
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
   type GitHubActivitySummary,
   type GitHubActivityWriteIntent,
-  userActivityViewSchema,
 } from "@/types/schemas/github-storage";
 import type {
   SingleRepoProcessingInput,
@@ -271,24 +269,66 @@ describe("GitHub activity summary", () => {
   });
 });
 
-describe("GitHub activity public schemas", () => {
-  it("rejects contribution days that the calendar cannot render", () => {
-    expect(
-      contributionDaySchema.safeParse({ date: "not-a-date", count: 1, level: 1 }).success,
-    ).toBe(false);
-    expect(
-      contributionDaySchema.safeParse({ date: "2026-07-13", count: -1, level: 1 }).success,
-    ).toBe(false);
-  });
+describe("GitHub activity atomic persistence", () => {
+  const loadWriter = async (existing: GitHubActivityApiResponse) => {
+    vi.resetModules();
+    const events: string[] = [];
+    let records: Array<{ dataType: string; updatedAt: number }> = [];
+    const tx = {
+      execute: () => (events.push("lock"), Promise.resolve()),
+      select: () => {
+        events.push("read");
+        return { from: () => ({ where: () => ({ limit: async () => [{ payload: existing }] }) }) };
+      },
+      insert: () => {
+        events.push("write");
+        return {
+          values: (next: typeof records) => ({
+            onConflictDoUpdate: async () => {
+              records = next;
+            },
+          }),
+        };
+      },
+    };
+    vi.doMock("@/lib/db/connection", () => ({
+      assertDatabaseWriteAllowed: vi.fn(),
+      db: { transaction: (callback: (executor: typeof tx) => Promise<boolean>) => callback(tx) },
+    }));
+    const { writeGitHubActivityRefreshToDb } = await import("@/lib/db/mutations/github-activity");
+    return { events, getRecords: () => records, writeGitHubActivityRefreshToDb };
+  };
 
-  it("requires an ISO timestamp for the public refresh date", () => {
+  it("locks, reads, and writes every projection with one timestamp", async () => {
+    const activity = {
+      trailingYearData: {
+        ...zeroSegment,
+        data: [{ date: "2026-07-13", count: 1, level: 1 as const }],
+        totalContributions: 1,
+      },
+      cumulativeAllTimeData: { ...zeroSegment, totalContributions: 1 },
+    };
+    const { events, getRecords, writeGitHubActivityRefreshToDb } = await loadWriter(activity);
+    const summary = createGitHubActivitySummary({
+      allTimeData: activity.cumulativeAllTimeData,
+      totalRepositoriesContributedTo: 1,
+      linesOfCodeByCategory: createEmptyCategoryStats(),
+    });
+
+    await expect(
+      writeGitHubActivityRefreshToDb(
+        activity,
+        summary,
+        [],
+        GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+      ),
+    ).resolves.toBe(true);
+    expect(events).toEqual(["lock", "read", "write"]);
     expect(
-      userActivityViewSchema.safeParse({
-        source: "empty",
-        trailingYearData: { data: [], totalContributions: 0, dataComplete: false },
-        allTimeStats: { totalContributions: 0, linesAdded: 0, linesRemoved: 0 },
-        lastRefreshed: "not-a-date",
-      }).success,
-    ).toBe(false);
+      getRecords()
+        .map(({ dataType }) => dataType)
+        .toSorted(),
+    ).toEqual(["activity", "aggregated-weekly", "summary"]);
+    expect(new Set(getRecords().map(({ updatedAt }) => updatedAt))).toHaveLength(1);
   });
 });
