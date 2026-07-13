@@ -6,8 +6,7 @@
  *
  * === INCLUSION RULES ===
  * ✅ DO ADD:
- *   - Base error interfaces (e.g., Error, ExtendedError)
- *   - Type guards for core error types.
+ *   - Application error contracts with reusable semantics
  *
  * === EXCLUSION RULES ===
  * ❌ DO NOT ADD:
@@ -20,20 +19,6 @@
  */
 
 /**
- * Extended Error interface for application-specific errors
- */
-export interface ExtendedError extends Error {
-  /** Timestamp of when the data was last successfully fetched */
-  lastFetched?: number;
-  /** Timestamp of the last fetch attempt */
-  lastFetchedTimestamp?: number;
-  /** Error code for categorizing the error type */
-  code?: string;
-  /** Additional context data for the error */
-  context?: Record<string, unknown>;
-}
-
-/**
  * AWS SDK Error interface with metadata
  */
 export interface AWSError extends Error {
@@ -41,14 +26,6 @@ export interface AWSError extends Error {
   $metadata?: {
     httpStatusCode?: number;
   };
-}
-
-export interface ErrorWithCode {
-  code: string;
-}
-
-export interface ErrorWithStatusCode {
-  statusCode: number;
 }
 
 // =============================================================================

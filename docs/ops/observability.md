@@ -41,11 +41,6 @@ The system provides multiple layers of observability and resilience:
 
 ### Error Handling
 
-#### Type Definitions
-
-- **`types/error.ts`**: Core error type definitions
-  - `ExtendedError`: Canonical error interface for fetch timestamps, codes, and context
-
 #### Typed Error Contracts
 
 - **`types/error.ts`**: Application error contracts and helper utilities
@@ -272,9 +267,8 @@ if (!result) {
 ### Medium-term Improvements
 
 1. **Centralized Authentication**: Middleware-based auth for debug endpoints
-2. **Type Consistency**: Use `ExtendedError` directly for shared fetch error metadata
-3. **Error Recovery**: Implement automatic retry for transient errors
-4. **Circuit Breaker**: Add pattern for failing services
+2. **Error Recovery**: Implement automatic retry for transient errors
+3. **Circuit Breaker**: Add pattern for failing services
 
 ### Long-term Enhancements
 
