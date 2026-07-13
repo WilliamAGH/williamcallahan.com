@@ -8,6 +8,14 @@ import {
   IMAGE_CDN_CACHE_HEADERS,
 } from "@/lib/validators/url";
 
+const TWITTER_IMAGE_FORMATS = ["jpg", "jpeg", "png", "gif", "webp"] as const;
+const twitterImageFormatAlternatives = TWITTER_IMAGE_FORMATS.join("|");
+const twitterImageFormatPattern = new RegExp(`^(?:${twitterImageFormatAlternatives})$`, "i");
+const twitterImagePathPattern = new RegExp(
+  `^(profile_images|ext_tw_video_thumb|media)\\/[A-Za-z0-9._\\-/]+\\.(?:${twitterImageFormatAlternatives})$`,
+  "i",
+);
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
@@ -43,19 +51,17 @@ export async function GET(
     // Allow common avatar/media roots; keep strict filename extension check
     // Allow dots in segments (e.g., versioned directories like v1.2/media/...),
     // while remaining SSRF-safe due to prior sanitizePath which strips '../' and './'
-    const extensionPathPattern =
-      /^(profile_images|ext_tw_video_thumb|media)\/[A-Za-z0-9._\-/]+\.(jpg|jpeg|png|gif|webp)$/i;
     const requestUrl = new URL(request.url);
     const embeddedParams = new URLSearchParams(embeddedSearch);
     const format = requestUrl.searchParams.get("format") ?? embeddedParams.get("format");
     const name = requestUrl.searchParams.get("name") ?? embeddedParams.get("name");
-    const hasValidFormat = format === null || /^(jpg|jpeg|png|gif|webp)$/i.test(format);
+    const hasValidFormat = format === null || twitterImageFormatPattern.test(format);
     const hasValidName =
       name === null || /^(small|medium|large|orig|[1-9][0-9]{0,3}x[1-9][0-9]{0,3})$/i.test(name);
     const isExtensionlessMedia =
       /^media\/[A-Za-z0-9_-]+$/.test(pathOnly) && format !== null && hasValidFormat;
     if (
-      (!extensionPathPattern.test(pathOnly) && !isExtensionlessMedia) ||
+      (!twitterImagePathPattern.test(pathOnly) && !isExtensionlessMedia) ||
       !hasValidFormat ||
       !hasValidName
     ) {
