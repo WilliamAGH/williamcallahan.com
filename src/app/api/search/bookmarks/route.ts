@@ -13,12 +13,12 @@ import {
   createSearchErrorResponse,
   withNoStoreHeaders,
 } from "@/lib/search/api-guards";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarkFtsSearchHit, BookmarkFtsSearchPageResult } from "@/types/db/bookmarks";
-import type { BookmarkSearchResponse, SearchResult } from "@/types/schemas/search";
+import type { BookmarkSearchResponse, BookmarkSearchResult } from "@/types/schemas/search";
 import { bookmarkSearchParamsSchema } from "@/types/schemas/search";
-import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -42,7 +42,7 @@ const paginationSchema = bookmarkSearchParamsSchema.pick({ page: true, limit: tr
 
 /** Build the standard bookmark search response payload. */
 function buildBookmarkSearchResponse(params: {
-  results: SearchResult[];
+  results: BookmarkSearchResult[];
   totalCount: number;
   hasMore: boolean;
   query: string;
@@ -65,15 +65,14 @@ function buildBookmarkSearchResponse(params: {
   return NextResponse.json(response, { headers: withNoStoreHeaders() });
 }
 
-/** Map a ranked bookmark row into a normalized SearchResult. */
-function toBookmarkSearchResult(bookmark: UnifiedBookmark, score: number): SearchResult {
-  const fallbackUrl = bookmark.slug ? `/bookmarks/${bookmark.slug}` : `/bookmarks/${bookmark.id}`;
+/** Map a ranked bookmark row into a compact search result. */
+function toBookmarkSearchResult(bookmark: UnifiedBookmark, score: number): BookmarkSearchResult {
   return {
     id: bookmark.id,
     type: "bookmark",
     title: bookmark.title,
     description: bookmark.description,
-    url: fallbackUrl,
+    url: buildBookmarkPath(bookmark.slug),
     score,
   };
 }
@@ -144,11 +143,7 @@ function resolveRequestUrl(request: NextRequest | { nextUrl?: URL; url: string }
 }
 
 export async function GET(request: NextRequest) {
-  // connection(): ensure request-time execution under cacheComponents to avoid prerendered buildPhase responses
   await connection();
-  // CRITICAL: Call preventCaching() FIRST to prevent Next.js from caching ANY response
-  // If called after the build phase check, the buildPhase:true response gets cached
-  preventCaching();
   if (isProductionBuildPhase()) {
     return buildBookmarkSearchResponse({
       results: [],
@@ -170,9 +165,8 @@ export async function GET(request: NextRequest) {
     // Sanitize / validate like other search routes
     const validation = validateSearchQuery(rawQuery);
     if (!validation.isValid) {
-      const validationError = validation.error ? validation.error : "Invalid search query";
       return NextResponse.json(
-        { error: validationError },
+        { error: validation.error },
         { status: 400, headers: withNoStoreHeaders() },
       );
     }
