@@ -94,7 +94,7 @@ Keys are immutable once written (content-hash suffix or deterministic domain has
 ## Dependencies & References
 
 - **Image-handling** – Consumes this storage layer; see [`image-handling.md`](./image-handling.md) for domain-level behavior.
-- **Unified stack map** – High-level flow resides in [`s3-image-unified-stack.md`](./s3-image-unified-stack.md).
+- **Unified stack map** – High-level flow resides in [`image-stack.md`](./image-stack.md).
 - **Next.js 16 constraints** – `docs/standards/nextjs-framework.md` defines experimental flags, Cache Components expectations, and outlawed APIs that indirectly impact storage access.
 
 Keep this file current whenever you add a new prefix, manifest, or lock artifact. If an S3 command path is missing documentation here, it is considered unofficial and subject to removal.
@@ -105,4 +105,4 @@ Keep this file current whenever you add a new prefix, manifest, or lock artifact
 - **Proxy endpoints stream, not redirect.** `/api/cache/images` fetches the CDN resource server-side, decodes multi-encoded `url` parameters, and streams the bytes so `_next/image` always sees a 200 response. ([Image Component docs](https://nextjs.org/docs/app/api-reference/components/image#unoptimized))
 - **Add hosts to `next.config.ts` before storing assets.** If you introduce a new Spaces endpoint or CDN hostname, update `CALLAHAN_IMAGE_HOSTS` and `images.remotePatterns` at the same time or `_next/image` will throw 400s in production.
 
-Changes to this contract must be mirrored in `image-handling.md`, `s3-image-unified-stack.md`, and `../standards/nextjs-framework.md`.
+Changes to this contract must be mirrored in `image-handling.md`, `image-stack.md`, and `../standards/nextjs-framework.md`.
