@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scheduler container entrypoint: database gate, one-time sitemap submission,
-# background data populator, then the cron scheduler as PID 1.
+# then the scoped cron scheduler as PID 1.
 # The web container (scripts/entrypoint.sh) serves traffic only.
 set -euo pipefail
 
@@ -35,16 +35,9 @@ else
     echo "⚠️  [Entrypoint] Missing Google sitemap credentials; skipping submission"
 fi
 
-# The populator is idempotent and no-ops when data already exists.
-echo "📦 [Entrypoint] Starting background data populator..."
-touch /tmp/needs-initial-data-population
-npx tsx scheduler/background-data-populator.ts &
-echo "✅ [Entrypoint] Background data populator started (PID: $!)"
-
 echo "🕒 [Entrypoint] Starting scheduler..."
 
 # Execute the command passed to the entrypoint (CMD in Dockerfile),
 # e.g. ["node", "--run", "scheduler"]. exec makes the scheduler PID 1 so it
-# receives SIGTERM directly for graceful shutdown; the populator is short-lived
-# and is reaped with the container.
+# receives SIGTERM directly for graceful shutdown.
 exec "$@"

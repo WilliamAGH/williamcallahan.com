@@ -2,12 +2,30 @@
 import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 import { getMonotonicTime } from "@/lib/utils";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
+import { writeFileSync } from "node:fs";
 loadEnvironmentWithMultilineSupport();
 
-// Log startup immediately to verify process is running
-console.log(`[Scheduler] Process starting at ${new Date().toISOString()}`);
-console.log(`[Scheduler] Node version: ${process.version}, Runtime: tsx (esbuild + Node.js)`);
-console.log(`[Scheduler] Working directory: ${process.cwd()}`);
+let fatalExitStarted = false;
+
+const exitAfterFatalProcessError = (event: string, reason: unknown): void => {
+  if (fatalExitStarted) return;
+  fatalExitStarted = true;
+  console.error(`[Scheduler] FATAL: ${event}`, reason);
+  process.exitCode = 1;
+  setImmediate(() => process.exit(1));
+};
+
+process.on("uncaughtException", (error) => {
+  exitAfterFatalProcessError("Uncaught exception", error);
+});
+
+process.on("unhandledRejection", (reason) => {
+  exitAfterFatalProcessError("Unhandled promise rejection", reason);
+});
+
+console.log(
+  `[Scheduler] Starting at ${new Date().toISOString()} with Node ${process.version} in ${process.cwd()}`,
+);
 
 // Continuous Background Scheduler
 //
@@ -68,12 +86,6 @@ const runningJobs = new Set<string>();
 console.log(
   `[Scheduler] Process started with instanceId: ${SCHEDULER_INSTANCE_ID}. Setting up cron jobs...`,
 );
-// Debug: log key environment variables
-console.log(
-  `[Scheduler] [${SCHEDULER_INSTANCE_ID}] Env vars: S3_BUCKET=${process.env.S3_BUCKET}, ` +
-    `S3_SERVER_URL=${process.env.S3_SERVER_URL}, PATH=${process.env.PATH}`,
-);
-
 // Ensure Node Cron interprets times in PT
 process.env.TZ = "America/Los_Angeles";
 console.log("[Scheduler] Starting update-data scheduler (PT)...");
@@ -247,18 +259,11 @@ console.log(
   "[Scheduler] Production frequencies: Bookmarks (12x/day), BookmarkTags (6x/day), BookmarkTagsRetrofit (1x/day), Books (1x/day), GitHub (1x/day), Logos (1x/week)",
 );
 
-// Add process-level error handling to prevent silent crashes
-process.on("uncaughtException", (error) => {
-  console.error(`[Scheduler] FATAL: Uncaught exception:`, error);
-  console.error(`[Scheduler] Stack trace:`, error.stack);
-  // Don't exit - try to keep running
-});
+const heartbeatFile = process.env.SCHEDULER_HEARTBEAT_FILE ?? "/tmp/scheduler-heartbeat";
+const writeHeartbeat = (): void => writeFileSync(heartbeatFile, String(Date.now()), "utf8");
 
-process.on("unhandledRejection", (reason, promise) => {
-  console.error(`[Scheduler] ERROR: Unhandled promise rejection:`, reason);
-  console.error(`[Scheduler] Promise:`, promise);
-  // Don't exit - try to keep running
-});
+writeHeartbeat();
+setInterval(writeHeartbeat, 30_000).unref();
 
 // Log heartbeat every hour to confirm scheduler is alive
 setInterval(

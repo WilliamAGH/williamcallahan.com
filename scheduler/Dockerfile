@@ -66,6 +66,7 @@ ENV NODE_ENV=production
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
 ENV XDG_CACHE_HOME=/home/nextjs/.cache
+ENV SCHEDULER_HEARTBEAT_FILE=/tmp/scheduler-heartbeat
 
 ARG GIT_SHA=unknown
 ENV GIT_SHA=${GIT_SHA}
@@ -93,9 +94,9 @@ RUN chmod +x /app/scheduler/entrypoint.sh /app/scheduler/diagnose-scheduler.sh \
 
 USER nextjs
 
-# The scheduler exposes no HTTP server; healthy = cron process alive.
+# The scheduler exposes no HTTP server; its event loop refreshes this heartbeat every 30 seconds.
 HEALTHCHECK --interval=60s --timeout=5s --start-period=60s --retries=3 \
-  CMD pgrep -f "[s]cheduler/scheduler.ts" > /dev/null || exit 1
+  CMD node -e 'const fs=require("node:fs");const timestamp=Number(fs.readFileSync(process.env.SCHEDULER_HEARTBEAT_FILE,"utf8"));const age=Date.now()-timestamp;if(!Number.isFinite(age)||age>120000)process.exit(1)'
 
 ENTRYPOINT ["/app/scheduler/entrypoint.sh"]
 CMD ["node", "--run", "scheduler"]

@@ -2,10 +2,10 @@
 
 Production runs as **two containers built from this repository**:
 
-| Container | Dockerfile             | Entrypoint                | Runs                                                                             |
-| --------- | ---------------------- | ------------------------- | -------------------------------------------------------------------------------- |
-| Web       | `Dockerfile`           | `scripts/entrypoint.sh`   | Next.js server only                                                              |
-| Scheduler | `scheduler/Dockerfile` | `scheduler/entrypoint.sh` | Cron jobs (`scheduler/scheduler.ts`), initial data populator, sitemap submission |
+| Container | Dockerfile             | Entrypoint                | Runs                                                                 |
+| --------- | ---------------------- | ------------------------- | -------------------------------------------------------------------- |
+| Web       | `Dockerfile`           | `scripts/entrypoint.sh`   | Next.js server only                                                  |
+| Scheduler | `scheduler/Dockerfile` | `scheduler/entrypoint.sh` | Cron jobs (`scheduler/scheduler.ts`) and one-time sitemap submission |
 
 Both entrypoints share the DATABASE_URL rewrite + readiness gate via `scripts/entrypoint-db-gate.sh`.
 
@@ -41,7 +41,7 @@ the deployment helper.
 
 The scheduler image does **not** run `next build` — it installs dependencies and runs
 TypeScript directly via tsx, so its builds take minutes, not tens of minutes. No ports
-are exposed; health is a `pgrep` check on the scheduler process.
+are exposed; health requires the scheduler heartbeat to be no more than two minutes old.
 
 Local build + one-shot data prefetch:
 
@@ -50,60 +50,13 @@ bun run docker:build:scheduler
 bun run docker:prefetch
 ```
 
-## Quick Start (Ephemeral)
+## Quick Start
 
-Run the container with ephemeral storage (logos clear on restart):
+Run the web container locally:
 
 ```bash
 docker build -t williamcallahan-com .
 docker run -d -p 3000:3000 --name williamcallahan-com williamcallahan-com
-```
-
-## Production Setup (Persistent)
-
-For production, mount a volume to persist downloaded logos:
-
-```bash
-# 1. Create storage volume
-docker volume create logo_storage
-
-# 2. Build image
-docker build -t williamcallahan-com .
-
-# 3. Run with volume mount
-docker run -d \
-  -p 3000:3000 \
-  -v logo_storage:/app/data/images/logos \
-  --name williamcallahan-com \
-  williamcallahan-com
-```
-
-## Maintenance Operations
-
-### Fix Permissions
-
-If you encounter permission issues with the volume:
-
-```bash
-docker run --rm -v logo_storage:/data alpine chown -R 1001:1001 /data
-```
-
-### Backup Logos
-
-Create a tarball of the logo storage:
-
-```bash
-docker run --rm -v logo_storage:/data:ro -v "$(pwd):/backup" alpine \
-  tar czf /backup/logos-backup-$(date +%Y%m%d).tar.gz -C /data .
-```
-
-### Restore Logos
-
-Restore from a backup tarball:
-
-```bash
-docker run --rm -v logo_storage:/data -v "$(pwd):/backup" alpine \
-  sh -c "tar xzf /backup/logos-backup-YYYYMMDD.tar.gz -C /data && chown -R 1001:1001 /data"
 ```
 
 ## Health Checks

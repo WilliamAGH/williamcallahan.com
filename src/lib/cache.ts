@@ -23,7 +23,6 @@ const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
 const CLI_SCRIPT_DIRECTORIES = ["scheduler", "scripts"] as const;
 const CLI_SCRIPT_FILENAMES = new Set([
-  "background-data-populator.ts",
   "data-updater.ts",
   "scheduler.ts",
   "submit-sitemap.ts",

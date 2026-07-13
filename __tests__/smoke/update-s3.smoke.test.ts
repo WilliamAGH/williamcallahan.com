@@ -10,7 +10,7 @@
  * @fileoverview Part of script testing infrastructure for data-updater.ts operational validation
  */
 
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import * as path from "node:path";
 
 /**
@@ -149,6 +149,32 @@ describe("Update S3 Script Smoke Tests", () => {
  * This test prevents silent failures from flag mismatches.
  */
 describe("Scheduler and data-updater flag consistency", () => {
+  it("exits nonzero after logging an uncaught scheduler failure once", () => {
+    const result = spawnSync("node", ["--run", "scheduler"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        S3_BOOKMARKS_CRON: "invalid",
+        SCHEDULER_HEARTBEAT_FILE: "/tmp/scheduler-fatal-test-heartbeat",
+      },
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr.match(/\[Scheduler\] FATAL:/g)).toHaveLength(1);
+    expect(result.stderr).toContain("Uncaught exception");
+  });
+
+  it("configures a bounded scheduler event-loop heartbeat health check", async () => {
+    const fs = await import("node:fs/promises");
+    const dockerfile = await fs.readFile("scheduler/Dockerfile", "utf8");
+    const schedulerContent = await fs.readFile("scheduler/scheduler.ts", "utf8");
+
+    expect(schedulerContent).toContain("setInterval(writeHeartbeat, 30_000)");
+    expect(dockerfile).toContain("SCHEDULER_HEARTBEAT_FILE=/tmp/scheduler-heartbeat");
+    expect(dockerfile).toContain("age>120000");
+  });
+
   /**
    * Validates scheduler uses correct GitHub flag
    * Prevents regression where --github-activity was used instead of --github

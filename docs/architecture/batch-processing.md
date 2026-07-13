@@ -14,9 +14,9 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 
 1. **Async Scheduler**: Uses async `spawn` (not `spawnSync`) with job tracking so jobs run independently without blocking.
 
-2. **Runtime Logo Fetching**: Logos fetched on-demand at runtime with multi-tier caching (not at build time). `bun run build:full` available for complete prefetch if needed.
+2. **Scheduled Asset Refresh**: The scheduler refreshes logos through `scheduler/data-updater.ts`; `bun run prefetch` performs a one-shot refresh of bookmarks, GitHub activity, and logos.
 
-3. **Centralized Data Fetching**: Single `lib/server/data-fetch-manager.ts` with CLI. Entry point: `scheduler/data-updater.ts`.
+3. **Centralized Data Fetching**: `src/lib/server/data-fetch-manager.ts` is the single orchestrator. Its CLI entry point is `scheduler/data-updater.ts`.
 
 ## Refresh Frequencies
 
@@ -26,6 +26,24 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 - **Frequency**: 12 times per day
 - **Rationale**: Bookmarks are actively consumed content that benefits from frequent updates
 - **Times**: 12:00 AM, 2:00 AM, 4:00 AM, 6:00 AM, 8:00 AM, 10:00 AM, 12:00 PM, 2:00 PM, 4:00 PM, 6:00 PM, 8:00 PM, 10:00 PM
+
+### Bookmark Tags: Every 4 Hours (6x/day)
+
+- **Schedule**: `30 */4 * * *` (at minute 30 every fourth hour)
+- **Frequency**: 6 times per day
+- **Rationale**: Keeps canonical tag aliases current without competing with bookmark refreshes.
+
+### Bookmark Tag Retrofit: Daily (1x/day)
+
+- **Schedule**: `45 3 * * *` (at 3:45 AM)
+- **Frequency**: Once per day
+- **Rationale**: Revisits bookmarks that still need tag-alias review.
+
+### Books: Daily (1x/day)
+
+- **Schedule**: `0 6 * * *` (at 6:00 AM)
+- **Frequency**: Once per day
+- **Rationale**: Regenerates the consolidated books dataset from AudioBookShelf.
 
 ### GitHub Activity: Daily (1x/day)
 
@@ -43,34 +61,11 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 
 ### Scheduler Architecture
 
-```typescript
-// scheduler/scheduler.ts - Uses async spawn
-const updateProcess = spawn("node", ["--run", "update-data", "--", "--bookmarks"], {
-  env: process.env,
-  stdio: "inherit",
-  detached: false,
-});
-// Jobs run independently without blocking scheduler
-```
+`scheduler/scheduler.ts` spawns `node --run update-data -- <flag>` asynchronously for each job. It uses the canonical `DATA_UPDATER_FLAGS` inventory and a per-job lock to keep matching jobs from overlapping.
 
 ### Data Fetch Manager Architecture
 
-```typescript
-// lib/server/data-fetch-manager.ts
-export class DataFetchManager {
-  async fetchData(config: DataFetchConfig): Promise<DataFetchResult[]> {
-    // Orchestrates all data fetching operations
-    // Returns unified results for monitoring
-  }
-
-  async prefetchForBuild(): Promise<DataFetchResult[]> {
-    // Optimized build-time fetch (S3 only)
-  }
-}
-
-// scheduler/data-updater.ts parses CLI flags, invokes DataFetchManager,
-// and exits non-zero when any requested operation fails.
-```
+`scheduler/data-updater.ts` parses CLI flags, invokes `DataFetchManager`, and exits nonzero when a requested operation fails.
 
 ### Usage Examples
 
@@ -82,7 +77,7 @@ bun run update-data
 bun run update-data -- --bookmarks
 bun run update-data -- --github --logos
 
-# Prefetch for builds
+# One-shot refresh
 bun run prefetch
 
 # Force refresh
@@ -93,7 +88,7 @@ bun run update-data -- --force --bookmarks
 
 ### Core Orchestrator
 
-- **lib/server/data-fetch-manager.ts**: Centralized data fetching orchestrator
+- **src/lib/server/data-fetch-manager.ts**: Centralized data fetching orchestrator
   - Handles bookmarks, GitHub activity, and logo fetching
   - Provides unified interface for all data operations
   - Manages batch processing, rate limiting, and retries
@@ -101,34 +96,20 @@ bun run update-data -- --force --bookmarks
 ### Script Layer
 
 - **scheduler/scheduler.ts**: Long-running process using node-cron
-- **scheduler/data-updater.ts**: Unified CLI for all data operations
-  - `--bookmarks`: Update bookmarks only
-  - `--github`: Update GitHub activity only
-  - `--logos`: Update logos only
-  - `--force`: Force refresh regardless of cache
+- **scheduler/data-updater.ts**: Unified CLI for all data operations; the flag inventory lives in `src/lib/constants/cli-flags.ts`
 - **scripts/force-refresh-repo-stats.ts**: Manual GitHub stats refresh
 - **scripts/refresh-opengraph-images.ts**: OpenGraph image backfilling
 
-### Build-Time vs Runtime Data Strategy
+### Manual and Scheduled Refreshes
 
-**Build-Time Prefetch (via `prefetch-data-optimized.ts`):**
-
-- Bookmarks JSON from S3
-- GitHub activity data from S3
-- Logos (skipped for faster builds)
-
-**Runtime Fetching (streaming uploads):**
-
-- Logos fetched on-demand when first requested
-- Multi-tier data access ensures good performance:
-  - Next.js Cache Components (route data): low-latency repeat reads
-  - S3 storage: ~10-50ms (persistent)
-  - External API: 100ms-5s (only on storage miss)
-  - **New:** logo downloads are now streamed directly from the source URL to S3. Memory footprint per logo is constant (~65 KB) because we no longer buffer the entire image in RAM before upload.
+`bun run prefetch` runs a one-shot refresh for bookmarks, GitHub activity, and logos. During a Next.js production build, `scheduler/data-updater.ts` refuses writes unless explicitly passed `--allow-build-writes`; recurring updates belong to the scheduler or an explicit manual command.
 
 **Background Updates (via scheduler):**
 
 - Bookmarks: Every 2 hours
+- Bookmark Tags: Every 4 hours
+- Bookmark Tag Retrofit: Daily at 3:45 AM
+- Books: Daily at 6 AM
 - GitHub: Daily at midnight
 - Logos: Weekly on Sundays (keeps S3 storage populated)
 
@@ -139,6 +120,15 @@ All schedules can be overridden via environment variables:
 ```bash
 # Bookmarks (default: every 2 hours)
 S3_BOOKMARKS_CRON="0 */2 * * *"
+
+# Bookmark tags (default: every 4 hours at minute 30)
+S3_BOOKMARK_TAGS_CRON="30 */4 * * *"
+
+# Bookmark tag retrofit (default: daily at 3:45 AM)
+S3_BOOKMARK_TAGS_RETROFIT_CRON="45 3 * * *"
+
+# Books (default: daily at 6 AM)
+S3_BOOKS_CRON="0 6 * * *"
 
 # GitHub Activity (default: daily at midnight)
 S3_GITHUB_CRON="0 0 * * *"
@@ -160,6 +150,9 @@ The system detects the environment in this order:
 The schedules are deliberately staggered to prevent resource contention:
 
 - **Bookmarks**: Every 2 hours at minute 0
+- **Bookmark Tags**: Every 4 hours at minute 30
+- **Bookmark Tag Retrofit**: Daily at 3:45 AM
+- **Books**: Daily at 6:00 AM
 - **GitHub**: Daily at midnight (00:00)
 - **Logos**: Weekly Sunday at 1 AM (01:00)
 
@@ -186,19 +179,23 @@ The schedules are deliberately staggered to prevent resource contention:
 ### Scheduler Logs
 
 ```bash
-[Scheduler] Process started. Setting up cron jobs...
-[Scheduler] Bookmarks schedule: 0 */2 * * * (every 2 hours)
-[Scheduler] GitHub Activity schedule: 0 0 * * * (daily at midnight)
-[Scheduler] Logos schedule: 0 1 * * 0 (weekly Sunday 1 AM)
-[Scheduler] Setup complete. Scheduler is running...
-[Scheduler] Production frequencies: Bookmarks (12x/day), GitHub (1x/day), Logos (1x/week)
+[Scheduler] Starting at <timestamp> with Node <version> in <working-directory>
+[Scheduler] Bookmarks schedule: 0 */2 * * *
+[Scheduler] BookmarkTags schedule: 30 */4 * * *
+[Scheduler] BookmarkTagsRetrofit schedule: 45 3 * * *
+[Scheduler] Books schedule: 0 6 * * *
+[Scheduler] GitHub schedule: 0 0 * * *
+[Scheduler] Logos schedule: 0 1 * * 0
+[Scheduler] Setup complete. Scheduler is running and waiting for scheduled trigger times...
+[Scheduler] Initial heartbeat: Process <instance-id> is running
 ```
 
 ### Execution Logs
 
 ```bash
-[Scheduler] [Bookmarks] Cron triggered at <timestamp>. Spawning update-data...
-[Scheduler] [Bookmarks] update-data script completed successfully
+[Scheduler] [<instance-id>] [Bookmarks] Triggered at <timestamp>
+[Scheduler] [<instance-id>] [Bookmarks] Spawning: node --run update-data -- --bookmarks
+[Scheduler] [<instance-id>] [Bookmarks] Script completed
 ```
 
 ## API Endpoints
@@ -263,9 +260,9 @@ NODE_ENV=development bun run scheduler
 
 ### Health Checks
 
-The scheduler process must remain running for automated updates. Monitor via:
+The scheduler process must remain running for automated updates. The scheduler image writes an event-loop heartbeat every 30 seconds; its Docker health check fails when that heartbeat is more than two minutes old. Monitor via:
 
-- Process health (scheduler.ts running)
+- Container health and stdout/stderr
 - Log output for successful cron triggers
 - Data freshness in cache/S3
 
@@ -273,7 +270,7 @@ The scheduler process must remain running for automated updates. Monitor via:
 
 ### Common Issues
 
-1. **Scheduler not running**: Check if `scheduler/scheduler.ts` process is alive
+1. **Scheduler not running**: Check container health and startup output
 2. **Authentication failures**: Verify environment secrets are set
 3. **External API failures**: Check rate limits and API availability
 4. **S3 connection issues**: Verify AWS credentials and bucket access
@@ -287,8 +284,8 @@ curl http://localhost:3000/api/bookmarks/refresh
 # Manual trigger for testing
 bun run update-data -- --bookmarks --verbose
 
-# View scheduler logs
-tail -f /path/to/scheduler.log
+# Inspect the scheduler from its container
+scheduler/diagnose-scheduler.sh
 ```
 
 This production schedule ensures fresh content while optimizing API usage and resource consumption.

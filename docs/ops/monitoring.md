@@ -15,21 +15,22 @@ Provide a lightweight, **server-only** mechanism to register, time, and surface 
 
 ## Key Files
 
-| Path                                | Purpose                                                                                      |
-| ----------------------------------- | -------------------------------------------------------------------------------------------- |
-| `lib/async-operations-monitor.ts`   | Singleton monitor (`asyncMonitor`) plus helpers `monitoredAsync` & `nonBlockingAsync`.       |
-| `lib/server/bookmarks-preloader.ts` | Wraps bookmark warm-up in `monitoredAsync`.                                                  |
-| `instrumentation.ts`                | Registers Sentry, raises `scheduleBackgroundBookmarkPreload`, and configures Node listeners. |
+| Path                                              | Purpose                                                                                                                           |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/async-operations-monitor.ts`             | Singleton monitor (`asyncMonitor`) plus helpers `monitoredAsync` and `nonBlockingAsync`.                                          |
+| `src/lib/bookmarks/bookmarks-preloader.server.ts` | Defines the optional Node-only bookmark warm-up using `monitoredAsync`; instrumentation does not register it automatically.       |
+| `src/instrumentation.ts`                          | Dispatches the Next.js hook to the Node or Edge implementation and redacts sensitive headers before Sentry request-error capture. |
+| `src/instrumentation-node.ts`                     | Configures Node-only Sentry/startup work, including opt-in image-manifest warm-up and bookmark-data-access initialization.        |
 
 ## Logic Flow Diagram
 
-See `instrumentation-monitoring.mmd` for the sequence diagram illustrating the async monitoring flow.
+See [monitoring.mmd](monitoring.mmd) for the sequence diagram illustrating the async monitoring flow.
 
 ## Critical Issues & Gotchas
 
-1. **Edge Runtime**: The monitor relies on `setImmediate` & Node timers; guard all imports with `process.env.NEXT_RUNTIME === 'nodejs'` when adding new consumers.
-2. **Memory Growth**: Completed operations are pruned every 30 s in development. In production, we should add a similar job or TTL to avoid unbounded Map growth.
-3. **MaxListenersExceededWarning**: `instrumentation.ts` raises `EventEmitter.defaultMaxListeners` to 25 to accommodate concurrent bookmark fetches; revisit if other tasks push this higher.
+1. **Edge Runtime**: `nonBlockingAsync` relies on `setImmediate`; use it only from Node-runtime consumers.
+2. **Memory Growth**: The monitor clears completed operations every five minutes. In a long-lived Node runtime, an additional cleanup runs every 30 seconds in development or every minute in production, and the five-minute cleanup prunes the map when it exceeds 1,000 entries.
+3. **MaxListenersExceededWarning**: `src/instrumentation-node.ts` raises `EventEmitter.defaultMaxListeners` to 25 to accommodate concurrent bookmark fetches; revisit if other tasks push this higher.
 4. **Time-out Semantics**: A timed-out operation is not automatically aborted. Tasks should implement their own abort signal if required.
 
 ## Related Functionality
