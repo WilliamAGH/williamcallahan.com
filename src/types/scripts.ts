@@ -10,6 +10,7 @@ export interface TestResult {
 interface SmokeTestEndpointBaseOptions {
   expectedStatus?: number;
   requiresAuth?: boolean;
+  headers?: HeadersInit;
   method?: string;
   body?: unknown;
 }

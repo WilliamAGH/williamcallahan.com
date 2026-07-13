@@ -282,41 +282,39 @@ describe("Cache Invalidation via API Routes", () => {
       process.env.GITHUB_REFRESH_SECRET = originalGithubSecret;
     });
 
+    const healthMetricsRequest = (authorization?: string) =>
+      new NextRequest("http://localhost:3000/api/health/metrics", {
+        headers: authorization ? { authorization } : undefined,
+      });
+
+    it("rejects unauthenticated metrics requests", async () => {
+      const response = await healthMetricsHandler(healthMetricsRequest());
+
+      expect(response.status).toBe(401);
+    });
+
     it("returns healthy metrics when the system probe succeeds", async () => {
-      mockedGetSystemMetrics.mockResolvedValue({
-        mem: { total: 1 },
-        cpu: { currentLoad: 2 },
-        net: [{ rx_bytes: 3 }],
-        ts: 123,
-      });
+      const { getSystemMetrics: actualGetSystemMetrics } = await vi.importActual<
+        typeof import("@/lib/health/status-monitor.server")
+      >("@/lib/health/status-monitor.server");
+      const systemMetrics = await actualGetSystemMetrics();
+      mockedGetSystemMetrics.mockResolvedValue(systemMetrics);
 
-      const request = new NextRequest("http://localhost:3000/api/health/metrics", {
-        headers: {
-          authorization: "Bearer health-secret",
-        },
-      });
-
-      const response = await healthMetricsHandler(request);
+      const response = await healthMetricsHandler(healthMetricsRequest("Bearer health-secret"));
       const data = await response.json();
 
       expect(response.status).toBe(200);
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(data).toMatchObject({
         status: "healthy",
-        system: { ts: 123 },
+        system: { ts: systemMetrics.ts },
       });
     });
 
     it("returns degraded status when the system probe fails", async () => {
       mockedGetSystemMetrics.mockRejectedValue(new Error("probe failed"));
 
-      const request = new NextRequest("http://localhost:3000/api/health/metrics", {
-        headers: {
-          authorization: "Bearer health-secret",
-        },
-      });
-
-      const response = await healthMetricsHandler(request);
+      const response = await healthMetricsHandler(healthMetricsRequest("Bearer health-secret"));
       const data = await response.json();
 
       expect(response.status).toBe(503);

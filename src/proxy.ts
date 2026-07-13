@@ -48,11 +48,6 @@ const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "geolocation=(), interest-cohort=()",
-  // CORS headers
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-refresh-secret",
-  "Access-Control-Max-Age": "86400",
 } as const;
 
 const NO_CACHE_VALUE = "no-store, no-cache, must-revalidate, proxy-revalidate" as const;
@@ -68,11 +63,10 @@ const STATIC_EXTENSIONS = new Set([
   ".woff2",
 ]);
 
-function setSecurityHeaders(response: NextResponse, ip: string): void {
+function setSecurityHeaders(response: NextResponse): void {
   for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(header, value);
   }
-  response.headers.set("X-Real-IP", ip);
 }
 
 function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): void {
@@ -155,23 +149,10 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next(); // Pass through without modifications
   }
 
-  // Handle CORS preflight requests
-  if (request.method === "OPTIONS") {
-    return new NextResponse(null, {
-      status: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-refresh-secret",
-        "Access-Control-Max-Age": "86400",
-      },
-    });
-  }
-
   const response = NextResponse.next();
   const ip = getClientIp(request.headers);
 
-  setSecurityHeaders(response, ip);
+  setSecurityHeaders(response);
 
   const csp = await buildCspHeader();
   response.headers.set("Content-Security-Policy", csp);

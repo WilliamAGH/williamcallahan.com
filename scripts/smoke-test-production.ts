@@ -23,12 +23,10 @@ class ProductionSmokeTests {
     const endpoint = `${this.baseUrl}${path}`;
 
     try {
-      const headers: HeadersInit = {
-        "User-Agent": "Smoke-Test/1.0",
-      };
-
+      const headers = new Headers(options.headers);
+      headers.set("User-Agent", "Smoke-Test/1.0");
       if (options.requiresAuth && this.authToken) {
-        headers.Authorization = `Bearer ${this.authToken}`;
+        headers.set("Authorization", `Bearer ${this.authToken}`);
       }
 
       const method = options.method === undefined ? "GET" : options.method;
@@ -91,17 +89,37 @@ class ProductionSmokeTests {
       ["Blog", "/blog", 200],
       ["Projects", "/projects", 200],
       ["404 Error Page", "/this-page-should-not-exist-12345", 404],
+      ["Removed Status Page", "/status", 404],
     ] as const;
 
     for (const [name, path, expectedStatus] of paths) {
       this.results.push(await this.testEndpoint(name, path, { expectedStatus }));
     }
+
+    this.results.push(
+      await this.testEndpoint("Public HTML has no global CORS or client IP headers", "/", {
+        validateResponse: async (response) =>
+          response.headers.get("access-control-allow-origin") === null &&
+          response.headers.get("x-real-ip") === null,
+      }),
+    );
+    this.results.push(
+      await this.testEndpoint("Public HTML rejects arbitrary-origin preflight", "/", {
+        expectedStatus: 405,
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://untrusted.example",
+          "Access-Control-Request-Method": "GET",
+        },
+        validateResponse: async (response) =>
+          response.headers.get("access-control-allow-origin") === null,
+      }),
+    );
   }
 
   async runAPITests(): Promise<void> {
     console.log("\n🔌 Testing API Endpoints...\n");
 
-    // 1. Health Check
     this.results.push(
       await this.testEndpoint("Health Check API", "/api/health", {
         expectedStatus: 200,
@@ -109,7 +127,14 @@ class ProductionSmokeTests {
       }),
     );
 
-    // 2. Bookmarks Diagnostics (may require auth in production)
+    this.results.push(
+      await this.testEndpoint("Protected Health Metrics API", "/api/health/metrics", {
+        expectedStatus: this.authToken ? 200 : 401,
+        requiresAuth: true,
+        validateJson: (data) => healthResponseSchema.safeParse(data).success,
+      }),
+    );
+
     this.results.push(
       await this.testEndpoint("Bookmarks Diagnostics", "/api/bookmarks/diagnostics", {
         expectedStatus: this.authToken ? 200 : 401,

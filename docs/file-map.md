@@ -582,7 +582,7 @@ File/Path Functionality Description
     - [x] `route.ts` `github-activity` - GitHub activity API
     - [x] **refresh/`route.ts`** `github-activity` - Refresh GitHub activity API
   - [x] **health/`route.ts`** `log-error-debug-handling` - Health check API
-  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated health metrics API
+  - [x] **health/metrics/`route.ts`** `log-error-debug-handling` - Authenticated raw system metrics API; no public status page
   - [x] **ip/`route.ts`** `log-error-debug-handling` - IP address API
   - [x] **log-client-error/`route.ts`** `log-error-debug-handling` - API endpoint for logging client-side errors
   - [ ] **logo/**
