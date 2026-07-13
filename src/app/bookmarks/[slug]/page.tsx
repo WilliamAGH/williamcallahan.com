@@ -27,7 +27,7 @@ import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
-import { ensureProtocol, stripWwwPrefix } from "@/lib/utils/url-utils";
+import { getDisplayHostname } from "@/lib/utils/url-utils";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookmarkPageContext } from "@/types/api";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
@@ -41,26 +41,6 @@ const BOOKMARK_PAGE_CACHE_SECONDS = Math.max(
   3600,
   Math.round(TIME_CONSTANTS.BOOKMARKS_PRELOAD_INTERVAL_MS / 1000),
 );
-
-const getBookmarkHostname = (rawUrl: string | null | undefined): string | null => {
-  if (!rawUrl) {
-    return null;
-  }
-
-  const trimmed = rawUrl.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  try {
-    const url = new URL(ensureProtocol(trimmed));
-    const hostname = stripWwwPrefix(url.hostname).trim();
-    return hostname || null;
-  } catch (error: unknown) {
-    console.error("[BookmarkPage] Failed to parse bookmark URL:", rawUrl, error);
-    return null;
-  }
-};
 
 async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
   envLogger.group(
@@ -160,7 +140,7 @@ export async function generateMetadata({
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
   const customTitle = generateDynamicTitle(bookmark.title || "Bookmark", "bookmarks");
 
-  const domainName = getBookmarkHostname(bookmark.url) ?? "website";
+  const domainName = getDisplayHostname(bookmark.url);
 
   const customDescription =
     bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
@@ -276,7 +256,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     );
   }
 
-  const domainName = getBookmarkHostname(foundBookmark.url) ?? "website";
+  const domainName = getDisplayHostname(foundBookmark.url);
 
   const pageTitle = "Bookmark";
   const pageDescription = domainName

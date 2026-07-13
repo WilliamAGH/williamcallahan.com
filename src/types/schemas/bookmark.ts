@@ -14,6 +14,10 @@ import { z } from "zod/v4";
 
 /** Reusable URL schema (top-level Zod v4 form) */
 const urlSchema = z.url();
+export const bookmarkUrlSchema = z.union([
+  z.url({ protocol: /^https?$/ }),
+  z.literal("about:blank"),
+]);
 const appRelativeAssetUrlSchema = z.string().startsWith("/api/assets/");
 
 /** Reusable nullable-optional string */
@@ -63,7 +67,7 @@ export type RawApiBookmarkTag = z.infer<typeof rawApiBookmarkTagSchema>;
 export const bookmarkContentSchema = z
   .object({
     type: z.string(),
-    url: z.string(),
+    url: bookmarkUrlSchema,
     title: z.string().nullable(),
     description: z.string().nullable(),
     contentAssetId: z.string().nullable().optional(),
@@ -127,7 +131,7 @@ export type BookmarkLogo = z.infer<typeof logoDataSchema>;
 
 export const unifiedBookmarkSchema = z.object({
   id: z.string(),
-  url: z.url(),
+  url: bookmarkUrlSchema,
   title: z.string().min(1),
   description: z.string(),
   slug: z.string().min(1),
@@ -174,7 +178,7 @@ export const unifiedBookmarksArraySchema = z.array(unifiedBookmarkSchema);
 /** Base bookmark schema with common fields */
 const baseBookmarkSchema = z.object({
   id: z.string(),
-  url: urlSchema,
+  url: bookmarkUrlSchema,
   title: z.string().min(1),
   description: stringOrNullSchema,
   slug: z.string().min(1),
@@ -273,7 +277,7 @@ const discoverSerializableBookmarkSchema = z.object({
   id: z.string(),
   slug: z.string().min(1),
   title: z.string().min(1),
-  url: z.url(),
+  url: bookmarkUrlSchema,
   description: z.string(),
   dateBookmarked: z.string(),
   tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
@@ -327,7 +331,7 @@ export type DiscoverGroupedApiResponse = z.infer<typeof discoverGroupedApiRespon
 export const bookmarkSlugEntrySchema = z.object({
   id: z.string(),
   slug: z.string().min(1),
-  url: z.url(),
+  url: bookmarkUrlSchema,
   title: z.string(),
 });
 export const bookmarkSlugMappingSchema = z.object({

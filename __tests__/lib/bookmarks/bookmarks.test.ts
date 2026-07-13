@@ -6,7 +6,12 @@
  */
 
 import { vi } from "vitest";
-import type { BookmarkContent, UnifiedBookmark } from "../../../src/types/schemas/bookmark";
+import {
+  bookmarkUrlSchema,
+  type BookmarkContent,
+  type UnifiedBookmark,
+} from "../../../src/types/schemas/bookmark";
+import { getDisplayHostname } from "@/lib/utils/url-utils";
 // Mock getBaseUrl at the top level with the correct path
 vi.mock("@/lib/utils/get-base-url", () => ({
   getBaseUrl: () => "http://localhost:3000",
@@ -320,5 +325,20 @@ describe("Bookmarks Module (Simplified)", () => {
       const result = await handleBookmarkApiResponse(response, "test-bookmarks-wrapper");
       expect(result).toEqual(mockApiResponse);
     });
+  });
+});
+
+describe("bookmark URL contract", () => {
+  it("treats the URL-less bookmark sentinel as a website without logging an error", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      expect(bookmarkUrlSchema.safeParse("about:blank").success).toBe(true);
+      expect(bookmarkUrlSchema.safeParse("javascript:alert(1)").success).toBe(false);
+      expect(getDisplayHostname("about:blank")).toBe("website");
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
