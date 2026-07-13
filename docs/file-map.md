@@ -394,6 +394,7 @@ File/Path Functionality Description
 - [x] **server/**
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
+  - [x] `github-activity-refresh.ts` `batch-fetch-update` - Write-gated GitHub refresh operation and Sentry boundary
 - [ ] **services/**
   - [x] `image-streaming.ts` `image-handling` - Error-propagating streaming pipeline for image uploads
   - [x] `unified-image-service.ts` `image-handling` - Unified image service orchestrator
@@ -401,7 +402,7 @@ File/Path Functionality Description
     - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
     - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
 - [x] **sitemap/**
-  - [x] `blog-collector.ts` `seo` - Synchronous blog post/tag sitemap entry collector (reads MDX frontmatter)
+  - [x] `blog-collector.ts` `seo` - Asynchronous projection of canonical `getAllPostsMeta()` inventory into blog post/tag sitemap entries
   - [x] `bookmark-collectors.ts` `seo` - Bookmark and bookmark-tag sitemap entry collectors (slug mapping + paginated fallback)
   - [x] `constants.ts` `seo` - Shared sitemap constants (change frequencies, priorities, cache TTL)
   - [x] `content-collectors.ts` `seo` - Book and thought sitemap entry collectors
@@ -781,6 +782,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `image-handling/streaming-refetch.test.ts` `image-handling` - Image streaming re-fetch fallback tests
     - [x] `instrumentation-client.test.ts` `log-error-debug-handling` - Client instrumentation error filter tests
     - [x] `instrumentation-register.test.ts` `instrumentation-monitoring` - Instrumentation register hook tests
+    - [x] **server/**
+      - [x] `github-activity-refresh.test.ts` `batch-fetch-update` - Read-only, production, and Sentry GitHub refresh operation tests
     - [x] `logo.test.ts` `image-handling` - Logo utility tests
     - [x] `routes.test.ts` `navigation` - Routes utility tests
     - [x] `s3-connection.test.ts` `s3-object-storage` - S3 connection tests
