@@ -27,6 +27,10 @@ Proxy request classes are derived in `src/lib/utils/request-utils.ts` using path
 - `image`: `/_next/image`
 - `other`: everything else
 
+## Client Identity
+
+Traefik is the client-IP trust boundary for both Cloudflare and direct-origin traffic. Its entrypoints must keep `forwardedHeaders.insecure=false` and append the connection's `RemoteAddr` to `X-Forwarded-For`; trusting all forwarded headers or preserving a chain without that final hop violates this contract. The application uses the last valid `X-Forwarded-For` hop (or Traefik's `X-Real-IP` fallback) as the immediate peer. Cloudflare's client header is accepted only when that peer belongs to Cloudflare's published network ranges; direct-origin requests always use the Traefik-derived peer and ignore forged Cloudflare identity headers.
+
 ## Deterministic Response Contracts
 
 ### Rate Limited (`429`)

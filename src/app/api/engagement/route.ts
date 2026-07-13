@@ -4,41 +4,25 @@ import { NextResponse } from "next/server";
 
 import { db, resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { contentEngagement } from "@/lib/db/schema/content-engagement";
+import { getClientIp } from "@/lib/utils/request-utils";
 import { engagementBatchSchema } from "@/types/schemas/engagement";
 
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_MAX_EVENTS_PER_WINDOW = 100;
 
-function getClientIp(headers: Headers): string | null {
-  const forwardedFor = headers.get("x-forwarded-for")?.trim();
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) {
-      return firstIp;
-    }
-  }
-
-  const realIp = headers.get("x-real-ip")?.trim();
-  if (realIp) {
-    return realIp;
-  }
-
-  return null;
-}
-
 function buildVisitorHash(headers: Headers): string {
-  const ip = getClientIp(headers);
+  const ip = getClientIp(headers, { fallback: "missing-ip" });
   const userAgent = headers.get("user-agent")?.trim() || null;
-  if (!ip || !userAgent) {
+  if (ip === "missing-ip" || !userAgent) {
     console.warn(
       "[Engagement API] Missing request fingerprint headers; using deterministic fallback seed.",
       {
-        hasIp: Boolean(ip),
+        hasIp: ip !== "missing-ip",
         hasUserAgent: Boolean(userAgent),
       },
     );
   }
-  const seed = `${ip ?? "missing-ip"}:${userAgent ?? "missing-ua"}`;
+  const seed = `${ip}:${userAgent ?? "missing-ua"}`;
   return createHash("sha256").update(seed).digest("hex");
 }
 

@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import { getClientIp } from "@/lib/utils/request-utils";
 
 /**
@@ -20,9 +19,6 @@ const CACHE_HEADERS = {
  * @returns A Next.js response containing the IP address with no-cache headers
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const invalidOrigin = requireCloudflareHeaders(request.headers, { route: "/api/ip" });
-  if (invalidOrigin) return invalidOrigin;
-
   // Use Promise.resolve to satisfy require-await rule
   const ip = await Promise.resolve(getClientIp(request.headers));
 

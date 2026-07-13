@@ -45,6 +45,7 @@ vi.mock("@/lib/db/connection", () => ({
 }));
 
 import { POST } from "@/app/api/engagement/route";
+import { createHash } from "node:crypto";
 
 describe("POST /api/engagement", () => {
   beforeEach(() => {
@@ -95,6 +96,7 @@ describe("POST /api/engagement", () => {
   });
 
   it("accepts valid event batches", async () => {
+    const expectedVisitorHash = createHash("sha256").update("10.0.0.1:vitest-agent").digest("hex");
     const response = await POST(
       new Request("http://localhost/api/engagement", {
         method: "POST",
@@ -122,14 +124,14 @@ describe("POST /api/engagement", () => {
           contentType: "bookmark",
           contentId: "abc",
           eventType: "impression",
-          visitorHash: expect.any(String),
+          visitorHash: expectedVisitorHash,
         }),
         expect.objectContaining({
           contentType: "bookmark",
           contentId: "abc",
           eventType: "dwell",
           durationMs: 1234,
-          visitorHash: expect.any(String),
+          visitorHash: expectedVisitorHash,
         }),
       ]),
     );
