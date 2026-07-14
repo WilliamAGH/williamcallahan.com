@@ -7,14 +7,7 @@ import {
   IMAGE_SECURITY_HEADERS,
   IMAGE_CDN_CACHE_HEADERS,
 } from "@/lib/validators/url";
-
-const TWITTER_IMAGE_FORMATS = ["jpg", "jpeg", "png", "gif", "webp"] as const;
-const twitterImageFormatAlternatives = TWITTER_IMAGE_FORMATS.join("|");
-const twitterImageFormatPattern = new RegExp(`^(?:${twitterImageFormatAlternatives})$`, "i");
-const twitterImagePathPattern = new RegExp(
-  `^(profile_images|ext_tw_video_thumb|media)\\/[A-Za-z0-9._\\-/]+\\.(?:${twitterImageFormatAlternatives})$`,
-  "i",
-);
+import { parseTwitterImagePath } from "@/lib/image-handling/twitter-image-policy";
 
 export async function GET(
   request: NextRequest,
@@ -55,16 +48,10 @@ export async function GET(
     const embeddedParams = new URLSearchParams(embeddedSearch);
     const format = requestUrl.searchParams.get("format") ?? embeddedParams.get("format");
     const name = requestUrl.searchParams.get("name") ?? embeddedParams.get("name");
-    const hasValidFormat = format === null || twitterImageFormatPattern.test(format);
+    const twitterImagePath = parseTwitterImagePath(pathOnly, format);
     const hasValidName =
       name === null || /^(small|medium|large|orig|[1-9][0-9]{0,3}x[1-9][0-9]{0,3})$/i.test(name);
-    const isExtensionlessMedia =
-      /^media\/[A-Za-z0-9_-]+$/.test(pathOnly) && format !== null && hasValidFormat;
-    if (
-      (!twitterImagePathPattern.test(pathOnly) && !isExtensionlessMedia) ||
-      !hasValidFormat ||
-      !hasValidName
-    ) {
+    if (twitterImagePath === null || !hasValidName) {
       console.log(`[Twitter Image Proxy] Invalid path rejected: ${fullPath}`);
       return new NextResponse(null, { status: 400 });
     }
@@ -72,24 +59,16 @@ export async function GET(
     // Forward only Twitter-owned query parameters. Next.js adds its internal
     // `dpl` release marker to local unoptimized images; it must stay same-origin.
     const upstreamSearch = new URLSearchParams();
-    if (format !== null) upstreamSearch.set("format", format);
+    if (twitterImagePath.format !== null) upstreamSearch.set("format", twitterImagePath.format);
     if (name !== null) upstreamSearch.set("name", name);
     const upstreamQuery = upstreamSearch.toString();
-    const upstreamUrl = `https://pbs.twimg.com/${pathOnly}${upstreamQuery ? `?${upstreamQuery}` : ""}`;
+    const upstreamUrl = `https://pbs.twimg.com/${twitterImagePath.path}${upstreamQuery ? `?${upstreamQuery}` : ""}`;
     console.log(`[Twitter Image Proxy] Attempting to fetch: ${upstreamUrl}`);
 
     // Use UnifiedImageService for consistent image handling
     const imageService = getUnifiedImageService();
 
-    // Categorize Twitter images for proper S3 organization
-    const options: Parameters<typeof imageService.getImage>[1] = {};
-    if (pathOnly.startsWith("profile_images/")) {
-      options.type = "social-avatars/twitter";
-    } else if (pathOnly.startsWith("media/") || pathOnly.startsWith("ext_tw_video_thumb/")) {
-      options.type = "twitter-media";
-    }
-
-    const result = await imageService.getImage(upstreamUrl, options);
+    const result = await imageService.getImage(upstreamUrl, { type: twitterImagePath.type });
 
     // If we got a CDN URL, redirect to it
     if (result.cdnUrl && !result.buffer) {

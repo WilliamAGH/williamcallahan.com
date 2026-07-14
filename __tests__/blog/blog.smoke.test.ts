@@ -16,7 +16,6 @@ vi.mock("@/lib/s3/objects", () => ({
 import { renderToReadableStream } from "react-dom/server";
 import { render } from "@testing-library/react";
 import React from "react";
-import { NextRequest } from "next/server";
 import type { TweetProps } from "react-tweet";
 import type { BlogPost } from "@/types/blog";
 import fs from "node:fs/promises";
@@ -95,7 +94,7 @@ describe("Blog MDX Smoke Tests", () => {
       default:
         () =>
         ({ components }: MockTweetProps) => {
-          const AvatarImg = components?.AvatarImg;
+          const AvatarImg = components.AvatarImg;
           if (AvatarImg === undefined) {
             throw new Error("Tweet mock requires an AvatarImg component");
           }
@@ -114,34 +113,6 @@ describe("Blog MDX Smoke Tests", () => {
       view.unmount();
     } finally {
       vi.doUnmock("next/dynamic");
-      vi.resetModules();
-    }
-  });
-
-  it("accepts extensionless Twitter media with a validated image format", async () => {
-    const getImage = vi.fn().mockResolvedValue({
-      buffer: Buffer.from([1]),
-      contentType: "image/jpeg",
-      source: "network",
-    });
-    vi.doMock("@/lib/services/unified-image-service", () => ({
-      getUnifiedImageService: () => ({ getImage }),
-    }));
-    try {
-      const { GET } = await import("@/app/api/twitter-image/[...path]/route");
-      const request = new NextRequest(
-        "https://williamcallahan.com/api/twitter-image/media/GrfJDHibgAAIQ3o?format=jpg&name=large&dpl=release-123",
-      );
-      const response = await GET(request, {
-        params: Promise.resolve({ path: ["media", "GrfJDHibgAAIQ3o"] }),
-      });
-      expect(response.status).toBe(200);
-      expect(getImage).toHaveBeenCalledWith(
-        "https://pbs.twimg.com/media/GrfJDHibgAAIQ3o?format=jpg&name=large",
-        { type: "twitter-media" },
-      );
-    } finally {
-      vi.doUnmock("@/lib/services/unified-image-service");
       vi.resetModules();
     }
   });

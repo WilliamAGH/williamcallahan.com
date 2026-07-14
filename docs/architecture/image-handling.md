@@ -8,15 +8,15 @@ Deliver every logo, OpenGraph card, bookmark preview, profile photo, and social 
 
 ## Domain Scope & Non-Goals
 
-| Included                            | Notes                                                                                |
-| ----------------------------------- | ------------------------------------------------------------------------------------ |
-| Logo ingestion, caching, inversion  | UnifiedImageService + `/api/logo`, `/api/logo/invert`, manifest warm-up              |
-| Bookmark/OG card imagery            | `/api/og-image`, `/api/assets`, `selectBestImage`, Karakeep fallbacks                |
-| Social & 3rd-party proxies          | `/api/twitter-image`, external avatar CDNs enumerated in `next.config.ts`            |
-| Static placeholder management       | `placeholder-images.ts`, `static-images.ts`, `data/blog/cover-image-map.json`        |
-| Resource, SSRF, circuit protections | Domain failure tracker, `url-utils`, `image-analysis`, streaming threshold           |
-| Image metadata/analysis             | `image-metadata.ts`, `image-analysis.ts`, `image-compare.ts`, `svg-transform-fix.ts` |
-| Testing/tooling                     | `__tests__/components/ui/logo-image.test.tsx`, placeholder fixtures                  |
+| Included                            | Notes                                                                                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Logo ingestion, caching, inversion  | UnifiedImageService + `/api/logo`, `/api/logo/invert`, manifest warm-up                                              |
+| Bookmark/OG card imagery            | `/api/og-image`, `/api/assets`, `selectBestImage`, Karakeep fallbacks                                                |
+| Social & 3rd-party proxies          | `/api/twitter-image`, external avatar CDNs enumerated in `next.config.ts`                                            |
+| Static placeholder management       | `placeholder-images.ts`, `static-images.ts`, `data/blog/cover-image-map.json`                                        |
+| Resource, SSRF, circuit protections | Domain failure tracker, `url-utils`, `image-analysis`, streaming threshold                                           |
+| Image metadata/analysis             | `image-metadata.ts`, `image-analysis.ts`, `image-compare.ts`, `svg-transform-fix.ts`                                 |
+| Testing/tooling                     | `__tests__/components/ui/logo-image.test.tsx`, `__tests__/app/api/twitter-image/route.test.ts`, placeholder fixtures |
 
 _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of cards, or non-image binary storage.
 
@@ -77,8 +77,8 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 ### Social / Twitter Proxy
 
-- `/api/twitter-image/[...path]` ensures paths match `profile_images|media|ext_tw_video_thumb` with strict extension checks, sanitizes segments, preserves query params, and delegates to `getImage()` with type hints for S3 key namespaces (e.g., `twitter-media`).
-- Cache headers allow 24h `max-age` plus 7-day `stale-while-revalidate` to avoid hammering Twitter’s CDN.
+- `lib/image-handling/twitter-image-policy.ts` owns accepted roots, formats, normalized upstream paths, and S3 categories. `/api/twitter-image/[...path]` sanitizes segments, rejects noncanonical roots, preserves validated query params, and delegates the parsed policy to `getImage()`.
+- Cache headers allow 7-day `max-age` plus 1-day `stale-while-revalidate` to avoid hammering Twitter’s CDN.
 
 ### Validation & Tooling
 
@@ -102,6 +102,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 - **`lib/services/image/logo-source-priority.ts`** – single source of truth for logo source ordering.
 - **`lib/image-handling/image-s3-utils.ts`** – idempotent persistence (checks existing S3 keys, handles base64 data), fallback recrawl triggers for Karakeep assets.
 - **`lib/image-handling/shared-image-processing.ts`** – format detection, SVG sanitization, metadata-derived content types.
+- **`lib/image-handling/twitter-image-policy.ts`** – canonical Twitter CDN root/format validation, upstream-path normalization, and storage category selection.
 - **`lib/image-handling/image-analysis.ts` / `image-compare.ts`** – brightness estimation, placeholder detection, perceptual hashing for dedupe/globe detection.
 - **`lib/image-handling/image-manifest-loader.ts` / `cached-manifest-loader.ts`** – load and cache manifest JSON for logos/OG/blog images; aware of build-phase constraints and production runtime safeguards that avoid request-path lazy S3 loads when manifests are missing.
 - **`lib/services/image-streaming.ts`** – Node stream -> S3 upload pipeline with timeouts and byte monitoring.
