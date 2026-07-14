@@ -51,6 +51,7 @@ Example schemas:
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
 - Search indexes load from PostgreSQL `search_index_artifacts` and hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
+- Twitter image roots, formats, normalized upstream paths, and storage categories share one policy owner in `src/lib/image-handling/twitter-image-policy.ts`, covered by `__tests__/app/api/twitter-image/route.test.ts`.
 - ESLint project-specific rules live under `config/eslint/rules/` and are wired from `config/eslint.config.ts`.
 - Oxlint JS plugins live under `config/oxlint/js-plugins/` and are wired from `config/oxlintrc.json` (experimental; not supported in the language server/editor integrations).
 - The canonical S3 retry scope and durability contract is [`s3-storage.md`](s3-storage.md); CDN usage remains explicit at call sites.
@@ -63,7 +64,7 @@ Example schemas:
 - OpenGraph data access delegates Next.js cache and refresh workflows to focused modules (`opengraph-next-cache.ts`, `opengraph-refresh.ts`) with shared cache guards (`opengraph-cache-context.ts`) (see `features/opengraph.md`).
 - Dynamic OG image generation uses a unified `/api/og/[entity]` route with per-entity layout renderers in `lib/og-image/layouts/`, SSRF-protected image fetching, and shared design tokens. All page `generateMetadata()` functions use `buildOgImageUrl()` from `lib/og-image/build-og-url.ts` (see `features/opengraph.md`).
 - Route protections: `src/proxy.ts` applies sitewide rate limiting for matched traffic and
-  directly returns same-origin `/stats/**` assets with final browser/CDN no-store headers.
+  directly returns same-origin `/stats/**` assets with final browser/CDN no-store headers, covered by `__tests__/lib/middleware/proxy-analytics.test.ts`.
 - `/api/health` returns only a lightweight public status/timestamp payload; raw system telemetry is available only through bearer-authenticated `/api/health/metrics`, with no `/status` page.
 - Test-only mock modules live under `__tests__/__mocks__/` and are enforced via linting (see `standards/testing.md`).
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).

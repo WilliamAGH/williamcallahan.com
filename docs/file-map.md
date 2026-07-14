@@ -349,6 +349,7 @@ File/Path Functionality Description
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
 - [x] **image-handling/**
   - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component manifest readers for logo/OG/blog maps
+  - [x] `twitter-image-policy.ts` `image-handling` - Canonical Twitter image root, format, path, and S3 category policy
   - [x] `image-manifest-loader.ts` `image-handling` - Manifest warm-up + in-memory lookup helpers; production request paths skip lazy S3 loads when warm-up is unavailable
 - [ ] **imageAnalysis/**
   - [x] `index.ts` `image-handling` - Removed; import image-analysis modules from concrete files
@@ -750,12 +751,14 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
         - [x] `chat-upstream-pipeline-analysis-validation.test.ts` `ai-shared-services` - Bookmark-analysis schema/retry normalization tests for upstream pipeline outputs
       - [x] **github-activity/**
         - [x] `cache.test.ts` `github-activity` - Tests for GitHub activity caching
-    - [x] **upload/**
-      - [x] `route.test.ts` `books` - Upload cleanup tests for the S3 upload pipeline (vector indexing disabled)
+      - [x] **upload/**
+        - [x] `route.test.ts` `books` - Upload cleanup tests for the S3 upload pipeline (vector indexing disabled)
       - [x] **og/**
         - [x] `entity-route.test.ts` `opengraph` - Unified OG image route handler dispatch and validation tests
       - [x] **logo/**
         - [x] `cache.test.ts` `image-handling` - Tests for logo caching
+      - [x] **twitter-image/**
+        - [x] `route.test.ts` `image-handling` - Twitter image root, format, forwarding, and category tests
     - [x] `pages.smoke.test.ts` `app-layout` - Smoke tests for all pages
   - [x] **blog/**
     - [x] `blog.smoke.test.ts` `blog` - Blog smoke tests
@@ -792,6 +795,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `select-best-image.test.ts` `bookmarks` - Bookmark image selection security tests
     - [x] `cache.test.ts` `caching` - Cache utility tests
     - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guard tests
+    - [x] **middleware/**
+      - [x] `proxy-analytics.test.ts` `analytics` - Same-origin proxy delivery, header sanitization, timeout, and failure tests
     - [x] `data-access.s3.test.ts` `s3-object-storage` - S3 data access tests
     - [x] `env-logger.test.ts` `log-error-debug-handling` - EnvLogger safe stringify tests
     - [x] `imageAnalysis.test.ts` `image-handling` - Image analysis tests
