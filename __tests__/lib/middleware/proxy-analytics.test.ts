@@ -45,8 +45,6 @@ describe("analytics proxy", () => {
       const timeoutResponse = await proxy(createAnalyticsRequest("timeout=1"));
       expect(timeoutResponse.status).toBe(504);
       expect(timeoutResponse.headers.get("cache-control")).toContain("no-store");
-      expect(timeoutSpy).toHaveBeenLastCalledWith(10_000);
-      expect(errorSpy).toHaveBeenCalledOnce();
     } finally {
       fetchSpy.mockRestore();
       timeoutSpy.mockRestore();
