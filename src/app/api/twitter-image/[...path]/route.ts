@@ -8,6 +8,7 @@ import {
   IMAGE_CDN_CACHE_HEADERS,
 } from "@/lib/validators/url";
 import { parseTwitterImagePath } from "@/lib/image-handling/twitter-image-policy";
+import { ImageFetchHttpError } from "@/lib/services/image/image-fetcher";
 
 export async function GET(
   request: NextRequest,
@@ -135,6 +136,10 @@ export async function GET(
     // Fallback error
     return new NextResponse(null, { status: 502 }); // Bad Gateway
   } catch (error) {
+    if (error instanceof ImageFetchHttpError && error.isNotFound) {
+      console.info("[Twitter Image Proxy] Upstream image not found");
+      return new NextResponse(null, { status: 404 });
+    }
     console.error("[Twitter Image Proxy] Error fetching image:", error);
 
     // Handle timeout errors specifically

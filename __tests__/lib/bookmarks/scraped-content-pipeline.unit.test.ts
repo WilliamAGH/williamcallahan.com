@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  type BookmarksApiContext,
   EmptyBookmarksApiResponseError,
   fetchAllPagesFromApi,
 } from "@/lib/bookmarks/refresh-helpers";
@@ -47,6 +48,16 @@ function createJsonResponse(payload: unknown): Response {
     json: async () => payload,
     text: async () => JSON.stringify(payload),
   } as Response;
+}
+
+function createBookmarksApiContext(): BookmarksApiContext {
+  return {
+    apiUrl: "https://example.com/api/v1/lists/test-list/bookmarks",
+    requestHeaders: {
+      Accept: "application/json",
+      Authorization: "Bearer token",
+    },
+  };
 }
 
 describe("Scraped content pipeline", () => {
@@ -103,13 +114,7 @@ describe("Scraped content pipeline", () => {
         }),
       );
 
-    const result = await fetchAllPagesFromApi({
-      apiUrl: "https://example.com/api/v1/lists/test-list/bookmarks",
-      requestHeaders: {
-        Accept: "application/json",
-        Authorization: "Bearer token",
-      },
-    });
+    const result = await fetchAllPagesFromApi(createBookmarksApiContext());
 
     expect(result).toHaveLength(2);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -126,11 +131,70 @@ describe("Scraped content pipeline", () => {
       createJsonResponse({ bookmarks: [], nextCursor: null }),
     );
 
-    await expect(
-      fetchAllPagesFromApi({
-        apiUrl: "https://example.com/api/v1/lists/test-list/bookmarks",
-        requestHeaders: { Accept: "application/json", Authorization: "Bearer token" },
-      }),
-    ).rejects.toBeInstanceOf(EmptyBookmarksApiResponseError);
+    await expect(fetchAllPagesFromApi(createBookmarksApiContext())).rejects.toBeInstanceOf(
+      EmptyBookmarksApiResponseError,
+    );
+  });
+
+  it.each([
+    ["timeout", new DOMException("The operation timed out", "TimeoutError")],
+    ["network", new TypeError("fetch failed")],
+  ])("retries a transient %s fetch failure once", async (_kind, failure) => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          bookmarks: [makeRawBookmark("bookmark-retried", "<p>recovered</p>")],
+          nextCursor: null,
+        }),
+      );
+
+    try {
+      const resultPromise = fetchAllPagesFromApi(createBookmarksApiContext());
+      await vi.runAllTimersAsync();
+
+      await expect(resultPromise).resolves.toEqual([
+        makeRawBookmark("bookmark-retried", "<p>recovered</p>"),
+      ]);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("does not retry an HTTP response failure", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({}),
+      text: async () => "service unavailable",
+    } as Response);
+
+    try {
+      await expect(fetchAllPagesFromApi(createBookmarksApiContext())).rejects.toThrow(
+        "failed with status 503",
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("does not retry an invalid API response", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(createJsonResponse({ bookmarks: "not-an-array", nextCursor: null }));
+
+    try {
+      await expect(fetchAllPagesFromApi(createBookmarksApiContext())).rejects.toThrow(
+        "Invalid bookmarks API response shape",
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 });

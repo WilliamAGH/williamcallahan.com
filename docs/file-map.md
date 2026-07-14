@@ -252,6 +252,7 @@ File/Path Functionality Description
   - [x] `server-search.ts` `blog` - Server-side blog search
   - [x] `validation.ts` `blog` - Parses canonical frontmatter and owns the cached slug-to-MDX-file index plus route/cache lookup guard
 - [ ] **bookmarks/**
+  - [x] `data-fetch-refresh.server.ts` `bookmarks` - Scheduled bookmark refresh operation, DB-only comparison, and observable result summary
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `bookmark-helpers.ts` `bookmarks` - Canonical bookmark detail-path construction and card-image selection
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
@@ -785,6 +786,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
         - [x] `terminalSelectionView.test.tsx` `terminal` - Terminal selection view tests
   - [x] **lib/**
     - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
+    - [x] `ai-openai-compatible-client-timeout.test.ts` `ai-shared-services` - Cached-client request-policy coverage for non-stream, Chat stream, and Responses stream calls
     - [x] **og-image/**
       - [x] `security.test.ts` `opengraph` - OG image SSRF protection tests (private hosts, protocol restrictions)
     - [x] `blog.test.ts` `blog` - Blog utility tests

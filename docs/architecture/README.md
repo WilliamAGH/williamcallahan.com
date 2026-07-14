@@ -49,6 +49,7 @@ Example schemas:
 - Blog runtime content comes from `data/blog/posts/*.mdx`, with frontmatter, slug syntax, and
   ingestion inputs owned by `src/types/schemas/blog-frontmatter.ts`.
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
+- Scheduled bookmark refresh summaries are owned by `src/lib/bookmarks/data-fetch-refresh.server.ts`; the batch manager only orchestrates that operation.
 - Search indexes load from PostgreSQL `search_index_artifacts` and hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
 - Twitter image roots, formats, normalized upstream paths, and storage categories share one policy owner in `src/lib/image-handling/twitter-image-policy.ts`, covered by `__tests__/app/api/twitter-image/route.test.ts`.
@@ -80,6 +81,7 @@ Example schemas:
 - Bookmark tag alias canonicalization is automated through `scripts/ingest-bookmark-tag-aliases.node.mjs` and scheduler-managed cron flags (`--bookmark-tags`, `--bookmark-tags-retrofit`) to keep `bookmarks_tags` + `bookmarks_tags_links` mappings fresh.
 - Barrel export files were removed from features/UI/SEO/types/lib surfaces; callers now import concrete modules directly.
 - AI upstream pipeline tests are split by responsibility (streaming, tools, analysis validation) and share a dedicated harness module for DRY fixture/mocking (`__tests__/api/ai/upstream-pipeline-test-harness.ts`).
+- OpenAI-compatible request policy is per call: interactive streams use one 180-second attempt while cached client identity remains independent of timeout and retry behavior (see `architecture/ai-services.md`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
 - Sitemap generation is split into domain-specific collectors under `src/lib/sitemap/` (blog, bookmarks, books/thoughts, constants, date-utils) with `src/app/sitemap.ts` as a thin orchestrator owning only the runtime cache and static-page entries.
 - Bounded subrequest throttle policy: `document`, `rsc`, `prefetch`, and `image` classes share the `page` profile, while `api` requests use API-specific profiles (`src/lib/utils/request-utils.ts`, `src/lib/middleware/sitewide-rate-limit.ts`).

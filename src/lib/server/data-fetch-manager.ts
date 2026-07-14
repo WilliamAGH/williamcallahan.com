@@ -22,8 +22,6 @@ import { KNOWN_DOMAINS, IMAGE_S3_PATHS } from "@/lib/constants";
 import { DATA_UPDATER_FLAGS, hasFlag, parseTestLimit } from "@/lib/constants/cli-flags";
 import { getLogo } from "@/lib/data-access/logos";
 import { processLogoBatch } from "@/lib/data-access/logos-batch";
-import { refreshBookmarks } from "@/lib/bookmarks/service.server";
-import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
 import { upsertAllSearchIndexArtifacts } from "@/lib/db/mutations/search-index-artifacts";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
@@ -33,6 +31,7 @@ import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import type { LogoManifest } from "@/types/schemas/image-manifest";
 
 import { initializeBookmarksDataAccess } from "@/lib/bookmarks/refresh-logic.server";
+import { runBookmarkRefresh } from "@/lib/bookmarks/data-fetch-refresh.server";
 import { runGitHubActivityRefresh } from "@/lib/server/github-activity-refresh";
 
 /**
@@ -67,7 +66,7 @@ export class DataFetchManager {
 
     // STEP 1: Fetch bookmarks first (critical - generates slug mappings)
     if (config.bookmarks) {
-      results.push(await this.fetchBookmarks(config));
+      results.push(await runBookmarkRefresh(config.forceRefresh));
     }
 
     // STEP 2: Fetch other primary data sources (no ordering dependency)
@@ -100,72 +99,6 @@ export class DataFetchManager {
     }
 
     return results;
-  }
-
-  /**
-   * Fetch bookmarks with optional immediate logo processing for new items
-   * @param config - Configuration for bookmark fetching
-   * @returns Promise resolving to operation summary
-   */
-  private async fetchBookmarks(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
-    const startTime = getMonotonicTime();
-    logger.info("[DataFetchManager] Starting bookmarks fetch...");
-
-    try {
-      // Get current cached bookmarks to compare for new additions
-      const previousBookmarks = (await getBookmarks({
-        skipExternalFetch: false,
-      })) as UnifiedBookmark[];
-      const previousCount = previousBookmarks.length;
-
-      // Force fresh data fetch, passing the forceRefresh flag
-      const bookmarksResult = await refreshBookmarks(config.forceRefresh);
-      if (!bookmarksResult) {
-        throw new Error("No bookmarks returned from refresh");
-      }
-
-      const bookmarks: UnifiedBookmark[] = bookmarksResult;
-      if (bookmarks.length === 0) {
-        throw new Error("Empty bookmarks array returned from refresh");
-      }
-
-      logger.info(
-        `[DataFetchManager] Fetched ${bookmarks.length} bookmarks (previous: ${previousCount})`,
-      );
-
-      // Bookmarks should use OpenGraph images, not logos/favicons.
-
-      // Read current index to surface changeDetected/lastFetchedAt consistently
-      let changeDetected: boolean | undefined;
-      let lastFetchedAt: number | undefined;
-      try {
-        const index = await getBookmarksIndexFromDatabase();
-        changeDetected = index.changeDetected ?? undefined;
-        lastFetchedAt = index.lastFetchedAt;
-      } catch (error) {
-        logger.warn("[DataFetchManager] Failed to read bookmarks index", { error });
-      }
-
-      const duration = (getMonotonicTime() - startTime) / 1000;
-      return {
-        success: true,
-        operation: "bookmarks",
-        itemsProcessed: bookmarks.length,
-        duration,
-        changeDetected,
-        lastFetchedAt,
-      };
-    } catch (e: unknown) {
-      const error = e instanceof Error ? e : new Error(String(e));
-      Sentry.captureException?.(error);
-      logger.error("[DataFetchManager] Bookmarks fetch failed:", error);
-      return {
-        success: false,
-        operation: "bookmarks",
-        error: error.message,
-        duration: (getMonotonicTime() - startTime) / 1000,
-      };
-    }
   }
 
   /**
