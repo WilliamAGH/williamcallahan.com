@@ -171,3 +171,4 @@ All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so w
 - `__tests__/api/ai/chat-upstream-pipeline-analysis-validation.test.ts` verifies JSON/schema retry paths, coercion, and fallback normalization for bookmark analysis.
 - `__tests__/components/ui/terminal/commands.test.ts` confirms terminal one-shot flow against the SSE-only contract.
 - `__tests__/lib/ai-openai-compatible.test.ts` exercises browser SSE parsing, OpenAI-compatible transport behavior, and client-side analysis persistence (persistAnalysis success/error paths).
+- `__tests__/lib/ai-openai-compatible-client-timeout.test.ts` verifies that cached clients do not own request policy: non-stream calls retain bounded retries while Chat and Responses streams receive one 180-second attempt.
