@@ -8,6 +8,7 @@
  */
 
 import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
+import { retryWithThrow } from "@/lib/utils/retry";
 import { normalizeBookmarks } from "./normalize";
 import { processBookmarksInBatches } from "./enrich-opengraph";
 import { calculateBookmarksChecksum } from "./utils";
@@ -29,6 +30,21 @@ let bookmarkQueryModulePromise: Promise<typeof import("@/lib/db/queries/bookmark
 const loadBookmarkQueryModule = async (): Promise<typeof import("@/lib/db/queries/bookmarks")> => {
   bookmarkQueryModulePromise ??= import("@/lib/db/queries/bookmarks");
   return bookmarkQueryModulePromise;
+};
+
+const isTransientPageFetchFailure = (error: unknown): boolean => {
+  if (typeof error !== "object" || error === null) return false;
+
+  const name = Reflect.get(error, "name");
+  if (name === "TimeoutError") return true;
+
+  const message = Reflect.get(error, "message");
+  return (
+    typeof message === "string" &&
+    /(?:timeout|timed out|fetch failed|network|econnreset|econnrefused|etimedout|enotfound)/i.test(
+      message,
+    )
+  );
 };
 
 export class EmptyBookmarksApiResponseError extends Error {
@@ -105,23 +121,25 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
       : `${ctx.apiUrl}?includeContent=true`;
     console.log(`[refreshBookmarksData] Fetching page ${pageCount}: ${pageUrl}`);
 
-    const pageController = new AbortController();
-    const pageTimeoutId = setTimeout(() => {
-      console.warn(`[refreshBookmarksData] Aborting fetch for page ${pageUrl} due to 10s timeout.`);
-      pageController.abort();
-    }, BOOKMARKS_API_CONFIG.REQUEST_TIMEOUT_MS as number);
-
-    let pageResponse: Response;
-    try {
-      pageResponse = await fetch(pageUrl, {
-        method: "GET",
-        headers: ctx.requestHeaders,
-        signal: pageController.signal,
-        redirect: "follow",
-      });
-    } finally {
-      clearTimeout(pageTimeoutId);
-    }
+    const pageResponse = await retryWithThrow(
+      () =>
+        fetch(pageUrl, {
+          method: "GET",
+          headers: ctx.requestHeaders,
+          signal: AbortSignal.timeout(BOOKMARKS_API_CONFIG.REQUEST_TIMEOUT_MS),
+          redirect: "follow",
+        }),
+      {
+        maxRetries: 1,
+        baseDelay: 1_000,
+        maxBackoff: 1_000,
+        isRetryable: isTransientPageFetchFailure,
+        onRetry: (error) =>
+          console.warn(
+            `[refreshBookmarksData] Retrying page ${pageCount} after transient failure: ${String(error)}`,
+          ),
+      },
+    );
 
     if (!pageResponse.ok) {
       const responseText = await pageResponse.text();

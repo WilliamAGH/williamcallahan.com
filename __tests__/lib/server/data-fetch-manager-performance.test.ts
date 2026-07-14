@@ -1,12 +1,27 @@
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import { refreshBookmarks } from "@/lib/bookmarks/service.server";
+import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
+import { buildContentGraph } from "@/lib/content-graph/build";
 import type { MockedFunction } from "vitest";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import { bookmarksIndexSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Mock dependencies
 vi.mock("@/lib/data-access/investments");
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
+vi.mock("@/lib/bookmarks/service.server", () => ({
+  refreshBookmarks: vi.fn(),
+}));
+vi.mock("@/lib/db/queries/bookmarks", () => ({
+  getBookmarksIndexFromDatabase: vi.fn(),
+}));
+vi.mock("@/lib/bookmarks/refresh-logic.server", () => ({
+  initializeBookmarksDataAccess: vi.fn(),
+}));
+vi.mock("@/lib/content-graph/build", () => ({
+  buildContentGraph: vi.fn(),
+}));
 vi.mock("@/data/experience", () => ({
   experiences: [
     { name: "Company A", website: "https://example-a.com" },
@@ -47,6 +62,9 @@ function makeBookmark(overrides: Partial<UnifiedBookmark>): UnifiedBookmark {
 describe("DataFetchManager Performance Optimizations", () => {
   let mockGetInvestmentDomainsAndIds: MockedFunction<typeof getInvestmentDomainsAndIds>;
   let mockGetBookmarks: MockedFunction<typeof getBookmarks>;
+  let mockRefreshBookmarks: MockedFunction<typeof refreshBookmarks>;
+  let mockGetBookmarksIndexFromDatabase: MockedFunction<typeof getBookmarksIndexFromDatabase>;
+  let mockBuildContentGraph: MockedFunction<typeof buildContentGraph>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,6 +73,11 @@ describe("DataFetchManager Performance Optimizations", () => {
       typeof getInvestmentDomainsAndIds
     >;
     mockGetBookmarks = getBookmarks as MockedFunction<typeof getBookmarks>;
+    mockRefreshBookmarks = refreshBookmarks as MockedFunction<typeof refreshBookmarks>;
+    mockGetBookmarksIndexFromDatabase = getBookmarksIndexFromDatabase as MockedFunction<
+      typeof getBookmarksIndexFromDatabase
+    >;
+    mockBuildContentGraph = buildContentGraph as MockedFunction<typeof buildContentGraph>;
 
     // Mock return values
     mockGetInvestmentDomainsAndIds.mockResolvedValue(
@@ -69,6 +92,24 @@ describe("DataFetchManager Performance Optimizations", () => {
         domain: "bookmark-a.com",
       }),
     ]);
+    mockRefreshBookmarks.mockResolvedValue([makeBookmark({})]);
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+      bookmarksIndexSchema.parse({
+        count: 1,
+        totalPages: 1,
+        pageSize: 24,
+        lastModified: fixtureDate,
+        lastFetchedAt: 1,
+        lastAttemptedAt: 1,
+        checksum: "checksum",
+        changeDetected: false,
+      }),
+    );
+    mockBuildContentGraph.mockResolvedValue({
+      success: true,
+      operation: "content-graph",
+      itemsProcessed: 0,
+    });
 
     // DataFetchManager uses singleton pattern
   });
@@ -182,6 +223,25 @@ describe("DataFetchManager Performance Optimizations", () => {
       // Should store without www
       expect(domains.has("example.com")).toBe(true);
       expect(domains.has("www.example.com")).toBe(false);
+    });
+  });
+
+  describe("bookmark refresh", () => {
+    it("uses a database-only comparison before the scheduled refresh", async () => {
+      mockGetBookmarks.mockResolvedValue([]);
+
+      const results = await new DataFetchManager().fetchData({
+        bookmarks: true,
+        forceRefresh: false,
+      });
+
+      expect(mockGetBookmarks).toHaveBeenCalledWith({ skipExternalFetch: true });
+      expect(mockRefreshBookmarks).toHaveBeenCalledWith(false);
+      expect(results[0]).toMatchObject({
+        success: true,
+        operation: "bookmarks",
+        itemsProcessed: 1,
+      });
     });
   });
 

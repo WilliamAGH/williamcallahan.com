@@ -70,6 +70,7 @@ Enrichment-owned columns are listed once in `BOOKMARK_ENRICHMENT_FIELDS` (`lib/d
 - **Upsert** (`lib/db/mutations/bookmarks.ts`): on conflict these columns use `COALESCE(excluded.col, bookmarks.col)` so a less-enriched dataset can never null out persisted enrichment.
 - **Hydration** (`lib/bookmarks/enrichment-hydration.ts`): freshly normalized Karakeep payloads are merged with prior persisted rows before enrichment, so unchanged bookmarks skip image work and partial refreshes carry enrichment forward.
 - **Refresh gate** (`lib/bookmarks/refresh-helpers.ts`): the raw-API checksum is computed with the same canonical `calculateBookmarksChecksum`; in data-updater mode the cached short-circuit is bypassed while any bookmark still needs its Karakeep asset upgraded to an S3 CDN URL (`needsKarakeepImageUpgrade`).
+- **Scheduled refresh operation** (`lib/bookmarks/data-fetch-refresh.server.ts`): compares against PostgreSQL without triggering an external read, then performs the explicit Karakeep refresh and returns the batch-operation summary.
 - **Runtime split**: only the data updater (`IS_DATA_UPDATER=true`) downloads Karakeep assets and persists them to S3; the web runtime keeps the relative `/api/assets/<id>` proxy URL (never passed to `persistImageToS3`, which rejects app-relative URLs) until the next updater run upgrades it.
 
 ### Backfill Scripts
