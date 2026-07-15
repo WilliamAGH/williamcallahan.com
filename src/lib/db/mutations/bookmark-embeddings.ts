@@ -19,13 +19,13 @@ import type {
   BookmarkEmbeddingBackfillResult,
 } from "@/types/db/bookmarks";
 
-const DEFAULT_BATCH_SIZE = 16;
+export const BOOKMARK_EMBEDDING_BATCH_SIZE = 16;
 const MAX_BATCH_SIZE = 128;
 const BATCH_EMBEDDING_RETRY = { maxRetries: 2, baseDelayMs: 1_000, maxDelayMs: 15_000 };
 const FAILED_BATCH_RETRY_DELAY_MS = 15 * 60 * 1_000;
 
 function resolveBatchSize(input?: number): number {
-  if (input === undefined) return DEFAULT_BATCH_SIZE;
+  if (input === undefined) return BOOKMARK_EMBEDDING_BATCH_SIZE;
   if (!Number.isInteger(input) || input <= 0) {
     throw new Error(`batchSize must be a positive integer. Received: ${input}`);
   }

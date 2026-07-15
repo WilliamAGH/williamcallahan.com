@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => {
     onConflictDoUpdate,
     resolveConfig: vi.fn(),
     transaction,
+    upsertBookmarks: vi.fn(),
     values,
     where,
   };
@@ -41,9 +42,21 @@ vi.mock("@/lib/db/connection", () => ({
   },
 }));
 
+vi.mock("@/lib/db/mutations/bookmarks", () => ({
+  upsertUnifiedBookmarks: mocks.upsertBookmarks,
+}));
+
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
-import { backfillBookmarkEmbeddings } from "@/lib/db/mutations/bookmark-embeddings";
+import {
+  backfillBookmarkEmbeddings,
+  BOOKMARK_EMBEDDING_BATCH_SIZE,
+} from "@/lib/db/mutations/bookmark-embeddings";
+import {
+  backfillDueBookmarkEmbeddings,
+  writeBookmarkMasterFiles,
+} from "@/lib/bookmarks/persistence.server";
 import type { BookmarkEmbeddingSelect } from "@/types/db/bookmarks";
+import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 import { is, SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 
@@ -73,6 +86,19 @@ function createEmbedding(): number[] {
   return Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0.25);
 }
 
+function createUnifiedBookmark(id: string): UnifiedBookmark {
+  return unifiedBookmarkSchema.parse({
+    id,
+    slug: `bookmark-${id}`,
+    url: `https://example.test/${id}`,
+    title: `Bookmark ${id}`,
+    description: "A bookmark for embedding tests.",
+    tags: [],
+    dateBookmarked: "2026-07-15T00:00:00.000Z",
+    sourceUpdatedAt: "2026-07-15T00:00:00.000Z",
+  });
+}
+
 function renderExecuteSql(callIndex: number): { sql: string; params: unknown[] } {
   const query = mocks.execute.mock.calls[callIndex]?.[0];
   if (!is(query, SQL)) throw new Error("Expected db.execute to receive a SQL query.");
@@ -90,13 +116,73 @@ describe("backfillBookmarkEmbeddings", () => {
     mocks.onConflictDoUpdate.mockReset().mockResolvedValue(undefined);
     mocks.resolveConfig.mockReset().mockReturnValue(embeddingConfig);
     mocks.transaction.mockClear();
+    mocks.upsertBookmarks.mockReset().mockResolvedValue(undefined);
     mocks.values.mockClear();
     mocks.where.mockReset().mockResolvedValue(undefined);
+    process.env.AI_DEFAULT_EMBEDDING_MODEL = embeddingConfig.model;
+    delete process.env.IS_DATA_UPDATER;
   });
 
   afterEach(() => {
+    delete process.env.AI_DEFAULT_EMBEDDING_MODEL;
+    delete process.env.IS_DATA_UPDATER;
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("bounds a dedicated updater write to one canonical embedding batch", async () => {
+    process.env.IS_DATA_UPDATER = "true";
+    const bookmarks = Array.from({ length: BOOKMARK_EMBEDDING_BATCH_SIZE + 1 }, (_, index) =>
+      createUnifiedBookmark(`scheduler-${index}`),
+    );
+    const rows = bookmarks.map((bookmark) => createBookmarkEmbeddingRow(bookmark.id));
+    mocks.execute
+      .mockResolvedValueOnce(rows.slice(0, BOOKMARK_EMBEDDING_BATCH_SIZE))
+      .mockResolvedValueOnce([{ cnt: bookmarks.length }]);
+    mocks.embed.mockRejectedValueOnce(new Error("upstream unavailable"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await writeBookmarkMasterFiles(bookmarks);
+
+    expect(mocks.upsertBookmarks).toHaveBeenCalledWith(bookmarks);
+    expect(mocks.embed).toHaveBeenCalledOnce();
+    expect(mocks.embed.mock.calls[0]?.[0]).toMatchObject({
+      input: expect.arrayContaining([expect.any(String)]),
+      retry: { maxRetries: 2, baseDelayMs: 1_000, maxDelayMs: 15_000 },
+    });
+    expect(renderExecuteSql(0).params).toContain(BOOKMARK_EMBEDDING_BATCH_SIZE);
+  });
+
+  it("advances due checkpoints in a later updater cycle within the same bound", async () => {
+    process.env.IS_DATA_UPDATER = "true";
+    const bookmarks = Array.from({ length: BOOKMARK_EMBEDDING_BATCH_SIZE + 1 }, (_, index) =>
+      createUnifiedBookmark(`due-${index}`),
+    );
+    const rows = bookmarks
+      .slice(0, BOOKMARK_EMBEDDING_BATCH_SIZE)
+      .map((bookmark) => createBookmarkEmbeddingRow(bookmark.id));
+    mocks.execute.mockResolvedValueOnce(rows).mockResolvedValueOnce([{ cnt: 1 }]);
+    mocks.embed.mockResolvedValueOnce(rows.map(() => createEmbedding()));
+
+    await backfillDueBookmarkEmbeddings(bookmarks);
+
+    expect(mocks.embed).toHaveBeenCalledOnce();
+    expect(mocks.transaction).toHaveBeenCalledTimes(BOOKMARK_EMBEDDING_BATCH_SIZE);
+    expect(renderExecuteSql(0).params).toContain(BOOKMARK_EMBEDDING_BATCH_SIZE);
+  });
+
+  it("keeps interactive bookmark writes on a single upstream attempt", async () => {
+    const bookmark = createUnifiedBookmark("interactive");
+    mocks.execute
+      .mockResolvedValueOnce([createBookmarkEmbeddingRow(bookmark.id)])
+      .mockResolvedValueOnce([{ cnt: 1 }]);
+    mocks.embed.mockRejectedValueOnce(new Error("upstream unavailable"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await writeBookmarkMasterFiles([bookmark]);
+
+    expect(mocks.embed).toHaveBeenCalledOnce();
+    expect(mocks.embed.mock.calls[0]?.[0]).not.toHaveProperty("retry");
   });
 
   it("checkpoints a failed batch and still persists a later successful batch", async () => {

@@ -11,12 +11,15 @@ async function backfillBookmarkEmbeddingRows(
   bookmarks: UnifiedBookmark[],
   retryTransientFailures: boolean,
 ): Promise<void> {
-  if (!process.env.AI_DEFAULT_EMBEDDING_MODEL?.trim()) return;
+  if (!process.env.AI_DEFAULT_EMBEDDING_MODEL?.trim() || bookmarks.length === 0) return;
 
-  const { backfillBookmarkEmbeddings } = await import("@/lib/db/mutations/bookmark-embeddings");
+  const { backfillBookmarkEmbeddings, BOOKMARK_EMBEDDING_BATCH_SIZE } =
+    await import("@/lib/db/mutations/bookmark-embeddings");
   const result = await backfillBookmarkEmbeddings({
     bookmarkIds: bookmarks.map((bookmark) => bookmark.id),
-    maxRows: bookmarks.length,
+    maxRows: retryTransientFailures
+      ? Math.min(bookmarks.length, BOOKMARK_EMBEDDING_BATCH_SIZE)
+      : bookmarks.length,
     retryTransientFailures,
   });
   if (result.updatedRows > 0) {
