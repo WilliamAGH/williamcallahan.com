@@ -7,6 +7,31 @@
 
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
+async function backfillBookmarkEmbeddingRows(
+  bookmarks: UnifiedBookmark[],
+  retryTransientFailures: boolean,
+): Promise<void> {
+  if (!process.env.AI_DEFAULT_EMBEDDING_MODEL?.trim()) return;
+
+  const { backfillBookmarkEmbeddings } = await import("@/lib/db/mutations/bookmark-embeddings");
+  const result = await backfillBookmarkEmbeddings({
+    bookmarkIds: bookmarks.map((bookmark) => bookmark.id),
+    maxRows: bookmarks.length,
+    retryTransientFailures,
+  });
+  if (result.updatedRows > 0) {
+    console.log(
+      `[bookmarks/persistence] Updated ${result.updatedRows} bookmark embeddings using ${result.usedModel}.`,
+    );
+  }
+}
+
+/** Drain due embedding work only from the dedicated data-updater process. */
+export async function backfillDueBookmarkEmbeddings(bookmarks: UnifiedBookmark[]): Promise<void> {
+  if (process.env.IS_DATA_UPDATER !== "true") return;
+  await backfillBookmarkEmbeddingRows(bookmarks, true);
+}
+
 /**
  * Write bookmark master data to PostgreSQL.
  *
@@ -17,20 +42,5 @@ export async function writeBookmarkMasterFiles(
 ): Promise<void> {
   const { upsertUnifiedBookmarks } = await import("@/lib/db/mutations/bookmarks");
   await upsertUnifiedBookmarks(bookmarksWithSlugs);
-
-  const embeddingModel = process.env.AI_DEFAULT_EMBEDDING_MODEL?.trim();
-  if (!embeddingModel) {
-    return;
-  }
-
-  const { backfillBookmarkEmbeddings } = await import("@/lib/db/mutations/bookmark-embeddings");
-  const result = await backfillBookmarkEmbeddings({
-    bookmarkIds: bookmarksWithSlugs.map((bookmark) => bookmark.id),
-    maxRows: bookmarksWithSlugs.length,
-  });
-  if (result.updatedRows > 0) {
-    console.log(
-      `[bookmarks/persistence] Updated ${result.updatedRows} bookmark embeddings using ${result.usedModel}.`,
-    );
-  }
+  await backfillBookmarkEmbeddingRows(bookmarksWithSlugs, process.env.IS_DATA_UPDATER === "true");
 }

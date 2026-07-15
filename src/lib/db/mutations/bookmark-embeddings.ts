@@ -1,11 +1,15 @@
-import { type SQL, sql } from "drizzle-orm";
-import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
+import { and, eq, type SQL, sql } from "drizzle-orm";
+import {
+  embedTextsWithEndpointCompatibleModel,
+  getEndpointCompatibleEmbeddingRetryAfterMilliseconds,
+} from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { buildEmbeddingText } from "@/lib/db/embedding-input-contracts";
 import { BOOKMARK_EMBEDDING_FIELDS } from "@/lib/db/embedding-field-specs-content";
 import {
   embeddings as embeddingsTable,
+  embeddingFailures,
   CONTENT_EMBEDDING_DIMENSIONS,
 } from "@/lib/db/schema/content-embeddings";
 import { bookmarkContentSchema } from "@/types/schemas/bookmark";
@@ -17,6 +21,8 @@ import type {
 
 const DEFAULT_BATCH_SIZE = 16;
 const MAX_BATCH_SIZE = 128;
+const BATCH_EMBEDDING_RETRY = { maxRetries: 2, baseDelayMs: 1_000, maxDelayMs: 15_000 };
+const FAILED_BATCH_RETRY_DELAY_MS = 15 * 60 * 1_000;
 
 function resolveBatchSize(input?: number): number {
   if (input === undefined) return DEFAULT_BATCH_SIZE;
@@ -130,6 +136,39 @@ function buildBookmarkIdFilter(bookmarkIds?: readonly string[]): SQL {
   return sql` AND b.id IN (${ids})`;
 }
 
+function resolveDeferredRetryAt(error: unknown, now: number): number {
+  const retryAfterMs = getEndpointCompatibleEmbeddingRetryAfterMilliseconds(error) ?? 0;
+  return now + Math.max(retryAfterMs, FAILED_BATCH_RETRY_DELAY_MS);
+}
+
+async function deferBookmarkEmbeddingRows(
+  rows: BookmarkEmbeddingSelect[],
+  error: unknown,
+): Promise<void> {
+  const now = Date.now();
+  const retryAt = resolveDeferredRetryAt(error, now);
+  const lastError = error instanceof Error ? error.message : String(error);
+
+  await db
+    .insert(embeddingFailures)
+    .values(
+      rows.map((row) => ({
+        domain: "bookmark" as const,
+        entityId: row.id,
+        lastError,
+        retryAt,
+        updatedAt: now,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [embeddingFailures.domain, embeddingFailures.entityId],
+      set: { lastError, retryAt, updatedAt: now },
+    });
+  console.warn(
+    `[bookmark-embeddings] Deferred ${rows.length} rows until ${new Date(retryAt).toISOString()}: ${lastError}`,
+  );
+}
+
 /**
  * Find bookmarks that don't yet have a row in embeddings.
  * Uses LEFT JOIN instead of checking a per-domain embedding column.
@@ -144,7 +183,9 @@ async function readMissingEmbeddingRows(
     FROM bookmarks b
     LEFT JOIN embeddings ce
       ON ce.domain = 'bookmark' AND ce.entity_id = b.id
-    WHERE ce.entity_id IS NULL
+    LEFT JOIN embedding_failures ef
+      ON ef.domain = 'bookmark' AND ef.entity_id = b.id
+    WHERE ce.entity_id IS NULL AND (ef.entity_id IS NULL OR ef.retry_at <= ${Date.now()})
   `;
 
   const idFilter = buildBookmarkIdFilter(bookmarkIds);
@@ -228,15 +269,24 @@ export async function backfillBookmarkEmbeddings(
 
     console.log(`[bookmark-embeddings] Generating embeddings for ${rows.length} rows.`);
     const embeddingInput = rows.map((row) => buildBookmarkEmbeddingInput(row));
-    const embeddings = await embedTextsWithEndpointCompatibleModel({
-      config,
-      input: embeddingInput,
-      tier: "batch",
-    });
-    if (embeddings.length !== rows.length) {
-      throw new Error(
-        `Embedding result count mismatch. Expected ${rows.length}, received ${embeddings.length}.`,
-      );
+    let embeddings: number[][];
+    try {
+      embeddings = await embedTextsWithEndpointCompatibleModel({
+        config,
+        input: embeddingInput,
+        tier: "batch",
+        ...(options.retryTransientFailures ? { retry: BATCH_EMBEDDING_RETRY } : {}),
+      });
+      if (embeddings.length !== rows.length) {
+        throw new Error(
+          `Embedding result count mismatch. Expected ${rows.length}, received ${embeddings.length}.`,
+        );
+      }
+    } catch (error) {
+      if (dryRun) throw error;
+      await deferBookmarkEmbeddingRows(rows, error);
+      processedRows += rows.length;
+      continue;
     }
     console.log(
       `[bookmark-embeddings] Received ${embeddings.length} embeddings (dim=${embeddings[0]?.length ?? 0}).`,
@@ -251,31 +301,38 @@ export async function backfillBookmarkEmbeddings(
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
       const embedding = embeddings[index];
-      if (!row || !embedding) {
+      const embeddingText = embeddingInput[index];
+      if (!row || !embedding || embeddingText === undefined) {
         throw new Error(`Missing backfill payload for row index ${index}.`);
       }
 
-      const embeddingText = buildBookmarkEmbeddingInput(row);
-      await db
-        .insert(embeddingsTable)
-        .values({
-          domain: "bookmark",
-          entityId: row.id,
-          title: row.title,
-          embeddingText,
-          contentDate: null,
-          qwen4bFp16Embedding: sql.raw(buildHalfvecLiteral(embedding)),
-          updatedAt: Date.now(),
-        })
-        .onConflictDoUpdate({
-          target: [embeddingsTable.domain, embeddingsTable.entityId],
-          set: {
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(embeddingsTable)
+          .values({
+            domain: "bookmark",
+            entityId: row.id,
             title: row.title,
             embeddingText,
             qwen4bFp16Embedding: sql.raw(buildHalfvecLiteral(embedding)),
+            contentDate: null,
             updatedAt: Date.now(),
-          },
-        });
+          })
+          .onConflictDoUpdate({
+            target: [embeddingsTable.domain, embeddingsTable.entityId],
+            set: {
+              title: row.title,
+              embeddingText,
+              qwen4bFp16Embedding: sql.raw(buildHalfvecLiteral(embedding)),
+              updatedAt: Date.now(),
+            },
+          });
+        await tx
+          .delete(embeddingFailures)
+          .where(
+            and(eq(embeddingFailures.domain, "bookmark"), eq(embeddingFailures.entityId, row.id)),
+          );
+      });
       updatedRows += 1;
     }
   }

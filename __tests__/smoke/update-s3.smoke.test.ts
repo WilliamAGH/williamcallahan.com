@@ -212,9 +212,14 @@ describe("Scheduler and data-updater flag consistency", () => {
   it("bootstraps data through Node before starting cron and fails closed", async () => {
     const fs = await import("node:fs/promises");
     const entrypoint = await fs.readFile("scheduler/entrypoint.sh", "utf8");
+    const databaseGate = await fs.readFile("scripts/entrypoint-db-gate.sh", "utf8");
     const syntaxCheck = spawnSync("bash", ["-n", "scheduler/entrypoint.sh"], {
       encoding: "utf8",
     });
+    const gateSyntaxCheck = spawnSync("bash", ["-n", "scripts/entrypoint-db-gate.sh"], {
+      encoding: "utf8",
+    });
+    const migrationCheckIndex = entrypoint.indexOf("require_embedding_failures_migration");
     const bootstrapIndex = entrypoint.indexOf("node --run update-data");
     const revalidationIndex = entrypoint.indexOf(
       "node --run scheduler -- --revalidate-bootstrap-caches",
@@ -223,11 +228,14 @@ describe("Scheduler and data-updater flag consistency", () => {
     const sitemapStartIndex = entrypoint.indexOf('echo "🗺️  [Entrypoint] Submitting sitemap..."');
 
     expect(syntaxCheck.status).toBe(0);
+    expect(gateSyntaxCheck.status).toBe(0);
     expect(entrypoint).toMatch(/if node --run update-data; then/);
+    expect(migrationCheckIndex).toBeGreaterThan(-1);
     expect(bootstrapIndex).toBeGreaterThan(-1);
     expect(revalidationIndex).toBeGreaterThan(-1);
     expect(sitemapStartIndex).toBeGreaterThan(-1);
     expect(schedulerStartIndex).toBeGreaterThan(-1);
+    expect(migrationCheckIndex).toBeLessThan(bootstrapIndex);
     expect(bootstrapIndex).toBeLessThan(sitemapStartIndex);
     expect(bootstrapIndex).toBeLessThan(schedulerStartIndex);
     expect(revalidationIndex).toBeGreaterThan(bootstrapIndex);
@@ -238,6 +246,70 @@ describe("Scheduler and data-updater flag consistency", () => {
       /Initial data bootstrap failed; scheduler will not start" >&2\n {4}exit 1/,
     );
     expect(entrypoint).not.toContain("background-data-populator");
+    expect(databaseGate).toContain("to_regclass('public.embedding_failures')");
+    expect(databaseGate).toContain(
+      "Required database migration 0024_embedding-failures is missing",
+    );
+  });
+
+  it("journals migration 0024 without retroactively replaying 0023", async () => {
+    const fs = await import("node:fs/promises");
+    const journal = await fs.readFile("drizzle/meta/_journal.json", "utf8");
+    const migration = await fs.readFile("drizzle/0024_embedding-failures.sql", "utf8");
+
+    expect(journal.lastIndexOf('"tag": "0024_embedding-failures"')).toBeGreaterThan(
+      journal.lastIndexOf('"tag": "0021_bookmark-tags-taxonomy"'),
+    );
+    expect(journal).not.toContain('"tag": "0023_engagement-covering-index"');
+    expect(migration).toContain('CREATE TABLE IF NOT EXISTS "embedding_failures"');
+  });
+
+  it("constructs the scheduler migration preflight client with required TLS", async () => {
+    const fs = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join, resolve } = await import("node:path");
+    const temporaryDirectory = await fs.mkdtemp(join(tmpdir(), "scheduler-preflight-"));
+    const packageDirectory = join(temporaryDirectory, "node_modules/postgres");
+    const capturePath = join(temporaryDirectory, "postgres-options.json");
+
+    try {
+      await fs.mkdir(packageDirectory, { recursive: true });
+      await fs.writeFile(
+        join(packageDirectory, "package.json"),
+        '{"type":"module","exports":"./index.js"}',
+      );
+      await fs.writeFile(
+        join(packageDirectory, "index.js"),
+        `import { writeFileSync } from "node:fs";
+export default function postgres(databaseUrl, options) { writeFileSync(process.env.POSTGRES_OPTIONS_CAPTURE_PATH, JSON.stringify({ databaseUrl, options })); const sql = async () => [{ present: true }]; sql.end = async () => {}; return sql; }`,
+      );
+
+      const result = spawnSync(
+        "bash",
+        [
+          "-c",
+          'source "$1"; require_embedding_failures_migration',
+          "bash",
+          resolve("scripts/entrypoint-db-gate.sh"),
+        ],
+        {
+          cwd: temporaryDirectory,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            AI_DEFAULT_EMBEDDING_MODEL: "test-model",
+            DATABASE_URL: "postgres://test:test@db.test:5432/test",
+            POSTGRES_OPTIONS_CAPTURE_PATH: capturePath,
+          },
+        },
+      );
+      const captured: unknown = JSON.parse(await fs.readFile(capturePath, "utf8"));
+
+      expect(result.status).toBe(0);
+      expect(captured).toMatchObject({ options: { ssl: "require" } });
+    } finally {
+      await fs.rm(temporaryDirectory, { recursive: true, force: true });
+    }
   });
 
   /**

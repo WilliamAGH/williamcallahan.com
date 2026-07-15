@@ -311,7 +311,7 @@ File/Path Functionality Description
     - [x] `opengraph.ts` `seo` - OpenGraph metadata + overrides tables keyed by URL hash
     - [x] `thoughts.ts` `thoughts` - Thoughts (TIL-style content) table with slug/category indexes
     - [x] `content-engagement.ts` `bookmarks` - Engagement event table (impression, click, dwell, external_click) with visitor hash and duration tracking
-    - [x] `content-embeddings.ts` `bookmarks` - Content embeddings table for pgvector cosine ANN (Qwen3-Embedding-4B, 2560-d halfvec)
+    - [x] `content-embeddings.ts` `bookmarks` - Content embeddings and deferred upstream-failure checkpoint tables for pgvector cosine ANN (Qwen3-Embedding-4B, 2560-d halfvec)
     - [x] `image-manifests.ts` `image-handling` - Image manifests keyed by type (logos/opengraph/blog)
   - [x] **queries/**
     - [x] `bookmarks.ts` `bookmarks` - Bookmark read queries (all/page/by-id/count/FTS/tag pages/global index/per-tag index/tag slug listing)
@@ -541,6 +541,7 @@ File/Path Functionality Description
 - [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
 - [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
+- [x] `drizzle/0024_embedding-failures.sql` `data-access` - Migration adding durable per-embedding upstream failure checkpoints and retry timestamps
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Runtime instrumentation dispatch and request-error header redaction
 - [x] `src/proxy.ts` `middleware` - Next.js Proxy entrypoint; owns route protection and final no-store delivery for same-origin analytics assets
@@ -678,7 +679,7 @@ File/Path Functionality Description
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
 - [x] `entrypoint.sh` `deployment` - Web container entrypoint (DB gate + Next.js server only)
-- [x] `entrypoint-db-gate.sh` `deployment` - Shared DATABASE_URL rewrite + readiness gate sourced by both container entrypoints
+- [x] `entrypoint-db-gate.sh` `deployment` - Shared DATABASE_URL rewrite/readiness gate plus scheduler embedding-migration preflight
 
 ## Scheduler Directory
 

@@ -6,6 +6,7 @@ const mockGetBookmarksIndexFromDatabase = vi.fn();
 const mockGetAllBookmarks = vi.fn();
 const mockRebuildBookmarkTaxonomyState = vi.fn();
 const mockWriteBookmarkMasterFiles = vi.fn();
+const mockBackfillDueBookmarkEmbeddings = vi.fn();
 const mockProcessBookmarksInBatches = vi.fn();
 const mockSaveSlugMapping = vi.fn();
 const mockGenerateSlugMapping = vi.fn();
@@ -20,6 +21,7 @@ vi.mock("@/lib/db/mutations/bookmarks", () => ({
 }));
 
 vi.mock("@/lib/bookmarks/persistence.server", () => ({
+  backfillDueBookmarkEmbeddings: (...args: unknown[]) => mockBackfillDueBookmarkEmbeddings(...args),
   writeBookmarkMasterFiles: (...args: unknown[]) => mockWriteBookmarkMasterFiles(...args),
 }));
 
@@ -80,7 +82,9 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
     process.env.MIN_BOOKMARKS_THRESHOLD = "1";
     vi.stubEnv("NODE_ENV", "test");
     process.env.SELECTIVE_OG_REFRESH = "true";
+    delete process.env.IS_DATA_UPDATER;
 
+    mockBackfillDueBookmarkEmbeddings.mockResolvedValue(undefined);
     mockGetAllBookmarks.mockResolvedValue([]);
     mockRebuildBookmarkTaxonomyState.mockResolvedValue(undefined);
     mockWriteBookmarkMasterFiles.mockResolvedValue(undefined);
