@@ -3,6 +3,7 @@ import {
   endpointCompatibleEmbeddingsResponseSchema,
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
+import { retryWithThrow } from "@/lib/utils/retry";
 import type {
   EndpointCompatibleEmbeddingConfig,
   OpenAiCompatibleTier,
@@ -12,6 +13,57 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const RECOMMENDED_INPUT_TOKENS = 8_192;
 const APPROXIMATE_CHARS_PER_TOKEN = 4;
 const INPUT_CHUNK_CHAR_LIMIT = RECOMMENDED_INPUT_TOKENS * APPROXIMATE_CHARS_PER_TOKEN;
+const ERROR_RESPONSE_BODY_CHAR_LIMIT = 512;
+
+class EndpointCompatibleEmbeddingRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly retryAfterMs?: number,
+    responseSummary?: string,
+  ) {
+    super(
+      `[endpoint-compatible-embeddings] HTTP ${status} while embedding${responseSummary ? `: ${responseSummary}` : "."}`,
+    );
+    this.name = "EndpointCompatibleEmbeddingRequestError";
+  }
+}
+
+function summarizeErrorResponse(body: string): string | undefined {
+  const normalized = body.replaceAll(/\s+/g, " ").trim();
+  if (!normalized) return undefined;
+  return normalized.length > ERROR_RESPONSE_BODY_CHAR_LIMIT
+    ? `${normalized.slice(0, ERROR_RESPONSE_BODY_CHAR_LIMIT)}…`
+    : normalized;
+}
+
+function parseRetryAfterMilliseconds(value: string | null): number | undefined {
+  if (!value) return undefined;
+
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    return Number.isFinite(seconds) ? seconds * 1000 : undefined;
+  }
+
+  const retryAt = Date.parse(trimmed);
+  return Number.isNaN(retryAt) ? undefined : Math.max(retryAt - Date.now(), 0);
+}
+
+export function getEndpointCompatibleEmbeddingRetryAfterMilliseconds(
+  error: unknown,
+): number | undefined {
+  return error instanceof EndpointCompatibleEmbeddingRequestError ? error.retryAfterMs : undefined;
+}
+
+function isRetryableEmbeddingRequestError(error: unknown): boolean {
+  if (error instanceof EndpointCompatibleEmbeddingRequestError) {
+    return error.status === 429 || error.status >= 500;
+  }
+  if (error instanceof DOMException) {
+    return error.name === "TimeoutError";
+  }
+  return error instanceof TypeError;
+}
 
 function findChunkEnd(text: string, start: number, hardEnd: number): number {
   if (hardEnd >= text.length) return hardEnd;
@@ -118,6 +170,11 @@ export async function embedTextsWithEndpointCompatibleModel(args: {
   tier: OpenAiCompatibleTier;
   timeoutMs?: number;
   signal?: AbortSignal;
+  retry?: {
+    maxRetries: number;
+    baseDelayMs: number;
+    maxDelayMs: number;
+  };
 }): Promise<number[][]> {
   const parsedRequest = endpointCompatibleEmbeddingsRequestSchema.parse({
     model: args.config.model,
@@ -137,29 +194,46 @@ export async function embedTextsWithEndpointCompatibleModel(args: {
     typeof args.timeoutMs === "number" && Number.isFinite(args.timeoutMs)
       ? args.timeoutMs
       : DEFAULT_TIMEOUT_MS;
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const requestSignal = args.signal ? AbortSignal.any([args.signal, timeoutSignal]) : timeoutSignal;
+  const requestEmbeddings = async (): Promise<number[][]> => {
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    const requestSignal = args.signal
+      ? AbortSignal.any([args.signal, timeoutSignal])
+      : timeoutSignal;
+    const response = await fetch(`${apiBaseUrl}/embeddings`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "X-Tier": args.tier,
+      },
+      body: JSON.stringify(request),
+      signal: requestSignal,
+    });
 
-  const response = await fetch(`${apiBaseUrl}/embeddings`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "X-Tier": args.tier,
-    },
-    body: JSON.stringify(request),
-    signal: requestSignal,
+    if (!response.ok) {
+      const retryAfterMs = parseRetryAfterMilliseconds(response.headers.get("Retry-After"));
+      const responseSummary = summarizeErrorResponse(await response.text());
+      throw new EndpointCompatibleEmbeddingRequestError(
+        response.status,
+        retryAfterMs,
+        responseSummary,
+      );
+    }
+
+    const parsedResponse = endpointCompatibleEmbeddingsResponseSchema.parse(await response.json());
+    const embeddings = orderResponseEmbeddings(parsedResponse.data, plan.input.length);
+
+    return plan.ranges.map(([start, end]) => poolChunkEmbeddings(embeddings.slice(start, end)));
+  };
+
+  if (!args.retry) return requestEmbeddings();
+
+  return retryWithThrow(requestEmbeddings, {
+    maxRetries: args.retry.maxRetries,
+    baseDelay: args.retry.baseDelayMs,
+    maxBackoff: args.retry.maxDelayMs,
+    isRetryable: (error) => !args.signal?.aborted && isRetryableEmbeddingRequestError(error),
+    resolveDelay: (error, _attempt, fallbackDelayMs) =>
+      getEndpointCompatibleEmbeddingRetryAfterMilliseconds(error) ?? fallbackDelayMs,
   });
-
-  if (!response.ok) {
-    const responseBody = await response.text();
-    throw new Error(
-      `[endpoint-compatible-embeddings] HTTP ${response.status} while embedding: ${responseBody}`,
-    );
-  }
-
-  const parsedResponse = endpointCompatibleEmbeddingsResponseSchema.parse(await response.json());
-  const embeddings = orderResponseEmbeddings(parsedResponse.data, plan.input.length);
-
-  return plan.ranges.map(([start, end]) => poolChunkEmbeddings(embeddings.slice(start, end)));
 }

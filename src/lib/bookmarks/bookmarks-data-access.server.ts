@@ -15,8 +15,6 @@ import {
   BOOKMARK_SERVICE_LOG_CATEGORY,
 } from "@/lib/bookmarks/config";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-
-// Runtime-safe cache wrappers imported from cache-management
 import {
   safeCacheLife,
   safeCacheTag,
@@ -24,6 +22,10 @@ import {
   invalidatePageCache,
   invalidateTagCache as invalidateTagCacheInternal,
 } from "@/lib/bookmarks/cache-management.server";
+import {
+  refreshAndPersistBookmarks,
+  releaseRefreshLock,
+} from "@/lib/bookmarks/refresh-logic.server";
 
 const PHASE_ENV_KEY = "NEXT_PHASE" as const;
 const BUILD_PHASE_VALUE = "phase-production-build" as const;
@@ -34,45 +36,25 @@ const logBookmarkDataAccessEvent = (message: string, data?: Record<string, unkno
   envLogger.log(message, data, { category: BOOKMARK_SERVICE_LOG_CATEGORY });
 };
 
-let inFlightGetPromise: Promise<UnifiedBookmark[] | LightweightBookmark[]> | null = null;
-
-// Cache logic moved to cache-management.server.ts
-
-import {
-  refreshAndPersistBookmarks,
-  releaseRefreshLock,
-} from "@/lib/bookmarks/refresh-logic.server";
-
 let bookmarkQueryModulePromise: Promise<typeof import("@/lib/db/queries/bookmarks")> | null = null;
 
-const loadBookmarkQueryModule = async (): Promise<typeof import("@/lib/db/queries/bookmarks")> => {
-  bookmarkQueryModulePromise ??= import("@/lib/db/queries/bookmarks");
-  return bookmarkQueryModulePromise;
-};
+const loadBookmarkQueryModule = (): Promise<typeof import("@/lib/db/queries/bookmarks")> =>
+  (bookmarkQueryModulePromise ??= import("@/lib/db/queries/bookmarks"));
 
-/**
- * Fetches bookmarks with Next.js caching layer.
- * Cache duration: 1 hour (coordinated with 2-hour scheduler to minimize staleness).
- * Max staleness: ~3 hours (1h cache + 2h schedule + 15min jitter).
- * @param options - Control data inclusion and fetch behavior
- * @returns Full or lightweight bookmarks depending on options
- */
-async function fetchAndCacheBookmarks(
+/** Cached full bookmarks dataset. */
+export async function getBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
   "use cache";
-  // Cache for 1 hour to coordinate with 2-hour scheduler runs.
-  // This ensures data refreshes between scheduler cycles.
   safeCacheLife({ revalidate: 3600 }); // 1 hour
   safeCacheTag("bookmarks-db-full");
   const { skipExternalFetch = false, includeImageData = true, force = false } = options;
-  logBookmarkDataAccessEvent("fetchAndCacheBookmarks", {
+  logBookmarkDataAccessEvent("getBookmarks", {
     skipExternalFetch,
     includeImageData,
     force,
   });
 
-  // --- 1. Read from PostgreSQL ---
   const formatBookmarks = (dataset: UnifiedBookmark[], source: string) => {
     if (!includeImageData) {
       logBookmarkDataAccessEvent(`Stripping image data from ${source} bookmarks`, {
@@ -120,73 +102,65 @@ async function fetchAndCacheBookmarks(
 }
 
 async function getBookmarksPageDirect(
+  tagSlug: string | null,
   pageNumber: number,
-  pageSize: number = BOOKMARKS_PER_PAGE,
+  pageSize: number,
 ): Promise<UnifiedBookmark[]> {
-  const { getBookmarksPage } = await loadBookmarkQueryModule();
-  const pageData = await getBookmarksPage(pageNumber, pageSize);
+  const queryModule = await loadBookmarkQueryModule();
+  const pageData =
+    tagSlug === null
+      ? await queryModule.getBookmarksPage(pageNumber, pageSize)
+      : await queryModule.getBookmarksPageByTag(tagSlug, pageNumber, pageSize);
   return normalizePageBookmarkTags(pageData);
 }
 
-/**
- * Gets a paginated bookmarks page with caching.
- */
 async function getCachedBookmarksPage(
+  tagSlug: string | null,
   pageNumber: number,
-  pageSize: number = BOOKMARKS_PER_PAGE,
+  pageSize: number,
 ): Promise<UnifiedBookmark[]> {
   "use cache";
   safeCacheLife({ revalidate: 86400 });
   safeCacheTag(
     "bookmarks",
-    `bookmarks-page-${pageNumber}`,
-    `bookmarks-page-${pageNumber}-sz-${pageSize}`,
+    tagSlug === null ? `bookmarks-page-${pageNumber}` : `bookmarks-tag-${tagSlug}`,
+    tagSlug === null
+      ? `bookmarks-page-${pageNumber}-sz-${pageSize}`
+      : `bookmarks-tag-${tagSlug}-page-${pageNumber}-sz-${pageSize}`,
   );
-  return getBookmarksPageDirect(pageNumber, pageSize);
+  return getBookmarksPageDirect(tagSlug, pageNumber, pageSize);
+}
+
+async function getBookmarksPageWithCache(
+  tagSlug: string | null,
+  pageNumber: number,
+  pageSize: number = BOOKMARKS_PER_PAGE,
+): Promise<UnifiedBookmark[]> {
+  if (isProductionBuildPhase()) return getCachedBookmarksPage(tagSlug, pageNumber, pageSize);
+
+  if (!USE_NEXTJS_CACHE) return getBookmarksPageDirect(tagSlug, pageNumber, pageSize);
+
+  if (tagSlug === null) {
+    return withCacheFallback(
+      () => getCachedBookmarksPage(tagSlug, pageNumber, pageSize),
+      () => getBookmarksPageDirect(tagSlug, pageNumber, pageSize),
+    );
+  }
+
+  try {
+    const cached = await getCachedBookmarksPage(tagSlug, pageNumber, pageSize);
+    if (cached) return cached;
+  } catch (error) {
+    console.warn("[Bookmarks] Cached tag page fetch failed, falling back to direct", error);
+  }
+  return getBookmarksPageDirect(tagSlug, pageNumber, pageSize);
 }
 
 export async function getBookmarksPage(
   pageNumber: number,
   pageSize: number = BOOKMARKS_PER_PAGE,
 ): Promise<UnifiedBookmark[]> {
-  if (isProductionBuildPhase()) {
-    return getCachedBookmarksPage(pageNumber, pageSize);
-  }
-
-  return USE_NEXTJS_CACHE
-    ? withCacheFallback(
-        () => getCachedBookmarksPage(pageNumber, pageSize),
-        () => getBookmarksPageDirect(pageNumber, pageSize),
-      )
-    : getBookmarksPageDirect(pageNumber, pageSize);
-}
-
-async function getTagBookmarksPageDirect(
-  tagSlug: string,
-  pageNumber: number,
-  pageSize: number = BOOKMARKS_PER_PAGE,
-): Promise<UnifiedBookmark[]> {
-  const { getBookmarksPageByTag } = await loadBookmarkQueryModule();
-  const pageData = await getBookmarksPageByTag(tagSlug, pageNumber, pageSize);
-  return normalizePageBookmarkTags(pageData);
-}
-
-/**
- * Gets tag-specific bookmarks page with caching.
- */
-async function getCachedTagBookmarksPage(
-  tagSlug: string,
-  pageNumber: number,
-  pageSize: number = BOOKMARKS_PER_PAGE,
-): Promise<UnifiedBookmark[]> {
-  "use cache";
-  safeCacheLife({ revalidate: 86400 });
-  safeCacheTag(
-    "bookmarks",
-    `bookmarks-tag-${tagSlug}`,
-    `bookmarks-tag-${tagSlug}-page-${pageNumber}-sz-${pageSize}`,
-  );
-  return getTagBookmarksPageDirect(tagSlug, pageNumber, pageSize);
+  return getBookmarksPageWithCache(null, pageNumber, pageSize);
 }
 
 export async function getTagBookmarksPage(
@@ -194,71 +168,69 @@ export async function getTagBookmarksPage(
   pageNumber: number,
   pageSize: number = BOOKMARKS_PER_PAGE,
 ): Promise<UnifiedBookmark[]> {
-  if (isProductionBuildPhase()) {
-    return getCachedTagBookmarksPage(tagSlug, pageNumber, pageSize);
-  }
-
-  if (USE_NEXTJS_CACHE) {
-    try {
-      const cached = await getCachedTagBookmarksPage(tagSlug, pageNumber, pageSize);
-      if (cached) return cached;
-    } catch (error) {
-      console.warn("[Bookmarks] Cached tag page fetch failed, falling back to direct", error);
-    }
-    return getTagBookmarksPageDirect(tagSlug, pageNumber, pageSize);
-  }
-  return getTagBookmarksPageDirect(tagSlug, pageNumber, pageSize);
+  return getBookmarksPageWithCache(tagSlug, pageNumber, pageSize);
 }
 
-async function getTagBookmarksIndexDirect(
-  tagSlug: string,
-  pageSize: number = BOOKMARKS_PER_PAGE,
+async function getBookmarksIndexDirect(
+  tagSlug: string | null,
+  pageSize: number,
 ): Promise<BookmarksIndex | null> {
-  const { getTagBookmarksIndexFromDatabase } = await loadBookmarkQueryModule();
-  return getTagBookmarksIndexFromDatabase(tagSlug, pageSize);
+  const queryModule = await loadBookmarkQueryModule();
+  return tagSlug === null
+    ? queryModule.getBookmarksIndexFromDatabase(pageSize)
+    : queryModule.getTagBookmarksIndexFromDatabase(tagSlug, pageSize);
 }
 
-/**
- * Gets tag-specific bookmarks index with caching.
- */
-async function getCachedTagBookmarksIndex(
-  tagSlug: string,
-  pageSize: number = BOOKMARKS_PER_PAGE,
+async function getCachedBookmarksIndex(
+  tagSlug: string | null,
+  pageSize: number,
 ): Promise<BookmarksIndex | null> {
   "use cache";
   safeCacheLife({ revalidate: 3600 });
-  safeCacheTag(
-    "bookmarks",
-    `bookmarks-tag-${tagSlug}`,
-    `bookmarks-tag-${tagSlug}-index-sz-${pageSize}`,
-  );
-  return getTagBookmarksIndexDirect(tagSlug, pageSize);
+  if (tagSlug === null) {
+    safeCacheTag("bookmarks", `bookmarks-index-sz-${pageSize}`);
+  } else {
+    safeCacheTag(
+      "bookmarks",
+      `bookmarks-tag-${tagSlug}`,
+      `bookmarks-tag-${tagSlug}-index-sz-${pageSize}`,
+    );
+  }
+  return getBookmarksIndexDirect(tagSlug, pageSize);
+}
+
+async function getBookmarksIndexWithCache(
+  tagSlug: string | null,
+  pageSize: number = BOOKMARKS_PER_PAGE,
+): Promise<BookmarksIndex | null> {
+  if (isProductionBuildPhase()) return getCachedBookmarksIndex(tagSlug, pageSize);
+
+  if (USE_NEXTJS_CACHE) {
+    try {
+      const cached = await getCachedBookmarksIndex(tagSlug, pageSize);
+      if (cached) return cached;
+    } catch (error) {
+      console.warn("[Bookmarks] Cached index fetch failed, falling back to direct", error);
+    }
+  }
+  return getBookmarksIndexDirect(tagSlug, pageSize);
+}
+
+export async function getBookmarksIndex(
+  pageSize: number = BOOKMARKS_PER_PAGE,
+): Promise<BookmarksIndex | null> {
+  return getBookmarksIndexWithCache(null, pageSize);
 }
 
 export async function getTagBookmarksIndex(
   tagSlug: string,
   pageSize: number = BOOKMARKS_PER_PAGE,
 ): Promise<BookmarksIndex | null> {
-  if (isProductionBuildPhase()) {
-    return getCachedTagBookmarksIndex(tagSlug, pageSize);
-  }
-
-  if (USE_NEXTJS_CACHE) {
-    try {
-      const cached = await getCachedTagBookmarksIndex(tagSlug, pageSize);
-      if (cached) return cached;
-    } catch (error) {
-      console.warn("[Bookmarks] Cached index fetch failed, falling back to direct", error);
-    }
-    return getTagBookmarksIndexDirect(tagSlug, pageSize);
-  }
-  return getTagBookmarksIndexDirect(tagSlug, pageSize);
+  return getBookmarksIndexWithCache(tagSlug, pageSize);
 }
 
 export async function listTagSlugs(): Promise<string[]> {
-  if (isProductionBuildPhase()) {
-    return listTagSlugsCached();
-  }
+  if (isProductionBuildPhase()) return listTagSlugsCached();
   const { listTagSlugsFromDatabase } = await loadBookmarkQueryModule();
   return listTagSlugsFromDatabase();
 }
@@ -279,42 +251,6 @@ async function listTagSlugsCached(): Promise<string[]> {
   safeCacheTag("bookmarks", "bookmarks-tag-slugs");
   const { listTagSlugsFromDatabase } = await loadBookmarkQueryModule();
   return listTagSlugsFromDatabase();
-}
-
-async function getBookmarksIndexDirect(
-  pageSize: number = BOOKMARKS_PER_PAGE,
-): Promise<BookmarksIndex | null> {
-  const { getBookmarksIndexFromDatabase } = await loadBookmarkQueryModule();
-  return getBookmarksIndexFromDatabase(pageSize);
-}
-
-/**
- * Gets main bookmarks index with caching.
- */
-async function getCachedBookmarksIndex(
-  pageSize: number = BOOKMARKS_PER_PAGE,
-): Promise<BookmarksIndex | null> {
-  "use cache";
-  safeCacheLife({ revalidate: 3600 });
-  safeCacheTag("bookmarks", `bookmarks-index-sz-${pageSize}`);
-  return getBookmarksIndexDirect(pageSize);
-}
-
-/**
- * Get all bookmarks with de-duplication of in-flight requests.
- * Service errors propagate to callers - they can distinguish between
- * empty results (no bookmarks) and failures (service errors).
- */
-export async function getBookmarks(
-  options: BookmarkLoadOptions = {},
-): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
-  if (inFlightGetPromise) return inFlightGetPromise;
-  inFlightGetPromise = fetchAndCacheBookmarks(options);
-  try {
-    return await inFlightGetPromise;
-  } finally {
-    inFlightGetPromise = null;
-  }
 }
 
 export async function getBookmarkById(
@@ -353,7 +289,6 @@ export async function getBookmarkById(
   return stripImageData(bookmark);
 }
 
-/** Get bookmarks by tag with caching support */
 export async function getBookmarksByTag(
   tagSlug: string,
   pageNumber: number = 1,
@@ -390,7 +325,6 @@ export async function getBookmarksByTag(
   };
 }
 
-/** Cache invalidation functions */
 export const invalidateBookmarksCache = (): void => {
   invalidateNextJsBookmarksCache();
 };
@@ -404,26 +338,6 @@ export const invalidateBookmarksTagCache = (tagSlug: string): void => {
 };
 export const invalidateTagCache = invalidateBookmarksTagCache;
 
-export async function getBookmarksIndex(
-  pageSize: number = BOOKMARKS_PER_PAGE,
-): Promise<BookmarksIndex | null> {
-  if (isProductionBuildPhase()) {
-    return getCachedBookmarksIndex(pageSize);
-  }
-
-  if (USE_NEXTJS_CACHE) {
-    try {
-      const cached = await getCachedBookmarksIndex(pageSize);
-      if (cached) return cached;
-    } catch (error) {
-      console.warn("[Bookmarks] Cached index fetch failed, falling back to direct", error);
-    }
-    return getBookmarksIndexDirect(pageSize);
-  }
-  return getBookmarksIndexDirect(pageSize);
-}
-
-// Cleanup cache and locks on process exit
 process.on("SIGTERM", () => {
   releaseRefreshLock().catch((error) =>
     console.error("[Bookmarks] Failed to release lock on cleanup:", String(error)),

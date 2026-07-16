@@ -23,8 +23,8 @@ export const PACIFIC_DATE_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-0[87]:00
  * Type guard for PacificDateString
  * Ensures a string matches the required format
  */
-export function isPacificDateString(date: string): date is PacificDateString {
-  return PACIFIC_DATE_REGEX.test(date);
+export function isPacificDateString(date: unknown): date is PacificDateString {
+  return typeof date === "string" && PACIFIC_DATE_REGEX.test(date);
 }
 
 /**
@@ -51,20 +51,12 @@ export function isArticleDates(dates: unknown): dates is ArticleDates {
     return false;
   }
 
-  // Use narrowed type with the specific fields we need to check
-  const dateObj = dates as {
-    datePublished?: unknown;
-    dateModified?: unknown;
-    dateCreated?: unknown;
-  };
-
-  const hasValidPublished =
-    typeof dateObj.datePublished === "string" && isPacificDateString(dateObj.datePublished);
-  const hasValidModified =
-    typeof dateObj.dateModified === "string" && isPacificDateString(dateObj.dateModified);
-  const hasValidCreated =
-    dateObj.dateCreated === undefined ||
-    (typeof dateObj.dateCreated === "string" && isPacificDateString(dateObj.dateCreated));
+  const datePublished = "datePublished" in dates ? dates.datePublished : undefined;
+  const dateModified = "dateModified" in dates ? dates.dateModified : undefined;
+  const dateCreated = "dateCreated" in dates ? dates.dateCreated : undefined;
+  const hasValidPublished = isPacificDateString(datePublished);
+  const hasValidModified = isPacificDateString(dateModified);
+  const hasValidCreated = dateCreated === undefined || isPacificDateString(dateCreated);
 
   return hasValidPublished && hasValidModified && hasValidCreated;
 }

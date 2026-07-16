@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
-import type { BookmarkTag } from "@/types/schemas/bookmark";
 import type { BookmarkDetailProps } from "@/types/bookmark-ai-analysis";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
 import {
@@ -285,16 +284,12 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                   </h2>
                   <div className="flex flex-wrap gap-2">
                     {bookmark.tags.map((tag) => {
-                      const isString = typeof tag === "string";
-                      const tagName = isString ? tag : (tag as BookmarkTag).name;
-                      const tagSlug = isString
-                        ? tagToSlug(tagName)
-                        : (tag as BookmarkTag).slug?.trim() || tagToSlug(tagName);
-                      const tagKey = isString ? tag : (tag as BookmarkTag).id;
+                      const tagName = typeof tag === "string" ? tag : tag.name;
+                      const tagKey = typeof tag === "string" ? tag : tag.id;
                       return (
                         <Link
                           key={tagKey}
-                          href={`/bookmarks/tags/${tagSlug}`}
+                          href={`/bookmarks/tags/${tagToSlug(tagName)}`}
                           className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md text-xs transition-colors"
                         >
                           {tagName}

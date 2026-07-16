@@ -15,7 +15,7 @@ const buildS3ConfigInput = (): S3Config => {
     normalizeEnvValue(process.env.S3_REGION) ??
     normalizeEnvValue(process.env.AWS_REGION) ??
     "us-east-1";
-  const endpoint = normalizeEnvValue(process.env.S3_SERVER_URL);
+  const endpoint = process.env.S3_SERVER_URL;
 
   const result = s3ConfigSchema.safeParse({
     bucket,

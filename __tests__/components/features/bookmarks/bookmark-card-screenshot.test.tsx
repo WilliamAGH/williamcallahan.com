@@ -236,4 +236,18 @@ describe("Bookmark URL-less link behavior", () => {
     expect(container.querySelector('a[target="_blank"]')).not.toBeInTheDocument();
     expect(container.querySelector('a[href="about:blank"]')).not.toBeInTheDocument();
   });
+
+  it("links object tags directly to their canonical special-character slug", () => {
+    const bookmark = unifiedBookmarkSchema.parse({
+      ...urlLessBookmark,
+      tags: [{ id: "tag-ai-ml", name: "AI & ML", slug: "ai-&-ml" }],
+    });
+
+    render(<BookmarkDetail bookmark={bookmark} />);
+
+    expect(screen.getByRole("link", { name: "AI & ML" })).toHaveAttribute(
+      "href",
+      "/bookmarks/tags/ai-and-ml",
+    );
+  });
 });

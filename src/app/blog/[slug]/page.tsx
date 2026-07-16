@@ -181,15 +181,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
  * Note: We use JsonLdScript directly in the component to ensure the schema data is
  * injected into the page at render time, which can help with immediate indexing
  */
-export default function BlogPostPage({ params }: BlogPostPageProps) {
-  return (
-    <Suspense fallback={null}>
-      <BlogPostContent params={params} />
-    </Suspense>
-  );
-}
-
-async function BlogPostContent({ params }: BlogPostPageProps) {
+export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
   if (slug === BLOG_STATIC_PARAM_PLACEHOLDER || !isValidBlogSlug(slug)) {
     notFound();

@@ -152,7 +152,10 @@ export const RETRY_CONFIGS = {
  */
 export async function retryWithOptions<T>(
   operation: () => Promise<T>,
-  options: RetryConfig = {},
+  options: RetryConfig & {
+    /** Lets a caller derive a bounded delay from an upstream response. */
+    resolveDelay?: (error: Error, attempt: number, fallbackDelayMs: number) => number;
+  } = {},
 ): Promise<Result<T>> {
   const {
     maxRetries = 3,
@@ -162,6 +165,7 @@ export async function retryWithOptions<T>(
     isRetryable = () => true,
     onRetry = () => {},
     debug = false,
+    resolveDelay,
   } = options;
 
   let retries = 0;
@@ -176,7 +180,7 @@ export async function retryWithOptions<T>(
     } catch (error) {
       const currentError = normalizeError(error);
 
-      if (!isRetryable(currentError)) {
+      if (!isRetryable(error)) {
         if (debug) {
           debugLog("[Retry] Non-retryable error encountered", "error", {
             error: currentError.message,
@@ -203,14 +207,24 @@ export async function retryWithOptions<T>(
       retries++;
       onRetry(currentError, retries);
 
-      // Calculate exponential backoff with optional jitter
-      let backoff = Math.min(baseDelay * 2 ** (retries - 1), maxBackoff);
+      const fallbackDelayMs = computeExponentialDelay(
+        retries,
+        baseDelay,
+        maxBackoff,
+        jitter ? 0.2 : 0,
+      );
+      const requestedDelayMs = resolveDelay
+        ? resolveDelay(currentError, retries, fallbackDelayMs)
+        : fallbackDelayMs;
 
-      if (jitter) {
-        // Add random jitter between -20% and +20% of the delay
-        const jitterFactor = 0.8 + Math.random() * 0.4;
-        backoff = Math.round(backoff * jitterFactor);
+      if (!Number.isFinite(requestedDelayMs) || requestedDelayMs < 0) {
+        return {
+          success: false,
+          error: new TypeError("Retry delay must be a finite non-negative number of milliseconds."),
+        };
       }
+
+      const backoff = Math.min(requestedDelayMs, maxBackoff);
 
       if (debug) {
         debugLog(`[Retry] Retrying operation after ${backoff}ms delay...`, "info");
@@ -236,7 +250,7 @@ export async function retryWithDomainConfig<T>(
  */
 export async function retryWithThrow<T>(
   operation: () => Promise<T>,
-  options: RetryConfig = {},
+  options: Parameters<typeof retryWithOptions>[1] = {},
 ): Promise<T> {
   const result = await retryWithOptions(operation, options);
   if (!result.success) {

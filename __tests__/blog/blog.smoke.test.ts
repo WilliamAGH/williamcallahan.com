@@ -202,18 +202,26 @@ describe("Blog post 404 control flow", () => {
     reportedError: Error | undefined;
   }> {
     let reportedError: Error | undefined;
-    const stream = await renderToReadableStream(
-      React.createElement(BlogPostPage, {
-        params: Promise.resolve({ slug }),
-      }),
-      {
-        onError(error) {
-          if (reportedError === undefined && error instanceof Error) {
-            reportedError = error;
-          }
+    let stream: Awaited<ReturnType<typeof renderToReadableStream>>;
+    try {
+      stream = await renderToReadableStream(
+        React.createElement(BlogPostPage, {
+          params: Promise.resolve({ slug }),
+        }),
+        {
+          onError(error) {
+            if (reportedError === undefined && error instanceof Error) {
+              reportedError = error;
+            }
+          },
         },
-      },
-    );
+      );
+    } catch (error: unknown) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+      return { completionError: error, reportedError };
+    }
 
     const completionError = await stream.allReady.then(
       () => undefined,
@@ -245,8 +253,7 @@ describe("Blog post 404 control flow", () => {
       mockGetPostBySlug.mockResolvedValueOnce(null);
 
       const outcome = await captureBlogPostRenderOutcome("missing-post");
-      expect(outcome.reportedError).toBe(notFoundError);
-      expect(outcome.completionError).toBeUndefined();
+      expect(outcome.completionError ?? outcome.reportedError).toBe(notFoundError);
       expect(notFound).toHaveBeenCalledOnce();
       expect(consoleErrorSpy).not.toHaveBeenCalled();
     } finally {
@@ -263,8 +270,7 @@ describe("Blog post 404 control flow", () => {
     mockGetPostBySlug.mockRejectedValueOnce(lookupError);
 
     const outcome = await captureBlogPostRenderOutcome("available-post");
-    expect(outcome.reportedError).toBe(lookupError);
-    expect(outcome.completionError).toBeUndefined();
+    expect(outcome.completionError ?? outcome.reportedError).toBe(lookupError);
     expect(notFound).not.toHaveBeenCalled();
   });
 
@@ -280,8 +286,7 @@ describe("Blog post 404 control flow", () => {
     });
 
     const outcome = await captureBlogPostRenderOutcome("blog-post");
-    expect(outcome.reportedError).toBe(renderError);
-    expect(outcome.completionError).toBeUndefined();
+    expect(outcome.completionError ?? outcome.reportedError).toBe(renderError);
     expect(notFound).not.toHaveBeenCalled();
   });
 });

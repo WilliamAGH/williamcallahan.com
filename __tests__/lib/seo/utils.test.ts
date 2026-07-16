@@ -147,9 +147,11 @@ describe("SEO Utilities", () => {
       const dateStr = "2025-02-10";
       const formatted = formatSeoDate(dateStr);
       expect(isPacificDateString(formatted)).toBe(true);
-      // Date-only strings are interpreted as midnight PST and formatted in local time
-      // The exact time may vary based on how the Date object interprets the timezone
-      expect(formatted).toMatch(/^2025-02-10T\d{2}:\d{2}:\d{2}-08:00$/);
+      expect(formatted).toBe("2025-02-10T00:00:00-08:00");
+    });
+
+    it("uses the daylight-saving offset for a summer date-only value", () => {
+      expect(formatSeoDate("2025-07-01")).toBe("2025-07-01T00:00:00-07:00");
     });
   });
 
@@ -172,6 +174,23 @@ describe("SEO Utilities", () => {
     it("should format Pacific time even when server timezone is UTC", () => {
       const formatted = formatSeoDate("2025-01-01T12:00:00Z");
       expect(formatted).toBe("2025-01-01T04:00:00-08:00");
+    });
+
+    it("preserves an unoffset Pacific civil date-time when the server timezone is UTC", () => {
+      expect(formatSeoDate("2025-11-07T00:00:00")).toBe("2025-11-07T00:00:00-08:00");
+    });
+
+    it.each(["2025-11-07T00:00", "2025-11-07T00:00:00.123456"])(
+      "preserves supported unoffset Pacific civil precision for %s",
+      (input) => {
+        expect(formatSeoDate(input)).toBe("2025-11-07T00:00:00-08:00");
+      },
+    );
+
+    it("rejects non-ISO unoffset strings instead of using the host timezone", () => {
+      expect(() => formatSeoDate("November 7, 2025 00:00:00")).toThrow(
+        "Unoffset date strings must use ISO Pacific civil date-time format",
+      );
     });
   });
 
@@ -229,6 +248,7 @@ describe("SEO Utilities", () => {
   describe("formatSeoDate – failure modes and DST boundary transitions", () => {
     it("throws when passed an invalid date string", () => {
       expect(() => formatSeoDate("not-a-date")).toThrow();
+      expect(() => formatSeoDate("")).toThrow();
     });
 
     it("correctly shifts offset at DST start boundary", () => {
@@ -243,16 +263,23 @@ describe("SEO Utilities", () => {
       expect(formattedAfter).toMatch(/-07:00$/);
     });
 
-    it("handles numeric timestamp inputs by throwing or coercing", () => {
-      expect(() => formatSeoDate(1620000000000 as any)).toThrow();
+    it.each(["2025-03-09T02:30:00", "2025-11-02T01:30:00"])(
+      "rejects nonexistent or ambiguous Pacific civil time %s",
+      (input) => {
+        expect(() => formatSeoDate(input)).toThrow("Invalid or ambiguous Pacific civil date");
+      },
+    );
+
+    it("rejects numeric timestamp inputs", () => {
+      expect(() => formatSeoDate(1620000000000)).toThrow();
     });
   });
 
   describe("isPacificDateString – non-string and malformed inputs", () => {
     it("rejects non-string inputs", () => {
-      expect(isPacificDateString(12345 as any)).toBe(false);
-      expect(isPacificDateString(null as any)).toBe(false);
-      expect(isPacificDateString(undefined as any)).toBe(false);
+      expect(isPacificDateString(12345)).toBe(false);
+      expect(isPacificDateString(null)).toBe(false);
+      expect(isPacificDateString(undefined)).toBe(false);
     });
 
     it("rejects missing leading zero in offset", () => {

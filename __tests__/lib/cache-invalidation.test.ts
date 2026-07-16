@@ -20,6 +20,17 @@ const buildGitHubSegment = (
   ...overrides,
 });
 
+function buildRepo(owner = "owner", name = "repo"): GraphQLRepoNode {
+  return {
+    id: `${owner}/${name}`,
+    name,
+    owner: { login: owner },
+    nameWithOwner: `${owner}/${name}`,
+    isFork: false,
+    isPrivate: false,
+  };
+}
+
 const readGithubActivityView = async (record: GitHubActivityApiResponse, lastModified?: Date) => {
   vi.resetModules();
   vi.doMock("@/lib/data-access/github-storage", () => ({
@@ -112,28 +123,116 @@ describe("GitHub data access", () => {
         writeRepoWeeklyStatsRecord,
       }));
 
-      const { processSingleRepository } = await import("@/lib/data-access/github-repo-processor");
-      const repo: GraphQLRepoNode = {
-        id: "repo-id",
-        name: "repo",
-        owner: { login: "owner" },
-        nameWithOwner: "owner/repo",
-        isFork: false,
-        isPrivate: false,
-      };
-      const result = await processSingleRepository({
-        repo,
-        githubRepoOwner: "owner",
-        trailingYearFromDate: new Date("2025-06-10T00:00:00.000Z"),
-        now: new Date("2026-06-10T00:00:00.000Z"),
-      });
+      try {
+        const { processSingleRepository } = await import("@/lib/data-access/github-repo-processor");
+        const result = await processSingleRepository({
+          repo: buildRepo(),
+          githubRepoOwner: "owner",
+          trailingYearFromDate: new Date("2025-06-10T00:00:00.000Z"),
+          now: new Date("2026-06-10T00:00:00.000Z"),
+        });
 
-      expect(result.yearLinesAdded).toBe(100);
-      expect(result.yearLinesRemoved).toBe(40);
-      expect(result.allTimeLinesAdded).toBe(100);
-      expect(result.dataComplete).toBe(false);
-      expect(result.hasAllTimeData).toBe(true);
-      expect(writeRepoWeeklyStatsRecord).not.toHaveBeenCalled();
+        expect(result.yearLinesAdded).toBe(100);
+        expect(result.yearLinesRemoved).toBe(40);
+        expect(result.allTimeLinesAdded).toBe(100);
+        expect(result.dataComplete).toBe(false);
+        expect(result.hasAllTimeData).toBe(true);
+        expect(writeRepoWeeklyStatsRecord).not.toHaveBeenCalled();
+      } finally {
+        vi.doUnmock("@/lib/data-access/github-api");
+        vi.doUnmock("@/lib/data-access/github-storage");
+      }
+    });
+
+    it.each([
+      [
+        "omits the configured owner",
+        [
+          {
+            author: { login: "another-user" },
+            weeks: [{ w: Date.parse("2026-06-01T00:00:00.000Z") / 1000, a: 100, d: 40, c: 3 }],
+          },
+        ],
+      ],
+      ["has no weeks for the configured owner", [{ author: { login: "owner" }, weeks: [] }]],
+    ])(
+      "replaces stale weekly stats when a successful response %s",
+      async (_scenario, contributors) => {
+        vi.resetModules();
+        const readRepoWeeklyStatsRecord = vi.fn().mockResolvedValue({
+          repoOwnerLogin: "owner",
+          repoName: "repo",
+          lastFetched: "2026-06-09T00:00:00.000Z",
+          status: "complete",
+          stats: [{ w: Date.parse("2026-06-01T00:00:00.000Z") / 1000, a: 100, d: 40, c: 3 }],
+        });
+        const writeRepoWeeklyStatsRecord = vi.fn().mockResolvedValue(true);
+        const fetchContributorStats = vi.fn().mockResolvedValue(contributors);
+        vi.doMock("@/lib/data-access/github-api", () => ({
+          fetchContributorStats,
+          GitHubContributorStatsPendingError: class GitHubContributorStatsPendingError extends Error {},
+          GitHubContributorStatsRateLimitError: class GitHubContributorStatsRateLimitError extends Error {},
+        }));
+        vi.doMock("@/lib/data-access/github-storage", () => ({
+          readRepoWeeklyStatsRecord,
+          writeRepoWeeklyStatsRecord,
+        }));
+
+        try {
+          const { processSingleRepository } =
+            await import("@/lib/data-access/github-repo-processor");
+          const result = await processSingleRepository({
+            repo: buildRepo(),
+            githubRepoOwner: "owner",
+            trailingYearFromDate: new Date("2025-06-10T00:00:00.000Z"),
+            now: new Date("2026-06-10T00:00:00.000Z"),
+          });
+
+          expect(result).toEqual({
+            yearLinesAdded: 0,
+            yearLinesRemoved: 0,
+            allTimeLinesAdded: 0,
+            allTimeLinesRemoved: 0,
+            olderThanYearCommits: 0,
+            olderThanYearLinesAdded: 0,
+            olderThanYearLinesRemoved: 0,
+            dataComplete: true,
+            hasAllTimeData: false,
+          });
+          expect(readRepoWeeklyStatsRecord).not.toHaveBeenCalled();
+          expect(writeRepoWeeklyStatsRecord).toHaveBeenCalledExactlyOnceWith("owner", "repo", {
+            repoOwnerLogin: "owner",
+            repoName: "repo",
+            lastFetched: "2026-06-10T00:00:00.000Z",
+            status: "empty_no_user_contribs",
+            stats: [],
+          });
+        } finally {
+          vi.doUnmock("@/lib/data-access/github-api");
+          vi.doUnmock("@/lib/data-access/github-storage");
+        }
+      },
+    );
+
+    it("treats a no-content contributor response as authoritative empty data", async () => {
+      vi.resetModules();
+      const githubHttpClient = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+      vi.doMock("@/lib/utils/http-client", () => ({
+        createRetryingFetch: vi.fn(() => githubHttpClient),
+      }));
+      vi.doMock("@/lib/rate-limiter", () => ({ waitForPermit: vi.fn() }));
+
+      try {
+        const { fetchContributorStats } = await import("@/lib/data-access/github-api");
+        await expect(fetchContributorStats("owner", "repo")).resolves.toEqual([]);
+        expect(githubHttpClient).toHaveBeenCalledExactlyOnceWith(
+          "https://api.github.com/repos/owner/repo/stats/contributors",
+          expect.objectContaining({ headers: expect.any(Object) }),
+        );
+      } finally {
+        vi.doUnmock("@/lib/rate-limiter");
+        vi.doUnmock("@/lib/utils/http-client");
+      }
     });
   });
 });

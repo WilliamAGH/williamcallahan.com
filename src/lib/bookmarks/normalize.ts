@@ -14,6 +14,7 @@ import {
 } from "@/types/schemas/bookmark";
 import { envLogger } from "@/lib/utils/env-logger";
 import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
+import { tagToSlug } from "@/lib/utils/tag-utils";
 import { extractDomainWithoutWww } from "@/lib/utils/url-utils";
 import { normalizeScrapedContentText } from "./scraped-content";
 
@@ -97,7 +98,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       ? raw.tags.map((tag) => ({
           id: tag.id,
           name: tag.name,
-          slug: tag.name.toLowerCase().replaceAll(/\s+/g, "-"),
+          slug: tagToSlug(tag.name),
           attachedBy: parseAttachedBy(tag.attachedBy),
         }))
       : [];

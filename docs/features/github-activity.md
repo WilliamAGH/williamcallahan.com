@@ -179,6 +179,10 @@ Our pipeline now recognizes this explicitly:
 
 This guarantees that a temporary 202 cannot derail the entire refresh while still ensuring that new data is picked up automatically on subsequent cycles.
 
+### Handling authoritative empty contributor responses
+
+A successful contributor response that omits the configured owner, has no weeks for that owner, or returns HTTP 204 is complete no-contribution evidence. The refresh replaces that repository's `repo-weekly-stats` record with `status = "empty_no_user_contribs"` and an empty stats array; it never reuses prior stats. PostgreSQL cache reuse is limited to pending and failure states.
+
 ```env
 # Optional tuning (defaults shown)
 GITHUB_STATS_PENDING_MAX_ATTEMPTS=4

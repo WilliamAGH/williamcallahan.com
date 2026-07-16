@@ -4,6 +4,7 @@ import {
   TWITTER_IMAGE_FORMATS,
   TWITTER_IMAGE_ROOT_POLICIES,
 } from "@/lib/image-handling/twitter-image-policy";
+import { ImageFetchHttpError } from "@/lib/services/image/image-fetcher";
 
 const { getImage } = vi.hoisted(() => ({ getImage: vi.fn() }));
 
@@ -87,5 +88,19 @@ describe("Twitter image route", () => {
 
     expect(response.status).toBe(400);
     expect(getImage).not.toHaveBeenCalled();
+  });
+
+  it("returns a quiet 404 when the upstream image is missing", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    getImage.mockRejectedValueOnce(new ImageFetchHttpError(404, "Not Found"));
+
+    try {
+      const response = await requestTwitterImage(extensionlessPath, "format=jpg");
+
+      expect(response.status).toBe(404);
+      expect(info).toHaveBeenCalledWith("[Twitter Image Proxy] Upstream image not found");
+    } finally {
+      info.mockRestore();
+    }
   });
 });
