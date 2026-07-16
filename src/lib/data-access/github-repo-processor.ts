@@ -23,14 +23,14 @@ import {
 async function loadCachedRepoStats(
   repoOwner: string,
   repoName: string,
-): Promise<{ stats: RepoRawWeeklyStat[]; status: RepoWeeklyStatCache["status"] } | null> {
+): Promise<RepoRawWeeklyStat[] | null> {
   const dbCache = await readRepoWeeklyStatsRecord(repoOwner, repoName);
   if (!dbCache || !Array.isArray(dbCache.stats) || dbCache.stats.length === 0) return null;
   debug(`[GitHub-Repo] Using DB cache for ${repoOwner}/${repoName}`);
-  return { stats: dbCache.stats.toSorted((a, b) => a.w - b.w), status: dbCache.status };
+  return dbCache.stats.toSorted((a, b) => a.w - b.w);
 }
 
-async function fetchOrLoadRepoStats(
+async function fetchRepoStats(
   repoOwner: string,
   repoName: string,
   githubRepoOwner: string,
@@ -38,23 +38,17 @@ async function fetchOrLoadRepoStats(
   const contributors = await fetchContributorStats(repoOwner, repoName);
   const ownerStats = filterContributorStats(contributors, githubRepoOwner);
 
-  if (ownerStats?.weeks && Array.isArray(ownerStats.weeks)) {
-    const userStats = ownerStats.weeks.map((w: RepoRawWeeklyStat) => ({
-      w: w.w,
-      a: w.a,
-      d: w.d,
-      c: w.c,
-    }));
-    if (userStats.length > 0) {
-      return { stats: userStats.toSorted((a, b) => a.w - b.w), status: "complete" };
-    }
+  if (!ownerStats?.weeks?.length) {
+    return { stats: [], status: "empty_no_user_contribs" };
   }
 
-  // No API data - use PostgreSQL cache snapshot
-  const dbCache = await loadCachedRepoStats(repoOwner, repoName);
-  if (dbCache) return dbCache;
-
-  return { stats: [], status: "empty_no_user_contribs" };
+  const userStats = ownerStats.weeks.map((w: RepoRawWeeklyStat) => ({
+    w: w.w,
+    a: w.a,
+    d: w.d,
+    c: w.c,
+  }));
+  return { stats: userStats.toSorted((a, b) => a.w - b.w), status: "complete" };
 }
 
 function filterValidStats(stats: RepoRawWeeklyStat[]): Required<RepoRawWeeklyStat>[] {
@@ -113,11 +107,14 @@ export async function processSingleRepository({
   let dataComplete = true;
 
   try {
-    const result = await fetchOrLoadRepoStats(repoOwner, repoName, githubRepoOwner);
+    const result = await fetchRepoStats(repoOwner, repoName, githubRepoOwner);
     stats = result.stats;
     status = result.status;
 
-    if (stats.length > 0) {
+    if (isErrorOrPendingStatus(status)) {
+      console.warn(`[GitHub-Repo] No data for ${repoOwner}/${repoName} (status: ${status})`);
+      dataComplete = false;
+    } else {
       const validStats = filterValidStats(stats);
       await writeRepoWeeklyStatsRecord(repoOwner, repoName, {
         repoOwnerLogin: repoOwner,
@@ -126,9 +123,6 @@ export async function processSingleRepository({
         status,
         stats: validStats,
       });
-    } else if (isErrorOrPendingStatus(status)) {
-      console.warn(`[GitHub-Repo] No data for ${repoOwner}/${repoName} (status: ${status})`);
-      dataComplete = false;
     }
   } catch (error: unknown) {
     if (error instanceof GitHubContributorStatsPendingError) {
@@ -146,7 +140,7 @@ export async function processSingleRepository({
       dataComplete = false;
     }
     const dbCache = await loadCachedRepoStats(repoOwner, repoName);
-    if (dbCache) stats = dbCache.stats;
+    if (dbCache) stats = dbCache;
   }
 
   const accumulated = accumulateWeeklyStats(stats, trailingYearFromDate, now);

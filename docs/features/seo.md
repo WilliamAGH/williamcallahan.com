@@ -307,7 +307,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 
 - **`lib/seo/dynamic-metadata.ts`** and **`lib/seo/url-utils.ts`**: Shared metadata/url constants and helpers used across SEO builders.
 - **`lib/seo/utils.ts`**: Provides helper functions for date formatting (`formatSeoDate`) and URL normalization (`ensureAbsoluteUrl`). `formatSeoDate` formats using Pacific time via `Intl.DateTimeFormat` so server timezone does not skew SEO timestamps.
-- **`components/seo/json-ld.tsx`**: A simple React component that renders the `JSON-LD` schema into a `<script>` tag in the page's head.
+- **`components/seo/json-ld.tsx`**: The canonical renderer for a native, parseable `JSON-LD` `<script>` element in page markup.
 - **Type Definitions (`types/seo/*.ts`)**: A suite of type files that ensure type safety across the entire SEO module. `types/seo.ts` serves as an aggregator, re-exporting types from the other files in its directory.
 
 ## Data Flow for a Blog Post

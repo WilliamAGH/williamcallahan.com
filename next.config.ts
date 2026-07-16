@@ -3,7 +3,9 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import os from "node:os";
 import { PHASE_PRODUCTION_SERVER } from "next/constants";
+import type { RemotePattern } from "next/dist/shared/lib/image-config";
 import packageJson from "./package.json" with { type: "json" };
+import { parseS3Endpoint } from "./src/types/schemas/s3-config";
 
 const VALID_DEPLOYMENT_ID = /^[A-Za-z0-9_-]+$/;
 
@@ -91,30 +93,40 @@ const CALLAHAN_IMAGE_HOSTS = [
   "*.sfo3.digitaloceanspaces.com",
 ];
 
-function parseHostname(value?: string | null): string | null {
-  if (!value?.trim()) return null;
-  try {
-    return new URL(value.trim()).hostname;
-  } catch {
-    return value.trim().replace(/^https?:\/\//, "");
+function buildRemotePattern(url: URL, hostnamePrefix = ""): RemotePattern {
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new TypeError("[next.config] Image CDN URLs must use HTTP or HTTPS.");
   }
+  const protocol = url.protocol === "http:" ? "http" : "https";
+  return {
+    protocol,
+    hostname: `${hostnamePrefix}${url.hostname}`,
+    ...(url.port ? { port: url.port } : {}),
+    pathname: "/**",
+  };
 }
 
-function buildBucketHostname(): string | null {
+function buildHttpsRemotePattern(hostname: string): RemotePattern {
+  return { protocol: "https", hostname, pathname: "/**" };
+}
+
+function parsePublicCdnRemotePattern(value?: string | null) {
+  if (!value?.trim()) return null;
+  return buildRemotePattern(new URL(value.trim()));
+}
+
+function buildBucketRemotePattern() {
   const bucket = process.env.S3_BUCKET?.trim();
-  const serverUrl = process.env.S3_SERVER_URL?.trim();
+  const serverUrl = parseS3Endpoint(process.env.S3_SERVER_URL);
   if (!bucket || !serverUrl) return null;
-
-  const serverHost = parseHostname(serverUrl);
-  return serverHost ? `${bucket}.${serverHost}` : null;
+  return buildRemotePattern(new URL(serverUrl), `${bucket}.`);
 }
 
-const derivedCallahanHosts = [process.env.NEXT_PUBLIC_S3_CDN_URL, buildBucketHostname()]
-  .map(parseHostname)
-  .filter((hostname): hostname is string => Boolean(hostname));
-const CDN_REMOTE_PATTERNS = Array.from(
-  new Set([...CALLAHAN_IMAGE_HOSTS, ...derivedCallahanHosts]),
-).map((hostname) => ({ protocol: "https" as const, hostname, pathname: "/**" }));
+const CDN_REMOTE_PATTERNS = [
+  ...CALLAHAN_IMAGE_HOSTS.map(buildHttpsRemotePattern),
+  parsePublicCdnRemotePattern(process.env.NEXT_PUBLIC_S3_CDN_URL),
+  buildBucketRemotePattern(),
+].filter((pattern) => pattern !== null);
 
 function resolveStaticGenerationMaxConcurrency(): number {
   const raw = process.env.STATIC_GEN_CONCURRENCY;

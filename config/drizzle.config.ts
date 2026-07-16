@@ -29,6 +29,7 @@ export default defineConfig({
     "thoughts",
     "image_manifests",
     "embeddings",
+    "embedding_failures",
     "investments",
     "projects",
     "books",

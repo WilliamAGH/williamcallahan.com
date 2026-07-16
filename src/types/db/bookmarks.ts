@@ -49,6 +49,7 @@ export type BookmarkEmbeddingBackfillOptions = {
   maxRows?: number;
   bookmarkIds?: string[];
   dryRun?: boolean;
+  retryTransientFailures?: boolean;
 };
 
 export type BookmarkEmbeddingBackfillResult = {

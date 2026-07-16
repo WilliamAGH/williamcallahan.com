@@ -13,6 +13,22 @@ import { DEFAULT_IMAGE_CONTENT_TYPE, DEFAULT_BINARY_CONTENT_TYPE } from "@/lib/u
 import { maybeStreamImageToS3 } from "../image-streaming";
 import type { ImageServiceOptions, FetchProcessResult, ImageFetchConfig } from "@/types/image";
 
+const HTTP_NOT_FOUND_STATUS = 404;
+
+export class ImageFetchHttpError extends Error {
+  public constructor(
+    public readonly statusCode: number,
+    statusText: string,
+  ) {
+    super(`HTTP ${statusCode}: ${statusText}`);
+    this.name = "ImageFetchHttpError";
+  }
+
+  public get isNotFound(): boolean {
+    return this.statusCode === HTTP_NOT_FOUND_STATUS;
+  }
+}
+
 /**
  * Attempts to stream the image response to S3
  * Returns true if streaming succeeded, false otherwise
@@ -53,7 +69,7 @@ async function ensureResponseBody(
     timeout,
   });
   if (!refetch.ok) {
-    throw new Error(`HTTP ${refetch.status}: ${refetch.statusText}`);
+    throw new ImageFetchHttpError(refetch.status, refetch.statusText);
   }
   const refetchContentType = refetch.headers.get("content-type");
   if (!refetchContentType?.startsWith("image/")) {
@@ -86,7 +102,7 @@ export async function fetchAndProcessImage(
     timeout,
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    throw new ImageFetchHttpError(response.status, response.statusText);
   }
 
   const contentType = response.headers.get("content-type");

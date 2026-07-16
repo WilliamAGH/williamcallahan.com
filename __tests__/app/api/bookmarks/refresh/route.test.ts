@@ -1,17 +1,34 @@
+import {
+  GET as getBookmarkRefreshStatus,
+  POST as refreshBookmarks,
+} from "@/app/api/bookmarks/refresh/route";
 import { POST as refreshBookmarksProduction } from "@/app/api/bookmarks/refresh-production/route";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
+import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockedAuth = vi.hoisted(() => vi.fn((userId: string | null = null) => ({ userId })));
+const mockedGetBookmarksIndex = vi.hoisted(() => vi.fn());
+const mockedIsOperationAllowed = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mockedAuth }));
+vi.mock("@/lib/bookmarks/service.server", () => ({
+  getBookmarksIndex: mockedGetBookmarksIndex,
+}));
 vi.mock("@/lib/db/connection", () => ({
   resolveDatabaseAccessMode: vi.fn(),
+}));
+vi.mock("@/lib/rate-limiter", () => ({
+  isOperationAllowed: mockedIsOperationAllowed,
+}));
+vi.mock("@/lib/server/data-fetch-manager", () => ({
+  DataFetchManager: vi.fn(),
 }));
 
 const relayFetch = vi.fn();
 const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
+const internalErrorSentinel = "postgres://internal.example/private-bookmarks";
 
 describe("bookmark refresh response contract", () => {
   it("rejects malformed refresh payloads", () => {
@@ -29,6 +46,48 @@ describe("bookmark refresh response contract", () => {
         message: "Refresh complete",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("public bookmark refresh route error responses", () => {
+  beforeEach(() => {
+    mockedGetBookmarksIndex.mockReset();
+    mockedIsOperationAllowed.mockReset();
+    mockedIsOperationAllowed.mockReturnValue(true);
+  });
+
+  it("does not expose internal errors to unauthenticated POST clients", async () => {
+    mockedGetBookmarksIndex.mockRejectedValueOnce(new Error(internalErrorSentinel));
+
+    const response = await refreshBookmarks(
+      new NextRequest("http://localhost:3000/api/bookmarks/refresh", { method: "POST" }),
+    );
+    const result: unknown = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(bookmarkRefreshResponseSchema.safeParse(result).success).toBe(true);
+    expect(result).toEqual({
+      status: "error",
+      message: "Failed to refresh bookmarks",
+      error: "Failed to refresh bookmarks",
+    });
+    expect(JSON.stringify(result)).not.toContain(internalErrorSentinel);
+  });
+
+  it("does not expose internal errors to unauthenticated GET clients", async () => {
+    mockedGetBookmarksIndex.mockRejectedValueOnce(new Error(internalErrorSentinel));
+
+    const response = await getBookmarkRefreshStatus();
+    const result: unknown = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(bookmarkRefreshResponseSchema.safeParse(result).success).toBe(true);
+    expect(result).toEqual({
+      status: "error",
+      message: "Failed to check bookmark refresh status",
+      error: "Failed to check bookmark refresh status",
+    });
+    expect(JSON.stringify(result)).not.toContain(internalErrorSentinel);
   });
 });
 

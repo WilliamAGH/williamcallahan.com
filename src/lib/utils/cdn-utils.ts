@@ -7,6 +7,7 @@
 
 import coverImageManifest from "@/data/blog/cover-image-map.json";
 import type { CdnConfig } from "@/types/s3-cdn";
+import { parseS3Endpoint } from "@/types/schemas/s3-config";
 
 const SUPPORTED_PROTOCOLS = new Set(["http:", "https:"]);
 let loggedMissingPublicCdnUrl = false;
@@ -65,32 +66,16 @@ function normalizeBasePath(pathname: string): string {
  */
 const CLIENT_CDN_BASE_URL = process.env.NEXT_PUBLIC_S3_CDN_URL;
 
-/**
- * Extract S3 hostname from server URL
- */
-export function getS3Host(s3ServerUrl?: string): string {
-  // If caller supplies a value, parse and return hostname
-  if (s3ServerUrl) {
-    try {
-      return new URL(s3ServerUrl).hostname;
-    } catch (err) {
-      console.debug("[cdn-utils] getS3Host: invalid S3 server URL:", s3ServerUrl, err);
-      // Fall through to the explicit error below
-    }
+function getS3Endpoint(s3ServerUrl?: string): URL {
+  const endpoint = parseS3Endpoint(s3ServerUrl);
+  if (!endpoint) {
+    throw new Error("[cdn-utils] S3_SERVER_URL is required for direct S3 URLs.");
   }
+  return new URL(endpoint);
+}
 
-  /*
-   * No valid server URL was provided. In this code-base we rely on DigitalOcean
-   * Spaces (or another S3-compatible provider), **not** AWS S3. Returning the
-   * hard-coded AWS hostname leads to confusing, broken URLs. Instead we fail
-   * fast with a descriptive error so the missing configuration is detected
-   * immediately during development or CI.
-   */
-  throw new Error(
-    "[cdn-utils] S3 server URL is required but was not provided or was invalid. " +
-      "Please set S3_SERVER_URL (e.g. https://sfo3.digitaloceanspaces.com) or ensure " +
-      "a valid cdnBaseUrl is supplied.",
-  );
+export function getS3Host(s3ServerUrl?: string): string {
+  return getS3Endpoint(s3ServerUrl).hostname;
 }
 
 /**
@@ -119,8 +104,9 @@ export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
     );
   }
 
-  const s3Host = getS3Host(s3ServerUrl);
-  return `https://${s3BucketName}.${s3Host}/${s3Key}`;
+  const s3Endpoint = getS3Endpoint(s3ServerUrl);
+  const cleanKey = s3Key.startsWith("/") ? s3Key.slice(1) : s3Key;
+  return `${s3Endpoint.protocol}//${s3BucketName}.${s3Endpoint.host}/${cleanKey}`;
 }
 
 /**
@@ -176,22 +162,12 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
 
   // Check if it's an S3 URL
   if (s3BucketName && s3ServerUrl) {
-    try {
-      const s3Host = getS3Host(s3ServerUrl);
-      const s3Base = parseAbsoluteUrl(s3ServerUrl);
-      const expectedHost = s3Base?.port
-        ? `${s3BucketName}.${s3Host}:${s3Base.port}`
-        : `${s3BucketName}.${s3Host}`;
-      if (parsed.host === expectedHost) {
-        const s3Protocol = s3Base?.protocol ?? "https:";
-        if (!SUPPORTED_PROTOCOLS.has(s3Protocol) || parsed.protocol !== s3Protocol) {
-          return null;
-        }
-        return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
-      }
-    } catch (err) {
-      console.debug("[cdn-utils] extractS3KeyFromUrl: malformed S3 server URL:", s3ServerUrl, err);
-      // Malformed S3 server URL — fall through to null return below
+    const s3Endpoint = getS3Endpoint(s3ServerUrl);
+    if (
+      parsed.host === `${s3BucketName}.${s3Endpoint.host}` &&
+      parsed.protocol === s3Endpoint.protocol
+    ) {
+      return parsed.pathname.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
     }
   }
 
@@ -219,21 +195,11 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
 
   // Check S3 URL
   if (s3BucketName && s3ServerUrl) {
-    const s3Host = getS3Host(s3ServerUrl);
-    const s3Base = parseAbsoluteUrl(s3ServerUrl);
-    const expectedHost = s3Base?.port
-      ? `${s3BucketName}.${s3Host}:${s3Base.port}`
-      : `${s3BucketName}.${s3Host}`;
-    if (parsed.host !== expectedHost) {
+    const s3Endpoint = getS3Endpoint(s3ServerUrl);
+    if (parsed.host !== `${s3BucketName}.${s3Endpoint.host}`) {
       return false;
     }
-
-    const s3Protocol = s3Base?.protocol ?? "https:";
-    if (!SUPPORTED_PROTOCOLS.has(s3Protocol)) {
-      return false;
-    }
-
-    return parsed.protocol === s3Protocol;
+    return parsed.protocol === s3Endpoint.protocol;
   }
 
   return false;
@@ -260,7 +226,7 @@ export function getCdnConfigFromEnv(): CdnConfig {
   }
 
   const s3BucketName = process.env.S3_BUCKET;
-  const s3ServerUrl = process.env.S3_SERVER_URL;
+  const s3ServerUrl = parseS3Endpoint(process.env.S3_SERVER_URL);
   if (!cdnBaseUrl && (!s3BucketName || !s3ServerUrl)) {
     throw new Error(
       "[cdn-utils] Missing CDN config. Set NEXT_PUBLIC_S3_CDN_URL or provide S3_BUCKET + S3_SERVER_URL.",
