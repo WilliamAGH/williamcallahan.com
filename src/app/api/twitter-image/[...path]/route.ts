@@ -41,10 +41,8 @@ export async function GET(
       embeddedSearch = `?${rest.join("?")}`;
     }
 
-    // Validate Twitter image path patterns to prevent SSRF attacks
-    // Allow common avatar/media roots; keep strict filename extension check
-    // Allow dots in segments (e.g., versioned directories like v1.2/media/...),
-    // while remaining SSRF-safe due to prior sanitizePath which strips '../' and './'
+    // Twitter path and format validation belongs to the canonical policy owner.
+    // parseTwitterImagePath returns the normalized upstream path, format, and S3 category or null.
     const requestUrl = new URL(request.url);
     const embeddedParams = new URLSearchParams(embeddedSearch);
     const format = requestUrl.searchParams.get("format") ?? embeddedParams.get("format");
