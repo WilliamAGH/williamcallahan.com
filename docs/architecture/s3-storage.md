@@ -72,7 +72,7 @@ Commands sent through the shared `getS3Client()` use AWS SDK adaptive retry mode
 ## Security Controls
 
 1. **Path Normalization** – `sanitizePath` and key validators prevent directory traversal and `..` segments before any S3 command.
-2. **Protocol & Host Enforcement** – All writers/readers operate on normalized `https://` URLs; `cdn-utils` avoids AWS defaults by skipping direct S3 URL reconstruction when `S3_SERVER_URL` is missing.
+2. **Protocol & Host Enforcement** – `S3_SERVER_URL` is canonicalized to an HTTP(S) origin: scheme-less hosts default to HTTPS, explicit HTTP is retained for local S3-compatible services, and credentials/path/query/fragment suffixes are rejected. `cdn-utils` avoids AWS defaults by skipping direct S3 URL reconstruction when the endpoint is missing.
 3. **SSRF Protection** – Upper layers validate URLs before calling persistence helpers; this doc inherits those guarantees but never bypasses them (no blind fetches).
 4. **Private IP Blocking** – `url-utils` rejects RFC1918/loopback ranges before handing off to persistence.
 5. **Consistent ACLs** – Public assets always `public-read`; canonical runtime JSON persistence is PostgreSQL-backed and not served from object-storage CDN paths.
