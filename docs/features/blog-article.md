@@ -9,7 +9,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 ### Components
 
 - **components/features/blog/standard-tweet-embed.client.tsx**: A component for embedding tweets in blog articles using a standard approach.
-- **components/features/blog/tweet-embed.tsx**: Embeds tweets using react-tweet with same-origin image proxying that bypasses double optimization for proxied Twitter images.
+- **components/features/blog/tweet-embed.tsx**: Embeds tweets using react-tweet with same-origin image proxying; proxied images set `unoptimized` to bypass the Next.js image optimizer.
 - **components/features/blog/blog-article/blog-article.client.tsx**: Server-owned article shell for content and metadata; interactive descendants retain focused client boundaries.
 - **components/features/blog/blog-article/blog-wrapper.tsx**: Legacy unreferenced dynamic wrapper; it is not part of the blog detail route.
 - **components/features/blog/blog-article/\***: Blog article components are imported directly from concrete files (barrel removed).
