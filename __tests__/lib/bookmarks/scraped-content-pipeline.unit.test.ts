@@ -82,6 +82,15 @@ describe("Scraped content pipeline", () => {
     expect(normalized?.content).not.toHaveProperty("htmlContent");
   });
 
+  it("normalizes special-character tag slugs through the canonical builder", () => {
+    const rawBookmark = makeRawBookmark("bookmark-special-tag", null);
+    rawBookmark.tags = [{ id: "tag-ai-ml", name: "AI & ML", attachedBy: "user" }];
+
+    expect(normalizeBookmark(rawBookmark, 0)?.tags).toEqual([
+      { id: "tag-ai-ml", name: "AI & ML", slug: "ai-and-ml", attachedBy: "user" },
+    ]);
+  });
+
   it("drops raw bookmarks with an empty source URL before persistence", () => {
     const rawBookmark = makeRawBookmark("bookmark-empty-url", null);
     rawBookmark.content.url = "";
