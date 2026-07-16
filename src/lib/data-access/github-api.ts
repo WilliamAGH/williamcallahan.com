@@ -9,6 +9,7 @@
 
 /** GitHub API status codes */
 const HTTP_ACCEPTED = 202;
+const HTTP_NO_CONTENT = 204;
 const HTTP_FORBIDDEN = 403;
 
 import { createGitHubGraphQLClient } from "@/lib/utils/graphql-client";
@@ -226,6 +227,10 @@ export async function fetchContributorStats(
       throw new GitHubContributorStatsPendingError(
         `Contributor stats for ${owner}/${name} are still generating on GitHub (HTTP 202) after ${maxAttempts} attempts.`,
       );
+    }
+
+    if (response.status === HTTP_NO_CONTENT) {
+      return [];
     }
 
     if (response.status === HTTP_FORBIDDEN) {

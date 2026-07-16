@@ -1,29 +1,5 @@
-/**
- * Terminal Component Tests
- *
- * Tests the interactive terminal interface including:
- * 1. Core Functionality
- *    - Command input and processing
- *    - Command history management
- *    - Navigation between sections
- *
- * 2. Search Features
- *    - Content search across sections
- *    - Results display and selection
- *    - No results handling
- *
- * 3. UI/UX Elements
- *    - Welcome message display
- *    - Input focus management
- *    - Mobile responsiveness
- *
- * Test Environment:
- * - Mocks Next.js router for navigation
- * - Mocks search functionality
- * - Uses React Testing Library for DOM interactions
- */
+/** Terminal component behavior. */
 
-import type { Mock } from "vitest";
 import React from "react"; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { Terminal } from "../../../../src/components/ui/terminal/terminal-implementation.client";
@@ -138,8 +114,8 @@ vi.mock("../../../../src/lib/context/global-window-registry-context.client", () 
 
 // Get handles *after* mocking
 import { useRouter as useRouterImported } from "next/navigation";
-const mockUseRegisteredWindowState = useRegisteredWindowStateImported as Mock;
-const mockUseRouter = useRouterImported as Mock;
+const mockUseRegisteredWindowState = vi.mocked(useRegisteredWindowStateImported);
+const mockUseRouter = vi.mocked(useRouterImported);
 
 vi.mock("../../../../src/lib/search", () => ({
   searchExperience: vi.fn().mockResolvedValue([]),
@@ -148,12 +124,12 @@ vi.mock("../../../../src/lib/search", () => ({
 }));
 
 // Mock fetch globally *before* importing Terminal or CommandProcessor
-const mockFetch = vi.fn();
+const mockFetch = vi.fn<typeof globalThis.fetch>();
 let originalFetch: typeof global.fetch;
 
 beforeAll(() => {
   originalFetch = global.fetch;
-  global.fetch = mockFetch as unknown as typeof global.fetch;
+  global.fetch = mockFetch;
 });
 
 afterAll(() => {
@@ -170,17 +146,23 @@ const renderTerminal = () => {
 };
 
 describe("Terminal Component", () => {
-  // Get router push mock handle *inside* describe
-  let mockRouterPush: Mock;
+  let mockRouterPush = vi.fn();
 
   beforeEach(() => {
     // Reset mocks before each test
     vi.clearAllMocks();
-    mockFetch.mockClear(); // Clear fetch mock specifically
+    mockFetch.mockReset();
 
     // Reset router mock and get push handle
     mockRouterPush = vi.fn();
-    mockUseRouter.mockReturnValue({ push: mockRouterPush });
+    mockUseRouter.mockReturnValue({
+      back: vi.fn(),
+      forward: vi.fn(),
+      refresh: vi.fn(),
+      push: mockRouterPush,
+      replace: vi.fn(),
+      prefetch: vi.fn(),
+    });
 
     mockUseRegisteredWindowState.mockClear();
     // Set a default implementation for the hook for tests that don't override it
@@ -223,15 +205,31 @@ describe("Terminal Component", () => {
     // it("handles invalid commands", async () => { ... });
   });
 
-  describe.todo("Navigation", () => {
-    // TODO: Fix router mock expectations
-    // it("navigates to correct route", async () => { ... });
-  });
+  describe("Navigation", () => {
+    it("navigates to Techstars from terminal input", async () => {
+      renderTerminal();
+      const input = screen.getByRole("textbox");
 
-  describe.todo("Search", () => {
-    // TODO: Fix search result rendering assertions
-    // it("displays search results", async () => { ... });
-    // it("handles no results", async () => { ... });
+      fireEvent.change(input, { target: { value: "techstars" } });
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter", charCode: 13 });
+
+      await waitFor(() => {
+        expect(mockRouterPush).toHaveBeenCalledWith("/experience#techstars");
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("labels quick-jump arguments as a site-wide search", async () => {
+      mockFetch.mockReturnValue(new Promise<Response>(() => {}));
+      renderTerminal();
+      const input = screen.getByRole("textbox");
+
+      fireEvent.change(input, { target: { value: "techstars founders" } });
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter", charCode: 13 });
+
+      expect(await screen.findByText(/Searching website.*techstars founders/)).toBeInTheDocument();
+      expect(screen.queryByText(/Searching for techstars/)).not.toBeInTheDocument();
+    });
   });
 
   describe("Mobile Responsiveness", () => {

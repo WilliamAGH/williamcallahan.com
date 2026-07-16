@@ -34,3 +34,19 @@ export const embeddings = pgTable(
     index("idx_embeddings_domain").on(table.domain),
   ],
 );
+
+/** Deferred upstream embedding batches, keyed by the canonical embedding identity. */
+export const embeddingFailures = pgTable(
+  "embedding_failures",
+  {
+    domain: text("domain").$type<ContentEmbeddingDomain>().notNull(),
+    entityId: text("entity_id").notNull(),
+    lastError: text("last_error").notNull(),
+    retryAt: bigint("retry_at", { mode: "number" }).notNull(),
+    updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.domain, table.entityId], name: "embedding_failures_pkey" }),
+    index("idx_embedding_failures_retry_at").on(table.retryAt),
+  ],
+);

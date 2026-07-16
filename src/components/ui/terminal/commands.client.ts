@@ -10,6 +10,7 @@ import type { CommandResult, SelectionEntry } from "@/types/terminal";
 import { searchResultsSchema, type SearchResult } from "@/types/schemas/search";
 import { transformSearchResultToTerminalResult } from "@/lib/utils/search-helpers";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
+import { isSectionKey, sections, terminalNavigationHelp } from "./sections";
 
 // Factory function to create searchByScopeImpl
 function createSearchByScopeImpl() {
@@ -121,9 +122,6 @@ async function performSiteWideSearch(
 
   return performSiteWideSearchImpl(query, signal);
 }
-import type { SectionKey } from "@/types/ui/terminal";
-import { sections } from "./sections";
-// Removed unused usePathname import
 
 // Preload search functionality when user starts typing
 export function preloadSearch() {
@@ -139,22 +137,6 @@ export function preloadSearch() {
   }
 }
 
-export const terminalCommands = {
-  home: "/",
-  investments: "/investments",
-  experience: "/experience",
-  projects: "/projects",
-  blog: "/blog",
-  books: "/books",
-  aventure: "/experience#aventure",
-  tsbank: "/experience#tsbank",
-  seekinvest: "/experience#seekinvest",
-  "callahan-financial": "/experience#callahan-financial",
-  "mutual-first": "/experience#mutual-first",
-  morningstar: "/experience#morningstar",
-  thoughts: "/thoughts",
-} as const;
-
 const HELP_MESSAGE = `
 Available commands:
   help               Show this help message
@@ -162,8 +144,7 @@ Available commands:
   ai | chat | ai-chat AI chat (modal or one-shot)
 
 Navigate:
-  home  investments  experience  education
-  projects  blog  bookmarks  books  thoughts
+  ${terminalNavigationHelp.navigate}
 
 Search:
   <section> <query>  Search within a section
@@ -174,7 +155,7 @@ Search:
         ai explain cache components
 
 Quick jumps:
-  aventure  morningstar  techstars  ...
+  ${terminalNavigationHelp.quickJumps}
 
 Or just type anything to search the entire site.
 `.trim();
@@ -428,13 +409,10 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
 
   // 2. Check for navigation commands (e.g., "blog")
 
-  // Type guard for valid section
-  const isValidSection = (section: string): section is SectionKey => {
-    return section in sections;
-  };
+  const sectionDefinition = command && isSectionKey(command) ? sections[command] : null;
 
   // Navigation command without args (e.g., "blog")
-  if (command && isValidSection(command) && args.length === 0) {
+  if (command && sectionDefinition && args.length === 0) {
     return {
       results: [
         {
@@ -445,31 +423,20 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
           timestamp: Date.now(),
         },
       ],
-      navigation: sections[command],
+      navigation: sectionDefinition.path,
     };
   }
 
   // 3. Check for section-specific search (e.g., "blog javafx")
-  // Searchable sections - single source of truth for which sections support search
-  const SEARCHABLE_SECTIONS = [
-    "blog",
-    "experience",
-    "education",
-    "investments",
-    "projects",
-    "bookmarks",
-    "bookmark",
-    "books",
-    "thoughts",
-  ] as const;
-  const isSearchableSection = (cmd: string): cmd is (typeof SEARCHABLE_SECTIONS)[number] =>
-    SEARCHABLE_SECTIONS.includes(cmd as (typeof SEARCHABLE_SECTIONS)[number]);
-
-  if (command && isValidSection(command) && isSearchableSection(command) && args.length > 0) {
+  if (
+    command &&
+    sectionDefinition !== null &&
+    sectionDefinition.searchScope !== null &&
+    args.length > 0
+  ) {
     const searchTerms = args.join(" ");
     const section = command.charAt(0).toUpperCase() + command.slice(1);
-    // Map "bookmark" to "bookmarks" scope, otherwise use command as-is
-    const scope = command === "bookmark" ? "bookmarks" : command;
+    const scope = sectionDefinition.searchScope;
 
     try {
       const results = await searchByScope(scope, searchTerms, signal);

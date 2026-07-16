@@ -6,6 +6,7 @@ const mockGetBookmarksIndexFromDatabase = vi.fn();
 const mockGetAllBookmarks = vi.fn();
 const mockRebuildBookmarkTaxonomyState = vi.fn();
 const mockWriteBookmarkMasterFiles = vi.fn();
+const mockBackfillDueBookmarkEmbeddings = vi.fn();
 const mockProcessBookmarksInBatches = vi.fn();
 const mockSaveSlugMapping = vi.fn();
 const mockGenerateSlugMapping = vi.fn();
@@ -20,6 +21,7 @@ vi.mock("@/lib/db/mutations/bookmarks", () => ({
 }));
 
 vi.mock("@/lib/bookmarks/persistence.server", () => ({
+  backfillDueBookmarkEmbeddings: (...args: unknown[]) => mockBackfillDueBookmarkEmbeddings(...args),
   writeBookmarkMasterFiles: (...args: unknown[]) => mockWriteBookmarkMasterFiles(...args),
 }));
 
@@ -78,7 +80,9 @@ describe("refresh change-detection behavior (unit)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.SELECTIVE_OG_REFRESH = "true";
+    delete process.env.IS_DATA_UPDATER;
 
+    mockBackfillDueBookmarkEmbeddings.mockResolvedValue(undefined);
     mockGetAllBookmarks.mockResolvedValue([]);
     mockRebuildBookmarkTaxonomyState.mockResolvedValue(undefined);
     mockWriteBookmarkMasterFiles.mockResolvedValue(undefined);
@@ -92,6 +96,7 @@ describe("refresh change-detection behavior (unit)", () => {
   });
 
   afterEach(() => {
+    delete process.env.IS_DATA_UPDATER;
     bookmarksModule.cleanupBookmarksDataAccess();
   });
 
@@ -166,6 +171,26 @@ describe("refresh change-detection behavior (unit)", () => {
     expect(mockRebuildBookmarkTaxonomyState).toHaveBeenCalledTimes(1);
     expect(mockRebuildBookmarkTaxonomyState).toHaveBeenCalledWith(dataset, false);
     expect(mockWriteBookmarkMasterFiles).not.toHaveBeenCalled();
+    expect(mockBackfillDueBookmarkEmbeddings).not.toHaveBeenCalled();
+  });
+
+  it("drains due embedding checkpoints when scheduler data is unchanged", async () => {
+    const dataset = [buildBookmark("a"), buildBookmark("b")];
+    process.env.IS_DATA_UPDATER = "true";
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
+      count: dataset.length,
+      checksum: calculateBookmarksChecksum(dataset),
+    });
+
+    bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
+    bookmarksModule.initializeBookmarksDataAccess();
+
+    const result = await bookmarksModule.refreshAndPersistBookmarks();
+
+    expect(result).toEqual(dataset);
+    expect(mockWriteBookmarkMasterFiles).not.toHaveBeenCalled();
+    expect(mockBackfillDueBookmarkEmbeddings).toHaveBeenCalledOnce();
+    expect(mockBackfillDueBookmarkEmbeddings).toHaveBeenCalledWith(dataset);
   });
 
   it("defaults to persist when index-state count is stale", async () => {

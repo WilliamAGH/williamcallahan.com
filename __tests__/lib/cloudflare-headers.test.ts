@@ -181,6 +181,21 @@ describe("Cloudflare header enforcement", () => {
       vi.stubEnv("NODE_ENV", "development");
       await expect(loadNextConfig().then((config) => config.generateBuildId())).resolves.toBeNull();
     });
+    it("preserves an explicit S3 endpoint protocol and port in image patterns", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("S3_BUCKET", "media-bucket");
+      vi.stubEnv("S3_SERVER_URL", "http://localhost:9000");
+
+      const nextConfig = await loadNextConfig();
+
+      expect(nextConfig.images.remotePatterns).toContainEqual({
+        protocol: "http",
+        hostname: "media-bucket.localhost",
+        port: "9000",
+        pathname: "/**",
+      });
+    });
     it("uses a URL-safe production deployment ID as the release identity", async () => {
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("NEXT_DEPLOYMENT_ID", "release_2026-07-13");

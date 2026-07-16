@@ -24,6 +24,8 @@ if ! is_scheduler_command "$@"; then
     exec "$@"
 fi
 
+require_embedding_failures_migration
+
 echo "📦 [Entrypoint] Running initial data bootstrap..."
 if node --run update-data; then
     echo "✅ [Entrypoint] Initial data bootstrap completed"

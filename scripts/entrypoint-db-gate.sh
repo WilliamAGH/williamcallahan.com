@@ -116,3 +116,42 @@ wait_for_database_readiness() {
     echo "❌ [Entrypoint] Database endpoint did not become reachable in time; exiting"
     return 1
 }
+
+require_embedding_failures_migration() {
+    if [ -z "${AI_DEFAULT_EMBEDDING_MODEL:-}" ]; then
+        return 0
+    fi
+    if [ -z "${DATABASE_URL:-}" ]; then
+        echo "❌ [Entrypoint] Cannot verify required migration 0024_embedding-failures: DATABASE_URL is empty" >&2
+        return 1
+    fi
+
+    node --input-type=module <<'NODE'
+import postgres from "postgres";
+
+const requiredMigrationError =
+  "Required database migration 0024_embedding-failures is missing: public.embedding_failures does not exist. Run Drizzle migrations before deploying the scheduler.";
+const sql = postgres(process.env.DATABASE_URL, {
+  max: 1,
+  connect_timeout: 5,
+  idle_timeout: 1,
+  prepare: false,
+  ssl: "require",
+});
+
+try {
+  const [migration] =
+    await sql`SELECT to_regclass('public.embedding_failures') IS NOT NULL AS present`;
+  if (migration?.present !== true) throw new Error(requiredMigrationError);
+  console.log("✅ [Entrypoint] Required migration 0024_embedding-failures is present");
+} catch (error) {
+  console.error(
+    "❌ [Entrypoint] Scheduler database preflight failed:",
+    error instanceof Error ? error.message : String(error),
+  );
+  process.exitCode = 1;
+} finally {
+  await sql.end({ timeout: 1 });
+}
+NODE
+}

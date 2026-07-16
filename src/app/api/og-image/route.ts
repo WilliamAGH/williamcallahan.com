@@ -18,7 +18,6 @@ import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/constants";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
-import { metadata } from "@/data/metadata";
 import { openGraphUrlSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
@@ -240,26 +239,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if this is a static image from our own domain
-    const siteUrl =
-      metadata.site.url || process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
-    let isOwnDomainImage = false;
+    let ownDomainImageUrl: URL | null = null;
 
     try {
-      const parsedUrl = new URL(url, siteUrl); // Handle relative URLs
-      const siteHostname = new URL(siteUrl).hostname;
-      isOwnDomainImage =
-        parsedUrl.hostname === siteHostname && parsedUrl.pathname.startsWith(`/images/`);
+      const parsedUrl = new URL(url, baseUrl);
+      if (
+        parsedUrl.hostname === new URL(baseUrl).hostname &&
+        parsedUrl.pathname.startsWith(`/images/`)
+      ) {
+        ownDomainImageUrl = parsedUrl;
+      }
     } catch (error) {
       // Invalid URL, treat as not own domain
       logger.warn(`[OG-Image] Invalid URL for own domain check: ${url}`, error);
-      isOwnDomainImage = false;
     }
 
-    if (isOwnDomainImage) {
+    if (ownDomainImageUrl) {
       logger.info(`[OG-Image] Detected static image from own domain: ${url}`);
       // For static images from our own domain, redirect directly without processing
       // This prevents self-referencing fetches that cause timeouts
-      return NextResponse.redirect(url, {
+      return NextResponse.redirect(ownDomainImageUrl, {
         status: 302,
         headers: {
           "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",

@@ -125,8 +125,12 @@ are exposed. Docker allows 15 minutes for startup work; afterward, health requir
 scheduler heartbeat to be no more than two minutes old.
 
 Scheduler startup waits for the database gate, then runs `node --run update-data` with no
-operation flags. The data updater owns that default operation set, including books and search
-indexes. The scheduler next reuses its canonical authenticated endpoint inventory to invalidate
+operation flags. When endpoint-compatible embeddings are enabled, startup first verifies that
+migration `0024_embedding-failures` has created `public.embedding_failures` and fails with an
+explicit migration error before bootstrap if it is missing. Bootstrap processes at most one
+canonical bookmark embedding batch; later data-updater cycles drain due checkpoints. The data
+updater owns the default operation set, including books and search indexes. The scheduler next
+reuses its canonical authenticated endpoint inventory to invalidate
 bookmark, books, and GitHub web caches before sitemap submission and cron. A bootstrap or cache
 revalidation failure logs an error and exits instead of serving stale data; the compose service's
 `unless-stopped` restart policy retries it.

@@ -32,8 +32,8 @@ import {
 } from "./openai-compatible-message-mapper";
 import { createThinkTagParser, stripThinkTags } from "./think-tag-parser";
 
-const DEFAULT_TIMEOUT_MS = 30_000;
-const DEFAULT_MAX_RETRIES = 1;
+const DEFAULT_REQUEST_OPTIONS = { timeoutMs: 30_000, maxRetries: 1 } as const;
+const INTERACTIVE_STREAM_REQUEST_OPTIONS = { timeoutMs: 180_000, maxRetries: 0 } as const;
 
 const clientByConfig = new Map<string, OpenAIClient>();
 
@@ -42,11 +42,7 @@ function buildClientCacheKey(apiBaseUrl: string, apiKey: string): string {
   return `${apiBaseUrl}::${keyHash}`;
 }
 
-function resolveClient(args: {
-  baseUrl: string;
-  apiKey?: string;
-  timeoutMs?: number;
-}): OpenAIClient {
+function resolveClient(args: { baseUrl: string; apiKey?: string }): OpenAIClient {
   const apiBaseUrl = buildOpenAiApiBaseUrl(args.baseUrl);
   const apiKey = args.apiKey?.trim();
   if (!apiKey) {
@@ -58,27 +54,31 @@ function resolveClient(args: {
   const existingClient = clientByConfig.get(clientKey);
   if (existingClient) return existingClient;
 
-  let timeout = args.timeoutMs;
-  if (timeout === undefined) {
-    timeout = DEFAULT_TIMEOUT_MS;
-  } else if (!Number.isFinite(timeout)) {
-    console.warn("[AI] Invalid timeout (NaN/Infinity); defaulting to client timeout.", {
-      baseUrl: args.baseUrl,
-      provided: timeout,
-      timeoutMs: DEFAULT_TIMEOUT_MS,
-    });
-    timeout = DEFAULT_TIMEOUT_MS;
-  }
-
   const client = new OpenAIClient({
     apiKey,
     baseURL: apiBaseUrl,
-    timeout,
-    maxRetries: DEFAULT_MAX_RETRIES,
   });
 
   clientByConfig.set(clientKey, client);
   return client;
+}
+
+function resolveRequestOptions(
+  args: Parameters<typeof toRequestOptions>[0] & { baseUrl: string },
+  defaults: { timeoutMs: number; maxRetries: number },
+): OpenAIClient.RequestOptions {
+  let timeoutMs = args.timeoutMs;
+  if (timeoutMs === undefined) {
+    timeoutMs = defaults.timeoutMs;
+  } else if (!Number.isFinite(timeoutMs)) {
+    console.warn("[AI] Invalid timeout (NaN/Infinity); defaulting to request timeout.", {
+      baseUrl: args.baseUrl,
+      provided: timeoutMs,
+      timeoutMs: defaults.timeoutMs,
+    });
+    timeoutMs = defaults.timeoutMs;
+  }
+  return { ...toRequestOptions({ ...args, timeoutMs }), maxRetries: defaults.maxRetries };
 }
 
 function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
@@ -161,7 +161,7 @@ export async function callOpenAiCompatibleChatCompletions(args: {
   const client = resolveClient(args);
   const completion: ChatCompletion = await client.chat.completions.create(
     toChatRequest(validatedRequest),
-    toRequestOptions(args),
+    resolveRequestOptions(args, DEFAULT_REQUEST_OPTIONS),
   );
   return openAiCompatibleChatCompletionsResponseSchema.parse(completion);
 }
@@ -181,7 +181,7 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
   const client = resolveClient(args);
   const stream = client.chat.completions.stream(
     { ...toChatRequest(validatedRequest), stream: true },
-    toRequestOptions(args),
+    resolveRequestOptions(args, INTERACTIVE_STREAM_REQUEST_OPTIONS),
   );
 
   const thinkParser = args.onThinkingDelta
@@ -256,7 +256,7 @@ export async function callOpenAiCompatibleResponses(args: {
       ...validatedRequest,
       input: toResponsesInput(validatedRequest.input),
     },
-    toRequestOptions(args),
+    resolveRequestOptions(args, DEFAULT_REQUEST_OPTIONS),
   );
   const normalizedResponse = normalizeResponsesOutputText(response);
   const parsedResponse = openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
@@ -285,7 +285,7 @@ export async function streamOpenAiCompatibleResponses(args: {
       input: toResponsesInput(validatedRequest.input),
       stream: true,
     },
-    toRequestOptions(args),
+    resolveRequestOptions(args, INTERACTIVE_STREAM_REQUEST_OPTIONS),
   );
 
   const thinkParser = args.onThinkingDelta

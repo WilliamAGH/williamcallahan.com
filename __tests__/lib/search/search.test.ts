@@ -226,57 +226,28 @@ describe("search", () => {
     });
   });
 
-  describe("searchExperience", () => {
-    it("should return all experiences when query is empty", async () => {
-      const results = await searchExperience("");
-      expect(results).toHaveLength(2);
+  const staticSearchCases = [
+    { name: "experience", search: searchExperience, query: "engineer", url: /^\/experience#\d+$/ },
+    { name: "education", search: searchEducation, query: "science", url: /^\/education#\d+$/ },
+  ] as const;
+
+  describe.each(staticSearchCases)("search $name", ({ search, query, url }) => {
+    it.each(["", "***[[["])("returns no candidates for invalid query %j", async (invalidQuery) => {
+      await expect(search(invalidQuery)).resolves.toEqual([]);
     });
 
-    it("should return array for any query", async () => {
-      const results = await searchExperience("engineer");
-      expect(Array.isArray(results)).toBe(true);
-    });
+    it("returns a correctly shaped result for a valid query", async () => {
+      const [result] = await search(query);
 
-    it("should return SearchResult objects with correct shape", async () => {
-      const results = await searchExperience("");
-      expect(results.length).toBeGreaterThan(0);
-      expect(results[0]).toHaveProperty("id");
-      expect(results[0]).toHaveProperty("type");
-      expect(results[0]).toHaveProperty("title");
-      expect(results[0]).toHaveProperty("description");
-      expect(results[0]).toHaveProperty("url");
-    });
-
-    it("should have correct URL format", async () => {
-      const results = await searchExperience("");
-      expect(results[0]?.url).toMatch(/^\/experience#\d+$/);
-    });
-  });
-
-  describe("searchEducation", () => {
-    it("should return all education items when query is empty", async () => {
-      const results = await searchEducation("");
-      expect(results).toHaveLength(2); // 1 education + 1 certification
-    });
-
-    it("should return array for any query", async () => {
-      const results = await searchEducation("science");
-      expect(Array.isArray(results)).toBe(true);
-    });
-
-    it("should return SearchResult objects with correct shape", async () => {
-      const results = await searchEducation("");
-      expect(results.length).toBeGreaterThan(0);
-      expect(results[0]).toHaveProperty("id");
-      expect(results[0]).toHaveProperty("type");
-      expect(results[0]).toHaveProperty("title");
-      expect(results[0]).toHaveProperty("description");
-      expect(results[0]).toHaveProperty("url");
-    });
-
-    it("should have correct URL format", async () => {
-      const results = await searchEducation("");
-      expect(results[0]?.url).toMatch(/^\/education#\d+$/);
+      expect(result).toMatchObject({
+        id: expect.any(String),
+        type: expect.any(String),
+        title: expect.any(String),
+        description: expect.any(String),
+        url: expect.any(String),
+        score: expect.any(Number),
+      });
+      expect(result?.url).toMatch(url);
     });
   });
 

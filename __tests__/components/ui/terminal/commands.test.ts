@@ -1,34 +1,17 @@
-/**
- * Terminal Commands Tests
- */
-import type { Mock } from "vitest";
+/** Terminal command behavior. */
 import { handleCommand } from "@/components/ui/terminal/commands.client";
+import { sections, terminalNavigationHelp } from "@/components/ui/terminal/sections";
 import { isChatCommand } from "@/types/terminal";
 
-// Store original fetch and window
 const originalFetch = globalThis.fetch;
-const originalWindow = globalThis.window;
+const mockFetch = vi.fn<typeof globalThis.fetch>();
 
-// Mock the fetch API
-globalThis.fetch = vi.fn() as unknown as typeof fetch; // Assert type for assignment
-// Setup console.error mock
+globalThis.fetch = mockFetch;
 const originalConsoleError = console.error;
 const originalConsoleLog = console.log;
 const mockConsoleError = vi.fn();
 const mockConsoleLog = vi.fn();
-console.error = mockConsoleError;
-console.log = mockConsoleLog;
-
-// Skip the schema.org tests since they're not working properly in this environment
-
-// Mock window location
-(globalThis as any).window = undefined;
-(globalThis as any).window = {
-  location: {
-    pathname: "/test-path",
-    href: "https://example.com/test-path",
-  },
-};
+Object.assign(console, { error: mockConsoleError, log: mockConsoleLog });
 
 function createSseResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
@@ -47,38 +30,24 @@ function createSseResponse(chunks: string[]): Response {
   });
 }
 
-// No need to explicitly mock search functions since the command handler
-// has a fallback mechanism when the module can't be loaded
+function createJsonResponse(value: unknown, status = 200): Response {
+  return Response.json(value, { status });
+}
 
 describe("Terminal Commands", () => {
   beforeEach(() => {
-    // Reset mocks before each test
     vi.clearAllMocks();
-    (fetch as unknown as Mock).mockReset();
-    // Reset console mocks
+    mockFetch.mockReset();
     mockConsoleError.mockReset();
     mockConsoleLog.mockReset();
   });
 
   afterAll(() => {
-    // Restore window
-    globalThis.window = originalWindow;
-    // Restore fetch
     globalThis.fetch = originalFetch;
-    // Restore console functions
-    console.error = originalConsoleError;
-    console.log = originalConsoleLog;
+    Object.assign(console, { error: originalConsoleError, log: originalConsoleLog });
   });
 
   describe("Basic Commands", () => {
-    it("should return help information", async () => {
-      const result = await handleCommand("help");
-      expect(result.results?.[0]).toMatchObject({
-        type: "text",
-        output: expect.stringContaining("Available commands:"),
-      });
-    });
-
     it("should handle clear command", async () => {
       const result = await handleCommand("clear");
       expect(result.clear).toBe(true);
@@ -92,33 +61,25 @@ describe("Terminal Commands", () => {
         output: expect.stringContaining("Entering AI chat"),
       });
     });
-
-    // Schema.org command tests are skipped due to DOM mocking complexity
   });
 
   describe("AI Chat Commands", () => {
     it("should perform one-shot AI chat when args are provided", async () => {
-      const tokenResponse = {
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue({
-          token: "test-token",
-          expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        }),
-      };
+      const tokenResponse = createJsonResponse({
+        token: "test-token",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      });
 
       const chatResponse = createSseResponse([
         'event: started\ndata: {"running":1,"pending":0,"maxParallel":1,"queueWaitMs":0}\n\n',
         'event: done\ndata: {"message":"Hello from the assistant."}\n\n',
       ]);
 
-      (fetch as unknown as Mock)
-        .mockResolvedValueOnce(tokenResponse)
-        .mockResolvedValueOnce(chatResponse);
+      mockFetch.mockResolvedValueOnce(tokenResponse).mockResolvedValueOnce(chatResponse);
 
       const result = await handleCommand("ai hello world");
 
-      expect(fetch).toHaveBeenNthCalledWith(
+      expect(mockFetch).toHaveBeenNthCalledWith(
         1,
         "/api/ai/token",
         expect.objectContaining({
@@ -127,7 +88,7 @@ describe("Terminal Commands", () => {
         }),
       );
 
-      expect(fetch).toHaveBeenNthCalledWith(
+      expect(mockFetch).toHaveBeenNthCalledWith(
         2,
         "/api/ai/chat/terminal_chat",
         expect.objectContaining({
@@ -146,43 +107,50 @@ describe("Terminal Commands", () => {
       const second = result.results[1];
       expect(isChatCommand(first)).toBe(true);
       expect(isChatCommand(second)).toBe(true);
-      // Assert both are chat commands (tests will fail above if not)
-      expect((first as { role: string }).role).toBe("user");
-      expect((second as { role: string }).role).toBe("assistant");
+      if (!isChatCommand(first) || !isChatCommand(second)) {
+        throw new TypeError("Expected chat command results");
+      }
+      expect(first.role).toBe("user");
+      expect(second.role).toBe("assistant");
     });
   });
 
   describe("Navigation Commands", () => {
-    it("should navigate to valid sections", async () => {
-      const result = await handleCommand("blog");
-      expect(result.navigation).toBe("/blog");
-      expect(result.results?.[0]).toMatchObject({
+    it("navigates to every quick jump shown in help without searching", async () => {
+      const help = await handleCommand("help");
+      expect(help.results[0]).toMatchObject({
         type: "text",
-        output: "Navigating to blog...",
+        output: expect.stringContaining(terminalNavigationHelp.quickJumps),
       });
+
+      for (const [command, section] of Object.entries(sections)) {
+        if (section.helpGroup !== "quick-jump") continue;
+        const result = await handleCommand(command);
+        expect(result.navigation).toBe(section.path);
+      }
+
+      expect(sections.techstars.path).toBe("/experience#techstars");
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
   describe("Section Search Commands", () => {
     it("should search in blog section", async () => {
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([
-          {
-            id: "test-1",
-            type: "blog-post",
-            title: "Test Post",
-            description: "Test description",
-            url: "/blog/test",
-            score: 1,
-          },
-        ]),
-      };
-      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+      const mockResponse = createJsonResponse([
+        {
+          id: "test-1",
+          type: "blog-post",
+          title: "Test Post",
+          description: "Test description",
+          url: "/blog/test",
+          score: 1,
+        },
+      ]);
+      mockFetch.mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("blog test query");
 
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockFetch).toHaveBeenCalledWith(
         "/api/search/blog?q=test%20query",
         expect.objectContaining({ signal: undefined }),
       );
@@ -194,7 +162,7 @@ describe("Terminal Commands", () => {
     });
 
     it("should handle blog search API failure", async () => {
-      (fetch as unknown as Mock).mockRejectedValueOnce(new Error("API Error"));
+      mockFetch.mockRejectedValueOnce(new Error("API Error"));
 
       const result = await handleCommand("blog test query");
 
@@ -205,11 +173,7 @@ describe("Terminal Commands", () => {
     });
 
     it("should handle blog search with non-200 response", async () => {
-      const mockResponse = {
-        ok: false,
-        status: 500,
-      };
-      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(new Response(null, { status: 500 }));
 
       const result = await handleCommand("blog test query");
 
@@ -220,11 +184,7 @@ describe("Terminal Commands", () => {
     });
 
     it("should handle no search results", async () => {
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([]),
-      };
-      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
 
       const result = await handleCommand("blog no-results");
 
@@ -235,13 +195,8 @@ describe("Terminal Commands", () => {
       expect(result.selectionItems).toBeUndefined();
     });
 
-    // Test experience search with mock returning empty results
     it("should execute experience search", async () => {
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([]),
-      };
-      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
 
       const result = await handleCommand("experience test query");
       expect(result.results?.[0]).toMatchObject({
@@ -253,32 +208,29 @@ describe("Terminal Commands", () => {
 
   describe("Site-Wide Search", () => {
     it("should perform site-wide search for unknown commands", async () => {
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([
-          {
-            id: "result-1",
-            type: "page",
-            title: "Result 1",
-            description: "Test",
-            url: "/test1",
-            score: 1,
-          },
-          {
-            id: "result-2",
-            type: "page",
-            title: "Result 2",
-            description: "Test",
-            url: "/test2",
-            score: 0.9,
-          },
-        ]),
-      };
-      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+      const mockResponse = createJsonResponse([
+        {
+          id: "result-1",
+          type: "page",
+          title: "Result 1",
+          description: "Test",
+          url: "/test1",
+          score: 1,
+        },
+        {
+          id: "result-2",
+          type: "page",
+          title: "Result 2",
+          description: "Test",
+          url: "/test2",
+          score: 0.9,
+        },
+      ]);
+      mockFetch.mockResolvedValueOnce(mockResponse);
 
       const result = await handleCommand("unknown command");
 
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockFetch).toHaveBeenCalledWith(
         "/api/search/all?q=unknown%20command",
         expect.objectContaining({ signal: undefined }),
       );
@@ -290,15 +242,11 @@ describe("Terminal Commands", () => {
     });
 
     it("should show not recognized message when no results found", async () => {
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([]),
-      };
-      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
 
       const result = await handleCommand("unknown command");
 
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockFetch).toHaveBeenCalledWith(
         "/api/search/all?q=unknown%20command",
         expect.objectContaining({ signal: undefined }),
       );
@@ -310,7 +258,7 @@ describe("Terminal Commands", () => {
     });
 
     it("should handle site-wide search API failure", async () => {
-      (fetch as unknown as Mock).mockRejectedValueOnce(new Error("API Error"));
+      mockFetch.mockRejectedValueOnce(new Error("API Error"));
 
       const result = await handleCommand("unknown command");
 
@@ -321,7 +269,7 @@ describe("Terminal Commands", () => {
     });
 
     it("should handle unknown errors in site-wide search", async () => {
-      (fetch as unknown as Mock).mockRejectedValueOnce("Not an Error object");
+      mockFetch.mockRejectedValueOnce("Not an Error object");
 
       const result = await handleCommand("unknown command");
 
@@ -335,15 +283,11 @@ describe("Terminal Commands", () => {
   describe("AbortController Support", () => {
     it("should accept and use AbortSignal for blog search", async () => {
       const controller = new AbortController();
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([]),
-      };
-      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
 
       await handleCommand("blog test", controller.signal);
 
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockFetch).toHaveBeenCalledWith(
         "/api/search/blog?q=test",
         expect.objectContaining({ signal: controller.signal }),
       );
@@ -351,15 +295,11 @@ describe("Terminal Commands", () => {
 
     it("should accept and use AbortSignal for site-wide search", async () => {
       const controller = new AbortController();
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([]),
-      };
-      (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
 
       await handleCommand("unknown command", controller.signal);
 
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockFetch).toHaveBeenCalledWith(
         "/api/search/all?q=unknown%20command",
         expect.objectContaining({ signal: controller.signal }),
       );
@@ -369,14 +309,12 @@ describe("Terminal Commands", () => {
       const controller = new AbortController();
       const abortError = new DOMException("Aborted", "AbortError");
 
-      (fetch as unknown as Mock).mockRejectedValueOnce(abortError);
+      mockFetch.mockRejectedValueOnce(abortError);
 
-      // Abort immediately
       controller.abort();
 
       const result = await handleCommand("blog test", controller.signal);
 
-      // When aborted, handleCommand returns empty results
       expect(result.results?.[0]).toMatchObject({
         type: "text",
         output: expect.stringContaining('No results found in Blog for "test"'),
@@ -385,30 +323,25 @@ describe("Terminal Commands", () => {
 
     it("should propagate AbortSignal through all search paths", async () => {
       const controller = new AbortController();
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([
-          {
-            id: "test-1",
-            type: "blog-post",
-            title: "Test",
-            description: "Test",
-            url: "/test",
-            score: 1,
-          },
-        ]),
-      };
+      const mockResponse = createJsonResponse([
+        {
+          id: "test-1",
+          type: "blog-post",
+          title: "Test",
+          description: "Test",
+          url: "/test",
+          score: 1,
+        },
+      ]);
 
-      // Test different search sections
-      const sections = ["blog", "experience", "education", "investments", "bookmarks"];
+      for (const [command, section] of Object.entries(sections)) {
+        if (section.searchScope === null) continue;
+        mockFetch.mockResolvedValueOnce(mockResponse);
 
-      for (const section of sections) {
-        (fetch as unknown as Mock).mockResolvedValueOnce(mockResponse);
+        await handleCommand(`${command} test`, controller.signal);
 
-        await handleCommand(`${section} test`, controller.signal);
-
-        expect(fetch).toHaveBeenLastCalledWith(
-          `/api/search/${section}?q=test`,
+        expect(mockFetch).toHaveBeenLastCalledWith(
+          `/api/search/${section.searchScope}?q=test`,
           expect.objectContaining({ signal: controller.signal }),
         );
       }

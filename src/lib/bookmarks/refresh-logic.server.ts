@@ -12,7 +12,10 @@ import {
   METADATA_REFRESH_MAX_ITEMS,
 } from "@/lib/bookmarks/config";
 import { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
-import { writeBookmarkMasterFiles } from "@/lib/bookmarks/persistence.server";
+import {
+  backfillDueBookmarkEmbeddings,
+  writeBookmarkMasterFiles,
+} from "@/lib/bookmarks/persistence.server";
 
 function attachSlugsToBookmarks(
   bookmarks: UnifiedBookmark[],
@@ -150,6 +153,9 @@ async function refreshWithoutStructuralChange(
   if (!metadataChanged) {
     const { rebuildBookmarkTaxonomyState } = await loadBookmarkMutationModule();
     await rebuildBookmarkTaxonomyState(bookmarks, false);
+    if (process.env.IS_DATA_UPDATER === "true") {
+      await backfillDueBookmarkEmbeddings(bookmarks);
+    }
     return bookmarks;
   }
 

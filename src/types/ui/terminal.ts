@@ -89,32 +89,6 @@ export interface HistoryProps {
   mode?: "default" | "chat";
 }
 
-/**
- * Section keys for terminal navigation - single source of truth
- * Add new sections here and they'll automatically be available in SectionKey type
- */
-export const SECTION_KEYS = [
-  "home",
-  "investments",
-  "experience",
-  "education",
-  "projects",
-  "blog",
-  "bookmarks",
-  "bookmark",
-  "books",
-  "thoughts",
-  "aventure",
-  "tsbank",
-  "seekinvest",
-  "callahan-financial",
-  "mutual-first",
-  "morningstar",
-] as const;
-
-/** Section key type for terminal navigation sections - derived from SECTION_KEYS */
-export type SectionKey = (typeof SECTION_KEYS)[number];
-
 import type { WindowStateValue } from "./window";
 
 export interface TerminalWindowStateContextType {
