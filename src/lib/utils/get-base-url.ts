@@ -9,20 +9,39 @@ const isServer = typeof globalThis.window === "undefined";
 
 const trimTrailingSlash = (value: string): string => value.trim().replace(/\/+$/, "");
 
+function getConfiguredAbsoluteHttpBaseUrl(
+  name: "API_BASE_URL" | "NEXT_PUBLIC_SITE_URL",
+  value: string | undefined,
+): string | undefined {
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) return undefined;
+
+  const parsedUrl = URL.canParse(trimmedValue) ? new URL(trimmedValue) : undefined;
+  if (!parsedUrl || (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:")) {
+    console.warn(`[getBaseUrl] Ignoring invalid ${name}; expected an absolute HTTP(S) URL.`);
+    return undefined;
+  }
+
+  return trimTrailingSlash(trimmedValue);
+}
+
 export function getBaseUrl(): string {
   // 1. Client-side: always use relative paths
   if (!isServer) {
     return "";
   }
 
-  const apiBaseUrl = process.env.API_BASE_URL;
-  if (apiBaseUrl?.trim()) {
-    return trimTrailingSlash(apiBaseUrl);
+  const apiBaseUrl = getConfiguredAbsoluteHttpBaseUrl("API_BASE_URL", process.env.API_BASE_URL);
+  if (apiBaseUrl) {
+    return apiBaseUrl;
   }
 
   // 2. Server-side in Production:
   if (process.env.NODE_ENV === "production") {
-    const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    const publicSiteUrl = getConfiguredAbsoluteHttpBaseUrl(
+      "NEXT_PUBLIC_SITE_URL",
+      process.env.NEXT_PUBLIC_SITE_URL,
+    );
 
     // Use NEXT_PUBLIC_SITE_URL if it's a valid, non-local URL
     if (
@@ -30,7 +49,7 @@ export function getBaseUrl(): string {
       !publicSiteUrl.includes("localhost") &&
       !publicSiteUrl.includes("0.0.0.0")
     ) {
-      return trimTrailingSlash(publicSiteUrl);
+      return publicSiteUrl;
     }
     // Otherwise, always fall back to the canonical production URL as a safety net
     return "https://williamcallahan.com";

@@ -94,9 +94,55 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
         expect(errorMsg).not.toContain("0.0.0.0");
       }
     });
+
+    it("redirects a root-relative static image to its absolute own-domain URL", async () => {
+      process.env.API_BASE_URL = "https://williamcallahan.com";
+      const staticImagePath = "/images/opengraph-placeholder.png";
+      const request = new NextRequest(
+        `https://williamcallahan.com/api/og-image?url=${encodeURIComponent(staticImagePath)}`,
+      );
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe(
+        "https://williamcallahan.com/images/opengraph-placeholder.png",
+      );
+    });
   });
 
   describe("Environment Variable Usage", () => {
+    it("returns an absolute fallback redirect for a root-relative site URL", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("API_BASE_URL", "");
+      vi.stubEnv("NEXT_PUBLIC_SITE_URL", "/");
+      vi.resetModules();
+      vi.doMock("@/lib/opengraph/fallback", () => ({
+        getDomainFallbackImage: () => "/images/opengraph-placeholder.png",
+        getContextualFallbackImage: () => "/images/opengraph-placeholder.png",
+      }));
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      try {
+        const { GET: getOgImage } = await import("@/app/api/og-image/route");
+        const response = await getOgImage(
+          new NextRequest("https://williamcallahan.com/api/og-image"),
+        );
+
+        expect(response.status).toBe(302);
+        expect(response.headers.get("Location")).toBe(
+          "https://williamcallahan.com/images/opengraph-placeholder.png",
+        );
+        expect(warnSpy).toHaveBeenCalledWith(
+          "[getBaseUrl] Ignoring invalid NEXT_PUBLIC_SITE_URL; expected an absolute HTTP(S) URL.",
+        );
+      } finally {
+        warnSpy.mockRestore();
+        vi.doUnmock("@/lib/opengraph/fallback");
+        vi.resetModules();
+      }
+    });
+
     /**
      * @description Test with missing environment variables
      */
@@ -264,8 +310,9 @@ describe("Logo API Route Validation", () => {
 
     const response = await GET(request);
     expect(response.status).toBe(400);
-    const payload = (await response.json()) as { error?: string };
-    expect(payload.error).toMatch(/Company fallback requires a domain/i);
+    expect(await response.json()).toEqual({
+      error: "Company fallback requires a domain (e.g., example.com) or a website parameter",
+    });
   });
 });
 

@@ -57,6 +57,42 @@ describe("getBaseUrl", () => {
     expect(result).toBe("https://public.example.com"); // trailing slash removed
   });
 
+  it("ignores root-relative API_BASE_URL and uses NEXT_PUBLIC_SITE_URL", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("API_BASE_URL", "/");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://public.example.com");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      const { getBaseUrl } = await import("@/lib/utils/get-base-url");
+
+      expect(getBaseUrl()).toBe("https://public.example.com");
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[getBaseUrl] Ignoring invalid API_BASE_URL; expected an absolute HTTP(S) URL.",
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("uses the production fallback for a root-relative NEXT_PUBLIC_SITE_URL", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("API_BASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "/");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      const { getBaseUrl } = await import("@/lib/utils/get-base-url");
+
+      expect(getBaseUrl()).toBe("https://williamcallahan.com");
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[getBaseUrl] Ignoring invalid NEXT_PUBLIC_SITE_URL; expected an absolute HTTP(S) URL.",
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   /**
    * Verifies localhost fallback with custom PORT environment variable
    */
