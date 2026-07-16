@@ -12,7 +12,6 @@ export const sections = {
   projects: { path: "/projects", helpGroup: "navigate", searchScope: "projects" },
   blog: { path: "/blog", helpGroup: "navigate", searchScope: "blog" },
   bookmarks: { path: "/bookmarks", helpGroup: "navigate", searchScope: "bookmarks" },
-  bookmark: { path: "/bookmarks", helpGroup: null, searchScope: "bookmarks" },
   books: { path: "/books", helpGroup: "navigate", searchScope: "books" },
   thoughts: { path: "/thoughts", helpGroup: "navigate", searchScope: "thoughts" },
   aventure: { path: "/experience#aventure", helpGroup: "quick-jump", searchScope: null },
