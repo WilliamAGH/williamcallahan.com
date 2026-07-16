@@ -51,7 +51,7 @@ export function searchContent<T>(
 ): ScoredResult<T>[] {
   // Sanitize the query first
   const sanitizedQuery = sanitizeSearchQuery(query);
-  if (!sanitizedQuery) return items.map((item) => ({ item, score: 0 }));
+  if (!sanitizedQuery) return [];
 
   // Helper to extract item ID
   const extractId = (item: T): string => {
