@@ -29,11 +29,10 @@ The "blog-article" functionality encompasses components and utilities that manag
   - Handles errors with proper formatting
 - **app/api/twitter-image/[...path]/route.ts**: API route for proxying Twitter images used in blog article embeds.
   - Accepts extensionless `media/<id>?format=<image-format>` URLs emitted by Twitter
-  - Tweet image components set `unoptimized` because the SSRF-safe API route already streams the bytes
-  - Implements retry logic with exponential backoff
-  - Caches images for 24 hours with stale-while-revalidate
-  - Validates against specific Twitter CDN path patterns
-  - Streams responses to avoid memory overhead
+  - Tweet image components set `unoptimized` because the same-origin route handles delivery without the Next.js image optimizer
+  - Delegates Twitter path and format policy to `twitter-image-policy.ts`; the route validates the `name` parameter
+  - Uses 7-day browser caching with 1-day stale-while-revalidate and 1-year immutable CDN-edge caching
+  - Redirects persisted images to the CDN or returns buffered image responses
 
 ### Pages
 
@@ -111,9 +110,9 @@ The components work together to enrich static MDX content with dynamic, client-s
    - `generateMetadata()` should use `getPostMetaBySlug()` (skips MDX compilation + blur generation)
 
 2. **Image Handling**
-   - Twitter image proxy with 24-hour cache
-   - Exponential backoff retry logic
-   - Streaming responses to avoid memory overhead
+   - Twitter image proxy with 7-day browser caching and 1-day stale-while-revalidate
+   - One-year immutable CDN-edge caching
+   - CDN redirects or buffered same-origin responses bypass the Next.js image optimizer
 
 3. **Static Generation**
    - ISR with 1-hour revalidation

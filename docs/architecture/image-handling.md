@@ -78,7 +78,8 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 ### Social / Twitter Proxy
 
 - `lib/image-handling/twitter-image-policy.ts` owns accepted roots, formats, normalized upstream paths, and S3 categories. `/api/twitter-image/[...path]` sanitizes segments, rejects noncanonical roots, preserves validated query params, and delegates the parsed policy to `getImage()`.
-- Cache headers allow 7-day `max-age` plus 1-day `stale-while-revalidate` to avoid hammering Twitter’s CDN.
+- Browser-facing cache headers allow 7-day `max-age` plus 1-day `stale-while-revalidate`; CDN-specific headers cache persisted images for one year with `immutable`.
+- The route redirects persisted images to the CDN or returns buffered bytes. Tweet images set `unoptimized` so Next.js does not optimize the local proxy response.
 
 ### Validation & Tooling
 
@@ -163,7 +164,7 @@ Keep this document synchronized with real code: every new image entry point, val
 | -------------------------------------------------------- | ----------------------------- | -------------- | -------------------------------------- | ------------------------ |
 | Our CDN (`*.callahan.cloud`, `*.digitaloceanspaces.com`) | **Direct URL**                | **No**         | Yes (responsive) / Recommended (fixed) | Next.js `/_next/image`   |
 | External URL (Twitter, LinkedIn, etc.)                   | Proxy via `/api/cache/images` | **Yes**        | Yes (responsive) / Recommended (fixed) | API route streams bytes  |
-| `/api/twitter-image/[...path]`                           | N/A (local API route)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route streams bytes  |
+| `/api/twitter-image/[...path]`                           | N/A (local API route)         | **Yes**        | Yes (responsive) / Recommended (fixed) | No Next.js optimization  |
 | `/api/assets/[assetId]` (Karakeep proxy)                 | N/A (local API route)         | **No**         | Yes (responsive)                       | Next.js `/_next/image`   |
 | Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Yes (responsive) / Recommended (fixed) | Next.js                  |
 | `/api/logo`, `/api/og-image`                             | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
@@ -172,7 +173,7 @@ Keep this document synchronized with real code: every new image entry point, val
 ### Why This Matters
 
 - Direct CDN URLs → Next.js fetches, Sharp resizes to display size, converts to WebP/AVIF → **2MB → ~50KB**
-- Proxied + `unoptimized` → Bytes streamed unchanged → **2MB stays 2MB**
+- Proxied + `unoptimized` → Next.js does not resize or convert the response bytes
 
 ### `sizes` Prop Behavior (Next.js 16)
 
