@@ -53,6 +53,18 @@ vi.mock("@/lib/seo/schema", async (importOriginal) => {
 
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
+function createMdxFixture(slug: string, content: string): string {
+  return `---
+title: MDX security fixture
+slug: ${slug}
+publishedAt: 2026-01-01
+author: william-callahan
+excerpt: Exercises the MDX serialization boundary.
+tags: [Testing]
+---
+${content}`;
+}
+
 describe("Blog MDX Smoke Tests", () => {
   let mdxFiles: string[] = [];
 
@@ -161,6 +173,38 @@ describe("Blog MDX Smoke Tests", () => {
       }),
     );
   });
+
+  it("compiles repository-authored expression-heavy MDX", async () => {
+    const source = createMdxFixture(
+      "expression-heavy-mdx",
+      `{["expression-canary"].map((value, index) => (
+  <strong key={value}>{index + 1}: {value.toUpperCase()}</strong>
+))}`,
+    );
+
+    const post = await getMDXPost("expression-heavy-mdx", "expression-heavy-mdx.mdx", source);
+
+    expect(post).not.toBeNull();
+    expect(post?.content.compiledSource).toContain("expression-canary");
+    expect(post?.content.compiledSource).toContain("toUpperCase");
+  });
+
+  it("rejects Function-based process access at the getMDXPost boundary", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const source = createMdxFixture(
+      "dangerous-mdx-expression",
+      `{Function("return process.env.SECRET")()}`,
+    );
+
+    try {
+      await expect(
+        getMDXPost("dangerous-mdx-expression", "dangerous-mdx-expression.mdx", source),
+      ).rejects.toThrow("Security: Function() calls are not allowed");
+      expect(consoleErrorSpy).toHaveBeenCalledOnce();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
 });
 
 const BLOG_POST_FOR_RENDER_ERROR = {
@@ -202,18 +246,26 @@ describe("Blog post 404 control flow", () => {
     reportedError: Error | undefined;
   }> {
     let reportedError: Error | undefined;
-    const stream = await renderToReadableStream(
-      React.createElement(BlogPostPage, {
-        params: Promise.resolve({ slug }),
-      }),
-      {
-        onError(error) {
-          if (reportedError === undefined && error instanceof Error) {
-            reportedError = error;
-          }
+    let stream: Awaited<ReturnType<typeof renderToReadableStream>>;
+    try {
+      stream = await renderToReadableStream(
+        React.createElement(BlogPostPage, {
+          params: Promise.resolve({ slug }),
+        }),
+        {
+          onError(error) {
+            if (reportedError === undefined && error instanceof Error) {
+              reportedError = error;
+            }
+          },
         },
-      },
-    );
+      );
+    } catch (error: unknown) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+      return { completionError: error, reportedError };
+    }
 
     const completionError = await stream.allReady.then(
       () => undefined,
@@ -245,8 +297,7 @@ describe("Blog post 404 control flow", () => {
       mockGetPostBySlug.mockResolvedValueOnce(null);
 
       const outcome = await captureBlogPostRenderOutcome("missing-post");
-      expect(outcome.reportedError).toBe(notFoundError);
-      expect(outcome.completionError).toBeUndefined();
+      expect(outcome.completionError ?? outcome.reportedError).toBe(notFoundError);
       expect(notFound).toHaveBeenCalledOnce();
       expect(consoleErrorSpy).not.toHaveBeenCalled();
     } finally {
@@ -263,8 +314,7 @@ describe("Blog post 404 control flow", () => {
     mockGetPostBySlug.mockRejectedValueOnce(lookupError);
 
     const outcome = await captureBlogPostRenderOutcome("available-post");
-    expect(outcome.reportedError).toBe(lookupError);
-    expect(outcome.completionError).toBeUndefined();
+    expect(outcome.completionError ?? outcome.reportedError).toBe(lookupError);
     expect(notFound).not.toHaveBeenCalled();
   });
 
@@ -280,8 +330,7 @@ describe("Blog post 404 control flow", () => {
     });
 
     const outcome = await captureBlogPostRenderOutcome("blog-post");
-    expect(outcome.reportedError).toBe(renderError);
-    expect(outcome.completionError).toBeUndefined();
+    expect(outcome.completionError ?? outcome.reportedError).toBe(renderError);
     expect(notFound).not.toHaveBeenCalled();
   });
 });

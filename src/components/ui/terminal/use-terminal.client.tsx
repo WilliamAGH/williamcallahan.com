@@ -13,7 +13,7 @@ import { flushSync } from "react-dom";
 import { useClerkSafe } from "@/hooks/use-clerk-safe.client";
 import { handleCommand } from "./commands.client";
 import { useTerminalContext } from "./terminal-context.client";
-import { sections } from "./sections";
+import { isSectionKey, sections } from "./sections";
 import { useAiChatQueue } from "./use-ai-chat-queue.client";
 
 const ABORT_REASON_USER_CANCEL = "user_cancel";
@@ -198,32 +198,24 @@ export function useTerminal() {
     const command = parts[0] || "";
     const args = parts.slice(1);
 
-    // Use imported sections for validation
-    const isValidSection = (section: string): boolean => section in sections;
+    const sectionDefinition = command && isSectionKey(command) ? sections[command] : null;
+    const searchScope =
+      sectionDefinition !== null && args.length > 0 ? sectionDefinition.searchScope : null;
+    const isSiteWideSearch =
+      command.length > 0 &&
+      !["help", "clear", "schema", "schema.org"].includes(command) &&
+      (sectionDefinition === null || (args.length > 0 && sectionDefinition.searchScope === null));
+    const isSearchCommand = searchScope !== null || isSiteWideSearch;
 
-    // Check if this is a search command
-    const isSearchCommand =
-      (command && isValidSection(command) && args.length > 0) || // Section search
-      (command &&
-        !["help", "clear", "schema", "schema.org"].includes(command) &&
-        !isValidSection(command)); // Site-wide search
-
-    // Generate a unique ID for this command/search
     const commandId = crypto.randomUUID();
 
-    // Add temporary "Searching..." message for search commands
     if (isSearchCommand) {
-      const searchTerms =
-        isValidSection(command) && args.length > 0 ? args.join(" ") : trimmedInput;
-
-      const scope = isValidSection(command) && args.length > 0 ? command : undefined;
-
       addToHistory({
         type: "searching",
         id: commandId,
         input: commandInput,
-        query: searchTerms,
-        scope,
+        query: searchScope === null ? trimmedInput : args.join(" "),
+        ...(searchScope === null ? {} : { scope: searchScope }),
         timestamp: Date.now(),
       });
     }

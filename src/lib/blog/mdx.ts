@@ -60,6 +60,8 @@ async function serializeBlogMdxContent(
     },
     scope: {},
     parseFrontmatter: false,
+    blockJS: false,
+    blockDangerousJS: true,
   });
 }
 

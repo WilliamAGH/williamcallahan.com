@@ -51,6 +51,7 @@ if (!("markResourceTiming" in globalThis.performance)) {
 // We do not polyfill them here to strictly follow [PL1] Anti-Polyfill mandate.
 
 // Add required environment variables for tests
+process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/williamcallahan_test";
 process.env.NEXT_PUBLIC_S3_CDN_URL = "https://cdn.example.com";
 process.env.S3_BUCKET = "test-bucket";
 process.env.S3_REGION = "us-east-1";

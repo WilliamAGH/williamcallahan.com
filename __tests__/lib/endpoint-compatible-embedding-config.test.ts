@@ -34,6 +34,7 @@ describe("resolveDefaultEndpointCompatibleEmbeddingConfig", () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -137,5 +138,84 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
     expect(embeddings[0]?.[0]).toBeCloseTo(Math.SQRT1_2);
     expect(embeddings[0]?.[1]).toBeCloseTo(Math.SQRT1_2);
     expect(embeddings[1]).toEqual([0, 2]);
+  });
+
+  it("retries a transient endpoint timeout only when a retry policy is supplied", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"))
+      .mockResolvedValueOnce(
+        Response.json({
+          object: "list",
+          data: [{ object: "embedding", embedding: [1, 2], index: 0 }],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      embedTextsWithEndpointCompatibleModel({
+        config: embeddingConfig,
+        input: ["alpha"],
+        tier: "batch",
+        retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 0 },
+      }),
+    ).resolves.toEqual([[1, 2]]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("honors Retry-After before retrying a rate-limited endpoint", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("capacity exhausted", {
+          status: 429,
+          headers: { "Retry-After": "1" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          object: "list",
+          data: [{ object: "embedding", embedding: [3, 4], index: 0 }],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const embeddings = embedTextsWithEndpointCompatibleModel({
+      config: embeddingConfig,
+      input: ["alpha"],
+      tier: "batch",
+      retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 2_000 },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(embeddings).resolves.toEqual([[3, 4]]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns bounded upstream context for a terminal HTTP error", async () => {
+    const responseBody = `provider overload: ${"x".repeat(600)}`;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(responseBody, { status: 400 })));
+
+    let thrown: unknown;
+    try {
+      await embedTextsWithEndpointCompatibleModel({
+        config: embeddingConfig,
+        input: ["alpha"],
+        tier: "batch",
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    if (!(thrown instanceof Error)) throw new Error("Expected an endpoint error.");
+    expect(thrown.message).toContain("provider overload:");
+    expect(thrown.message).not.toContain("x".repeat(513));
   });
 });

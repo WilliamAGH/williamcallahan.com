@@ -115,7 +115,7 @@ Runtime image writes are scheduled in the background; batch-mode image writes ar
 1. Redirect relative asset paths and asset UUIDs to `/api/assets/[assetId]`
 2. Check recognized S3 keys and redirect existing objects to the CDN
 3. Use an explicit `assetId` or the bookmark's `imageAssetId`
-4. Redirect first-party static images or an existing derived S3 object
+4. Resolve first-party static image paths against the validated server base URL, then redirect the absolute URL or an existing derived S3 object
 5. Try validated Karakeep `imageUrl` and `screenshotAssetId` fallbacks
 6. Validate and fetch the supplied direct image URL
 7. Schedule background S3 persistence and redirect to the supplied URL

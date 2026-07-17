@@ -21,6 +21,26 @@ for _ in {1..5}; do
 done
 ```
 
+## Blog Render Production Smoke and Focused Dogfood
+
+After the rollout has converged, run the existing production smoke command:
+
+```bash
+bun run deploy:smoke-test -- <base-url> [auth-token] [--expected-release-id=<id>]
+```
+
+`scripts/smoke-test-production.ts` imports the two canonical entries from
+`config/blog-render-canaries.ts` and delegates their HTML checks to
+`scripts/blog-render-smoke.ts`. The smoke check requires one `article.blog-content`,
+the exact article title, non-empty content, ordered canonical markers, and no visible
+MDX-render fallback. Do not add a separate production canary list.
+
+After that command passes, dogfood those same two routes in a production Chromium
+browser: confirm the title and body markers, confirm the loading and MDX fallback
+messages are absent, open every declared article interaction, and inspect for browser
+page errors or failed same-origin requests. This manual browser pass complements the
+HTML-only production smoke check; it does not replace it.
+
 ## Advertised JavaScript Verification
 
 Verify advertised JavaScript after convergence. A rebuild alone is not proof that bundle
@@ -92,9 +112,9 @@ for response in "$FIRST_ANALYTICS_RESPONSE" "$SECOND_ANALYTICS_RESPONSE"; do
 done
 ```
 
-`bun run deploy:smoke-test -- https://[domain] --expected-release-id="$(cat .next/BUILD_ID)"` performs the same `/investments`
-content and advertised-script assertion plus the missing-static-chunk and analytics-script
-cache assertions alongside the other production user-path checks.
+The production smoke command also performs the `/investments` content and advertised-script
+assertion plus the missing-static-chunk and analytics-script cache assertions alongside the
+other production user-path checks.
 
 For a Cache Rules change, preview the declarative
 `infra/cloudflare/cache-rules.json` configuration before deployment, then apply it only after

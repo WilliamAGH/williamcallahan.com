@@ -221,7 +221,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         status: "error",
         message: "Failed to refresh bookmarks",
-        error: error instanceof Error ? error.message : String(error),
+        error: "Failed to refresh bookmarks",
       },
       { status: 500 },
     );
@@ -263,7 +263,7 @@ export async function GET(): Promise<NextResponse> {
       {
         status: "error",
         message: "Failed to check bookmark refresh status",
-        error: error instanceof Error ? error.message : String(error),
+        error: "Failed to check bookmark refresh status",
       },
       { status: 500 },
     );
