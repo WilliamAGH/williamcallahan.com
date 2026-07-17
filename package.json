@@ -171,6 +171,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@ast-grep/cli": "0.44.1",
     "@eslint/js": "9.36.0",
     "@happy-dom/global-registrator": "18.0.1",
     "@mdx-js/react": "3.1.1",
@@ -268,6 +269,7 @@
     }
   },
   "trustedDependencies": [
+    "@ast-grep/cli",
     "@clerk/shared",
     "@sentry/cli",
     "@swc/core",
