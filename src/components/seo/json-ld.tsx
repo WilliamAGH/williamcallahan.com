@@ -9,11 +9,39 @@
  * @see {@link "https://schema.org/"} - Schema.org Documentation
  */
 
-import type { JSX } from "react";
+"use client";
+
+import { useLayoutEffect, useState, useSyncExternalStore, type JSX } from "react";
 
 import type { JsonLdScriptProps } from "@/types/features/seo";
 
-export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element {
+const subscribeToClientRuntime = (): (() => void) => () => undefined;
+const getClientRuntimeSnapshot = (): boolean => true;
+const getServerRuntimeSnapshot = (): boolean => false;
+
+export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element | null {
+  // Preserve crawler-visible server markup while keeping client-only hidden mounts inert.
+  const isClientRuntime = useSyncExternalStore(
+    subscribeToClientRuntime,
+    getClientRuntimeSnapshot,
+    getServerRuntimeSnapshot,
+  );
+  const [isDocumentActive, setIsDocumentActive] = useState(!isClientRuntime);
+
+  useLayoutEffect(() => {
+    // React Activity recreates this effect when the owning route becomes visible.
+    setIsDocumentActive(true);
+
+    return () => {
+      // Hidden Activities disconnect layout effects before preserving their host DOM.
+      setIsDocumentActive(false);
+    };
+  }, []);
+
+  if (!isDocumentActive) {
+    return null;
+  }
+
   /**
    * JSON-LD must be embedded using dangerouslySetInnerHTML to avoid issues
    * with the HTML parser prematurely closing the <script> tag when the JSON

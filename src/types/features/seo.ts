@@ -19,7 +19,7 @@
 export interface JsonLdScriptProps {
   /** JSON-LD data object */
   data: object;
-  /** Optional DOM id for deduplication */
+  /** Optional DOM id for identification */
   id?: string;
 }
 

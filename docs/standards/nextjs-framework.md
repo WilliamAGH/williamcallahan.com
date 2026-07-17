@@ -105,6 +105,25 @@ page/layout `dynamic` exports or `unstable_noStore()` to force rendering behavio
 - Keep bookmark and sitemap reads bounded. Do not reintroduce build-phase
   `NEXT_PHASE` guards that remove sitemap sections or production/build local fallbacks.
 
+### Activity-Preserved Route DOM
+
+Cache Components retain recently visited route trees in React `Activity` boundaries.
+Hidden Activities preserve host DOM with `display: none` while disconnecting layout
+effects; they do not unmount route-owned elements. Document-global consumers therefore
+must not treat visual hiding as semantic removal.
+
+Keep route-scoped JSON-LD in the canonical `JsonLdScript` Client Component leaf. Its
+server snapshot preserves the native prerendered script for crawlers. Client-only hidden
+mounts start inactive; a visible route's layout effect activates its script before paint,
+and cleanup removes it through React reconciliation when the owning Activity becomes
+hidden. Do not replace this lifecycle with document queries, mutation observers, route
+registries, hard navigation, IDs, or `next/script` deduplication.
+
+Installed evidence: `node_modules/next/dist/client/components/layout-router.js` retains
+inactive segments in hidden Activities; `node_modules/react-dom/cjs/react-dom-client.development.js`
+hides their host nodes without removing them. The current contracts are documented in
+the official React `Activity` and Next.js preserving UI state guides.
+
 ### Time and Build-Phase Values
 
 Next tracks current-time access during prerendering. `Date.now()`, `Date()`, and
