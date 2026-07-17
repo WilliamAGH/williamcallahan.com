@@ -8,13 +8,15 @@ This is the operational contract for framework work in this repository. Verify a
 claim against the installed source and current framework documentation before changing
 application behavior; do not infer behavior from a major-version label.
 
-| Concern                 | Canonical evidence                                    | Current contract |
-| ----------------------- | ----------------------------------------------------- | ---------------- |
-| Next.js                 | `package.json`, `node_modules/next/package.json`      | 16.1.6           |
-| React                   | `package.json`, `node_modules/react/package.json`     | 19.2.4           |
-| Vitest                  | `package.json`, `node_modules/vitest/package.json`    | 4.1.2            |
-| Node package floor      | `node_modules/next/package.json`                      | `>=20.9.0`       |
-| Container Node manifest | `package.json` (`engines.node`, `runtime.node.linux`) | exactly 24.18.0  |
+| Concern                 | Canonical evidence                                     | Current contract |
+| ----------------------- | ------------------------------------------------------ | ---------------- |
+| Next.js                 | `package.json`, `node_modules/next/package.json`       | 16.1.6           |
+| React                   | `package.json`, `node_modules/react/package.json`      | 19.2.4           |
+| Vitest                  | `package.json`, `node_modules/vitest/package.json`     | 4.1.2            |
+| next-mdx-remote         | `package.json`, `node_modules/next-mdx-remote`         | 6.0.0            |
+| remark-gfm              | `package.json`, `node_modules/remark-gfm/package.json` | 4.0.1            |
+| Node package floor      | `node_modules/next/package.json`                       | `>=20.9.0`       |
+| Container Node manifest | `package.json` (`engines.node`, `runtime.node.linux`)  | exactly 24.18.0  |
 
 `package.json` owns the exact Node version and Linux artifact checksums. Both Dockerfiles
 parse that manifest with `jq`; `docs/ops/deployment.md` owns the operational procedure.
@@ -28,6 +30,9 @@ parse that manifest with `jq`; `docs/ops/deployment.md` owns the operational pro
 - `node_modules/next/dist/server/node-environment-extensions/{date,utils}.js` for
   current-time behavior during prerendering.
 - `docs/standards/testing.md` and `config/vitest/` before changing test setup.
+- `config/playwright.config.ts`, `e2e/blog-render.spec.ts`, and
+  `config/blog-render-canaries.ts` before changing an async blog route or MDX render
+  boundary.
 - `docs/standards/react-patterns.md` before moving a Server/Client boundary.
 - The applicable Next.js 16 documentation through Context7 or the official Next.js
   documentation. Record the query and the installed-source location in the change.
@@ -123,6 +128,29 @@ Installed evidence: `node_modules/next/dist/client/components/layout-router.js` 
 inactive segments in hidden Activities; `node_modules/react-dom/cjs/react-dom-client.development.js`
 hides their host nodes without removing them. The current contracts are documented in
 the official React `Activity` and Next.js preserving UI state guides.
+
+### Blog MDX Rendering
+
+`src/lib/blog/mdx.ts` compiles only repository-owned `data/blog/posts/*.mdx` with
+`next-mdx-remote@6.0.0`, `blockJS: false`, and `blockDangerousJS: true`. The first
+setting preserves the existing MDX expressions; the second retains the library's
+best-effort dangerous-expression filter. This is not a general allowance for
+request-supplied MDX or a reason to disable the dangerous-expression filter.
+
+Keep the cached manual evaluator in
+`src/components/features/blog/blog-article/mdx-content.client.tsx`. It deliberately
+does not import `next-mdx-remote`'s `MDXRemote` client component, whose installed
+entrypoint imports an idle-callback polyfill that patches `window.requestIdleCallback`
+and `window.cancelIdleCallback`. Do not replace that evaluator with a client polyfill
+or another global patch. It still evaluates the serialized source through `Function`,
+so the existing CSP requirement remains part of the renderer contract.
+
+Installed-source evidence: `node_modules/next-mdx-remote/dist/serialize.js:12-44`
+adds the dangerous-expression plugin when JavaScript is allowed, and
+`node_modules/next-mdx-remote/dist/index.js:5` imports the global-mutating polyfill
+implemented at `node_modules/next-mdx-remote/dist/idle-callback-polyfill.js:5-24`.
+`remark-gfm@4.0.1` is the MDX 3-compatible retrofit; do not downgrade to v2, which
+called Unified's removed `this.setData` API.
 
 ### Time and Build-Phase Values
 

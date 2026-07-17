@@ -71,7 +71,7 @@ File/Path Functionality Description
     - [x] `blog-article.client.tsx` `blog-article` - Server-owned article shell; interactive leaves retain client boundaries
     - [x] `blog-wrapper.tsx` `blog-article` - Legacy unreferenced dynamic wrapper outside the active detail route
     - [x] `index.ts` `blog-article` - Removed; import blog article components from concrete files
-    - [x] `mdx-content.tsx` `blog-article` - Server wrapper for the MDX renderer, now delegating to a React 19-safe cached evaluator instead of `next-mdx-remote`
+    - [x] `mdx-content.tsx` `blog-article` - Server handoff to the manual cached evaluator for `next-mdx-remote` serialized output, avoiding the package client renderer's global idle-callback polyfill
     - [x] `software-schema.tsx` `terminal` - Inserts SoftwareApplication schema.org metadata
     - [x] `mdx-table.server.tsx` `blog-article` - Styled table components for MDX
   - [x] **blog-list/**
@@ -499,12 +499,14 @@ File/Path Functionality Description
 - [x] `.hintrc` `config` - webhint configuration
 - [x] `.remarkrc.mjs` `config` - Remark (Markdown processor) configuration
 - [x] `biome.json` `linting-formatting` - Biome (linter/formatter) configuration
+- [x] `blog-render-canaries.ts` `blog` - Single two-entry article render canary catalog shared by browser and production smoke checks
 - [x] `drizzle.config.ts` `data-access` - Drizzle Kit configuration for PostgreSQL schema sync
 - [x] **eslint/** `linting-formatting` - ESLint custom rules (project-specific)
   - [x] **rules/** (empty — `no-duplicate-types` moved to `scripts/check-duplicate-types.ts`)
 - [x] `eslint.config.ts` `linting-formatting` - ESLint flat configuration
 - [x] `oxfmtrc.json` `linting-formatting` - Oxfmt (formatter) configuration
 - [x] `oxlintrc.json` `linting-formatting` - Oxlint (linter) configuration
+- [x] `playwright.config.ts` `testing-config` - Isolated Chromium E2E server, artifact, and browser configuration for async blog route rendering
 - [x] **oxlint/** `linting-formatting` - Oxlint JS plugins (experimental)
   - [x] **js-plugins/**
     - [x] `s3-no-hardcoded-images.mjs` `image-handling` - Prevents hardcoded `/images/*` usage; enforces `getStaticImageUrl()`
@@ -535,6 +537,7 @@ File/Path Functionality Description
 - [x] `.cursorrules` `config` - Cursor AI configuration
 - [x] `.env-example` `config` - Example environment variables
 - [x] `.gitignore` `config` - Git ignore file
+- [x] `.github/workflows/verification.yml` `testing-config` - GitHub PR-to-main verification gate; installs Chromium, runs `bun run verify`, and uploads failed Playwright artifacts
 - [x] `bun.lock` `deps` - Bun lockfile
 - [x] `components.json` `config` - ShadCN UI component configuration
 - [x] `Dockerfile` `deployment` - Web image build with one release identity for Next build IDs and `dpl` asset cache keys
@@ -656,7 +659,7 @@ File/Path Functionality Description
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
 - [x] `deploy-cf-cache-rules.node.mjs` `caching` - Validates, previews, and deploys declarative Cloudflare Cache Rules
 - [x] `bookmark-diagnostics.ts` `log-error-debug-handling` - Diagnostics script for bookmark refresh/cache behavior
-- [x] `entrypoint.sh` `deployment` - Docker entrypoint script
+- [x] `blog-render-smoke.ts` `blog` - Shared deployed-HTML validator for the canonical blog render canaries; rejects missing article content and the MDX fallback
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
 - [x] `backfill-bookmark-embeddings.ts` `bookmarks` - CLI backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings`
@@ -675,7 +678,7 @@ File/Path Functionality Description
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests
 - [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
-- [x] `smoke-test-production.ts` `deployment` - Production route, release-identity, and Cloudflare cache smoke checks
+- [x] `smoke-test-production.ts` `deployment` - Production route, blog-render, release-identity, and Cloudflare cache smoke checks
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
 - [x] `entrypoint.sh` `deployment` - Web container entrypoint (DB gate + Next.js server only)
@@ -735,6 +738,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 ## Tests Directory
 
+- [x] **e2e/**
+  - [x] `blog-render.spec.ts` `blog` - Chromium route-layer checks for the shared blog render canaries, including declared interactions and browser failures
 - [x] \***\*tests**/\*\*
   - [x] `README.md` `project-mgmt` - Tests documentation
   - [x] \***\*mocks**/\*\*
@@ -832,6 +837,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
       - [x] `domain-utils.test.ts` `bookmarks` - Domain utility tests
       - [x] `svg-transform-fix.test.ts` `image-handling` - SVG transform fix tests
   - [x] **scripts/**
+    - [x] `blog-render-smoke.test.ts` `blog` - Outcome tests for the shared production blog-render HTML validator
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
     - [x] `update-data.smoke.test.ts` `batch-fetch-update` - Data updater smoke tests
   - [x] **setup/**

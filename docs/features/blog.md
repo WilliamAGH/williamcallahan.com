@@ -21,6 +21,8 @@ The "blog" functionality encompasses components and utilities that manage the di
 - **lib/blog/\***: Blog library modules are imported directly from concrete files (barrel removed).
 - **lib/blog/mdx.ts**: Utilities for processing MDX content in blogs.
 - **lib/blog/server-search.ts**: Server-side search functionality for blog content.
+- **config/blog-render-canaries.ts**: Single owner of the two representative article
+  render canaries used by browser and production verification.
 - **src/types/schemas/blog-frontmatter.ts**: Zod single owner of MDX frontmatter and canonical blog slugs; runtime **lib/blog/validation.ts** and Node **scripts/seed-blog-posts.node.mjs** ingestion parse through it.
 - **lib/blog/validation.ts**: Parses MDX frontmatter through the canonical schema and owns the cached canonical-slug-to-file-path index and route/cache lookup guard.
 - **app/blog/page.tsx**: Blog index page with Incremental Static Regeneration (ISR) for optimized performance.
@@ -32,6 +34,11 @@ The "blog" functionality encompasses components and utilities that manage the di
 - Client-side components such as **blog-window.client.tsx** and **blog.client.tsx** manage interactive elements and dynamic content loading.
 - UI components like **blog-card.tsx**, **blog-author.tsx**, and **blog-tags.tsx** provide modular pieces for blog presentation.
 - **background-info.client.tsx** enhances blog posts with collapsible supplementary information, using React hooks for state management and dynamic height calculations to determine if a toggle is needed on mobile devices.
+- **config/blog-render-canaries.ts** owns the two end-to-end render scenarios.
+  **e2e/blog-render.spec.ts** imports them for Chromium coverage, while
+  **scripts/smoke-test-production.ts** imports the same catalog and delegates deployed
+  HTML validation to **scripts/blog-render-smoke.ts**. Neither consumer owns a duplicate
+  article list.
 
 ## Notes
 
@@ -42,3 +49,6 @@ The "blog" functionality encompasses components and utilities that manage the di
 - Build stability: both detail and tag routes include a safe placeholder static param fallback to satisfy Cache Components requirements when datasets are temporarily empty.
 - Blog tag routes (`app/blog/tags/[tagSlug]/page.tsx`) now provide `generateStaticParams()` from `getAllTags()` and still render the “Discover More” related-content section sourced from the first post on the page, with the active tag excluded from recommendations.
 - Components are modular, allowing reuse across different views, with special attention to accessibility and responsive design as seen in features like collapsible background info boxes.
+- Required render verification is `bun run verify`; after deployment run
+  `bun run deploy:smoke-test -- <base-url> [auth-token] [--expected-release-id=<id>]`
+  and perform the focused browser dogfood procedure in `docs/ops/verification.md`.

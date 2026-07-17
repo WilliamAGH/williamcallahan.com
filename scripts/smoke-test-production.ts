@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 import type { SmokeTestEndpointOptions, TestResult } from "@/types/scripts";
+import { BLOG_RENDER_CANARIES } from "@/config/blog-render-canaries";
 import { bookmarkDiagnosticsResponseSchema, healthResponseSchema } from "@/types/schemas/api";
+import { validateBlogRenderHtml } from "./blog-render-smoke";
 const CONVERGENCE_SAMPLE_COUNT = 5;
 const EXPECTED_RELEASE_ID_PREFIX = "--expected-release-id=";
 export function fetchStaticScript(
@@ -158,7 +160,7 @@ class ProductionSmokeTests {
   }
 
   async runCriticalPathTests(): Promise<void> {
-    const paths = [
+    for (const [name, path, expectedStatus] of [
       ["Homepage", "/", 200],
       ["Bookmarks List", "/bookmarks", 200],
       [
@@ -170,12 +172,13 @@ class ProductionSmokeTests {
       ["Projects", "/projects", 200],
       ["404 Error Page", "/this-page-should-not-exist-12345", 404],
       ["Removed Status Page", "/status", 404],
-    ] as const;
-
-    for (const [name, path, expectedStatus] of paths) {
+    ] as const) {
       await this.record(name, path, { expectedStatus });
     }
-
+    for (const canary of BLOG_RENDER_CANARIES)
+      await this.record(`Blog article render: ${canary.slug}`, `/blog/${canary.slug}`, {
+        validateResponse: async (response) => validateBlogRenderHtml(await response.text(), canary),
+      });
     await this.record("Investment release identity and scripts converge", "/investments", {
       validateResponse: async (response) => {
         const responses = [

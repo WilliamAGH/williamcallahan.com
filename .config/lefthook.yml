@@ -1,6 +1,6 @@
 # lefthook.yml — Git hook configuration (replaces .husky/)
 # Pre-commit: lint + format staged files (parallel)
-# Pre-push: build + validate + smoke tests (sequential)
+# Pre-push: production build + verification gate (sequential)
 
 pre-commit:
   parallel: true
@@ -18,8 +18,6 @@ pre-push:
   piped: true
   commands:
     build:
-      run: USE_NEXTJS_CACHE=false bun run build
-    validate:
-      run: bun run validate
-    smoke-test:
-      run: bun run test:smoke
+      run: USE_NEXTJS_CACHE=false SKIP_BUILD_VALIDATIONS=1 bun run build
+    verify:
+      run: bun run verify

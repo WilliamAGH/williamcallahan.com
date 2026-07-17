@@ -53,7 +53,8 @@
     "../src/types/**/*.ts",
     "../src/types/**/*.tsx",
     "../src/test-utils/**/*.ts",
-    "../scripts/smoke-test-production.ts"
+    "../scripts/smoke-test-production.ts",
+    "../scripts/blog-render-smoke.ts"
   ],
   "exclude": ["node_modules", ".next", "out", "dist"]
 }

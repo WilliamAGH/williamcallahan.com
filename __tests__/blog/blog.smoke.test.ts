@@ -53,6 +53,18 @@ vi.mock("@/lib/seo/schema", async (importOriginal) => {
 
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
+function createMdxFixture(slug: string, content: string): string {
+  return `---
+title: MDX security fixture
+slug: ${slug}
+publishedAt: 2026-01-01
+author: william-callahan
+excerpt: Exercises the MDX serialization boundary.
+tags: [Testing]
+---
+${content}`;
+}
+
 describe("Blog MDX Smoke Tests", () => {
   let mdxFiles: string[] = [];
 
@@ -160,6 +172,38 @@ describe("Blog MDX Smoke Tests", () => {
         }
       }),
     );
+  });
+
+  it("compiles repository-authored expression-heavy MDX", async () => {
+    const source = createMdxFixture(
+      "expression-heavy-mdx",
+      `{["expression-canary"].map((value, index) => (
+  <strong key={value}>{index + 1}: {value.toUpperCase()}</strong>
+))}`,
+    );
+
+    const post = await getMDXPost("expression-heavy-mdx", "expression-heavy-mdx.mdx", source);
+
+    expect(post).not.toBeNull();
+    expect(post?.content.compiledSource).toContain("expression-canary");
+    expect(post?.content.compiledSource).toContain("toUpperCase");
+  });
+
+  it("rejects Function-based process access at the getMDXPost boundary", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const source = createMdxFixture(
+      "dangerous-mdx-expression",
+      `{Function("return process.env.SECRET")()}`,
+    );
+
+    try {
+      await expect(
+        getMDXPost("dangerous-mdx-expression", "dangerous-mdx-expression.mdx", source),
+      ).rejects.toThrow("Security: Function() calls are not allowed");
+      expect(consoleErrorSpy).toHaveBeenCalledOnce();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });
 

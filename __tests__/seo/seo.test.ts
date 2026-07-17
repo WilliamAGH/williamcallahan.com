@@ -1,8 +1,15 @@
 import { Activity, createElement, Fragment, StrictMode } from "react";
+import type { ActivityProps } from "react";
 import { renderToStaticMarkup, renderToString } from "react-dom/server";
 import { render } from "@testing-library/react";
 
 import { JsonLdScript } from "@/components/seo/json-ld";
+
+type ActivityElementProps = ActivityProps & { readonly key?: string };
+
+function createActivity(props: ActivityElementProps) {
+  return createElement(Activity, props);
+}
 
 describe("JsonLdScript", () => {
   it("renders parseable structured data as a native script element", () => {
@@ -37,17 +44,19 @@ describe("JsonLdScript", () => {
         activeRoute,
         hasVisitedTag,
       }: Readonly<{ activeRoute: "article" | "tag"; hasVisitedTag: boolean }>) {
-        const articleActivity = createElement(
-          Activity,
-          { key: "article", mode: activeRoute === "article" ? "visible" : "hidden" },
-          createElement(JsonLdScript, { data: articleGraph }),
-          createElement(JsonLdScript, { data: softwareGraph }),
-        );
-        const tagActivity = createElement(
-          Activity,
-          { key: "tag", mode: activeRoute === "tag" ? "visible" : "hidden" },
-          createElement(JsonLdScript, { data: collectionGraph }),
-        );
+        const articleActivity = createActivity({
+          key: "article",
+          mode: activeRoute === "article" ? "visible" : "hidden",
+          children: [
+            createElement(JsonLdScript, { data: articleGraph }),
+            createElement(JsonLdScript, { data: softwareGraph }),
+          ],
+        });
+        const tagActivity = createActivity({
+          key: "tag",
+          mode: activeRoute === "tag" ? "visible" : "hidden",
+          children: createElement(JsonLdScript, { data: collectionGraph }),
+        });
         const routeActivities =
           activeRoute === "tag"
             ? [tagActivity, articleActivity]
@@ -105,7 +114,12 @@ describe("JsonLdScript", () => {
   it("keeps a client-mounted hidden Activity semantically inert", () => {
     const data = { "@type": "Article", name: "Deferred hidden graph" };
 
-    render(createElement(Activity, { mode: "hidden" }, createElement(JsonLdScript, { data })));
+    render(
+      createActivity({
+        mode: "hidden",
+        children: createElement(JsonLdScript, { data }),
+      }),
+    );
 
     expect(document.querySelector('script[type="application/ld+json"]')).toBeNull();
   });

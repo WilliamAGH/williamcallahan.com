@@ -10,11 +10,6 @@ export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   resolve: {
     alias: {
-      // Critical: Subpath mocks MUST come before their parent modules
-      "next-mdx-remote/serialize": resolve(
-        rootDir,
-        "__tests__/__mocks__/lib/next-mdx-remote-serialize.ts",
-      ),
       // Next.js internal mocks (manual replacement for next/jest)
       "next/navigation": resolve(rootDir, "__tests__/__mocks__/next/navigation.ts"),
       "next/image": resolve(rootDir, "__tests__/__mocks__/next/image.ts"),
@@ -26,7 +21,6 @@ export default defineConfig({
       "@clerk/nextjs": resolve(rootDir, "__tests__/__mocks__/@clerk/nextjs.ts"),
       // Lib mocks
       cheerio: resolve(rootDir, "__tests__/__mocks__/lib/cheerio.ts"),
-      "next-mdx-remote": resolve(rootDir, "__tests__/__mocks__/lib/next-mdx-remote.ts"),
       plaiceholder: resolve(rootDir, "__tests__/__mocks__/lib/plaiceholder.ts"),
       "@/lib/data-access/github": resolve(rootDir, "__tests__/__mocks__/lib/data-access/github.ts"),
       "@/lib/utils/ensure-server-only": resolve(

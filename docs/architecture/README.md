@@ -48,6 +48,11 @@ Example schemas:
   headers; `unstable_noStore()` is not the route-level contract under Cache Components.
 - Blog runtime content comes from `data/blog/posts/*.mdx`, with frontmatter, slug syntax, and
   ingestion inputs owned by `src/types/schemas/blog-frontmatter.ts`.
+- `config/blog-render-canaries.ts` owns the two blog article render canaries. The
+  Chromium E2E test and production smoke helper import that one catalog; `bun run verify`
+  is the required local and CI gate for the browser layer.
+- Production blog smoke validates server HTML, then focused production-browser dogfood
+  verifies client rendering and declared article interactions; see `docs/ops/verification.md`.
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
 - Scheduled bookmark refresh summaries are owned by `src/lib/bookmarks/data-fetch-refresh.server.ts`; the batch manager only orchestrates that operation.
 - Search indexes load from PostgreSQL `search_index_artifacts` and hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
@@ -119,7 +124,7 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 | `analytics`                    | Load and manage third-party tracking scripts (Plausible, Umami, Clicky) in a safe, non-blocking, and privacy-conscious manner.                                           | [analytics.md](../features/analytics.md)                |                                              |
 | `app-layout`                   | Provide the root layout wrapper with global styles, providers, and a consistent UI structure for all pages.                                                              | [app-layout.md](app-layout.md)                          | [Diagram](app-layout.mmd)                    |
 | `batch-fetch-update`           | Outline the automated background refresh schedule and batch processing architecture for production data.                                                                 | [batch-processing.md](batch-processing.md)              |                                              |
-| `blog`                         | Encompass all components and utilities that manage the display, interaction, and data handling for blog content.                                                         | [blog.md](../features/blog.md)                          | [Diagram](../features/blog.mmd)              |
+| `blog`                         | Encompass blog display, interaction, data handling, and the shared browser/production render canary gate.                                                                | [blog.md](../features/blog.md)                          | [Diagram](../features/blog.mmd)              |
 | `blog-article`                 | Provide all necessary components to render a single blog post page, including content, metadata, and interactive UI elements.                                            | [blog-article.md](../features/blog-article.md)          | [Diagram](../features/blog-article.mmd)      |
 | `bookmarks`                    | Act as the primary orchestration layer for fetching, processing, enriching, and storing bookmark data from external APIs.                                                | [bookmarks.md](../features/bookmarks.md)                | [Diagram](../features/bookmarks.mmd)         |
 | `caching`                      | Own multi-tier caching, targeted invalidation, release-scoped CDN keys, and negative static-asset cache prevention.                                                      | [caching.md](caching.md)                                | [Diagram](caching.mmd)                       |
