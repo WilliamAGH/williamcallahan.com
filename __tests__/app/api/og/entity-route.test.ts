@@ -6,7 +6,7 @@
  * and error handling. Image fetching is mocked to avoid network calls.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock sharp before any imports that use it
 vi.mock("sharp", () => ({
@@ -17,9 +17,13 @@ vi.mock("sharp", () => ({
 }));
 
 // Mock fetch-image to avoid network calls and sharp dependency in tests
-vi.mock("@/lib/og-image/fetch-image", () => ({
-  fetchImageAsDataUrl: vi.fn().mockResolvedValue(null),
-}));
+vi.mock("@/lib/og-image/fetch-image", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/og-image/fetch-image")>();
+  return {
+    ...actual,
+    fetchImageAsDataUrl: vi.fn().mockResolvedValue(null),
+  };
+});
 
 // Mock @vercel/og to avoid actual image rendering
 vi.mock("@vercel/og", () => ({
@@ -34,6 +38,7 @@ vi.mock("@vercel/og", () => ({
 
 import { GET } from "@/app/api/og/[entity]/route";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
+import { fetchImageAsDataUrl, ImagePixelLimitError } from "@/lib/og-image/fetch-image";
 
 function createMockRequest(url: string) {
   const fullUrl = new URL(url, "https://williamcallahan.com");
@@ -49,6 +54,10 @@ function createMockRequest(url: string) {
 describe("GET /api/og/[entity]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("returns 400 for invalid entity types", async () => {
@@ -134,5 +143,25 @@ describe("GET /api/og/[entity]", () => {
       params: Promise.resolve({ entity: "books" }),
     });
     expect(response.status).toBe(200);
+  });
+
+  it("returns a bounded client rejection for an oversized input image", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const serverError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(fetchImageAsDataUrl).mockRejectedValueOnce(new ImagePixelLimitError());
+    const request = createMockRequest(
+      "/api/og/books?title=Large&coverUrl=https%3A%2F%2Fexample.com%2Flarge.png",
+    );
+
+    const response = await GET(request, {
+      params: Promise.resolve({ entity: "books" }),
+    });
+
+    expect(response.status).toBe(413);
+    await expect(response.text()).resolves.toBe("Input image exceeds 40000000 pixel limit");
+    expect(warn).toHaveBeenCalledWith(
+      "[OG-Image] Rejected books image: Input image exceeds 40000000 pixel limit",
+    );
+    expect(serverError).not.toHaveBeenCalled();
   });
 });

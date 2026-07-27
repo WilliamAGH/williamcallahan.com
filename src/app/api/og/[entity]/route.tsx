@@ -27,7 +27,7 @@ import {
   ogTextParamsSchema,
 } from "@/types/schemas/og-image";
 import type { OgEntity } from "@/types/schemas/og-image";
-import { fetchImageAsDataUrl } from "@/lib/og-image/fetch-image";
+import { fetchImageAsDataUrl, ImagePixelLimitError } from "@/lib/og-image/fetch-image";
 import { OG_LAYOUT } from "@/lib/og-image/design-tokens";
 import { renderBookLayout } from "@/lib/og-image/layouts/book-layout";
 import { renderBookmarkLayout } from "@/lib/og-image/layouts/bookmark-layout";
@@ -139,6 +139,10 @@ export async function GET(
       height: OG_LAYOUT.height,
     });
   } catch (error) {
+    if (error instanceof ImagePixelLimitError) {
+      console.warn(`[OG-Image] Rejected ${rawEntity} image: ${error.message}`);
+      return new Response(error.message, { status: 413 });
+    }
     console.error(`[OG-Image] Error generating ${rawEntity} image:`, error);
     return new Response("Failed to generate OG image", { status: 500 });
   }

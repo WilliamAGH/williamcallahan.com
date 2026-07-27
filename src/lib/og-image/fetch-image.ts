@@ -30,9 +30,32 @@ import {
   MAX_INPUT_PIXELS,
 } from "./security";
 
+const SHARP_PIXEL_LIMIT_ERROR = "Input image exceeds pixel limit";
+
+export class ImagePixelLimitError extends Error {
+  constructor() {
+    super(`Input image exceeds ${MAX_INPUT_PIXELS} pixel limit`);
+    this.name = "ImagePixelLimitError";
+  }
+}
+
+export async function openPixelBoundedImage(buffer: Buffer) {
+  const image = sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS });
+  try {
+    await image.metadata();
+  } catch (error) {
+    if (error instanceof Error && error.message === SHARP_PIXEL_LIMIT_ERROR) {
+      throw new ImagePixelLimitError();
+    }
+    throw error;
+  }
+  return image;
+}
+
 /**
  * Fetch an image URL and convert it to a base64 PNG data URL.
- * Returns null on any failure (network, validation, size, format).
+ * Returns null when an upstream image is unavailable and throws ImagePixelLimitError when the
+ * decoded image crosses the bounded client-input ceiling.
  */
 export async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   try {
@@ -81,10 +104,12 @@ export async function fetchImageAsDataUrl(url: string): Promise<string | null> {
     }
 
     const buffer = Buffer.concat(chunks);
-    const pngBuffer = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS }).png().toBuffer();
+    const image = await openPixelBoundedImage(buffer);
+    const pngBuffer = await image.png().toBuffer();
     const base64 = pngBuffer.toString("base64");
     return `data:image/png;base64,${base64}`;
   } catch (error) {
+    if (error instanceof ImagePixelLimitError) throw error;
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
       console.error(`[OG-Image] Fetch aborted/timeout after ${FETCH_TIMEOUT_MS}ms`);
     } else {
