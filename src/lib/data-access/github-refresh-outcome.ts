@@ -1,24 +1,18 @@
-import type { RepoWeeklyStatCache } from "@/types/schemas/github-storage";
+/** Bounded retry policy for a refresh that safely preserved healthier existing activity. */
+export const GITHUB_ACTIVITY_PRESERVED_DATA_RETRY = {
+  maxRetries: 2,
+  baseDelay: 5_000,
+  maxBackoff: 10_000,
+} as const;
 
-const PENDING_CONTRIBUTOR_STATS = "pending_202_from_api";
-
-/** Expected no-op when GitHub is still generating every incomplete contributor-stat result. */
+/** Expected degraded no-op when a non-degrading write preserves healthy existing activity. */
 export class GitHubActivityRefreshPreservedError extends Error {
-  readonly reason = "pending-contributor-stats";
+  readonly degraded = true;
+  readonly reason = "preserved-healthy-activity";
+  readonly retryable = true;
 
   constructor() {
-    super("GitHub activity refresh preserved existing data while contributor stats are pending.");
+    super("GitHub activity refresh preserved existing healthy activity data.");
     this.name = "GitHubActivityRefreshPreservedError";
   }
-}
-
-export function isPendingContributorStatsOnly(
-  incompleteRepoStatuses: readonly RepoWeeklyStatCache["status"][],
-  failedRepoCount: number,
-): boolean {
-  return (
-    failedRepoCount === 0 &&
-    incompleteRepoStatuses.length > 0 &&
-    incompleteRepoStatuses.every((status) => status === PENDING_CONTRIBUTOR_STATS)
-  );
 }

@@ -44,10 +44,7 @@ import {
   createEmptyCategoryStats,
 } from "@/lib/data-access/github-processing";
 import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
-import {
-  GitHubActivityRefreshPreservedError,
-  isPendingContributorStatsOnly,
-} from "@/lib/data-access/github-refresh-outcome";
+import { GitHubActivityRefreshPreservedError } from "@/lib/data-access/github-refresh-outcome";
 import { GraphQLRepoNodeSchema } from "@/types/github";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
@@ -56,7 +53,6 @@ import {
   type GitHubActivitySegment,
   type GitHubActivitySummary,
   type GitHubActivityWriteIntent,
-  type RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 import type {
   SingleRepoProcessingInput,
@@ -93,7 +89,7 @@ function createRepositoryProcessingResult(
   allTimeLinesAdded: number,
   allTimeLinesRemoved: number,
   hasAllTimeData: boolean,
-  status: RepoWeeklyStatCache["status"] = "complete",
+  dataComplete = true,
 ): SingleRepoProcessingResult {
   return {
     yearLinesAdded: 0,
@@ -103,9 +99,8 @@ function createRepositoryProcessingResult(
     olderThanYearCommits: 0,
     olderThanYearLinesAdded: 0,
     olderThanYearLinesRemoved: 0,
-    dataComplete: status === "complete" || status === "empty_no_user_contribs",
+    dataComplete,
     hasAllTimeData,
-    status,
   };
 }
 
@@ -162,7 +157,7 @@ describe("GitHub activity refresh", () => {
     expect(persistedSummary.linesOfCodeByCategory).toEqual(createEmptyCategoryStats());
   });
 
-  it("does not persist any refresh record when activity preservation refuses the refresh", async () => {
+  it("treats an unexpected empty-set write refusal as fatal", async () => {
     mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
     mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
 
@@ -257,26 +252,14 @@ describe("GitHub activity refresh", () => {
     expect(result.allTimeCategoryStats).toEqual(expectedCategoryStats);
   });
 
-  it("classifies preservation as expected only when every incomplete repo is pending HTTP 202", () => {
-    expect(isPendingContributorStatsOnly(["pending_202_from_api"], 0)).toBe(true);
-    expect(isPendingContributorStatsOnly(["pending_202_from_api", "pending_202_from_api"], 0)).toBe(
-      true,
-    );
-    expect(isPendingContributorStatsOnly(["pending_202_from_api", "pending_rate_limit"], 0)).toBe(
-      false,
-    );
-    expect(isPendingContributorStatsOnly(["pending_202_from_api"], 1)).toBe(false);
-    expect(isPendingContributorStatsOnly([], 0)).toBe(false);
-  });
-
-  it("surfaces all-pending contributor stats as typed preservation", async () => {
+  it("classifies a preserved healthy write from a partial refresh as retryable", async () => {
     const repository = createGraphQLRepositoryFixture("pending-repo");
     mockFetchContributedRepositories.mockResolvedValue({
       userId: "user-id",
       repositories: [repository],
     });
     mockProcessSingleRepository.mockResolvedValue(
-      createRepositoryProcessingResult(0, 0, false, "pending_202_from_api"),
+      createRepositoryProcessingResult(0, 0, false, false),
     );
     mockFetchRepositoryCommitCount.mockResolvedValue(0);
     mockFetchContributionCalendar.mockResolvedValue({
@@ -295,9 +278,13 @@ describe("GitHub activity refresh", () => {
     });
     mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
 
-    await expect(refreshGitHubActivityDataFromApi()).rejects.toBeInstanceOf(
-      GitHubActivityRefreshPreservedError,
-    );
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toMatchObject({
+      degraded: true,
+      name: GitHubActivityRefreshPreservedError.name,
+      reason: "preserved-healthy-activity",
+      retryable: true,
+    });
+    expect(mockWriteGitHubActivityRefreshRecord).toHaveBeenCalledOnce();
   });
 });
 

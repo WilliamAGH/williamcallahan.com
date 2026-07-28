@@ -38,10 +38,7 @@ import { GITHUB_REFRESH_RATE_LIMIT_CONFIG } from "@/lib/constants";
 
 import { calculateAggregatedWeeklyActivity, createEmptyCategoryStats } from "./github-processing";
 import { fetchTrailingYearContributionCalendar } from "./github-contributions";
-import {
-  GitHubActivityRefreshPreservedError,
-  isPendingContributorStatsOnly,
-} from "./github-refresh-outcome";
+import { GitHubActivityRefreshPreservedError } from "./github-refresh-outcome";
 
 // Configuration
 const GITHUB_REPO_OWNER = getGitHubUsername();
@@ -159,7 +156,6 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     allTimeOverallDataComplete,
     allTimeCategoryStats,
     failedRepoCount,
-    incompleteRepoStatuses,
   } = await processRepositoryStats({
     repos: uniqueRepoArray,
     githubRepoOwner: GITHUB_REPO_OWNER,
@@ -251,10 +247,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     aggregate.aggregatedActivity,
   );
   if (!refreshWritten) {
-    if (isPendingContributorStatsOnly(incompleteRepoStatuses, failedRepoCount)) {
-      throw new GitHubActivityRefreshPreservedError();
-    }
-    throw new Error("GitHub activity refresh preserved its existing activity record.");
+    throw new GitHubActivityRefreshPreservedError();
   }
   return { trailingYearData, allTimeData };
 }

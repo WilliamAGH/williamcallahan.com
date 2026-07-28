@@ -81,7 +81,6 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
   let allTimeLinesAdded = 0;
   let allTimeLinesRemoved = 0;
   let allTimeOverallDataComplete = true;
-  const incompleteRepoStatuses: RepoProcessingResult["incompleteRepoStatuses"] = [];
 
   const allTimeCategoryStats = createEmptyCategoryStats();
   const priorYearCommitStats = initializePriorYearStats();
@@ -94,7 +93,6 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
 
     if (!result.dataComplete) {
       allTimeOverallDataComplete = false;
-      incompleteRepoStatuses.push(result.status);
     }
 
     accumulatePriorYearStats(priorYearCommitStats, repo, result);
@@ -110,7 +108,6 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
     allTimeOverallDataComplete,
     allTimeCategoryStats,
     failedRepoCount: 0,
-    incompleteRepoStatuses,
   };
 }
 
