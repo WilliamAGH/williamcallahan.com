@@ -165,5 +165,6 @@ export async function processSingleRepository({
     olderThanYearLinesRemoved: accumulated.olderRemoved,
     dataComplete,
     hasAllTimeData,
+    status,
   };
 }

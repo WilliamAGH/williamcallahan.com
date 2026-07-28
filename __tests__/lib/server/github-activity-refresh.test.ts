@@ -8,6 +8,7 @@ import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
 import { createEmptyCategoryStats } from "@/lib/data-access/github-processing";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { runGitHubActivityRefresh } from "@/lib/server/github-activity-refresh";
+import { GitHubActivityRefreshPreservedError } from "@/lib/data-access/github-refresh-outcome";
 import { getMonotonicTime } from "@/lib/utils";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import {
@@ -308,6 +309,26 @@ describe("runGitHubActivityRefresh", () => {
     });
     expect(mockedCaptureException).toHaveBeenCalledOnce();
     expect(mockedCaptureException).toHaveBeenCalledWith(refreshError);
+    expect(mockedInvalidateAllGitHubCaches).not.toHaveBeenCalled();
+  });
+
+  it("reports pending contributor-stat preservation as a successful no-op", async () => {
+    mockedResolveDatabaseAccessMode.mockReturnValue({
+      allowWrites: true,
+      environment: "production",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
+    mockedRefreshGitHubActivityDataFromApi.mockRejectedValue(
+      new GitHubActivityRefreshPreservedError(),
+    );
+
+    await expect(runGitHubActivityRefresh()).resolves.toEqual({
+      success: true,
+      operation: "github-activity",
+      itemsProcessed: 0,
+      duration: 0.5,
+    });
+    expect(mockedCaptureException).not.toHaveBeenCalled();
     expect(mockedInvalidateAllGitHubCaches).not.toHaveBeenCalled();
   });
 });

@@ -53,6 +53,7 @@ export type SingleRepoProcessingResult = {
   olderThanYearLinesRemoved: number;
   dataComplete: boolean;
   hasAllTimeData: boolean;
+  status: RepoWeeklyStatCache["status"];
 };
 
 /** Result of processing a batch of repositories */
@@ -65,6 +66,7 @@ export type RepoProcessingResult = {
   allTimeOverallDataComplete: boolean;
   allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"];
   failedRepoCount: number;
+  incompleteRepoStatuses: RepoWeeklyStatCache["status"][];
 };
 
 /** Input for processing a batch of repositories */

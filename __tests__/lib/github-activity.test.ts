@@ -1,5 +1,7 @@
 const {
   mockFetchContributedRepositories,
+  mockFetchContributionCalendar,
+  mockFetchRepositoryCommitCount,
   mockIsGitHubApiConfigured,
   mockIsOperationAllowed,
   mockProcessSingleRepository,
@@ -7,6 +9,8 @@ const {
   mockWriteGitHubActivityRefreshRecord,
 } = vi.hoisted(() => ({
   mockFetchContributedRepositories: vi.fn(),
+  mockFetchContributionCalendar: vi.fn(),
+  mockFetchRepositoryCommitCount: vi.fn(),
   mockIsGitHubApiConfigured: vi.fn(),
   mockIsOperationAllowed: vi.fn(),
   mockProcessSingleRepository: vi.fn(),
@@ -15,7 +19,9 @@ const {
 }));
 
 vi.mock("@/lib/data-access/github-api", () => ({
+  fetchContributionCalendar: mockFetchContributionCalendar,
   fetchContributedRepositories: mockFetchContributedRepositories,
+  fetchRepositoryCommitCount: mockFetchRepositoryCommitCount,
   getGitHubUsername: vi.fn(() => "test-owner"),
   isGitHubApiConfigured: mockIsGitHubApiConfigured,
 }));
@@ -38,6 +44,10 @@ import {
   createEmptyCategoryStats,
 } from "@/lib/data-access/github-processing";
 import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
+import {
+  GitHubActivityRefreshPreservedError,
+  isPendingContributorStatsOnly,
+} from "@/lib/data-access/github-refresh-outcome";
 import { GraphQLRepoNodeSchema } from "@/types/github";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
@@ -46,6 +56,7 @@ import {
   type GitHubActivitySegment,
   type GitHubActivitySummary,
   type GitHubActivityWriteIntent,
+  type RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 import type {
   SingleRepoProcessingInput,
@@ -82,6 +93,7 @@ function createRepositoryProcessingResult(
   allTimeLinesAdded: number,
   allTimeLinesRemoved: number,
   hasAllTimeData: boolean,
+  status: RepoWeeklyStatCache["status"] = "complete",
 ): SingleRepoProcessingResult {
   return {
     yearLinesAdded: 0,
@@ -91,8 +103,9 @@ function createRepositoryProcessingResult(
     olderThanYearCommits: 0,
     olderThanYearLinesAdded: 0,
     olderThanYearLinesRemoved: 0,
-    dataComplete: true,
+    dataComplete: status === "complete" || status === "empty_no_user_contribs",
     hasAllTimeData,
+    status,
   };
 }
 
@@ -242,6 +255,49 @@ describe("GitHub activity refresh", () => {
     expectedCategoryStats.backend.repoCount = 1;
 
     expect(result.allTimeCategoryStats).toEqual(expectedCategoryStats);
+  });
+
+  it("classifies preservation as expected only when every incomplete repo is pending HTTP 202", () => {
+    expect(isPendingContributorStatsOnly(["pending_202_from_api"], 0)).toBe(true);
+    expect(isPendingContributorStatsOnly(["pending_202_from_api", "pending_202_from_api"], 0)).toBe(
+      true,
+    );
+    expect(isPendingContributorStatsOnly(["pending_202_from_api", "pending_rate_limit"], 0)).toBe(
+      false,
+    );
+    expect(isPendingContributorStatsOnly(["pending_202_from_api"], 1)).toBe(false);
+    expect(isPendingContributorStatsOnly([], 0)).toBe(false);
+  });
+
+  it("surfaces all-pending contributor stats as typed preservation", async () => {
+    const repository = createGraphQLRepositoryFixture("pending-repo");
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      repositories: [repository],
+    });
+    mockProcessSingleRepository.mockResolvedValue(
+      createRepositoryProcessingResult(0, 0, false, "pending_202_from_api"),
+    );
+    mockFetchRepositoryCommitCount.mockResolvedValue(0);
+    mockFetchContributionCalendar.mockResolvedValue({
+      user: {
+        contributionsCollection: {
+          contributionCalendar: { totalContributions: 0, weeks: [] },
+        },
+      },
+    });
+    mockReadRepoWeeklyStatsRecord.mockResolvedValue({
+      repoOwnerLogin: "test-owner",
+      repoName: "pending-repo",
+      lastFetched: "2026-07-13T00:00:00.000Z",
+      status: "complete",
+      stats: [],
+    });
+    mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
+
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toBeInstanceOf(
+      GitHubActivityRefreshPreservedError,
+    );
   });
 });
 
