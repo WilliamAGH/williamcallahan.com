@@ -198,7 +198,6 @@ describe("GitHub data access", () => {
             olderThanYearLinesRemoved: 0,
             dataComplete: true,
             hasAllTimeData: false,
-            status: "empty_no_user_contribs",
           });
           expect(readRepoWeeklyStatsRecord).not.toHaveBeenCalled();
           expect(writeRepoWeeklyStatsRecord).toHaveBeenCalledExactlyOnceWith("owner", "repo", {
