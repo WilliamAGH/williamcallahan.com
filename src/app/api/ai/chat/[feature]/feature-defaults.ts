@@ -52,11 +52,11 @@ const FEATURE_DEFAULTS: Record<string, FeatureModelDefaults> = {
     reasoningEffort: "low",
     toolConfig: { enabled: true },
   },
-  // Analysis features require strict, schema-conformant JSON. Disable reasoning so
-  // only the requested structured output enters the response validation path.
-  "bookmark-analysis": { temperature: 0.2, reasoningEffort: "none" },
-  "book-analysis": { temperature: 0.2, reasoningEffort: "none" },
-  "project-analysis": { temperature: 0.2, reasoningEffort: "none" },
+  // Analysis features lower sampling entropy for schema-conformant JSON while
+  // omitted reasoning effort inherits the positive global default.
+  "bookmark-analysis": { temperature: 0.2 },
+  "book-analysis": { temperature: 0.2 },
+  "project-analysis": { temperature: 0.2 },
 };
 
 /** Baseline values applied when neither the request body nor FEATURE_DEFAULTS

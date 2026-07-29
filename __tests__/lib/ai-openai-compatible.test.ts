@@ -286,17 +286,26 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(params.maxTokens).toBe(8192);
     });
 
-    it("applies lower-entropy defaults for structured analysis features", () => {
+    it("keeps omitted structured analysis reasoning at the positive global default", () => {
       const bookmark = resolveModelParams("bookmark-analysis", minimalBody);
       const book = resolveModelParams("book-analysis", minimalBody);
       const project = resolveModelParams("project-analysis", minimalBody);
 
       expect(bookmark.temperature).toBe(0.2);
-      expect(bookmark.reasoningEffort).toBe("none");
+      expect(bookmark.reasoningEffort).toBe("low");
       expect(book.temperature).toBe(0.2);
-      expect(book.reasoningEffort).toBe("none");
+      expect(book.reasoningEffort).toBe("low");
       expect(project.temperature).toBe(0.2);
-      expect(project.reasoningEffort).toBe("none");
+      expect(project.reasoningEffort).toBe("low");
+    });
+
+    it("preserves an explicit general-client reasoning disable", () => {
+      const params = resolveModelParams("terminal_chat", {
+        userText: "hi",
+        reasoning_effort: "none",
+      } as ParsedRequestBody);
+
+      expect(params.reasoningEffort).toBe("none");
     });
 
     it("consumer request body overrides feature defaults", () => {
