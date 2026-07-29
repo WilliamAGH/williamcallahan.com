@@ -38,6 +38,7 @@ import { GITHUB_REFRESH_RATE_LIMIT_CONFIG } from "@/lib/constants";
 
 import { calculateAggregatedWeeklyActivity, createEmptyCategoryStats } from "./github-processing";
 import { fetchTrailingYearContributionCalendar } from "./github-contributions";
+import { GitHubActivityRefreshPreservedError } from "./github-refresh-outcome";
 
 // Configuration
 const GITHUB_REPO_OWNER = getGitHubUsername();
@@ -246,7 +247,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     aggregate.aggregatedActivity,
   );
   if (!refreshWritten) {
-    throw new Error("GitHub activity refresh preserved its existing activity record.");
+    throw new GitHubActivityRefreshPreservedError();
   }
   return { trailingYearData, allTimeData };
 }

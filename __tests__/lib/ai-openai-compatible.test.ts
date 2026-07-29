@@ -17,7 +17,6 @@ import { parseLlmJson, persistAnalysis } from "@/lib/ai/analysis-client-utils";
 import {
   resolveModelParams,
   resolveFeatureSystemPrompt,
-  isHarmonyFormatModel,
 } from "@/app/api/ai/chat/[feature]/feature-defaults";
 import { BOOKMARK_ANALYSIS_RESPONSE_FORMAT } from "@/components/features/bookmarks/bookmark-ai-analysis.client";
 import { BOOK_ANALYSIS_RESPONSE_FORMAT } from "@/components/features/books/book-ai-analysis.client";
@@ -274,7 +273,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(params).toEqual({
         temperature: 1,
         topP: 1,
-        reasoningEffort: "medium",
+        reasoningEffort: "low",
         maxTokens: 8192,
       });
     });
@@ -287,7 +286,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(params.maxTokens).toBe(8192);
     });
 
-    it("applies lower-entropy defaults for structured analysis features", () => {
+    it("keeps omitted structured analysis reasoning at the positive global default", () => {
       const bookmark = resolveModelParams("bookmark-analysis", minimalBody);
       const book = resolveModelParams("book-analysis", minimalBody);
       const project = resolveModelParams("project-analysis", minimalBody);
@@ -298,6 +297,15 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(book.reasoningEffort).toBe("low");
       expect(project.temperature).toBe(0.2);
       expect(project.reasoningEffort).toBe("low");
+    });
+
+    it("preserves an explicit general-client reasoning disable", () => {
+      const params = resolveModelParams("terminal_chat", {
+        userText: "hi",
+        reasoning_effort: "none",
+      } as ParsedRequestBody);
+
+      expect(params.reasoningEffort).toBe("none");
     });
 
     it("consumer request body overrides feature defaults", () => {
@@ -321,16 +329,6 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const result = resolveFeatureSystemPrompt("terminal_chat", "extra context");
       expect(result).toContain("terminal interface");
       expect(result).toContain("extra context");
-    });
-  });
-
-  describe("isHarmonyFormatModel", () => {
-    it("identifies GPT-OSS models as Harmony format (json_schema incompatible)", () => {
-      expect(isHarmonyFormatModel("openai/gpt-oss-120b")).toBe(true);
-      expect(isHarmonyFormatModel("openai/gpt-oss-20b")).toBe(true);
-      expect(isHarmonyFormatModel("GPT-OSS-120B")).toBe(true);
-      expect(isHarmonyFormatModel("qwen3-30b-2507")).toBe(false);
-      expect(isHarmonyFormatModel("gpt-4o-2024-08-06")).toBe(false);
     });
   });
 
@@ -375,7 +373,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
   });
 
   describe("openai-compatible-client adapter", () => {
-    it("maps max_tokens to max_completion_tokens and passes top_p and reasoning_effort", async () => {
+    it("serializes max reasoning effort for a non-GPT Chat Completions model", async () => {
       vi.resetModules();
       const mockCreate = vi.fn().mockResolvedValue({
         id: "chatcmpl_2",
@@ -393,12 +391,12 @@ describe("OpenAI-Compatible AI Utilities", () => {
         apiKey: "test-key",
         tier: "production-a",
         request: {
-          model: "test-model",
+          model: "qwen/qwen3-32b",
           messages: [{ role: "user", content: "hi" }],
           temperature: 1,
           top_p: 0.9,
           max_tokens: 8192,
-          reasoning_effort: "medium",
+          reasoning_effort: "max",
         },
       });
       const payload = mockCreate.mock.calls[0]?.[0];
@@ -406,7 +404,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(payload.max_completion_tokens).toBe(8192);
       expect(payload.max_tokens).toBeUndefined();
       expect(payload.top_p).toBe(0.9);
-      expect(payload.reasoning_effort).toBe("medium");
+      expect(payload.reasoning_effort).toBe("max");
       expect(payload.temperature).toBe(1);
       expect(requestOptions?.headers?.["X-Tier"]).toBe("production-a");
     });
@@ -475,7 +473,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(response.choices[0]?.message.refusal).toBe("I cannot help with that request.");
     });
 
-    it("maps assistant tool calls and tool outputs to Responses API input items", async () => {
+    it("maps Responses tool inputs and serializes max reasoning effort", async () => {
       vi.resetModules();
       const mockResponsesCreate = vi.fn().mockResolvedValue({
         id: "response_1",
@@ -498,7 +496,8 @@ describe("OpenAI-Compatible AI Utilities", () => {
         apiKey: "test-key",
         tier: "production-a",
         request: {
-          model: "test-model",
+          model: "qwen/qwen3-32b",
+          reasoning: { effort: "max" },
           input: [
             { role: "user", content: "find wikipedia" },
             {
@@ -522,6 +521,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
           expect.objectContaining({ type: "function_call_output", call_id: "call_1" }),
         ]),
       );
+      expect(payload.reasoning).toEqual({ effort: "max" });
     });
 
     it("derives responses output_text from refusal output when text output is absent", async () => {

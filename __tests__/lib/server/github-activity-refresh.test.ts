@@ -8,6 +8,10 @@ import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
 import { createEmptyCategoryStats } from "@/lib/data-access/github-processing";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { runGitHubActivityRefresh } from "@/lib/server/github-activity-refresh";
+import {
+  GITHUB_ACTIVITY_PRESERVED_DATA_RETRY,
+  GitHubActivityRefreshPreservedError,
+} from "@/lib/data-access/github-refresh-outcome";
 import { getMonotonicTime } from "@/lib/utils";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import {
@@ -308,6 +312,38 @@ describe("runGitHubActivityRefresh", () => {
     });
     expect(mockedCaptureException).toHaveBeenCalledOnce();
     expect(mockedCaptureException).toHaveBeenCalledWith(refreshError);
+    expect(mockedRefreshGitHubActivityDataFromApi).toHaveBeenCalledOnce();
     expect(mockedInvalidateAllGitHubCaches).not.toHaveBeenCalled();
+  });
+
+  it("retries preserved healthy activity with bounded backoff and lets bootstrap continue", async () => {
+    mockedResolveDatabaseAccessMode.mockReturnValue({
+      allowWrites: true,
+      environment: "production",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
+    mockedRefreshGitHubActivityDataFromApi.mockRejectedValue(
+      new GitHubActivityRefreshPreservedError(),
+    );
+
+    vi.useFakeTimers();
+    try {
+      const refresh = runGitHubActivityRefresh();
+      await vi.runAllTimersAsync();
+
+      await expect(refresh).resolves.toEqual({
+        success: true,
+        operation: "github-activity",
+        itemsProcessed: 0,
+        duration: 0.5,
+      });
+      expect(mockedRefreshGitHubActivityDataFromApi).toHaveBeenCalledTimes(
+        GITHUB_ACTIVITY_PRESERVED_DATA_RETRY.maxRetries + 1,
+      );
+      expect(mockedCaptureException).not.toHaveBeenCalled();
+      expect(mockedInvalidateAllGitHubCaches).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

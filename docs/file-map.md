@@ -193,6 +193,7 @@ File/Path Functionality Description
     - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers plus shared request origin/cookie/auth extraction helpers
     - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route with SSE-only consumption
     - [x] `openai-compatible-client.ts` `ai-shared-services` - Native OpenAI SDK transport for `chat.completions` and `responses`
+    - [x] `harmony-sanitizer.ts` `ai-shared-services` - Marker-based cleanup for leaked Harmony channel-control sequences
     - [x] `upstream-request-queue.ts` `ai-shared-services` - Per-upstream priority queue (max parallel + position)
   - [x] **rag/**
     - [x] `index.ts` `ai-shared-services` - Public API for RAG context retrieval
@@ -792,6 +793,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
         - [x] `terminalSelectionView.test.tsx` `terminal` - Terminal selection view tests
   - [x] **lib/**
     - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
+    - [x] `ai-harmony-sanitizer.test.ts` `ai-shared-services` - Marker-based Harmony channel-control sanitation coverage
     - [x] `ai-openai-compatible-client-timeout.test.ts` `ai-shared-services` - Cached-client request-policy coverage for non-stream, Chat stream, and Responses stream calls
     - [x] **og-image/**
       - [x] `security.test.ts` `opengraph` - OG image SSRF protection tests (private hosts, protocol restrictions)

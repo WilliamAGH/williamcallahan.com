@@ -200,7 +200,7 @@ describe("AI Chat Upstream Pipeline Tools", () => {
     }).runUpstream();
 
     expect(mockGetUpstreamRequestQueue).toHaveBeenCalledWith({
-      key: "https://example.com/v1/responses::test-model",
+      key: "https://example.com/v1/responses::qwen/qwen3-32b",
       maxParallel: 1,
     });
     expect(mockCallOpenAiCompatibleResponses).toHaveBeenCalledTimes(2);

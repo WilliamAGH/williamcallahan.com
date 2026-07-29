@@ -23,7 +23,7 @@ import {
 import { getToolByName } from "./tool-registry";
 import { searchToolResultSchema } from "@/types/schemas/ai-chat";
 import logger from "@/lib/utils/logger";
-import { isHarmonyFormatModel, resolveToolChoice } from "./feature-defaults";
+import { resolveToolChoice } from "./feature-defaults";
 import {
   isAnalysisFeature,
   buildAnalysisRepairPrompt,
@@ -46,8 +46,7 @@ function buildTurnParams(args: {
   config: UpstreamRunnerConfig;
 }): UpstreamTurnParams {
   const { config } = args;
-  const stripResponseFormat =
-    isHarmonyFormatModel(args.activeModel) || args.analysisValidationAttempts > 0;
+  const stripResponseFormat = args.analysisValidationAttempts > 0;
   return {
     turnConfig: {
       model: args.activeModel,
@@ -59,7 +58,6 @@ function buildTurnParams(args: {
       hasToolSupport: config.hasToolSupport,
       forcedToolName: config.forcedToolName,
       turn: args.turn,
-      model: args.activeModel,
     }),
     hasToolSupport: config.hasToolSupport,
     forcedToolName: args.turn === 0 ? config.forcedToolName : undefined,

@@ -7,20 +7,17 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchImageAsDataUrl } from "@/lib/og-image/fetch-image";
+import {
+  fetchImageAsDataUrl,
+  ImagePixelLimitError,
+  openPixelBoundedImage,
+} from "@/lib/og-image/fetch-image";
 import { isPrivateHost, ensureAbsoluteUrl } from "@/lib/og-image/security";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { openGraphUrlSchema } from "@/types/schemas/url";
 
 vi.mock("@/lib/utils/get-base-url", () => ({
   getBaseUrl: vi.fn(() => "https://williamcallahan.com"),
-}));
-
-vi.mock("sharp", () => ({
-  default: vi.fn(() => ({
-    png: vi.fn().mockReturnThis(),
-    toBuffer: vi.fn().mockResolvedValue(Buffer.from("fake-png")),
-  })),
 }));
 
 beforeEach(() => {
@@ -119,19 +116,61 @@ describe("ensureAbsoluteUrl", () => {
 
 describe("fetchImageAsDataUrl", () => {
   it("uses redirect error policy at the fetch boundary", async () => {
+    const image = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"></svg>',
+    );
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(new Uint8Array([1]), {
-        headers: { "content-type": "image/png" },
+      new Response(image, {
+        headers: { "content-type": "image/svg+xml" },
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(fetchImageAsDataUrl("https://example.com/cover.png")).resolves.toBe(
-      "data:image/png;base64,ZmFrZS1wbmc=",
+    await expect(fetchImageAsDataUrl("https://example.com/cover.png")).resolves.toMatch(
+      /^data:image\/png;base64,/,
     );
     expect(fetchMock).toHaveBeenCalledWith(
       "https://example.com/cover.png",
       expect.objectContaining({ redirect: "error" }),
     );
+  });
+
+  it("preserves the typed pixel-limit rejection across the fetch boundary", async () => {
+    const image = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="8001" height="5000"></svg>',
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(image, {
+          headers: { "content-type": "image/svg+xml" },
+        }),
+      ),
+    );
+
+    await expect(fetchImageAsDataUrl("https://example.com/large.svg")).rejects.toBeInstanceOf(
+      ImagePixelLimitError,
+    );
+  });
+});
+
+describe("openPixelBoundedImage", () => {
+  it.each([
+    ["an ordinary image", 2, 2],
+    ["an image exactly at the pixel limit", 8_000, 5_000],
+  ])("accepts %s", async (_label, width, height) => {
+    const image = Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"></svg>`,
+    );
+
+    await expect(openPixelBoundedImage(image)).resolves.toBeDefined();
+  });
+
+  it("rejects an image above the pixel limit", async () => {
+    const image = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="8001" height="5000"></svg>',
+    );
+
+    await expect(openPixelBoundedImage(image)).rejects.toBeInstanceOf(ImagePixelLimitError);
   });
 });

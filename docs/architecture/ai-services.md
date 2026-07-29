@@ -24,7 +24,8 @@ This system is designed to support multiple AI-backed site features where each f
 
 ### Shared client
 
-- `src/lib/ai/openai-compatible/openai-compatible-client.ts` — Native `openai` npm SDK transport for both `chat.completions` and `responses`.
+- `src/lib/ai/openai-compatible/openai-compatible-client.ts` — Native `openai` npm SDK transport for both `chat.completions` and `responses`, including native reasoning-delta forwarding.
+- `src/lib/ai/openai-compatible/harmony-sanitizer.ts` — Marker-based cleanup for leaked Harmony channel-control sequences in completed output.
 - `src/lib/ai/openai-compatible/feature-config.ts` — Per-feature env resolution + URL builder + shared upstream queue-key builder.
 - `src/lib/ai/openai-compatible/browser-client.ts` — Minimal browser helper that mints `/api/ai/token` then calls `/api/ai/chat/[feature]`.
 - `src/types/schemas/ai-openai-compatible.ts` — Zod schemas for API mode, chat payload validation, and normalized upstream response parsing.
@@ -166,9 +167,10 @@ All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so w
 
 - `__tests__/api/ai/chat-rag-helpers.test.ts` covers retrieval query shaping, abort classification, and chat-route request validation.
 - `__tests__/api/ai/upstream-pipeline-test-harness.ts` centralizes upstream-pipeline mock wiring and fixture builders for DRY test setup.
-- `__tests__/api/ai/chat-upstream-pipeline-streaming.test.ts` checks queue mode selection and normalized stream events.
+- `__tests__/api/ai/chat-upstream-pipeline-streaming.test.ts` checks queue mode selection, normalized stream events, and model-neutral gateway controls.
 - `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` asserts tool-call rounds and deterministic search fallback behavior.
 - `__tests__/api/ai/chat-upstream-pipeline-analysis-validation.test.ts` verifies JSON/schema retry paths, coercion, and fallback normalization for bookmark analysis.
 - `__tests__/components/ui/terminal/commands.test.ts` confirms terminal one-shot flow against the SSE-only contract.
 - `__tests__/lib/ai-openai-compatible.test.ts` exercises browser SSE parsing, OpenAI-compatible transport behavior, and client-side analysis persistence (persistAnalysis success/error paths).
+- `__tests__/lib/ai-harmony-sanitizer.test.ts` covers marker-based Harmony channel-control cleanup.
 - `__tests__/lib/ai-openai-compatible-client-timeout.test.ts` verifies that cached clients do not own request policy: non-stream calls retain bounded retries while Chat and Responses streams receive one 180-second attempt.

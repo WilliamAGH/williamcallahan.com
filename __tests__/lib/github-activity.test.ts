@@ -1,5 +1,7 @@
 const {
   mockFetchContributedRepositories,
+  mockFetchContributionCalendar,
+  mockFetchRepositoryCommitCount,
   mockIsGitHubApiConfigured,
   mockIsOperationAllowed,
   mockProcessSingleRepository,
@@ -7,6 +9,8 @@ const {
   mockWriteGitHubActivityRefreshRecord,
 } = vi.hoisted(() => ({
   mockFetchContributedRepositories: vi.fn(),
+  mockFetchContributionCalendar: vi.fn(),
+  mockFetchRepositoryCommitCount: vi.fn(),
   mockIsGitHubApiConfigured: vi.fn(),
   mockIsOperationAllowed: vi.fn(),
   mockProcessSingleRepository: vi.fn(),
@@ -15,7 +19,9 @@ const {
 }));
 
 vi.mock("@/lib/data-access/github-api", () => ({
+  fetchContributionCalendar: mockFetchContributionCalendar,
   fetchContributedRepositories: mockFetchContributedRepositories,
+  fetchRepositoryCommitCount: mockFetchRepositoryCommitCount,
   getGitHubUsername: vi.fn(() => "test-owner"),
   isGitHubApiConfigured: mockIsGitHubApiConfigured,
 }));
@@ -38,6 +44,7 @@ import {
   createEmptyCategoryStats,
 } from "@/lib/data-access/github-processing";
 import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
+import { GitHubActivityRefreshPreservedError } from "@/lib/data-access/github-refresh-outcome";
 import { GraphQLRepoNodeSchema } from "@/types/github";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
@@ -82,6 +89,7 @@ function createRepositoryProcessingResult(
   allTimeLinesAdded: number,
   allTimeLinesRemoved: number,
   hasAllTimeData: boolean,
+  dataComplete = true,
 ): SingleRepoProcessingResult {
   return {
     yearLinesAdded: 0,
@@ -91,7 +99,7 @@ function createRepositoryProcessingResult(
     olderThanYearCommits: 0,
     olderThanYearLinesAdded: 0,
     olderThanYearLinesRemoved: 0,
-    dataComplete: true,
+    dataComplete,
     hasAllTimeData,
   };
 }
@@ -149,7 +157,7 @@ describe("GitHub activity refresh", () => {
     expect(persistedSummary.linesOfCodeByCategory).toEqual(createEmptyCategoryStats());
   });
 
-  it("does not persist any refresh record when activity preservation refuses the refresh", async () => {
+  it("treats an unexpected empty-set write refusal as fatal", async () => {
     mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
     mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
 
@@ -242,6 +250,41 @@ describe("GitHub activity refresh", () => {
     expectedCategoryStats.backend.repoCount = 1;
 
     expect(result.allTimeCategoryStats).toEqual(expectedCategoryStats);
+  });
+
+  it("classifies a preserved healthy write from a partial refresh as retryable", async () => {
+    const repository = createGraphQLRepositoryFixture("pending-repo");
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      repositories: [repository],
+    });
+    mockProcessSingleRepository.mockResolvedValue(
+      createRepositoryProcessingResult(0, 0, false, false),
+    );
+    mockFetchRepositoryCommitCount.mockResolvedValue(0);
+    mockFetchContributionCalendar.mockResolvedValue({
+      user: {
+        contributionsCollection: {
+          contributionCalendar: { totalContributions: 0, weeks: [] },
+        },
+      },
+    });
+    mockReadRepoWeeklyStatsRecord.mockResolvedValue({
+      repoOwnerLogin: "test-owner",
+      repoName: "pending-repo",
+      lastFetched: "2026-07-13T00:00:00.000Z",
+      status: "complete",
+      stats: [],
+    });
+    mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
+
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toMatchObject({
+      degraded: true,
+      name: GitHubActivityRefreshPreservedError.name,
+      reason: "preserved-healthy-activity",
+      retryable: true,
+    });
+    expect(mockWriteGitHubActivityRefreshRecord).toHaveBeenCalledOnce();
   });
 });
 

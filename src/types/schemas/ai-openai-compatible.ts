@@ -119,7 +119,18 @@ const openAiCompatibleToolChoiceSchema = z.union([
   }),
 ]);
 
-export const reasoningEffortSchema = z.enum(["none", "minimal", "low", "medium", "high", "xhigh"]);
+// Mirrors the gateway's full accepted vocabulary (OPENAI_REASONING_EFFORTS). The per-model ceiling
+// is the gateway's business: it clamps a requested level to whatever that model declares in
+// `reasoning.effort_levels` on /v1/models, so a narrower list here only removes reachable levels.
+export const reasoningEffortSchema = z.enum([
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
 
 export type ReasoningEffort = z.infer<typeof reasoningEffortSchema>;
 
