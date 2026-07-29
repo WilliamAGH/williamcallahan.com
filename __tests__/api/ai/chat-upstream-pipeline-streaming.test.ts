@@ -43,11 +43,29 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
     };
 
     expect(parsed.baseUrl).toBe("https://example.com");
-    expect(parsed.request.model).toBe("test-model");
+    expect(parsed.request.model).toBe("qwen/qwen3-32b");
     expect(parsed.request.temperature).toBe(0.7);
     expect(parsed.request.top_p).toBe(1);
     expect(parsed.request.max_tokens).toBe(8192);
     expect(parsed.request.reasoning_effort).toBe("low");
+  });
+
+  it("forwards standard controls for the non-GPT gateway model", async () => {
+    const responseFormat = { type: "json_object" } as const;
+    await createPipeline({
+      userContent: "search bookmarks for gateway controls",
+      reasoningEffort: "max",
+      responseFormat,
+    }).runUpstream();
+
+    const request = mockCallOpenAiCompatibleChatCompletions.mock.calls[0]?.[0]?.request;
+    expect(request).toMatchObject({
+      model: "qwen/qwen3-32b",
+      reasoning_effort: "max",
+      tool_choice: "required",
+      response_format: responseFormat,
+    });
+    expect(request?.tools?.[0]?.function.name).toBe("search_bookmarks");
   });
 
   it("respects explicit client temperature when provided", async () => {

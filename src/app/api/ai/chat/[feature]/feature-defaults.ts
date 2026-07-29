@@ -52,25 +52,23 @@ const FEATURE_DEFAULTS: Record<string, FeatureModelDefaults> = {
     reasoningEffort: "low",
     toolConfig: { enabled: true },
   },
-  // Analysis features require strict, schema-conformant JSON. Lower entropy improves
-  // response-format adherence and reduces malformed payload retries.
-  "bookmark-analysis": { temperature: 0.2, reasoningEffort: "low" },
-  "book-analysis": { temperature: 0.2, reasoningEffort: "low" },
-  "project-analysis": { temperature: 0.2, reasoningEffort: "low" },
+  // Analysis features require strict, schema-conformant JSON. Disable reasoning so
+  // only the requested structured output enters the response validation path.
+  "bookmark-analysis": { temperature: 0.2, reasoningEffort: "none" },
+  "book-analysis": { temperature: 0.2, reasoningEffort: "none" },
+  "project-analysis": { temperature: 0.2, reasoningEffort: "none" },
 };
 
 /** Baseline values applied when neither the request body nor FEATURE_DEFAULTS
- *  provides a value. Tuned for gpt-oss-120b, a reasoning MoE model whose
- *  official recommendation is temperature=1.0, top_p=1.0 (see HuggingFace
- *  openai/gpt-oss-120b discussions #21).
- *  - temperature 1.0 / topP 1.0: full sampling as recommended for reasoning
- *  - reasoningEffort "medium": balanced reasoning depth for general queries
+ *  provides a value.
+ *  - temperature 1.0 / topP 1.0: general-purpose sampling defaults
+ *  - reasoningEffort "low": lightweight reasoning for general website features
  *  - maxTokens 8192: generous reply budget; maps to max_completion_tokens
  *    (Chat Completions) or max_output_tokens (Responses API) */
 const GLOBAL_DEFAULTS: Required<FeatureModelDefaults> = {
   temperature: 1,
   topP: 1,
-  reasoningEffort: "medium",
+  reasoningEffort: "low",
   maxTokens: 8192,
   toolConfig: { enabled: false },
 };
@@ -109,26 +107,8 @@ export function resolveToolChoice(params: {
   hasToolSupport: boolean;
   forcedToolName: string | undefined;
   turn: number;
-  model: string;
 }): "required" | "auto" | undefined {
   if (!params.hasToolSupport) return undefined;
-  if (params.forcedToolName && params.turn === 0) {
-    // llama.cpp ignores/mishandles tool_choice:"required" for Harmony-format
-    // models (gpt-oss). Downgrade to "auto" and rely on deterministic fallback.
-    return isHarmonyFormatModel(params.model) ? "auto" : "required";
-  }
+  if (params.forcedToolName && params.turn === 0) return "required";
   return "auto";
-}
-
-/** Models trained on the OpenAI Harmony response format use internal control tokens
- *  that conflict with llama.cpp grammar-based structured output (json_schema).
- *  See: https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1105
- *       https://github.com/ggml-org/llama.cpp/discussions/15341 */
-const HARMONY_MODEL_PATTERNS = ["gpt-oss"] as const;
-
-/** Returns true when the model uses the Harmony response format and therefore
- *  cannot reliably use `response_format: { type: "json_schema" }` via llama.cpp. */
-export function isHarmonyFormatModel(model: string): boolean {
-  const lower = model.toLowerCase();
-  return HARMONY_MODEL_PATTERNS.some((pattern) => lower.includes(pattern));
 }

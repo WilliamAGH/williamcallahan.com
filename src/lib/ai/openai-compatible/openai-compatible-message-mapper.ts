@@ -17,22 +17,6 @@ import type {
   OpenAiCompatibleTier,
 } from "@/types/schemas/ai-openai-compatible";
 
-const NON_REASONING_MODEL_PREFIXES = ["gpt-3.5", "gpt-4"] as const;
-
-function supportsReasoningEffort(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  const modelSegments = normalized.split("/");
-  let modelName = modelSegments.at(-1);
-  if (!modelName) {
-    console.warn(
-      "[openai-compatible] Empty model name segment; falling back to normalized model id",
-      { model, normalized },
-    );
-    modelName = normalized;
-  }
-  return !NON_REASONING_MODEL_PREFIXES.some((prefix) => modelName.startsWith(prefix));
-}
-
 export function toChatMessage(
   message: OpenAiCompatibleChatCompletionsRequest["messages"][number],
 ): ChatCompletionMessageParam {
@@ -76,10 +60,15 @@ export function toChatMessage(
   return assistantMessage;
 }
 
-export function toChatRequest(
-  request: OpenAiCompatibleChatCompletionsRequest,
-): ChatCompletionCreateParamsNonStreaming {
-  const baseRequest: ChatCompletionCreateParamsNonStreaming = {
+export function toChatRequest(request: OpenAiCompatibleChatCompletionsRequest): Omit<
+  ChatCompletionCreateParamsNonStreaming,
+  "reasoning_effort"
+> & {
+  reasoning_effort?: OpenAiCompatibleChatCompletionsRequest["reasoning_effort"];
+} {
+  const baseRequest: Omit<ChatCompletionCreateParamsNonStreaming, "reasoning_effort"> & {
+    reasoning_effort?: OpenAiCompatibleChatCompletionsRequest["reasoning_effort"];
+  } = {
     model: request.model,
     messages: request.messages.map(toChatMessage),
   };
@@ -87,16 +76,8 @@ export function toChatRequest(
   if (request.temperature !== undefined) baseRequest.temperature = request.temperature;
   if (request.top_p !== undefined) baseRequest.top_p = request.top_p;
   if (request.max_tokens !== undefined) baseRequest.max_completion_tokens = request.max_tokens;
-  if (request.reasoning_effort !== undefined) {
-    if (supportsReasoningEffort(request.model)) {
-      baseRequest.reasoning_effort = request.reasoning_effort;
-    } else {
-      console.warn(
-        "[openai-compatible] Ignoring reasoning_effort for model family that does not support it",
-        { model: request.model, reasoning_effort: request.reasoning_effort },
-      );
-    }
-  }
+  if (request.reasoning_effort !== undefined)
+    baseRequest.reasoning_effort = request.reasoning_effort;
 
   if (request.tools) {
     const chatTools: ChatCompletionTool[] = request.tools.map((tool) => {

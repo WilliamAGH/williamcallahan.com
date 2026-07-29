@@ -22,7 +22,7 @@ import type {
   OpenAiCompatibleChatCompletionsRequest,
   OpenAiCompatibleChatMessage,
 } from "@/types/schemas/ai-openai-compatible";
-import { sanitizeModelOutput } from "@/lib/ai/openai-compatible/think-tag-parser";
+import { stripHarmonyTokens } from "@/lib/ai/openai-compatible/harmony-sanitizer";
 import { getChatCompletionsTools, getResponsesTools } from "./tool-registry";
 import {
   dispatchToolCallsByName,
@@ -116,7 +116,7 @@ export async function executeChatCompletionsTurn(
   const toolCalls = assistantMessage.tool_calls ?? [];
   if (toolCalls.length === 0) {
     const rawContent = assistantMessage.content?.trim();
-    const content = rawContent ? sanitizeModelOutput(rawContent) : rawContent;
+    const content = rawContent ? stripHarmonyTokens(rawContent) : rawContent;
     const refusal = assistantMessage.refusal?.trim();
     const text = content ? content : refusal;
     if (text && onStreamEvent && !emittedDeltaEvent) {
@@ -218,7 +218,7 @@ export async function executeResponsesTurn(
 
   const toolCalls = extractToolCallsFromResponseOutput(response.output);
   if (toolCalls.length === 0) {
-    const text = sanitizeModelOutput(response.output_text.trim());
+    const text = stripHarmonyTokens(response.output_text.trim());
     if (text && onStreamEvent && !emittedDeltaEvent) {
       emitDeferredContentEvents({
         text,

@@ -60,11 +60,11 @@ vi.mock("@/lib/ai/openai-compatible/upstream-request-queue", () => ({
 vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
   resolveOpenAiCompatibleFeatureConfig: vi.fn().mockReturnValue({
     baseUrl: "https://example.com",
-    model: "test-model",
+    model: "qwen/qwen3-32b",
     maxParallel: 1,
   }),
   resolvePreferredUpstreamModel: vi.fn().mockReturnValue({
-    primaryModel: "test-model",
+    primaryModel: "qwen/qwen3-32b",
     fallbackModel: undefined,
   }),
   buildUpstreamQueueKey: vi.fn(({ baseUrl, model, apiMode }) => {
@@ -109,7 +109,7 @@ export const bookmarkUrl = "/bookmarks/en-wikipedia-org-wiki-wikipedia-signs-of-
 export const bookmarkLink = `[${bookmarkTitle}](${bookmarkUrl})`;
 export const searchQuery = "wikipedia ai writing";
 export const explicitSearchPrompt = "search bookmarks for wikipedia";
-export const streamModel = "test-model";
+export const streamModel = "qwen/qwen3-32b";
 
 const bookmarkResult = {
   id: "bookmark-1",
@@ -128,6 +128,8 @@ export type PipelineOptions = {
   temperature?: number;
   userContent?: string;
   apiMode?: ApiMode;
+  reasoningEffort?: ValidatedRequestContext["parsedBody"]["reasoning_effort"];
+  responseFormat?: ValidatedRequestContext["parsedBody"]["response_format"];
 };
 
 type StreamHandlerArgs = {
@@ -147,6 +149,8 @@ export function createValidatedContext(args?: PipelineOptions): ValidatedRequest
       priority: 10,
       ...(args?.temperature !== undefined ? { temperature: args.temperature } : {}),
       ...(args?.apiMode ? { apiMode: args.apiMode } : {}),
+      ...(args?.reasoningEffort !== undefined ? { reasoning_effort: args.reasoningEffort } : {}),
+      ...(args?.responseFormat ? { response_format: args.responseFormat } : {}),
       messages: [{ role: "user", content: args?.userContent ?? "hello there" }],
     },
   };

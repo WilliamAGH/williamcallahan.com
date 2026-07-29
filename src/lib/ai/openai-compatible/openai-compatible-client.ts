@@ -3,14 +3,17 @@
  *
  * Server-side adapter for calling OpenAI-compatible upstream services via both
  * the Chat Completions and Responses APIs. Handles client caching, request
- * validation (Zod), streaming with think-tag parsing, and response normalization.
+ * validation (Zod), native reasoning-delta forwarding, and response normalization.
  */
 
 import "server-only";
 
 import { createHash } from "node:crypto";
 import OpenAIClient from "openai";
-import type { ChatCompletion } from "openai/resources/chat/completions";
+import type {
+  ChatCompletion,
+  ChatCompletionCreateParamsNonStreaming,
+} from "openai/resources/chat/completions";
 import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
 import {
   type OpenAiCompatibleChatCompletionsRequest,
@@ -30,7 +33,6 @@ import {
   toRequestOptions,
   toResponsesInput,
 } from "./openai-compatible-message-mapper";
-import { createThinkTagParser, stripThinkTags } from "./think-tag-parser";
 
 const DEFAULT_REQUEST_OPTIONS = { timeoutMs: 30_000, maxRetries: 1 } as const;
 const INTERACTIVE_STREAM_REQUEST_OPTIONS = { timeoutMs: 180_000, maxRetries: 0 } as const;
@@ -85,15 +87,22 @@ function validateChatRequest(request: OpenAiCompatibleChatCompletionsRequest) {
   return openAiCompatibleChatCompletionsRequestSchema.parse(request);
 }
 
+/**
+ * Gateway inputs are validated against the canonical schema before this boundary.
+ * The SDK's generated reasoning union is narrower than the gateway wire contract,
+ * while its transport forwards the request body unchanged.
+ */
+function toSdkChatCompletionsRequest(
+  request: ReturnType<typeof toChatRequest>,
+): ChatCompletionCreateParamsNonStreaming {
+  return request as ChatCompletionCreateParamsNonStreaming;
+}
+
 function validateResponsesRequest(
-  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
-    input: OpenAiCompatibleResponsesRequest["input"];
-  },
-): Omit<ResponseCreateParamsNonStreaming, "input"> & {
-  input: OpenAiCompatibleResponsesRequest["input"];
-} {
+  request: OpenAiCompatibleResponsesRequest,
+): OpenAiCompatibleResponsesRequest {
   const parsedRequest = openAiCompatibleResponsesRequestSchema.parse(request);
-  const normalizedTools: ResponseCreateParamsNonStreaming["tools"] = parsedRequest.tools?.map(
+  const normalizedTools: OpenAiCompatibleResponsesRequest["tools"] = parsedRequest.tools?.map(
     (tool) => ({
       ...tool,
       parameters: tool.parameters ?? null,
@@ -105,6 +114,16 @@ function validateResponsesRequest(
     ...parsedRequest,
     tools: normalizedTools,
   };
+}
+
+/** See toSdkChatCompletionsRequest for the validated gateway-to-SDK type boundary. */
+function toSdkResponsesRequest(
+  request: OpenAiCompatibleResponsesRequest,
+): ResponseCreateParamsNonStreaming {
+  return {
+    ...request,
+    input: toResponsesInput(request.input),
+  } as ResponseCreateParamsNonStreaming;
 }
 
 function deriveOutputTextFromResponsesOutput(output: unknown[]): string {
@@ -160,7 +179,7 @@ export async function callOpenAiCompatibleChatCompletions(args: {
   const validatedRequest = validateChatRequest(args.request);
   const client = resolveClient(args);
   const completion: ChatCompletion = await client.chat.completions.create(
-    toChatRequest(validatedRequest),
+    toSdkChatCompletionsRequest(toChatRequest(validatedRequest)),
     resolveRequestOptions(args, DEFAULT_REQUEST_OPTIONS),
   );
   return openAiCompatibleChatCompletionsResponseSchema.parse(completion);
@@ -180,16 +199,9 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
   const validatedRequest = validateChatRequest(args.request);
   const client = resolveClient(args);
   const stream = client.chat.completions.stream(
-    { ...toChatRequest(validatedRequest), stream: true },
+    { ...toSdkChatCompletionsRequest(toChatRequest(validatedRequest)), stream: true },
     resolveRequestOptions(args, INTERACTIVE_STREAM_REQUEST_OPTIONS),
   );
-
-  const thinkParser = args.onThinkingDelta
-    ? createThinkTagParser({
-        onContent: (text) => args.onDelta?.(text),
-        onThinking: (text) => args.onThinkingDelta?.(text),
-      })
-    : null;
 
   let startEmitted = false;
   for await (const chunk of stream) {
@@ -200,11 +212,7 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
 
     const delta = chunk.choices[0]?.delta?.content;
     if (typeof delta === "string" && delta.length > 0) {
-      if (thinkParser) {
-        thinkParser.push(delta);
-      } else {
-        args.onDelta?.(delta);
-      }
+      args.onDelta?.(delta);
     }
 
     // Reasoning fields are untyped in the SDK but present at runtime:
@@ -222,8 +230,6 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
     }
   }
 
-  thinkParser?.end();
-
   if (!startEmitted) {
     throw new Error(
       `[AI] Chat completions stream completed without emitting any chunks (model: ${args.request.model})`,
@@ -231,20 +237,13 @@ export async function streamOpenAiCompatibleChatCompletions(args: {
   }
 
   const completion = await stream.finalChatCompletion();
-  // Strip <think> tags from the assembled completion so downstream consumers
-  // (e.g. JSON analysis parsers) see only the visible response content.
-  if (thinkParser && completion.choices[0]?.message?.content) {
-    completion.choices[0].message.content = stripThinkTags(completion.choices[0].message.content);
-  }
   return openAiCompatibleChatCompletionsResponseSchema.parse(completion);
 }
 
 export async function callOpenAiCompatibleResponses(args: {
   baseUrl: string;
   apiKey?: string;
-  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
-    input: OpenAiCompatibleResponsesRequest["input"];
-  };
+  request: OpenAiCompatibleResponsesRequest;
   tier: OpenAiCompatibleTier;
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -252,10 +251,7 @@ export async function callOpenAiCompatibleResponses(args: {
   const validatedRequest = validateResponsesRequest(args.request);
   const client = resolveClient(args);
   const response = await client.responses.create(
-    {
-      ...validatedRequest,
-      input: toResponsesInput(validatedRequest.input),
-    },
+    toSdkResponsesRequest(validatedRequest),
     resolveRequestOptions(args, DEFAULT_REQUEST_OPTIONS),
   );
   const normalizedResponse = normalizeResponsesOutputText(response);
@@ -267,9 +263,7 @@ export async function callOpenAiCompatibleResponses(args: {
 export async function streamOpenAiCompatibleResponses(args: {
   baseUrl: string;
   apiKey?: string;
-  request: Omit<ResponseCreateParamsNonStreaming, "input"> & {
-    input: OpenAiCompatibleResponsesRequest["input"];
-  };
+  request: OpenAiCompatibleResponsesRequest;
   tier: OpenAiCompatibleTier;
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -281,19 +275,11 @@ export async function streamOpenAiCompatibleResponses(args: {
   const client = resolveClient(args);
   const stream = client.responses.stream(
     {
-      ...validatedRequest,
-      input: toResponsesInput(validatedRequest.input),
+      ...toSdkResponsesRequest(validatedRequest),
       stream: true,
     },
     resolveRequestOptions(args, INTERACTIVE_STREAM_REQUEST_OPTIONS),
   );
-
-  const thinkParser = args.onThinkingDelta
-    ? createThinkTagParser({
-        onContent: (text) => args.onDelta?.(text),
-        onThinking: (text) => args.onThinkingDelta?.(text),
-      })
-    : null;
 
   let startEmitted = false;
   for await (const event of stream) {
@@ -302,11 +288,7 @@ export async function streamOpenAiCompatibleResponses(args: {
       args.onStart?.({ id: event.response.id, model: event.response.model });
     }
     if (event.type === "response.output_text.delta" && event.delta.length > 0) {
-      if (thinkParser) {
-        thinkParser.push(event.delta);
-      } else {
-        args.onDelta?.(event.delta);
-      }
+      args.onDelta?.(event.delta);
     }
 
     // Reasoning summary events from OpenAI models that support extended thinking
@@ -317,8 +299,6 @@ export async function streamOpenAiCompatibleResponses(args: {
       }
     }
   }
-
-  thinkParser?.end();
 
   if (!startEmitted) {
     const modelLabel =
@@ -332,9 +312,6 @@ export async function streamOpenAiCompatibleResponses(args: {
 
   const response = await stream.finalResponse();
   const normalizedResponse = normalizeResponsesOutputText(response);
-  if (thinkParser && normalizedResponse.output_text) {
-    normalizedResponse.output_text = stripThinkTags(normalizedResponse.output_text);
-  }
   const parsedResponse = openAiCompatibleResponsesResponseSchema.parse(normalizedResponse);
   assertOpenAiCompatibleResponsesSucceeded(parsedResponse);
   return parsedResponse;

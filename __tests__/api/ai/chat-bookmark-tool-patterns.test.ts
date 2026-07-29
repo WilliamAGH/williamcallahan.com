@@ -15,36 +15,23 @@ describe("Search query extraction from user messages", () => {
   });
 });
 
-describe("resolveToolChoice with Harmony models", () => {
-  it("returns 'required' for non-Harmony models on forced turn 0", () => {
+describe("resolveToolChoice", () => {
+  it("returns 'required' for a forced tool on turn 0", () => {
     expect(
       resolveToolChoice({
         hasToolSupport: true,
         forcedToolName: "search_bookmarks",
         turn: 0,
-        model: "qwen3-30b-2507",
       }),
     ).toBe("required");
   });
 
-  it("downgrades to 'auto' for Harmony (gpt-oss) models on forced turn 0", () => {
-    expect(
-      resolveToolChoice({
-        hasToolSupport: true,
-        forcedToolName: "search_bookmarks",
-        turn: 0,
-        model: "openai/gpt-oss-120b",
-      }),
-    ).toBe("auto");
-  });
-
-  it("returns 'auto' for forced turn > 0 regardless of model", () => {
+  it("returns 'auto' for a forced tool after turn 0", () => {
     expect(
       resolveToolChoice({
         hasToolSupport: true,
         forcedToolName: "search_bookmarks",
         turn: 1,
-        model: "qwen3-30b-2507",
       }),
     ).toBe("auto");
   });
@@ -55,7 +42,6 @@ describe("resolveToolChoice with Harmony models", () => {
         hasToolSupport: false,
         forcedToolName: "search_bookmarks",
         turn: 0,
-        model: "openai/gpt-oss-120b",
       }),
     ).toBeUndefined();
   });
