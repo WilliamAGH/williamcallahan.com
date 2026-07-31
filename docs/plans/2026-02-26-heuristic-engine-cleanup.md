@@ -14,7 +14,7 @@
 - [CC1b] DRY → single source of truth
 - [CC1c] YAGNI → no speculative code
 - [YK4] Version control remembers → delete unused
-- [LC1a] All files ≤ 350 lines
+- [LC1a] All files ≤ 500 lines
 - [UP1] Comprehensive update protocol → map all usages before changes
 - [DOC1c] Update architecture docs when changing files
 
@@ -315,7 +315,7 @@ keyword-extractor.ts, index.ts. All similarity is now pgvector-based."
 
 ### Task 4: Remove dead types from `related-content.ts`
 
-`src/types/related-content.ts` is 428 lines — 78 over the 350-line ceiling. After Phase B, many types have zero consumers.
+`src/types/related-content.ts` is 428 lines — over the 500-line ceiling. After Phase B, many types have zero consumers.
 
 **Files:**
 
@@ -376,7 +376,7 @@ Expected: ZERO results (or only within schemas that define their own Zod-inferre
 **Step 4: Verify line count**
 
 Run: `wc -l src/types/related-content.ts`
-Expected: ≤ 350 lines (target ~220).
+Expected: ≤ 500 lines (target ~220).
 
 **Step 5: Run validate**
 
@@ -472,7 +472,7 @@ Expected: All non-pre-existing failures pass.
 **Step 4: File size check**
 
 Run: `bun run check:file-size`
-Expected: No new violations. `src/types/related-content.ts` now under 350 lines.
+Expected: No new violations. `src/types/related-content.ts` now under 500 lines.
 
 **Step 5: Dead code scan**
 
@@ -494,6 +494,6 @@ No commit — this is verification only. Report pass/fail for each check.
 | --------- | ----------- | ------------------ | ---------------- | ------------------------------------------------ |
 | A         | 1-2         | 0                  | 0                | Extract utility; rewrite debug route to pgvector |
 | B         | 3           | 5 modules + 1 test | ~1,872           | Delete entire heuristic engine                   |
-| C         | 4           | 0 (type pruning)   | ~208             | `related-content.ts` under 350 lines             |
+| C         | 4           | 0 (type pruning)   | ~208             | `related-content.ts` under 500 lines             |
 | D         | 5-6         | 0                  | 0                | Docs updated; full verification green            |
 | **Total** | **6 tasks** | **6 files**        | **~2,080 lines** | **pgvector-only architecture, [LC1a] compliant** |

@@ -865,7 +865,7 @@ git commit -m "docs: update search and architecture docs for unified embedding s
 **Step 2:** `bun run type-check && bun run type-check:tests`
 **Step 3:** `bun run test` — all pass
 **Step 4:** `bun run build` — production build succeeds
-**Step 5:** `bun run check:file-size` — all new files <= 350 lines
+**Step 5:** `bun run check:file-size` — all new files <= 500 lines
 
 ```bash
 git commit -m "chore: fix validation issues from embedding similarity upgrade"

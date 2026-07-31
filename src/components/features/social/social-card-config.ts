@@ -3,7 +3,7 @@
  * @module components/features/social/social-card-config
  * @description
  * Configuration constants and helper functions for social platform detection,
- * styling, and image paths. Extracted to keep the main component under 350 lines.
+ * styling, and image paths.
  */
 
 /** Delay before mounting to allow for smooth transition animations */

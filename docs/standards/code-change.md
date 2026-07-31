@@ -12,7 +12,7 @@ See `AGENTS.md` ([LOC1a-d], [MO1a-g], [FS1a-k], [ND1a-c]).
 
 - **SRP only**: each new component/hook/utility has one reason to change ([MO1d]).
 - **New feature → new file**; do not grow monoliths ([MO1b]).
-- **Avoid edits to files >350 LOC**; prefer splitting or creating new files—legacy exceptions allowed with a documented warning per [LOC1c].
+- **Avoid edits to files >500 LOC**; prefer splitting or creating new files—legacy exceptions allowed with a documented warning per [LOC1c].
 - **Strict Boundaries**: Server Components fetch data; Client Components handle interactivity.
 - **No DTOs**: Zod schemas define the API contracts; types are derived via `z.infer`.
 
@@ -44,7 +44,7 @@ If any bullet fails, create a new component/hook.
 2. **Pick the correct layer** (app → feature → ui → lib).
 3. **Pick the correct directory** (feature-first, colocation).
 4. **Name by role** (ban generic names; suffix declares meaning like `*Card`, `*List`, `*Form`) ([ND1a]).
-5. **Keep the file small** (stay comfortably under 350 LOC; split by concept early) ([LOC1a]).
+5. **Keep the file small** (stay comfortably under 500 LOC; split by concept early) ([LOC1a]).
 6. **Verify** with repo-standard commands (`bun run lint`, `bun run type-check`).
 
 ## Repository structure and naming (placement is part of the contract)

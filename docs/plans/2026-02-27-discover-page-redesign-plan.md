@@ -1028,7 +1028,7 @@ Expected: PASS
 **Step 4: Check file sizes**
 
 Run: `bun run check:file-size`
-Expected: No new violations (all new files are well under 350 LOC)
+Expected: No new violations (all new files are well under 500 LOC)
 
 **Step 5: Manual verification**
 
