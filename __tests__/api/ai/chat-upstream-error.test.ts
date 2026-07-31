@@ -5,6 +5,7 @@ import {
   isAbortError,
   isTimeoutError,
   MODEL_LOAD_FAILURE_PATTERN,
+  UNPRESERVABLE_REASONING_INTENT_PATTERN,
 } from "@/app/api/ai/chat/[feature]/upstream-error";
 
 describe("isModelLoadFailure", () => {
@@ -147,6 +148,29 @@ describe("resolveErrorResponse", () => {
     const result = resolveErrorResponse(error);
     expect(result.status).toBe(502);
     expect(result.kind).toBe("upstream");
+  });
+
+  it("passes through 422 unpreservable_reasoning_intent as non-retryable", () => {
+    const error = Object.assign(
+      new Error(
+        `422 {"error":{"code":"${UNPRESERVABLE_REASONING_INTENT_PATTERN}","message":"no candidate provider can preserve reasoning intent"}}`,
+      ),
+      { status: 422 },
+    );
+    const result = resolveErrorResponse(error);
+    expect(result.status).toBe(422);
+    expect(result.kind).toBe("reasoning_unpreservable");
+    expect(result.message).toContain("reasoning effort cannot be preserved");
+    expect(result.message).toContain("cannot succeed");
+    expect(result.message).not.toContain("Please try again");
+  });
+
+  it("maps 422 without unpreservable_reasoning_intent to 502 with kind 'upstream'", () => {
+    const error = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
+    const result = resolveErrorResponse(error);
+    expect(result.status).toBe(502);
+    expect(result.kind).toBe("upstream");
+    expect(result.message).toContain("Please try again");
   });
 
   it("maps generic status codes to 502 with kind 'upstream'", () => {

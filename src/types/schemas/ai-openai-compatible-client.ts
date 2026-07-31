@@ -28,6 +28,7 @@ export const aiChatStreamErrorKindSchema = z.enum([
   "rate_limit",
   "auth",
   "model_unavailable",
+  "reasoning_unpreservable",
   "upstream",
 ]);
 

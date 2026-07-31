@@ -19,11 +19,16 @@ import type {
 /** Upstream error message pattern for model-load failures (single source of truth). */
 export const MODEL_LOAD_FAILURE_PATTERN = "Failed to load model";
 
+/** Gateway error code for explicit reasoning intent no candidate provider can preserve
+ *  (deterministic, non-retryable; single source of truth). */
+export const UNPRESERVABLE_REASONING_INTENT_PATTERN = "unpreservable_reasoning_intent";
+
 /** HTTP status codes for upstream error mapping */
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_RATE_LIMITED = 429;
 const HTTP_BAD_REQUEST = 400;
+const HTTP_UNPROCESSABLE_ENTITY = 422;
 
 /** Check whether an upstream error indicates the requested model could not be loaded. */
 export function isModelLoadFailure(error: unknown): boolean {
@@ -57,7 +62,8 @@ export function formatErrorMessage(error: unknown): string {
 
 /** Map upstream error to client-facing status + message + semantic kind.
  *  Auth failures (401/403) and rate limits (429) become 503 to avoid
- *  leaking upstream topology to the browser. */
+ *  leaking upstream topology to the browser. Gateway 422
+ *  `unpreservable_reasoning_intent` passes through as a non-retryable 422. */
 export function resolveErrorResponse(error: unknown): {
   status: number;
   message: string;
@@ -95,6 +101,17 @@ export function resolveErrorResponse(error: unknown): {
       status: 503,
       kind: "model_unavailable",
       message: "AI upstream model is currently unavailable",
+    };
+  }
+  if (
+    status === HTTP_UNPROCESSABLE_ENTITY &&
+    message.includes(UNPRESERVABLE_REASONING_INTENT_PATTERN)
+  ) {
+    return {
+      status: HTTP_UNPROCESSABLE_ENTITY,
+      kind: "reasoning_unpreservable",
+      message:
+        "The requested reasoning effort cannot be preserved for this model. Retrying the same request cannot succeed; change the reasoning effort or model first.",
     };
   }
 
