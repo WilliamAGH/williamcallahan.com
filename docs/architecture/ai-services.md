@@ -107,6 +107,7 @@ For a route param `feature`, the server resolves configuration with this precede
 - Dependency: `openai@6.18.0` from npm.
 - SDK base URL is normalized to include `/v1`, so both OpenAI and OpenAI-compatible providers (including LM Studio) can be configured with or without a trailing `/v1`.
 - If no API key is configured, the server fails before constructing the SDK client; set `AI_DEFAULT_OPENAI_API_KEY` or a feature-specific key.
+- The gateway honors `reasoning_effort: "none"` (reasoning OFF) only for GENERAL-class API keys; unauthenticated or other key classes are clamped to reasoning-ON.
 - Streaming adapter:
   - Uses SDK stream helpers (`chat.completions.stream(...)` and `responses.stream(...)`) and finalizes each turn via `finalChatCompletion()` / `finalResponse()`.
   - Forwards real upstream token deltas through `onDelta` callbacks.

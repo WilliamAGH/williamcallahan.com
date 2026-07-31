@@ -63,9 +63,7 @@ describe("RAG Static Context", () => {
       const urls = ctx.currentProjects.map((project) => project.url);
 
       expect(urls).toContain("/projects/aventure-vc");
-      expect(urls).toContain("/projects/williamcallahan-com");
       expect(urls).not.toContain("/projects/aventurevc");
-      expect(urls).not.toContain("/projects/williamcallahancom");
     });
 
     it("socialLinks includes GitHub", () => {

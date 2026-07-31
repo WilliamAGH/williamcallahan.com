@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2026-04-06";
+export const updatedAt = "2026-07-30";
 
 export const projects: Project[] = [
   {
@@ -39,27 +39,6 @@ export const projects: Project[] = [
       "Google Cloud",
       "Oracle Cloud",
     ],
-    cvFeatured: true,
-  },
-  {
-    id: "williamcallahan.com",
-    name: "williamcallahan.com",
-    description:
-      "Personal site with a graph index of thousands of JSON documents that crawls external links to fetch logos and OpenGraph images on demand. Built with the Next.js App Router and TypeScript; Dockerized for cloud deployment.",
-    shortSummary:
-      "Interactive personal site with beautiful terminal/code components & other dynamic content",
-    url: "https://williamcallahan.com",
-    githubUrl: "https://github.com/WilliamAGH/williamcallahan.com",
-    imageKey: "images/other/projects/williamcallahan-com-project.png",
-    tags: [
-      "Graph Index",
-      "S3 Object Storage",
-      "Interactive App",
-      "Terminal UI",
-      "MDX Blog",
-      "Search",
-    ],
-    techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Zod", "Bun", "Docker", "Fly.io"],
     cvFeatured: true,
   },
   {
