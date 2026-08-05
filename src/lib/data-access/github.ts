@@ -137,7 +137,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
     );
     if (!refreshWritten) {
-      throw new Error("GitHub activity refresh preserved its existing activity record.");
+      throw new GitHubActivityRefreshPreservedError();
     }
     return { trailingYearData: emptyActivityData, allTimeData: emptyActivityData };
   }

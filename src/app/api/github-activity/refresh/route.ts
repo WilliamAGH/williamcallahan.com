@@ -11,13 +11,17 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
+import {
+  GITHUB_ACTIVITY_PRESERVED_DATA_RETRY,
+  GitHubActivityRefreshPreservedError,
+} from "@/lib/data-access/github-refresh-outcome";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse, type NextRequest } from "next/server";
 import { incrementAndPersist, loadRateLimitStore } from "@/lib/rate-limiter";
 import { envLogger } from "@/lib/utils/env-logger";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import { getClientIp } from "@/lib/utils/request-utils";
-import { buildApiRateLimitResponse } from "@/lib/utils/api-utils";
+import { buildApiRateLimitResponse, buildApiServiceBusyResponse } from "@/lib/utils/api-utils";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { githubActivityRefreshSuccessResponseSchema } from "@/types/schemas/github-storage";
 
@@ -50,13 +54,14 @@ async function ensureRateLimitsLoaded() {
  * 3. If the server secret is not configured, returns a 500 Server Error response.
  * 4. If validation succeeds, calls `refreshGitHubActivityDataFromApi` to fetch and process data.
  * 5. Returns a 200 OK response with commit statistics upon successful refresh.
- * 6. Returns a 500 Server Error response if the refresh process fails or returns no data.
+ * 6. Returns a retryable 503 response when healthier existing data is preserved.
+ * 7. Returns a 500 Server Error response for unexpected failures or missing data.
  *
  * @param {NextRequest} request - The incoming Next.js API request object.
  * @returns {Promise<NextResponse>} A promise that resolves to a Next.js API response
  * indicating the outcome of the refresh operation.
  *
- * @throws {Error} Catches and logs any unexpected errors during the process, returning a 500 response.
+ * Refresh errors are caught: preserved-data outcomes return 503; unexpected errors return 500.
  *
  * @remarks
  * - The `x-refresh-secret` header is crucial for protecting this endpoint.
@@ -199,6 +204,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 },
     );
   } catch (error: unknown) {
+    if (error instanceof GitHubActivityRefreshPreservedError) {
+      console.warn(
+        "[API Refresh] GitHub activity refresh preserved existing healthy activity data; retry later",
+        { reason: error.reason, retryable: error.retryable },
+      );
+      return buildApiServiceBusyResponse({
+        retryAfterSeconds: GITHUB_ACTIVITY_PRESERVED_DATA_RETRY.baseDelay / 1000,
+        message: error.message,
+      });
+    }
+
     Sentry.captureException(error instanceof Error ? error : new Error(String(error)));
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     console.error(

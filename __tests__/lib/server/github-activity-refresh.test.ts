@@ -17,8 +17,10 @@ import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import {
   contributionDaySchema,
   createUnavailableUserActivityView,
+  githubActivityRefreshSuccessResponseSchema,
   userActivityViewSchema,
 } from "@/types/schemas/github-storage";
+import { standardApiErrorResponseSchema } from "@/types/schemas/api";
 import { connection, NextRequest } from "next/server";
 
 const mockedAuth = vi.hoisted(() => vi.fn((userId: string | null = null) => ({ userId })));
@@ -74,6 +76,15 @@ const refreshedActivity = {
 
 const unavailableGitHubActivity = createUnavailableUserActivityView({ source: "empty" });
 const githubActivityUrl = "http://localhost:3000/api/github-activity";
+const githubActivityRefreshUrl = `${githubActivityUrl}/refresh`;
+const cronRefreshSecret = "github-activity-refresh-secret";
+
+function createAuthorizedGitHubActivityRefreshRequest(): NextRequest {
+  return new NextRequest(githubActivityRefreshUrl, {
+    method: "POST",
+    headers: { authorization: `Bearer ${cronRefreshSecret}` },
+  });
+}
 
 function expectNoStoreResponse(response: Response, status: number): void {
   expect(response.status).toBe(status);
@@ -86,12 +97,15 @@ describe("GitHub activity refresh routes", () => {
     relayFetch.mockReset();
     mockedAuth.mockClear();
     mockedRefreshGitHubActivityDataFromApi.mockReset();
+    mockedInvalidateAllGitHubCaches.mockClear();
+    mockedCaptureException.mockClear();
     mockedResolveDatabaseAccessMode.mockReset();
     mockedResolveDatabaseAccessMode.mockReturnValue({
       allowWrites: false,
       environment: "development",
       source: "NEXT_PUBLIC_SITE_URL",
     });
+    vi.stubEnv("BOOKMARK_CRON_REFRESH_SECRET", cronRefreshSecret);
     vi.stubGlobal("fetch", relayFetch);
   });
 
@@ -102,12 +116,74 @@ describe("GitHub activity refresh routes", () => {
 
   it("returns an explicit read-only result without refreshing GitHub data", async () => {
     const response = await refreshGitHubActivity(
-      new NextRequest("http://localhost:3000/api/github-activity/refresh", { method: "POST" }),
+      new NextRequest(githubActivityRefreshUrl, { method: "POST" }),
     );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ dataFetched: false, readOnly: true });
     expect(mockedRefreshGitHubActivityDataFromApi).not.toHaveBeenCalled();
+  });
+
+  it("returns a canonical retryable response when healthy activity is preserved", async () => {
+    mockedResolveDatabaseAccessMode.mockReturnValueOnce({
+      allowWrites: true,
+      environment: "production",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
+    mockedRefreshGitHubActivityDataFromApi.mockRejectedValueOnce(
+      new GitHubActivityRefreshPreservedError(),
+    );
+
+    const response = await refreshGitHubActivity(createAuthorizedGitHubActivityRefreshRequest());
+    const body = standardApiErrorResponseSchema.parse(await response.json());
+    const retryAfterSeconds = GITHUB_ACTIVITY_PRESERVED_DATA_RETRY.baseDelay / 1_000;
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe(String(retryAfterSeconds));
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(body.code).toBe("SERVICE_UNAVAILABLE");
+    expect(body.status).toBe(response.status);
+    expect(body.retryAfterSeconds).toBe(retryAfterSeconds);
+    expect(mockedCaptureException).not.toHaveBeenCalled();
+    expect(mockedInvalidateAllGitHubCaches).not.toHaveBeenCalled();
+  });
+
+  it("reports unexpected refresh failures as internal server errors", async () => {
+    const refreshError = new Error("GitHub API unavailable");
+    mockedResolveDatabaseAccessMode.mockReturnValueOnce({
+      allowWrites: true,
+      environment: "production",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
+    mockedRefreshGitHubActivityDataFromApi.mockRejectedValueOnce(refreshError);
+
+    const response = await refreshGitHubActivity(createAuthorizedGitHubActivityRefreshRequest());
+
+    expect(response.status).toBe(500);
+    expect(mockedCaptureException).toHaveBeenCalledOnce();
+    expect(mockedCaptureException).toHaveBeenCalledWith(refreshError);
+    expect(mockedInvalidateAllGitHubCaches).not.toHaveBeenCalled();
+  });
+
+  it("returns the successful refresh result after invalidating caches", async () => {
+    mockedResolveDatabaseAccessMode.mockReturnValueOnce({
+      allowWrites: true,
+      environment: "production",
+      source: "NEXT_PUBLIC_SITE_URL",
+    });
+    mockedRefreshGitHubActivityDataFromApi.mockResolvedValueOnce(refreshedActivity);
+
+    const response = await refreshGitHubActivity(createAuthorizedGitHubActivityRefreshRequest());
+    const body = githubActivityRefreshSuccessResponseSchema.parse(await response.json());
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      dataFetched: true,
+      trailingYearCommits: refreshedActivity.trailingYearData.totalContributions,
+      allTimeCommits: refreshedActivity.allTimeData.totalContributions,
+    });
+    expect(mockedInvalidateAllGitHubCaches).toHaveBeenCalledOnce();
+    expect(mockedCaptureException).not.toHaveBeenCalled();
   });
 
   it("returns 401 before relaying when optional Clerk authentication is unavailable", async () => {
@@ -174,6 +250,67 @@ describe("GitHub activity refresh routes", () => {
         headers: expect.objectContaining({ "x-refresh-secret": "github-refresh-secret" }),
       }),
     );
+  });
+
+  it("forwards a canonical retryable production refresh response", async () => {
+    vi.stubEnv("GITHUB_REFRESH_SECRET", "github-refresh-secret");
+    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    const frozenNow = new Date("2026-08-05T21:00:00.000Z");
+    const retryableResponse = standardApiErrorResponseSchema.parse({
+      code: "SERVICE_UNAVAILABLE",
+      message: "GitHub activity refresh preserved existing healthy activity data.",
+      retryAfterSeconds: 5,
+      retryAfterAt: "2020-01-01T00:00:05.000Z",
+      status: 503,
+    });
+    relayFetch.mockResolvedValueOnce(
+      Response.json(retryableResponse, {
+        status: 503,
+        headers: { "Cache-Control": "no-store", "Retry-After": "5" },
+      }),
+    );
+
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(frozenNow);
+      const response = await refreshGitHubActivityProduction();
+      const body = standardApiErrorResponseSchema.parse(await response.json());
+
+      expect(response.status).toBe(503);
+      expect(response.headers.get("Retry-After")).toBe("5");
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(body).toMatchObject({
+        code: retryableResponse.code,
+        message: retryableResponse.message,
+        retryAfterSeconds: retryableResponse.retryAfterSeconds,
+        status: retryableResponse.status,
+      });
+      expect(body.retryAfterAt).toBe("2026-08-05T21:00:05.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not reinterpret an inconsistent upstream 429 as service unavailable", async () => {
+    vi.stubEnv("GITHUB_REFRESH_SECRET", "github-refresh-secret");
+    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    const inconsistentResponse = standardApiErrorResponseSchema.parse({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Upstream response has inconsistent rate-limit semantics.",
+      retryAfterSeconds: 5,
+      retryAfterAt: "2026-08-05T21:00:05.000Z",
+      status: 429,
+    });
+    relayFetch.mockResolvedValueOnce(Response.json(inconsistentResponse, { status: 429 }));
+
+    const response = await refreshGitHubActivityProduction();
+
+    expect(response.status).toBe(429);
+    expect(response.headers.has("Retry-After")).toBe(false);
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Failed to trigger production refresh",
+      error: inconsistentResponse.message,
+    });
   });
 
   it.each([

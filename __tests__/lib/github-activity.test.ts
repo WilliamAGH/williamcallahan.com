@@ -157,13 +157,23 @@ describe("GitHub activity refresh", () => {
     expect(persistedSummary.linesOfCodeByCategory).toEqual(createEmptyCategoryStats());
   });
 
-  it("treats an unexpected empty-set write refusal as fatal", async () => {
+  it("classifies an empty-set write refusal as preserved", async () => {
     mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
     mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
 
-    await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
-      "preserved its existing activity record",
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toBeInstanceOf(
+      GitHubActivityRefreshPreservedError,
     );
+    expect(mockWriteGitHubActivityRefreshRecord).toHaveBeenCalledTimes(1);
+    expect(persistedRefresh).toBeUndefined();
+  });
+
+  it("propagates an empty-set persistence failure unchanged", async () => {
+    const persistenceFailure = new Error("GitHub activity persistence unavailable");
+    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
+    mockWriteGitHubActivityRefreshRecord.mockRejectedValue(persistenceFailure);
+
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toBe(persistenceFailure);
     expect(mockWriteGitHubActivityRefreshRecord).toHaveBeenCalledTimes(1);
     expect(persistedRefresh).toBeUndefined();
   });
@@ -252,7 +262,7 @@ describe("GitHub activity refresh", () => {
     expect(result.allTimeCategoryStats).toEqual(expectedCategoryStats);
   });
 
-  it("classifies a preserved healthy write from a partial refresh as retryable", async () => {
+  it("classifies a preserved healthy write from a partial refresh", async () => {
     const repository = createGraphQLRepositoryFixture("pending-repo");
     mockFetchContributedRepositories.mockResolvedValue({
       userId: "user-id",
@@ -278,12 +288,9 @@ describe("GitHub activity refresh", () => {
     });
     mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
 
-    await expect(refreshGitHubActivityDataFromApi()).rejects.toMatchObject({
-      degraded: true,
-      name: GitHubActivityRefreshPreservedError.name,
-      reason: "preserved-healthy-activity",
-      retryable: true,
-    });
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toBeInstanceOf(
+      GitHubActivityRefreshPreservedError,
+    );
     expect(mockWriteGitHubActivityRefreshRecord).toHaveBeenCalledOnce();
   });
 });
