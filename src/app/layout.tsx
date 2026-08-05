@@ -43,7 +43,7 @@ import { SvgTransformFixer } from "../components/utils/svg-transform-fixer.clien
 import { cn } from "../lib/utils";
 
 // Import the client-side terminal loader
-import { TerminalLoader } from "@/components/ui/terminal/terminal-loader.client";
+import { TerminalLoader, TerminalSkeleton } from "@/components/ui/terminal/terminal-loader.client";
 import { TerminalProvider } from "@/components/ui/terminal/terminal-context.client";
 
 /** Load Inter font with Latin subset and display swap */
@@ -187,14 +187,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </ErrorBoundary>
 
               <main className="pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
-                {/* Keep TerminalProvider route-hook rendering inside a local Suspense boundary */}
-                <Suspense fallback={null}>
-                  <TerminalProvider>
-                    <ErrorBoundary>
+                <TerminalProvider>
+                  <ErrorBoundary>
+                    <Suspense fallback={<TerminalSkeleton />}>
                       <TerminalLoader />
-                    </ErrorBoundary>
-                  </TerminalProvider>
-                </Suspense>
+                    </Suspense>
+                  </ErrorBoundary>
+                </TerminalProvider>
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
 

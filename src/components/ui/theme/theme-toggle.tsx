@@ -12,6 +12,8 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 const isDevelopment = process.env.NODE_ENV === "development";
+const THEME_TOGGLE_SIZE_CLASSES =
+  "h-7 w-10 [@media(min-width:1000px)]:w-[5.5rem] [@media(min-width:1100px)]:w-[8rem]";
 
 export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
@@ -22,7 +24,9 @@ export function ThemeToggle() {
 
   if (!mounted) {
     // Preserve space to avoid layout shift but keep it invisible during SSR/initial hydration.
-    return <span className="inline-block h-7 w-7 opacity-0" aria-hidden="true" />;
+    return (
+      <span className={`inline-block ${THEME_TOGGLE_SIZE_CLASSES} opacity-0`} aria-hidden="true" />
+    );
   }
 
   // Always use resolvedTheme for determining the visual state (i.e., what icon to show)
@@ -59,12 +63,12 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200
+      className={`group flex ${THEME_TOGGLE_SIZE_CLASSES} items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200
       bg-gray-200 dark:bg-gray-700
       hover:bg-indigo-100 dark:hover:bg-indigo-900
       border border-gray-300 dark:border-gray-600
       text-gray-700 dark:text-gray-300
-      hover:shadow-md hover:scale-105 active:scale-100"
+      hover:shadow-md hover:scale-105 active:scale-100`}
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
       title={`Current theme: ${theme} (Resolved: ${resolvedTheme})`}
     >

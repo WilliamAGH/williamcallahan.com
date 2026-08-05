@@ -126,7 +126,7 @@ The SelectionView component implements a modal navigation system similar to term
 
 ### Provider Location & Resilience
 
-- The `TerminalProvider` is localized to the terminal subtree in `app/layout.tsx` to ensure terminal runtime issues cannot impact unrelated UI (e.g., navigation/hamburger).
+- `TerminalProvider` remains localized to the terminal subtree in `src/app/layout.tsx`, outside the loader's local `Suspense` boundary, so its children remain renderable while the route-hook observer resolves. `TerminalLoader` uses `TerminalSkeleton` as that boundary's fallback.
 - Terminal history is cleared on route change by listening to the current pathname inside the provider (no coupling to navigation components).
 - Error boundaries wrap the terminal subtree so failures degrade gracefully while the rest of the page remains fully functional.
 - Cross-links: See repository overview in [00-architecture-entrypoint.md](./00-architecture-entrypoint.md) and mapping in [file-overview-map.md](../file-overview-map.md).
