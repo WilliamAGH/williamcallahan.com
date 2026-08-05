@@ -43,8 +43,8 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ### Terminal Suspense Isolation
 
-- `TerminalProvider` remains outside the local loader boundary, so its children stay renderable while its route-hook observer resolves.
-- Only `TerminalLoader` is wrapped in `Suspense` with a `TerminalSkeleton` fallback, reserving terminal geometry while the dynamic implementation loads.
+- `TerminalProvider` and `TerminalLoader` share a terminal-only `Suspense` boundary, containing their client-rendering bailout so page content remains server-rendered.
+- The boundary uses `TerminalSkeleton` instead of an empty fallback, reserving terminal geometry while the provider and dynamic implementation load.
 
 ### Hydration Warning Suppression
 

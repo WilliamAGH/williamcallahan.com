@@ -187,13 +187,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </ErrorBoundary>
 
               <main className="pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
-                <TerminalProvider>
-                  <ErrorBoundary>
-                    <Suspense fallback={<TerminalSkeleton />}>
+                <Suspense fallback={<TerminalSkeleton />}>
+                  <TerminalProvider>
+                    <ErrorBoundary>
                       <TerminalLoader />
-                    </Suspense>
-                  </ErrorBoundary>
-                </TerminalProvider>
+                    </ErrorBoundary>
+                  </TerminalProvider>
+                </Suspense>
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
 
