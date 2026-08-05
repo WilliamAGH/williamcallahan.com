@@ -315,18 +315,6 @@ if (testLimit !== undefined) {
       }
     });
 
-    console.log("\n--- Data Updater Final Summary ---");
-    console.table(
-      results.map((r) => ({
-        Operation: r.operation,
-        Success: r.success ? "✅" : "❌",
-        "Items Processed": r.itemsProcessed ?? "N/A",
-        "Duration (s)": r.duration,
-        Error: r.error || "None",
-      })),
-    );
-    console.log("------------------------------------\n");
-
     await updateTimestamp(results);
 
     const githubResult = results.find((r) => r.operation === "github-activity");
