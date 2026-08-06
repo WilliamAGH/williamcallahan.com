@@ -1,6 +1,7 @@
 // Vitest provides describe, beforeEach, it, expect globally
 import type { Mock } from "vitest";
 import { render, fireEvent, screen } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { ThemeToggle } from "@/components/ui/theme/theme-toggle";
 
 // Mock next-themes
@@ -16,6 +17,11 @@ vi.mock("next-themes", () => ({
 
 import { useTheme } from "next-themes";
 const useThemeMock = useTheme as Mock;
+
+const getSizeClasses = (element: Element) =>
+  (element.getAttribute("class") ?? "")
+    .split(" ")
+    .filter((className) => /(^|:)h-|(^|:)w-/.test(className));
 
 describe("ThemeToggle", () => {
   beforeEach(() => {
@@ -133,5 +139,17 @@ describe("ThemeToggle", () => {
 
     rerender(<ThemeToggle />);
     expect(screen.getByTitle("Current theme: dark (Resolved: dark)")).toBeInTheDocument();
+  });
+
+  it("preserves responsive toggle dimensions through hydration", () => {
+    const placeholderContainer = document.createElement("div");
+    placeholderContainer.innerHTML = renderToStaticMarkup(<ThemeToggle />);
+    const placeholder = placeholderContainer.firstElementChild;
+    if (!placeholder) throw new Error("ThemeToggle must render an SSR placeholder");
+
+    render(<ThemeToggle />);
+    const button = screen.getByRole("button");
+
+    expect(getSizeClasses(placeholder)).toEqual(getSizeClasses(button));
   });
 });

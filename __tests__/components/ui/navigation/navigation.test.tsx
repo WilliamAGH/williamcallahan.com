@@ -203,10 +203,7 @@ describe("Navigation", () => {
       }
     });
 
-    it("exposes the canonical Discord shortcut in the mobile menu", async () => {
-      const discordLink = socialLinks.find((link) => link.platform === "discord");
-      if (!discordLink) throw new Error("Canonical social links must include Discord");
-
+    it("renders canonical social shortcuts immediately in the mobile menu", () => {
       render(
         <TerminalProvider>
           <Navigation />
@@ -215,10 +212,10 @@ describe("Navigation", () => {
       fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
 
       const mobileMenu = screen.getByTestId("mobile-menu");
-      const renderedLink = await within(mobileMenu).findByRole("link", {
-        name: discordLink.label,
-      });
-      expect(renderedLink).toHaveAttribute("href", discordLink.href);
+      for (const socialLink of socialLinks.filter((link) => link.platform !== "bluesky")) {
+        const renderedLink = within(mobileMenu).getByRole("link", { name: socialLink.label });
+        expect(renderedLink).toHaveAttribute("href", socialLink.href);
+      }
     });
 
     it("closes menu when a link is clicked", () => {

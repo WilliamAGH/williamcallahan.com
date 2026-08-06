@@ -7,7 +7,7 @@ Core standards:
 
 - Edit existing, never append (see [FS1a]); read `docs/standards/code-change.md` before any edit
 - Clean Code + DDD strictly enforced (see [CC1])
-- Rules live here; `docs/` expands rules with HOW/WHY and canonical contracts (<= 350 LOC each); see [ORG], [DOC1]
+- Rules live here; `docs/` expands rules with HOW/WHY and canonical contracts (<= 500 LOC each); see [ORG], [DOC1]
 
 # williamcallahan.com Agent Rules
 
@@ -77,8 +77,8 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 ### [LC1] Line Count Ceiling (Blocking)
 
-- [LC1a] All written, non-generated source files in this repository MUST be <= 350 lines (`wc -l`)
-- [LC1b] SRP Enforcer: This 350-line "stick" forces modularity (DDD/SRP); > 350 lines = too many responsibilities (see [MO1d])
+- [LC1a] All written, non-generated source files in this repository MUST be <= 500 lines (`wc -l`)
+- [LC1b] SRP Enforcer: This 500-line "stick" forces modularity (DDD/SRP); > 500 lines = too many responsibilities (see [MO1d])
 - [LC1c] **Enforcement**: `bun run check:file-size` reports violations; `bun run validate:with-size` includes the check. Legacy files may exceed; new code MUST comply.
 - [LC1d] Exempt files: generated content (lockfiles, builds, artifacts)
 
@@ -212,7 +212,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 ### [ORG] Document Organization
 
 - [ORG1] Purpose: `AGENTS.md` is the enforcement surface and index; keep every critical rule referenceable by short hashes; `docs/agents/` must not exist
-- [ORG2] Structure: succinct hashed rules ordered by priority (Foundational -> Blocking -> Code Quality -> Domain-Specific -> Process & Tooling -> Meta); supporting `docs/` explain HOW/WHY (<= 350 LOC each)
+- [ORG2] Structure: succinct hashed rules ordered by priority (Foundational -> Blocking -> Code Quality -> Domain-Specific -> Process & Tooling -> Meta); supporting `docs/` explain HOW/WHY (<= 500 LOC each)
 - [ORG3] Usage: cite hashes when giving guidance; add new hashes in logical order without renumbering
 - [ORG4] One Hash, One Rule: each `[XX#x]` bullet is a single, succinct rule statement
 - [ORG5] Directive language: rules use imperative/prohibitive phrasing ("do X", "no Y", "never Z"); avoid discretionary hedges ("prefer", "consider", "try to", "ideally", "when possible")

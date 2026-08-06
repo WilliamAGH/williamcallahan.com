@@ -1141,7 +1141,7 @@ bun run validate
 - [ ] `bun run type-check` passes [VR1d]
 - [ ] `bun run test` passes [VR1b]
 - [ ] `bun run build` succeeds [VR1a]
-- [ ] `bun run check:file-size` — no new files > 350 lines [LC1a]
+- [ ] `bun run check:file-size` — no new files > 500 lines [LC1a]
 - [ ] Bookmark runtime has no S3 dataset/index/slug/shard dependencies
 - [ ] Search index artifacts are read/written from PostgreSQL
 - [ ] GitHub activity runtime uses PostgreSQL for persisted state

@@ -6,7 +6,15 @@
 
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  Suspense,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { usePathname } from "next/navigation";
 import { isTerminalCommandArray, type TerminalCommand } from "@/types/terminal";
 import type { TerminalContextType } from "@/types/ui/terminal";
@@ -40,10 +48,29 @@ export function createWelcomeMessage(): TerminalCommand {
 const HISTORY_STORAGE_KEY = "terminal_history";
 const MAX_HISTORY_SIZE = 100; // Limit history to prevent unbounded growth
 
-export function TerminalProvider({ children }: { children: React.ReactNode }) {
-  const [currentInput, setCurrentInput] = useState<string>("");
+function TerminalRouteHistoryReset({ onRouteChange }: { onRouteChange: () => void }) {
   const pathname = usePathname();
   const [lastPath, setLastPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof pathname !== "string") {
+      return;
+    }
+    if (lastPath === null) {
+      setLastPath(pathname);
+      return;
+    }
+    if (pathname !== lastPath) {
+      onRouteChange();
+      setLastPath(pathname);
+    }
+  }, [lastPath, onRouteChange, pathname]);
+
+  return null;
+}
+
+export function TerminalProvider({ children }: { children: React.ReactNode }) {
+  const [currentInput, setCurrentInput] = useState<string>("");
 
   // Initialize state lazily to read from sessionStorage only on the client
   const [history, setHistory] = useState<TerminalCommand[]>((): TerminalCommand[] => {
@@ -179,6 +206,11 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const resetForRouteChange = useCallback(() => {
+    clearHistory();
+    setCurrentInput("");
+  }, [clearHistory]);
+
   // Memoize context value for performance
   const contextValue = useMemo(
     () => ({
@@ -202,21 +234,14 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  // Clear terminal history when the route changes (robust, fully decoupled from nav)
-  useEffect(() => {
-    if (typeof pathname !== "string") return;
-    if (lastPath === null) {
-      setLastPath(pathname);
-      return;
-    }
-    if (pathname !== lastPath) {
-      clearHistory();
-      setCurrentInput("");
-      setLastPath(pathname);
-    }
-  }, [pathname, lastPath, clearHistory]);
-
-  return <TerminalContext.Provider value={contextValue}>{children}</TerminalContext.Provider>;
+  return (
+    <TerminalContext.Provider value={contextValue}>
+      <Suspense fallback={null}>
+        <TerminalRouteHistoryReset onRouteChange={resetForRouteChange} />
+      </Suspense>
+      {children}
+    </TerminalContext.Provider>
+  );
 }
 
 // Hook to access terminal context

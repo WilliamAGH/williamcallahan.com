@@ -13,24 +13,6 @@ import React from "react";
 import { ErrorBoundary } from "../error-boundary.client";
 import { socialLinks } from "./social-links";
 import type { SocialIconsProps } from "@/types/ui/social";
-// SocialLink type is imported in social-links.ts, no need to import it here
-
-// Simple hook to detect client-side mounting
-function useHasMounted() {
-  const [hasMounted, setHasMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    // Add a small delay to ensure all DOM elements are ready
-    // This helps with mobile-specific hydration issues
-    const timer = setTimeout(() => {
-      setHasMounted(true);
-    }, 10);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  return hasMounted;
-}
 
 const PLATFORM_SLUGS = ["github", "x", "discord", "linkedin", "bluesky"] as const;
 const isPlatformSlug = (value: string): value is (typeof PLATFORM_SLUGS)[number] =>
@@ -41,8 +23,6 @@ export function SocialIcons({
   showXOnly = false,
   excludePlatforms = [],
 }: SocialIconsProps) {
-  const hasMounted = useHasMounted();
-
   // Icon button styling
   const iconButtonClasses =
     "flex items-center justify-center p-1 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
@@ -58,14 +38,7 @@ export function SocialIcons({
     );
   }, [showXOnly, excludePlatforms]);
 
-  // During server rendering and before hydration completes on client,
-  // just render nothing with suppressHydrationWarning
-  if (!hasMounted) {
-    return <div className={`flex items-center ${className}`} suppressHydrationWarning />;
-  }
-
-  // Only render the full component after mounting on the client
-  // Using a very small gap to vastly reduce space as requested
+  // Use a very small gap to vastly reduce space as requested.
   const spacingClass = className.includes("gap-") ? "" : "gap-0.5";
 
   return (

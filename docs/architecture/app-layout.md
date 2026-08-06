@@ -41,10 +41,10 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ## Critical Implementation Details
 
-### Route-Hook Suspense Isolation
+### Terminal Suspense Isolation
 
-- `TerminalProvider` and `TerminalLoader` render beneath a local `Suspense` boundary
-- The boundary contains their route-hook client rendering so it cannot replace the shared app shell during hydration
+- `TerminalProvider` and `TerminalLoader` share a terminal-only `Suspense` boundary, containing their client-rendering bailout so page content remains server-rendered.
+- The boundary uses `TerminalSkeleton` instead of an empty fallback, reserving terminal geometry while the provider and dynamic implementation load.
 
 ### Hydration Warning Suppression
 
@@ -90,7 +90,7 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 - Resource hints: preconnect to fonts.googleapis.com, dns-prefetch for external domains
 - Font loading: Inter with `display: swap` prevents FOIT
 - Lazy loading: Suspense boundaries isolate non-critical and route-hook client components
-- Layout shift prevention via fixed header heights
+- Layout shift prevention: the terminal uses a geometry-matched skeleton, social icons render in the server output immediately, and the theme placeholder reserves the hydrated control's responsive geometry
 
 ## Security
 

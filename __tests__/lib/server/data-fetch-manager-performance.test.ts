@@ -115,47 +115,47 @@ describe("DataFetchManager Performance Optimizations", () => {
   });
 
   describe("collectAllDomains", () => {
-    it("should fetch all data sources in parallel", async () => {
-      // Track when each mock is called
-      const callTimes: Record<string, number> = {};
-      const startTime = Date.now();
+    it("collects all domains while source reads are in flight together", async () => {
+      const investmentData = Promise.withResolvers<Map<string, string>>();
+      const bookmarkData = Promise.withResolvers<UnifiedBookmark[]>();
+      let activeReads = 0;
+      let peakActiveReads = 0;
+      const recordReadStart = () => {
+        activeReads += 1;
+        peakActiveReads = Math.max(peakActiveReads, activeReads);
+      };
 
-      mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
-        callTimes.investments = Date.now() - startTime;
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
-        return new Map([["investment-a.com", "inv-1"]]);
+      mockGetInvestmentDomainsAndIds.mockImplementation(() => {
+        recordReadStart();
+        return investmentData.promise.finally(() => {
+          activeReads -= 1;
+        });
       });
 
-      mockGetBookmarks.mockImplementation(async () => {
-        callTimes.bookmarks = Date.now() - startTime;
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
-        return [
-          makeBookmark({
-            id: "bookmark-1",
-            url: "https://bookmark-a.com",
-            domain: "bookmark-a.com",
-            title: "Bookmark A",
-            description: "Description A",
-          }),
-        ];
+      mockGetBookmarks.mockImplementation(() => {
+        recordReadStart();
+        return bookmarkData.promise.finally(() => {
+          activeReads -= 1;
+        });
       });
 
       // Create a test instance to access private methods
       const dataFetchManager = new DataFetchManager();
-      const domains = await (dataFetchManager as any).collectAllDomains();
-
-      // Verify all data sources were called
-      expect(mockGetInvestmentDomainsAndIds).toHaveBeenCalledTimes(1);
-      expect(mockGetBookmarks).toHaveBeenCalledWith({
-        skipExternalFetch: false,
-        includeImageData: false,
-      });
-
-      // Verify parallel execution - all should start within a reasonable time of each other
-      const timeDifference = Math.abs(callTimes.investments - callTimes.bookmarks);
-      expect(timeDifference).toBeLessThan(50); // Should be called almost simultaneously (increased threshold for CI/slower machines)
+      const collectedDomains = (dataFetchManager as any).collectAllDomains();
+      investmentData.resolve(new Map([["investment-a.com", "inv-1"]]));
+      bookmarkData.resolve([
+        makeBookmark({
+          id: "bookmark-1",
+          url: "https://bookmark-a.com",
+          domain: "bookmark-a.com",
+          title: "Bookmark A",
+          description: "Description A",
+        }),
+      ]);
+      const domains = await collectedDomains;
 
       // Verify domains were collected correctly
+      expect(peakActiveReads).toBe(2);
       expect(domains).toBeInstanceOf(Set);
       expect(domains.has("investment-a.com")).toBe(true);
       expect(domains.has("bookmark-a.com")).toBe(true);
@@ -242,39 +242,6 @@ describe("DataFetchManager Performance Optimizations", () => {
         operation: "bookmarks",
         itemsProcessed: 1,
       });
-    });
-  });
-
-  describe("Performance characteristics", () => {
-    it("should complete domain collection faster with parallel execution", async () => {
-      // Add delays to simulate real network/database calls
-      mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        return new Map([["investment-a.com", "inv-1"]]);
-      });
-
-      mockGetBookmarks.mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        return [
-          makeBookmark({
-            id: "bookmark-1",
-            url: "https://bookmark-a.com",
-            domain: "bookmark-a.com",
-            title: "Bookmark A",
-            description: "Description A",
-          }),
-        ];
-      });
-
-      const dataFetchManager5 = new DataFetchManager();
-      const startTime = Date.now();
-      await (dataFetchManager5 as any).collectAllDomains();
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // With parallel execution, should take ~100-200ms upper bound depending on CI load
-      expect(duration).toBeLessThan(225);
-      expect(duration).toBeGreaterThanOrEqual(100);
     });
   });
 });

@@ -113,8 +113,12 @@ vi.mock("../../../../src/lib/context/global-window-registry-context.client", () 
 // --- End Mock ---
 
 // Get handles *after* mocking
-import { useRouter as useRouterImported } from "next/navigation";
+import {
+  usePathname as usePathnameImported,
+  useRouter as useRouterImported,
+} from "next/navigation";
 const mockUseRegisteredWindowState = vi.mocked(useRegisteredWindowStateImported);
+const mockUsePathname = vi.mocked(usePathnameImported);
 const mockUseRouter = vi.mocked(useRouterImported);
 
 vi.mock("../../../../src/lib/search", () => ({
@@ -152,6 +156,7 @@ describe("Terminal Component", () => {
     // Reset mocks before each test
     vi.clearAllMocks();
     mockFetch.mockReset();
+    mockUsePathname.mockReturnValue("/");
 
     // Reset router mock and get push handle
     mockRouterPush = vi.fn();
@@ -177,6 +182,23 @@ describe("Terminal Component", () => {
     }));
     // Reset the external state variable
     mockWindowState = "normal";
+  });
+
+  describe("Terminal Provider", () => {
+    it("keeps children visible when pathname observation suspends", () => {
+      const pathnameSuspension = new Promise<never>(() => {});
+      mockUsePathname.mockImplementation(() => {
+        throw pathnameSuspension;
+      });
+
+      render(
+        <TerminalProvider>
+          <p>Terminal provider child</p>
+        </TerminalProvider>,
+      );
+
+      expect(screen.getByText("Terminal provider child")).toBeVisible();
+    });
   });
 
   describe.todo("Rendering", () => {

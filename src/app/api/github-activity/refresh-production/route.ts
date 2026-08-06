@@ -11,9 +11,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
-import { isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
+import { buildApiServiceBusyResponse, isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
 import { getErrorMessage } from "@/lib/utils/error-utils";
+import { standardApiErrorResponseSchema } from "@/types/schemas/api";
 import { githubActivityRefreshSuccessResponseSchema } from "@/types/schemas/github-storage";
 
 /**
@@ -93,6 +94,26 @@ export async function POST(): Promise<NextResponse> {
 
     if (!response.ok) {
       const errorData: unknown = await response.json().catch(() => null);
+
+      const standardErrorResult = standardApiErrorResponseSchema.safeParse(errorData);
+      if (standardErrorResult.success && standardErrorResult.data.code === "SERVICE_UNAVAILABLE") {
+        const serviceBusyResponse = buildApiServiceBusyResponse({
+          retryAfterSeconds: standardErrorResult.data.retryAfterSeconds,
+          message: standardErrorResult.data.message,
+        });
+        if (
+          standardErrorResult.data.status === serviceBusyResponse.status &&
+          response.status === serviceBusyResponse.status
+        ) {
+          envLogger.log(
+            "Production GitHub activity refresh is temporarily unavailable",
+            { retryAfterSeconds: standardErrorResult.data.retryAfterSeconds },
+            { category: "GitHubActivityRefresh" },
+          );
+          return serviceBusyResponse;
+        }
+      }
+
       const errorMessage = getErrorMessage(errorData, response.statusText);
 
       envLogger.log(

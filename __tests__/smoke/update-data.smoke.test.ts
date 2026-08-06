@@ -84,6 +84,7 @@ describe("scheduler/data-updater.ts Smoke Test", () => {
         // In DRY mode, script exits before completion message
       } else {
         expect(stdout).toContain("[DataFetchManager] All operations complete.");
+        expect(stdout).not.toContain("│ (index) │ Operation");
         if (testMode === "NORMAL") {
           // Should see limited processing messages
           expect(stdout).toMatch(/Test mode: limiting .* to 1/);

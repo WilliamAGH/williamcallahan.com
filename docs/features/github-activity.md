@@ -79,8 +79,8 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 ## API Endpoints
 
 - `GET /api/github-activity`: Retrieves the currently cached GitHub activity data. The public response includes the contribution calendar and aggregate totals; repository identifiers and per-repository metrics remain private.
-- `POST /api/github-activity/refresh`: Runs a protected refresh only in the production write environment. Read-only deployments return an explicit successful no-write result; production relays reject that result as a failed refresh.
-- `POST /api/github-activity/refresh-production`: Requires a Clerk user in a non-production environment and relays the production refresh with `GITHUB_REFRESH_SECRET` in the `x-refresh-secret` header.
+- `POST /api/github-activity/refresh`: Runs a protected refresh only in the production write environment. Read-only deployments return an explicit successful no-write result. When a production refresh preserves existing healthy data, it returns an expected, retryable HTTP 503 instead of reporting a server fault.
+- `POST /api/github-activity/refresh-production`: Requires a Clerk user in a non-production environment, relays the production refresh with `GITHUB_REFRESH_SECRET` in the `x-refresh-secret` header, and forwards non-OK responses.
 
 ## Key Files & Responsibilities
 
