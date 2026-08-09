@@ -139,7 +139,6 @@ export function ThoughtsWindow({
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered,
   }: RegisteredWindowState = useRegisteredWindowState(
     uniqueId,
     Lightbulb as LucideIcon,
@@ -147,15 +146,8 @@ export function ThoughtsWindow({
     "normal",
   );
 
-  // Return skeleton while waiting for registration - prevents layout shift
-  if (!isRegistered) {
-    return (
-      <div className="relative max-w-4xl mx-auto mt-8 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-        <SkeletonLoader />
-      </div>
-    );
-  }
-
+  // windowState falls back to "normal" until client-side registration, so
+  // content renders during SSR and the first client paint matches (no shift).
   // Closed or minimized windows are hidden
   if (windowState === "closed" || windowState === "minimized") {
     return null;

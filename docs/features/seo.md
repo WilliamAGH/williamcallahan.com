@@ -359,13 +359,14 @@ const validatedHomeMetadata = validatePageMetadata("home", {
 The `app/sitemap.ts` file aggregates content from multiple sources:
 
 1. **Static Pages**: Manually defined routes with fixed priorities
-2. **Blog Posts**: `src/lib/sitemap/blog-collector.ts` projects the canonical inventory from `getAllPostsMeta()`, so sitemap URLs use the same frontmatter slugs as blog routes and static params
-3. **Blog Tags**: Dynamically generated from unique post tags
-4. **Bookmarks**: Retrieved from cache or API with domain groupings
-5. **Bookmark Tags**: Extracted from bookmark metadata
+2. **Project Detail Pages**: `/projects/[slug]` entries derived via `getAllProjectSlugs()` (`src/lib/projects/slug-helpers.ts`), matching the route's canonical slugs; query-variant URLs (`/projects?tag=...`) canonicalize to `/projects` and are excluded
+3. **Blog Posts**: `src/lib/sitemap/blog-collector.ts` projects the canonical inventory from `getAllPostsMeta()`, so sitemap URLs use the same frontmatter slugs as blog routes and static params
+4. **Blog Tags**: Dynamically generated from unique post tags
+5. **Bookmarks**: Retrieved from cache or API with domain groupings
+6. **Bookmark Tags**: Extracted from bookmark metadata
    - Main tag pages: `/bookmarks/tags/[tagSlug]`
    - Paginated tag pages: `/bookmarks/tags/[tagSlug]/page/[n]`
-6. **Paginated Pages**:
+7. **Paginated Pages**:
    - Tag-filtered pages: `/bookmarks/tags/[tagSlug]/page/[n]`
 
 ### URL Construction

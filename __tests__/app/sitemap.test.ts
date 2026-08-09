@@ -40,7 +40,29 @@ vi.mock("@/lib/bookmarks/slug-manager", () => ({
 vi.mock("@/data/education", () => ({ education: [], updatedAt: "2024-01-01" }));
 vi.mock("@/data/experience", () => ({ experience: [], updatedAt: "2024-01-01" }));
 vi.mock("@/data/investments", () => ({ investments: [], updatedAt: "2024-01-01" }));
-vi.mock("@/data/projects", () => ({ projects: [], updatedAt: "2024-01-01" }));
+vi.mock("@/data/projects", () => ({
+  projects: [
+    {
+      id: "aventure",
+      name: "aVenture.vc",
+      description: "Venture capital research platform",
+      shortSummary: "VC research",
+      url: "https://aventure.vc",
+      imageKey: "images/projects/aventure.png",
+      tags: ["AI", "SaaS"],
+    },
+    {
+      id: "researchly",
+      name: "Researchly",
+      description: "Research assistant",
+      shortSummary: "Research",
+      url: "https://researchly.dev",
+      imageKey: "images/projects/researchly.png",
+      tags: ["AI"],
+    },
+  ],
+  updatedAt: "2024-01-01",
+}));
 
 const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
 const mockGetBookmarksPage = getBookmarksPage as MockedFunction<typeof getBookmarksPage>;
@@ -293,6 +315,25 @@ describe("Sitemap Generation", () => {
       );
 
       expect(mockGetTagBookmarksPage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Project Entries", () => {
+    it("lists canonical /projects/[slug] pages and no ?tag= query variants", async () => {
+      mockGetBookmarksIndex.mockResolvedValue(
+        buildBookmarksIndex({ count: 0, totalPages: 0, lastModified: undefined }),
+      );
+
+      const sitemapEntries = await sitemap();
+      const sitemapUrls = sitemapEntries.map((entry) => entry.url);
+
+      expect(sitemapUrls).toEqual(
+        expect.arrayContaining([
+          "https://williamcallahan.com/projects/aventure-vc",
+          "https://williamcallahan.com/projects/researchly",
+        ]),
+      );
+      expect(sitemapUrls.filter((url) => url.includes("?tag="))).toHaveLength(0);
     });
   });
 

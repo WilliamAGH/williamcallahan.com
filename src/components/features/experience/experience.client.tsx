@@ -40,15 +40,10 @@ export function Experience({ data }: ExperienceProps): React.JSX.Element | null 
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered,
   } = useRegisteredWindowState(EXPERIENCE_WINDOW_ID, Briefcase, "Restore Experience", "normal");
 
-  // Render nothing until ready
-  if (!isRegistered) {
-    // Check isRegistered
-    return null;
-  }
-
+  // windowState falls back to "normal" until client registration, so content
+  // renders during SSR and the first client paint matches (no shift).
   // Handle closed state
   if (windowState === "closed") {
     return null;

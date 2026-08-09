@@ -394,6 +394,7 @@ File/Path Functionality Description
   - [x] `dynamic-metadata.ts` `seo` - Dynamic title generation with length limits
   - [x] `index.ts` `seo` - Removed; import SEO utilities from concrete modules
   - [x] `metadata.ts` `seo` - Metadata generation helpers
+  - [x] `not-found-metadata.ts` `seo` - Noindex metadata for failed dynamic-entity lookups (no self-canonical)
   - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
   - [x] `schema.ts` `seo` - Schema.org generation helpers

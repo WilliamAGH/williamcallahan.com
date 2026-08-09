@@ -11,6 +11,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ThoughtDetail } from "@/components/features/thoughts/thought-detail";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
@@ -47,11 +48,7 @@ export async function generateMetadata({ params }: ThoughtPageContext): Promise<
   const thought = await getThoughtBySlug(slug);
 
   if (!thought) {
-    return {
-      ...getStaticPageMetadata(path, "thoughts"),
-      title: "Thought Not Found",
-      description: "The requested thought could not be found.",
-    };
+    return getNotFoundMetadata("Thought");
   }
 
   const baseMetadata = getStaticPageMetadata(path, "thoughts");
