@@ -3,7 +3,7 @@
  * @module lib/sitemap/constants
  * @description
  * Shared constants for sitemap generation: change frequencies, priorities,
- * cache TTL, and tag lookup budget.
+ * and cache TTL.
  */
 
 import type { MetadataRoute } from "next";
@@ -26,7 +26,6 @@ export const BLOG_CHANGE_FREQUENCY: NonNullable<MetadataRoute.Sitemap[number]["c
 export const BLOG_POST_PRIORITY = 0.7;
 export const BLOG_TAG_PRIORITY = 0.6;
 export const SITEMAP_RUNTIME_CACHE_TTL_MS = 10 * 60 * 1000;
-export const TAG_INDEX_LOOKUP_BUDGET = 200;
 
 // Static Pages
 export const STATIC_CHANGE_FREQUENCY: NonNullable<

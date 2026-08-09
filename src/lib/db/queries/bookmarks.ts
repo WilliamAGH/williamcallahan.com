@@ -183,6 +183,30 @@ async function countBookmarksForCanonicalTag(canonicalSlug: string): Promise<num
   return countRows[0]?.count ?? 0;
 }
 
+/**
+ * Page counts for every canonical tag in one grouped query.
+ * Partition semantics match countBookmarksForCanonicalTag: each tag link
+ * folds to its canonical slug via the alias map before counting, so the
+ * totals agree with the per-tag index lookups this replaces.
+ */
+export async function listCanonicalTagPageCountsFromDatabase(
+  pageSize: number = BOOKMARKS_PER_PAGE,
+): Promise<Array<{ tagSlug: string; totalPages: number }>> {
+  assertPositiveInteger(pageSize, "pageSize");
+  const rows = await db
+    .select({
+      tagSlug: canonicalTagLinkSlug,
+      count: sql<number>`count(distinct ${bookmarkTagLinks.bookmarkId})::int`,
+    })
+    .from(bookmarkTagLinks)
+    .leftJoin(bookmarkTagAliasLinks, tagAliasJoinCondition())
+    .groupBy(canonicalTagLinkSlug);
+  return rows.map((row) => ({
+    tagSlug: row.tagSlug,
+    totalPages: Math.ceil(row.count / pageSize),
+  }));
+}
+
 export async function resolveCanonicalTagSlug(tagSlug: string): Promise<BookmarkTagResolution> {
   return resolveCanonicalTagSlugInternal(tagSlug);
 }

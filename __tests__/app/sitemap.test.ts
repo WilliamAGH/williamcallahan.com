@@ -11,7 +11,7 @@ import {
   getBookmarksIndex,
   getBookmarksPage,
   listBookmarkTagSlugs,
-  getTagBookmarksIndex,
+  listCanonicalTagPageCounts,
   getTagBookmarksPage,
 } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
@@ -29,7 +29,7 @@ vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarksIndex: vi.fn(),
   getBookmarksPage: vi.fn(),
   listBookmarkTagSlugs: vi.fn(),
-  getTagBookmarksIndex: vi.fn(),
+  listCanonicalTagPageCounts: vi.fn(),
   getTagBookmarksPage: vi.fn(),
 }));
 
@@ -69,8 +69,8 @@ const mockGetBookmarksPage = getBookmarksPage as MockedFunction<typeof getBookma
 const mockListBookmarkTagSlugs = listBookmarkTagSlugs as MockedFunction<
   typeof listBookmarkTagSlugs
 >;
-const mockGetTagBookmarksIndex = getTagBookmarksIndex as MockedFunction<
-  typeof getTagBookmarksIndex
+const mockListCanonicalTagPageCounts = listCanonicalTagPageCounts as MockedFunction<
+  typeof listCanonicalTagPageCounts
 >;
 const mockGetTagBookmarksPage = getTagBookmarksPage as MockedFunction<typeof getTagBookmarksPage>;
 const mockLoadSlugMapping = loadSlugMapping as MockedFunction<typeof loadSlugMapping>;
@@ -87,7 +87,7 @@ describe("Sitemap Generation", () => {
     mockGetBookmarksIndex.mockReset();
     mockGetBookmarksPage.mockReset();
     mockListBookmarkTagSlugs.mockReset();
-    mockGetTagBookmarksIndex.mockReset();
+    mockListCanonicalTagPageCounts.mockReset();
     mockGetTagBookmarksPage.mockReset();
     mockLoadSlugMapping.mockReset();
     originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -95,7 +95,7 @@ describe("Sitemap Generation", () => {
     process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
     delete process.env.NEXT_PHASE;
     mockListBookmarkTagSlugs.mockResolvedValue([]);
-    mockGetTagBookmarksIndex.mockResolvedValue(null);
+    mockListCanonicalTagPageCounts.mockResolvedValue([]);
     mockGetTagBookmarksPage.mockResolvedValue([]);
     mockLoadSlugMapping.mockResolvedValue(null);
   });
@@ -293,13 +293,7 @@ describe("Sitemap Generation", () => {
       );
 
       mockListBookmarkTagSlugs.mockResolvedValue(["example-tag"]);
-      mockGetTagBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({
-          count: BOOKMARKS_PER_PAGE + 5,
-          totalPages: 2,
-          lastModified: "2024-02-01T00:00:00Z",
-        }),
-      );
+      mockListCanonicalTagPageCounts.mockResolvedValue([{ tagSlug: "example-tag", totalPages: 2 }]);
 
       const sitemapEntries = await sitemap();
 
@@ -315,6 +309,34 @@ describe("Sitemap Generation", () => {
       );
 
       expect(mockGetTagBookmarksPage).not.toHaveBeenCalled();
+    });
+
+    it("emits paginated tag entries from one grouped count query regardless of tag count", async () => {
+      mockGetBookmarksIndex.mockResolvedValue(
+        buildBookmarksIndex({
+          count: BOOKMARKS_PER_PAGE,
+          totalPages: 1,
+          lastModified: "2024-01-01T00:00:00Z",
+        }),
+      );
+
+      mockGetBookmarksPage.mockResolvedValue(
+        generateBookmarksList(BOOKMARKS_PER_PAGE, "bookmark", {
+          dateBookmarked: "2024-01-01T00:00:00Z",
+        }),
+      );
+
+      const tagSlugs = Array.from({ length: 250 }, (_, i) => `tag-${i}`);
+      mockListBookmarkTagSlugs.mockResolvedValue(tagSlugs);
+      mockListCanonicalTagPageCounts.mockResolvedValue([{ tagSlug: "tag-0", totalPages: 3 }]);
+
+      const sitemapEntries = await sitemap();
+      const urls = sitemapEntries.map((entry) => entry.url);
+
+      expect(mockListCanonicalTagPageCounts).toHaveBeenCalledTimes(1);
+      expect(urls).toContain("https://williamcallahan.com/bookmarks/tags/tag-0/page/2");
+      expect(urls).toContain("https://williamcallahan.com/bookmarks/tags/tag-0/page/3");
+      expect(urls).toContain("https://williamcallahan.com/bookmarks/tags/tag-249");
     });
   });
 
