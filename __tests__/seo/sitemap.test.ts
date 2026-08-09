@@ -19,7 +19,7 @@ vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarksIndex: vi.fn(),
   getBookmarksPage: vi.fn(),
   listBookmarkTagSlugs: vi.fn(),
-  getTagBookmarksIndex: vi.fn(),
+  listCanonicalTagPageCounts: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/bookmarks/slug-manager", () => ({

@@ -142,7 +142,7 @@ export async function resolveBookmarkTagSlug(tagSlug: string): Promise<{
  */
 export async function listCanonicalTagPageCounts(
   pageSize?: number,
-): Promise<Array<{ tagSlug: string; totalPages: number }>> {
+): Promise<Array<{ tagSlug: string; totalPages: number; lastModified: string | null }>> {
   initializeBookmarksDataAccess();
   return listCanonicalTagPageCountsInternal(pageSize);
 }

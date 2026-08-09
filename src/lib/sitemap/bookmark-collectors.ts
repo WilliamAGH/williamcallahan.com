@@ -143,22 +143,30 @@ export const collectTagSitemapData = async (
     // One grouped query yields every canonical tag's page count, so paginated
     // tag URLs are always emitted regardless of how many tags exist.
     const tagPageCounts = await listCanonicalTagPageCounts();
-    const totalPagesBySlug = new Map(tagPageCounts.map((row) => [row.tagSlug, row.totalPages]));
+    const pageCountsBySlug = new Map(tagPageCounts.map((row) => [row.tagSlug, row]));
 
     for (const rawSlug of tagSlugs) {
+      // Tags with zero bookmarks are absent from the grouped counts; their
+      // route 404s, so the sitemap must not advertise them.
+      const pageCount = pageCountsBySlug.get(rawSlug);
+      if (!pageCount) {
+        continue;
+      }
       const sanitizedSlug = sanitizePathSegment(rawSlug);
-      const totalPages = totalPagesBySlug.get(rawSlug) ?? 0;
       const baseUrl = `${siteUrl}/bookmarks/tags/${sanitizedSlug}`;
+      const tagLastModified = getSafeDate(pageCount.lastModified);
 
       tagEntries.push({
         url: baseUrl,
+        lastModified: tagLastModified,
         changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
         priority: BOOKMARK_TAG_PRIORITY,
       });
 
-      for (let page = 2; page <= totalPages; page++) {
+      for (let page = 2; page <= pageCount.totalPages; page++) {
         paginatedTagEntries.push({
           url: `${baseUrl}/page/${page}`,
+          lastModified: tagLastModified,
           changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
           priority: BOOKMARK_TAG_PAGE_PRIORITY,
         });

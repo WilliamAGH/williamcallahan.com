@@ -293,7 +293,9 @@ describe("Sitemap Generation", () => {
       );
 
       mockListBookmarkTagSlugs.mockResolvedValue(["example-tag"]);
-      mockListCanonicalTagPageCounts.mockResolvedValue([{ tagSlug: "example-tag", totalPages: 2 }]);
+      mockListCanonicalTagPageCounts.mockResolvedValue([
+        { tagSlug: "example-tag", totalPages: 2, lastModified: "2024-02-01T00:00:00Z" },
+      ]);
 
       const sitemapEntries = await sitemap();
 
@@ -328,7 +330,9 @@ describe("Sitemap Generation", () => {
 
       const tagSlugs = Array.from({ length: 250 }, (_, i) => `tag-${i}`);
       mockListBookmarkTagSlugs.mockResolvedValue(tagSlugs);
-      mockListCanonicalTagPageCounts.mockResolvedValue([{ tagSlug: "tag-0", totalPages: 3 }]);
+      mockListCanonicalTagPageCounts.mockResolvedValue([
+        { tagSlug: "tag-0", totalPages: 3, lastModified: "2024-02-01T00:00:00Z" },
+      ]);
 
       const sitemapEntries = await sitemap();
       const urls = sitemapEntries.map((entry) => entry.url);
@@ -336,7 +340,8 @@ describe("Sitemap Generation", () => {
       expect(mockListCanonicalTagPageCounts).toHaveBeenCalledTimes(1);
       expect(urls).toContain("https://williamcallahan.com/bookmarks/tags/tag-0/page/2");
       expect(urls).toContain("https://williamcallahan.com/bookmarks/tags/tag-0/page/3");
-      expect(urls).toContain("https://williamcallahan.com/bookmarks/tags/tag-249");
+      // Tags with zero bookmarks 404 at the route; the sitemap must not list them
+      expect(urls).not.toContain("https://williamcallahan.com/bookmarks/tags/tag-249");
     });
   });
 
