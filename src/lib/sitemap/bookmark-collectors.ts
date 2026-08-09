@@ -142,9 +142,8 @@ export const collectTagSitemapData = async (
 
     // One grouped query yields every canonical tag's page count, so paginated
     // tag URLs are always emitted regardless of how many tags exist.
-    const totalPagesBySlug = new Map(
-      (await listCanonicalTagPageCounts()).map((row) => [row.tagSlug, row.totalPages]),
-    );
+    const tagPageCounts = await listCanonicalTagPageCounts();
+    const totalPagesBySlug = new Map(tagPageCounts.map((row) => [row.tagSlug, row.totalPages]));
 
     for (const rawSlug of tagSlugs) {
       const sanitizedSlug = sanitizePathSegment(rawSlug);
