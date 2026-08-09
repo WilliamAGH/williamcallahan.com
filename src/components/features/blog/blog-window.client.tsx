@@ -20,18 +20,13 @@ import { useRegisteredWindowState } from "@/lib/context/global-window-registry-c
 import { cn } from "@/lib/utils";
 import type { BlogWindowClientProps } from "@/types/features/blog";
 import { Newspaper } from "lucide-react";
-import dynamic from "next/dynamic";
 
 // Define a unique ID for this window instance
 const BLOG_WINDOW_ID = "blog-window";
-const BLOG_LOADING_KEYS = ["blog-loading-1", "blog-loading-2", "blog-loading-3"] as const;
 
 // Using centralized BlogWindowClientProps from @/types/features
 
-/**
- * Separate inner content component so `dynamic()` can receive a module object with `default` export.
- */
-function BlogWindowContentInner({
+function BlogWindowContent({
   children,
   windowState,
   onClose,
@@ -81,22 +76,13 @@ function BlogWindowContentInner({
   );
 }
 
-const BlogWindowContent = dynamic(() => Promise.resolve({ default: BlogWindowContentInner }), {
-  ssr: false,
-  loading: () => (
-    <div className="animate-pulse space-y-4 p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg max-w-5xl mx-auto mt-8">
-      {BLOG_LOADING_KEYS.map((key) => (
-        <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
-      ))}
-    </div>
-  ),
-});
-
 /**
  * BlogWindow Client Component
  *
  * Renders server-side generated content within a window-like UI that
- * supports minimizing, maximizing, and closing.
+ * supports minimizing, maximizing, and closing. Content renders during SSR so
+ * posts and their links are present in the initial HTML for crawlers; the
+ * window registry falls back to "normal" state until client registration.
  *
  * @param {BlogWindowClientProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
@@ -114,7 +100,6 @@ export function BlogWindow({
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered,
   } = useRegisteredWindowState(BLOG_WINDOW_ID, Newspaper, "Restore Blog", "normal");
 
   // Handle closed or minimized state
@@ -122,12 +107,11 @@ export function BlogWindow({
     return null;
   }
 
-  // Render content immediately with visibility handling to prevent flicker.
-  // Use the actual windowState once registered, fallback to "normal" during registration.
-  // This ensures consistent initial rendering during client-side registration.
+  // windowState falls back to "normal" until client-side registration, so the
+  // server render and first client paint are identical (no hydration shift).
   return (
     <BlogWindowContent
-      windowState={isRegistered ? windowState : "normal"}
+      windowState={windowState}
       onClose={closeWindow}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}

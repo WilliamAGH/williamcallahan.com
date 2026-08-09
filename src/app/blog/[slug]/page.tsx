@@ -14,6 +14,7 @@ import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 import { getAllPostsMeta, getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { isValidBlogSlug } from "@/lib/blog/validation";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
+import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { ExtendedMetadata } from "@/types/seo";
@@ -91,21 +92,13 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   // params is already resolved here by Next.js
   const { slug } = await params;
   if (slug === BLOG_STATIC_PARAM_PLACEHOLDER || !isValidBlogSlug(slug)) {
-    return {
-      title: "Post Not Found",
-      description: "The blog post you are looking for could not be found.",
-    };
+    return getNotFoundMetadata("Post");
   }
   // Use getPostMetaBySlug for lightweight metadata (skips MDX compilation + blur generation)
   const post = await getCachedBlogPostMetadata(slug);
 
   if (!post) {
-    console.warn(`[generateMetadata] Post not found for slug: ${slug}. Returning empty metadata.`);
-    // Optionally return metadata for a 404 page here if desired
-    return {
-      title: "Post Not Found",
-      description: "The blog post you are looking for could not be found.",
-    };
+    return getNotFoundMetadata("Post");
   }
 
   // Full URL for the blog post

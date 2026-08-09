@@ -12,7 +12,7 @@ import {
   getBookmarksIndex,
   getBookmarksPage,
   listBookmarkTagSlugs,
-  getTagBookmarksIndex,
+  listCanonicalTagPageCounts,
 } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
@@ -22,7 +22,6 @@ import {
   BOOKMARK_PRIORITY,
   BOOKMARK_TAG_PRIORITY,
   BOOKMARK_TAG_PAGE_PRIORITY,
-  TAG_INDEX_LOOKUP_BUDGET,
 } from "@/lib/sitemap/constants";
 import {
   sanitizePathSegment,
@@ -141,37 +140,18 @@ export const collectTagSitemapData = async (
     const tagEntries: MetadataRoute.Sitemap = [];
     const paginatedTagEntries: MetadataRoute.Sitemap = [];
 
-    if (tagSlugs.length > TAG_INDEX_LOOKUP_BUDGET) {
-      console.warn(
-        `[Sitemap] Tag slug count (${tagSlugs.length}) exceeded lookup budget (${TAG_INDEX_LOOKUP_BUDGET}); skipping per-tag index fetches for faster sitemap generation.`,
-      );
-      return {
-        tagEntries: tagSlugs.map((rawSlug) => {
-          const sanitizedSlug = sanitizePathSegment(rawSlug);
-          return {
-            url: `${siteUrl}/bookmarks/tags/${sanitizedSlug}`,
-            changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
-            priority: BOOKMARK_TAG_PRIORITY,
-          } satisfies MetadataRoute.Sitemap[number];
-        }),
-        paginatedTagEntries: [],
-      };
-    }
+    // One grouped query yields every canonical tag's page count, so paginated
+    // tag URLs are always emitted regardless of how many tags exist.
+    const tagPageCounts = await listCanonicalTagPageCounts();
+    const totalPagesBySlug = new Map(tagPageCounts.map((row) => [row.tagSlug, row.totalPages]));
 
     for (const rawSlug of tagSlugs) {
-      const tagIndex = await getTagBookmarksIndex(rawSlug);
-      if (!tagIndex) {
-        continue;
-      }
-
-      const totalPages = Math.max(1, tagIndex.totalPages ?? 0);
       const sanitizedSlug = sanitizePathSegment(rawSlug);
+      const totalPages = totalPagesBySlug.get(rawSlug) ?? 0;
       const baseUrl = `${siteUrl}/bookmarks/tags/${sanitizedSlug}`;
-      const tagLastModified = getSafeDate(tagIndex.lastModified);
 
       tagEntries.push({
         url: baseUrl,
-        lastModified: tagLastModified,
         changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
         priority: BOOKMARK_TAG_PRIORITY,
       });
@@ -179,7 +159,6 @@ export const collectTagSitemapData = async (
       for (let page = 2; page <= totalPages; page++) {
         paginatedTagEntries.push({
           url: `${baseUrl}/page/${page}`,
-          lastModified: tagLastModified,
           changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
           priority: BOOKMARK_TAG_PAGE_PRIORITY,
         });

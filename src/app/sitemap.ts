@@ -9,12 +9,12 @@
  * @remarks
  * **Dual-purpose module**: This file serves two roles:
  * 1. **Next.js route** - Compiled into `.next/` to serve `/sitemap.xml` endpoint
- * 2. **Runtime import** - Directly imported by `scheduler/submit-sitemap.ts` and
- *    `scripts/verify-no-404s.ts` which call `sitemap()` to get URLs for search
- *    engine submission and link validation
+ * 2. **Runtime import** - Directly imported by `scheduler/lib/indexnow-submit.ts`
+ *    and `scripts/verify-no-404s.ts`, which call `sitemap()` to get URLs for
+ *    search engine submission and link validation
  *
  * Because of (2), the source file is explicitly copied to the Docker image
- * (see Dockerfile line ~230). Moving or renaming this file requires updating
+ * (see Dockerfile line ~293). Moving or renaming this file requires updating
  * both the Dockerfile and the importing scripts.
  *
  * @see {@link "../lib/sitemap/bookmark-collectors"} - Bookmark & tag collectors
@@ -37,10 +37,11 @@ import {
   collectBookmarkSitemapData,
   collectTagSitemapData,
 } from "@/lib/sitemap/bookmark-collectors";
+import { getAllProjectSlugs } from "@/lib/projects/slug-helpers";
 import {
   BOOK_PRIORITY,
-  PROJECT_TAG_CHANGE_FREQUENCY,
-  PROJECT_TAG_PRIORITY,
+  PROJECT_DETAIL_CHANGE_FREQUENCY,
+  PROJECT_DETAIL_PRIORITY,
   SITEMAP_RUNTIME_CACHE_TTL_MS,
   STATIC_CHANGE_FREQUENCY,
   STATIC_PRIORITY_HIGH,
@@ -149,22 +150,22 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     }),
   );
 
-  // --- Project tag entries (query variant URLs) ---
-  const uniqueProjectTags = Array.from(new Set(projects.flatMap((p) => p.tags || [])));
-  const projectTagEntries: MetadataRoute.Sitemap = uniqueProjectTags.map((tag) => {
-    const tagParam = encodeURIComponent(tag.replace(/ /g, "+"));
-    return {
-      url: `${siteUrl}/projects?tag=${tagParam}`,
+  // --- Project detail entries (canonical /projects/[slug] pages) ---
+  // Query-variant URLs (/projects?tag=...) canonicalize to /projects and must
+  // not be listed; sitemaps carry canonical URLs only.
+  const projectDetailEntries: MetadataRoute.Sitemap = getAllProjectSlugs(projects).map(
+    ({ slug }) => ({
+      url: `${siteUrl}/projects/${slug}`,
       lastModified: getSafeDate(projectsUpdatedAt),
-      changeFrequency: PROJECT_TAG_CHANGE_FREQUENCY,
-      priority: PROJECT_TAG_PRIORITY,
-    } as MetadataRoute.Sitemap[number];
-  });
+      changeFrequency: PROJECT_DETAIL_CHANGE_FREQUENCY,
+      priority: PROJECT_DETAIL_PRIORITY,
+    }),
+  );
 
   // --- Combine and return ---
   return [
     ...staticEntries,
-    ...projectTagEntries,
+    ...projectDetailEntries,
     ...blogData.blogPostEntries,
     ...blogData.blogTagEntries,
     ...bookData.entries,

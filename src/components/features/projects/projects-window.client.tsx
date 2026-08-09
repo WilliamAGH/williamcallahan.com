@@ -19,18 +19,13 @@ import { useRegisteredWindowState } from "@/lib/context/global-window-registry-c
 import { cn } from "@/lib/utils";
 import type { ProjectsWindowClientProps } from "@/types/features/projects";
 import { FolderKanban } from "lucide-react";
-import dynamic from "next/dynamic";
 import { ProjectsListServer } from "./projects-list.client";
 import { useSearchParams } from "next/navigation";
 
 // Define a unique ID for this window instance
 const PROJECTS_WINDOW_ID = "projects-window";
 
-/**
- * Inner content component – separated so we can hand it to `dynamic()` as the default export
- * without creating a new file. Returning an object with a `default` key satisfies Next.js/webpack.
- */
-function ProjectsWindowContentInner({
+function ProjectsWindowContent({
   children,
   windowState,
   onClose,
@@ -67,36 +62,22 @@ function ProjectsWindowContentInner({
         </div>
       </div>
 
-      <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
-        <Suspense
-          fallback={
-            <div className="animate-pulse space-y-4 p-6">
-              {Array.from({ length: 3 }, (_, i) => (
-                <div key={i} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
-              ))}
-            </div>
-          }
-        >
-          {children}
-        </Suspense>
-      </div>
+      {/* Children are synchronous static markup; wrapping them in Suspense
+          would create a PPR postponement point that drops the project list
+          from the prerendered HTML. Only TagVisibilityController (below) needs
+          a boundary for its useSearchParams bailout. */}
+      <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>{children}</div>
     </div>
   );
 }
 
 /**
- * Dynamic import of the window content component.
- * SSR is enabled to ensure project IDs are in initial HTML for anchor link support.
- */
-const ProjectsWindowContent = dynamic(() =>
-  Promise.resolve({ default: ProjectsWindowContentInner }),
-);
-
-/**
  * ProjectsWindow Client Component
  *
  * Renders server-side generated content within a window-like UI that
- * supports minimizing, maximizing, and closing.
+ * supports minimizing, maximizing, and closing. Content renders during SSR so
+ * project names and /projects/[slug] links are present in the initial HTML;
+ * the window registry falls back to "normal" state until client registration.
  *
  * @param {ProjectsWindowProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
@@ -112,18 +93,12 @@ export function ProjectsWindow({
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered,
   } = useRegisteredWindowState(PROJECTS_WINDOW_ID, FolderKanban, title, "normal");
 
   // Use provided handlers or fall back to internal handlers
   const handleClose = onClose || closeWindow;
   const handleMinimize = onMinimize || minimizeWindow;
   const handleMaximize = onMaximize || maximizeWindow;
-
-  // Render nothing until ready
-  if (!isRegistered) {
-    return null;
-  }
 
   // Handle closed state
   if (windowState === "closed") {

@@ -34,13 +34,9 @@ export const metadata: Metadata = getStaticPageMetadata("/blog", "blog");
 export default async function BlogPage() {
   cacheLife("days");
 
-  let posts: BlogPost[] = [];
-  try {
-    posts = await getAllPostsMeta();
-  } catch (error) {
-    console.error("Failed to fetch blog posts:", error);
-    // Could also set an error state to display to the user
-  }
+  // Fetch failures must propagate to the error boundary: rendering an empty
+  // index with HTTP 200 would serve crawlers a soft-empty page.
+  const posts: BlogPost[] = await getAllPostsMeta();
 
   // Generate JSON-LD schema for the blog page
   const pageMetadata = PAGE_METADATA.blog;

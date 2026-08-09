@@ -9,10 +9,16 @@ type ResolveBookmarkIdFromSlug =
   typeof import("@/lib/bookmarks/slug-helpers").resolveBookmarkIdFromSlug;
 
 const mockResolveBookmarkIdFromSlug = vi.hoisted(() => vi.fn<ResolveBookmarkIdFromSlug>());
+const mockGetAllPostsMeta = vi.hoisted(() => vi.fn<typeof import("@/lib/blog").getAllPostsMeta>());
 
 vi.mock("@/lib/bookmarks/slug-helpers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/bookmarks/slug-helpers")>()),
   resolveBookmarkIdFromSlug: mockResolveBookmarkIdFromSlug,
+}));
+
+vi.mock("@/lib/blog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/blog")>()),
+  getAllPostsMeta: mockGetAllPostsMeta,
 }));
 
 const staticPageRoutes = [
@@ -211,6 +217,42 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
     expect(permanentRedirect).toHaveBeenCalledWith("/projects/company-research-tui");
   });
 
+  it("server-renders the Projects page with project names and detail links in HTML", async () => {
+    vi.resetModules();
+    const pageModule = (await import("@/app/projects/page")) as PageComponentModule;
+    const ProjectsPage = pageModule.default;
+
+    const element = (await ProjectsPage({ params: {}, searchParams: {} })) as JSX.Element;
+    const wrapped = React.createElement(GlobalWindowRegistryProvider, null, element);
+    const html = renderToString(wrapped);
+
+    // Regression pin: the projects window previously returned null during SSR
+    // (pre-registration gate), leaving crawlers a contentless shell.
+    expect(html).toContain("aVenture");
+    expect(html).toContain('href="/projects/aventure-vc"');
+  });
+
+  it("server-renders window wrapper children for blog and thoughts", async () => {
+    vi.resetModules();
+    const { Blog } = await import("@/components/features/blog/blog.client");
+    const { ThoughtsWindow } =
+      await import("@/components/features/thoughts/thoughts-window.client");
+
+    for (const [Component, marker] of [
+      [Blog, "ssr-blog-child"],
+      [ThoughtsWindow, "ssr-thoughts-child"],
+    ] as const) {
+      const wrapped = React.createElement(
+        GlobalWindowRegistryProvider,
+        null,
+        React.createElement(Component, null, marker),
+      );
+      // Regression pin: these wrappers previously replaced SSR output with a
+      // skeleton (ssr:false dynamic / pre-registration gate).
+      expect(renderToString(wrapped)).toContain(marker);
+    }
+  });
+
   it("renders a missing bookmark through notFound without logging an error", async () => {
     vi.resetModules();
     mockResolveBookmarkIdFromSlug.mockResolvedValueOnce(null);
@@ -231,5 +273,16 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
     } finally {
       consoleErrorSpy.mockRestore();
     }
+  });
+
+  it("propagates blog index fetch failures instead of rendering an empty page", async () => {
+    vi.resetModules();
+    const fetchError = new Error("mdx load failed");
+    mockGetAllPostsMeta.mockRejectedValueOnce(fetchError);
+
+    const pageModule = await import("@/app/blog/page");
+    // Regression pin: the page previously caught fetch errors and rendered an
+    // empty "0 articles" index with HTTP 200, a soft-empty page for crawlers.
+    await expect(pageModule.default()).rejects.toBe(fetchError);
   });
 });

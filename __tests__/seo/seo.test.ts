@@ -124,3 +124,18 @@ describe("JsonLdScript", () => {
     expect(document.querySelector('script[type="application/ld+json"]')).toBeNull();
   });
 });
+
+describe("getNotFoundMetadata", () => {
+  it("emits noindex and never a canonical for missing entities", async () => {
+    const { getNotFoundMetadata } = await import("@/lib/seo/not-found-metadata");
+    const metadata = getNotFoundMetadata("Project");
+
+    expect(metadata.title).toBe("Project Not Found");
+    expect(metadata.description).toBe("The requested project could not be found.");
+    expect(metadata.robots).toEqual({ index: false, follow: false });
+    // A nonexistent URL must never self-canonicalize, inherit the layout
+    // canonical, or carry share metadata.
+    expect(metadata.alternates).toEqual({ canonical: null });
+    expect(metadata.openGraph).toBeUndefined();
+  });
+});

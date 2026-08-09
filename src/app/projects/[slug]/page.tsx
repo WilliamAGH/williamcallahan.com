@@ -24,6 +24,7 @@ import {
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -94,11 +95,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
   const project = findProjectBySlug(slug, projects);
 
   if (!project) {
-    return {
-      ...getStaticPageMetadata(`/projects/${slug}`, "projects"),
-      title: "Project Not Found",
-      description: "The requested project could not be found.",
-    };
+    return getNotFoundMetadata("Project");
   }
 
   const canonicalSlug = generateProjectSlug(project.name);

@@ -11,6 +11,7 @@ import {
   getTagBookmarksIndex as getTagBookmarksIndexInternal,
   getTagBookmarksPage as getTagBookmarksPageInternal,
   listTagSlugs as listTagSlugsInternal,
+  listCanonicalTagPageCounts as listCanonicalTagPageCountsInternal,
   resolveBookmarkTagSlug as resolveBookmarkTagSlugInternal,
 } from "./bookmarks-data-access.server";
 import { refreshBookmarksData } from "./bookmarks";
@@ -132,4 +133,16 @@ export async function resolveBookmarkTagSlug(tagSlug: string): Promise<{
 }> {
   initializeBookmarksDataAccess();
   return resolveBookmarkTagSlugInternal(tagSlug);
+}
+
+/**
+ * Page counts for every canonical bookmark tag in a single grouped query.
+ * Used by the sitemap tag collector so paginated tag URLs are emitted
+ * without one index lookup per tag.
+ */
+export async function listCanonicalTagPageCounts(
+  pageSize?: number,
+): Promise<Array<{ tagSlug: string; totalPages: number }>> {
+  initializeBookmarksDataAccess();
+  return listCanonicalTagPageCountsInternal(pageSize);
 }

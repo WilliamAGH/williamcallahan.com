@@ -12,6 +12,7 @@ import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail"
 import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -126,11 +127,7 @@ export async function generateMetadata({ params }: BookmarkPageContext): Promise
   const bookmark = await findBookmarkBySlug(slug);
 
   if (!bookmark) {
-    return {
-      ...getStaticPageMetadata(path, "bookmarks"),
-      title: "Bookmark Not Found",
-      description: "The requested bookmark could not be found.",
-    };
+    return getNotFoundMetadata("Bookmark");
   }
 
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");

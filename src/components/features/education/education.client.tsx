@@ -82,7 +82,6 @@ export function EducationClient({
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered,
   } = useRegisteredWindowState(EDUCATION_WINDOW_ID, GraduationCap, "Restore Education", "normal");
 
   // Combined table data for filtering
@@ -147,11 +146,8 @@ export function EducationClient({
     }
   };
 
-  // Render nothing until ready
-  if (!isRegistered) {
-    return null;
-  }
-
+  // windowState falls back to "normal" until client registration, so content
+  // renders during SSR and the first client paint matches (no shift).
   // Handle closed state
   if (windowState === "closed") {
     return null;
