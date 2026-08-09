@@ -15,5 +15,8 @@ export function getNotFoundMetadata(entityLabel: string): Metadata {
     title: `${entityLabel} Not Found`,
     description: `The requested ${entityLabel.toLowerCase()} could not be found.`,
     robots: { index: false, follow: false },
+    // Explicitly unset the layout-inherited canonical: a missing entity has no
+    // canonical URL, and inheriting the site root's would be semantically wrong.
+    alternates: { canonical: null },
   };
 }

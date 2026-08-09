@@ -10,7 +10,7 @@
 
 "use client";
 
-import React, { Suspense } from "react";
+import React from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
@@ -37,30 +37,6 @@ function BlinkingCursor(): React.JSX.Element {
 }
 
 const DEFAULT_THOUGHTS_WINDOW_ID = "thoughts-window";
-const THOUGHT_SKELETON_KEYS = [
-  "thought-skeleton-1",
-  "thought-skeleton-2",
-  "thought-skeleton-3",
-  "thought-skeleton-4",
-] as const;
-
-/**
- * Skeleton loader with stable keys
- */
-function SkeletonLoader(): React.JSX.Element {
-  return (
-    <div className="animate-pulse space-y-4 p-6">
-      {THOUGHT_SKELETON_KEYS.map((key) => (
-        <div key={key} className="space-y-3">
-          <div className="bg-zinc-200 dark:bg-zinc-700 h-4 w-24 rounded" />
-          <div className="bg-zinc-200 dark:bg-zinc-700 h-6 w-3/4 rounded" />
-          <div className="bg-zinc-200 dark:bg-zinc-700 h-4 w-full rounded" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /**
  * Inner content component for the window
  */
@@ -112,10 +88,10 @@ function ThoughtsWindowContentInner({
         </div>
       </div>
 
-      {/* Scrollable Content Area */}
-      <div className={cn("h-full", isMaximized ? "overflow-y-auto flex-grow" : "")}>
-        <Suspense fallback={<SkeletonLoader />}>{children}</Suspense>
-      </div>
+      {/* Scrollable Content Area. Children arrive as resolved server markup
+          from the page; a Suspense wrapper here would create a PPR
+          postponement point that drops the list from prerendered HTML. */}
+      <div className={cn("h-full", isMaximized ? "overflow-y-auto flex-grow" : "")}>{children}</div>
     </div>
   );
 }

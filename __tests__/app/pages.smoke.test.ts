@@ -9,10 +9,16 @@ type ResolveBookmarkIdFromSlug =
   typeof import("@/lib/bookmarks/slug-helpers").resolveBookmarkIdFromSlug;
 
 const mockResolveBookmarkIdFromSlug = vi.hoisted(() => vi.fn<ResolveBookmarkIdFromSlug>());
+const mockGetAllPostsMeta = vi.hoisted(() => vi.fn<typeof import("@/lib/blog").getAllPostsMeta>());
 
 vi.mock("@/lib/bookmarks/slug-helpers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/bookmarks/slug-helpers")>()),
   resolveBookmarkIdFromSlug: mockResolveBookmarkIdFromSlug,
+}));
+
+vi.mock("@/lib/blog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/blog")>()),
+  getAllPostsMeta: mockGetAllPostsMeta,
 }));
 
 const staticPageRoutes = [
@@ -267,5 +273,16 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
     } finally {
       consoleErrorSpy.mockRestore();
     }
+  });
+
+  it("propagates blog index fetch failures instead of rendering an empty page", async () => {
+    vi.resetModules();
+    const fetchError = new Error("mdx load failed");
+    mockGetAllPostsMeta.mockRejectedValueOnce(fetchError);
+
+    const pageModule = await import("@/app/blog/page");
+    // Regression pin: the page previously caught fetch errors and rendered an
+    // empty "0 articles" index with HTTP 200, a soft-empty page for crawlers.
+    await expect(pageModule.default()).rejects.toBe(fetchError);
   });
 });

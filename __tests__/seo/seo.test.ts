@@ -133,8 +133,9 @@ describe("getNotFoundMetadata", () => {
     expect(metadata.title).toBe("Project Not Found");
     expect(metadata.description).toBe("The requested project could not be found.");
     expect(metadata.robots).toEqual({ index: false, follow: false });
-    // A nonexistent URL must never self-canonicalize or carry share metadata.
-    expect(metadata.alternates).toBeUndefined();
+    // A nonexistent URL must never self-canonicalize, inherit the layout
+    // canonical, or carry share metadata.
+    expect(metadata.alternates).toEqual({ canonical: null });
     expect(metadata.openGraph).toBeUndefined();
   });
 });
