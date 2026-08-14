@@ -67,13 +67,13 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 - [GT1a] **Code is Intentional**: ALL uncommitted changes AND UNTRACKED FILES are presumed intentional user work. NEVER revert, discard, delete, or reset them—even if they break the build. Fix the errors or ask; never delete.
 - [GT1b] **BANNED COMMANDS**: NEVER run: `git reset`, `git checkout .`, `git checkout <file>`, `git stash`, `git restore`, `git clean`, `git revert`, `git commit --amend`, `git rebase`, `git push --force`, `git push --force-with-lease`. This ban is ABSOLUTE.
-- [GT1c] **No Branching**: Work on the current branch. NEVER create new branches unless the user explicitly requests it.
+- [GT1c] **Worktree at Inception**: Start each task in a dedicated worktree on a task branch unless the user declines; review and read-only tasks are exempt and stay on the current branch. Never create branches beyond the task branch.
 - [GT1d] **Permission Required**: Git writes (commits, pushes) require explicit user permission. Read-only git commands (`status`, `log`, `diff`) are always allowed.
 - [GT1e] **Hook & Commit Integrity**: Never skip hooks (`--no-verify`, `HUSKY=0`); never delete `.git/index.lock`; no AI attribution; one logical change per commit; describe change + purpose.
 - [GT1f] If an unexpected file is staged or modified by hooks, pause and show the diff; do not attempt to "fix" it unprompted.
 - [GT1g] **No Panic About Working State**: Do not comment on or halt for unrelated uncommitted changes. Keep working on the requested task and do not bring up the git working state unless the user explicitly asks.
 - [GT1h] **No Halts For Unrelated Changes**: Never stop or pause work because you noticed unexpected or unrelated file changes; continue the task unless the user explicitly asks you to investigate.
-- [GT1i] **Repository-Local Writes Only**: NEVER commit or push to this repository from a temporary clone, alternate checkout/worktree, or any other directory copy of the same repo. All git writes must be executed from this exact working tree.
+- [GT1i] **Repository-Local Writes Only**: All git writes run from this working tree or the task's dedicated worktree; task commits land in the worktree and merge (non-force) into local `dev` at task conclusion, then the worktree is removed. NEVER commit or push from an unrelated clone, checkout, or directory copy of the repo.
 
 ### [LC1] Line Count Ceiling (Blocking)
 
@@ -181,8 +181,9 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [VR1d] Typecheck via `bun run type-check` (and `bun run type-check:tests` when relevant)
 - [VR1e] Format via `bun run format` and `bun run format:check`
 - [VR1f] Deployment readiness: use `bun run deploy:verify` and/or `bun run deploy:smoke-test`
-- [VR1g] Validate each slice: after completing an end-to-end slice ([CC1e]), run `bun run validate` before starting the next slice
+- [VR1g] Validate each slice: run `bun run validate` for every completed end-to-end slice ([CC1e]); independent slices may proceed in parallel, dependent slices stay serial — validation still gates each slice
 - [VR1h] Contract cleanup handoff must name the canonical owner, list each duplicate owner removed, prove that tests/fixtures now bind or import the canonical owner, and explicitly call out any remaining duplicate owner as a blocker
+- [VR1i] Watch every push's Actions run to a terminal verdict — one watcher per SHA, polls >= 60s; fix failures, commit, and push until green
 
 ### [TST1] Testing Protocols
 
@@ -195,10 +196,8 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 ### [CP1] Task Completion Protocol
 
-- [CP1a] After implementing changes, offer to help verify the fix with concrete commands and checks
-- [CP1b] Request explicit user confirmation that the issue is resolved before cleanup or commits
-- [CP1c] After confirmation, remove temporary files you created (temp files go in `/tmp`, never committed) and (if user wants a commit) create a single, descriptive commit
-- [CP1d] Before creating a commit, state the exact files that will be included and wait for confirmation
+- [CP1a] One completion protocol: verify the fix with concrete commands and checks; remove temporary files you created (temp files go in `/tmp`, never committed); commit in the task worktree; merge (non-force) into local `dev`; push; watch CI to a terminal verdict ([VR1i]); then run the [DEP1b] deployed-bundle verification
+- [CP1b] Terminal states are DONE or `BLOCKED: <exact user decision>` — report one of them, nothing else
 
 ### [LG1] Language Consistency
 
