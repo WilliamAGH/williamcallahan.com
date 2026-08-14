@@ -198,6 +198,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 - [CP1a] One completion protocol: verify the fix with concrete commands and checks; remove temporary files you created (temp files go in `/tmp`, never committed); commit in the task worktree; merge (non-force) into local `dev`; push; watch CI to a terminal verdict ([VR1i]); then run the [DEP1b] deployed-bundle verification
 - [CP1b] Terminal states are DONE or `BLOCKED: <exact user decision>` — report one of them, nothing else
+- [CP1c] GitHub issues are filed only for material defects or features (behavior, correctness, security, performance, data quality, or a governed contract); pedantic/nitpick/style-only findings are fixed in place or dropped, never filed; fixes and issue scope follow the minimalism bar — reuse before new code and simplify before completing — per the `ponytail` and `ce-simplify-code` skills
 
 ### [LG1] Language Consistency
 
