@@ -9,6 +9,7 @@
 
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { ExternalLinkProps } from "@/types/ui/forms";
+import { cn } from "@/lib/utils";
 
 import React, { Children, isValidElement, type AnchorHTMLAttributes, type JSX } from "react";
 
@@ -45,11 +46,11 @@ export function ExternalLink({
 >): JSX.Element {
   void target;
   void rel;
-  const baseClassName = `inline-flex items-center gap-1 ${className}`;
-
+  // Plain inline flow: `inline-flex` fragments across line breaks and detaches the
+  // trailing icon (mobile overflow); an inline icon wraps as a glyph instead.
   if (!href) {
     return (
-      <span {...attributes} className={baseClassName} title={title}>
+      <span {...attributes} className={className} title={title}>
         {children}
       </span>
     );
@@ -73,11 +74,17 @@ export function ExternalLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`${baseClassName} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
+      className={cn(className, "hover:text-gray-600 dark:hover:text-gray-300 transition-colors")}
       title={rawTitle ? title : title || `Visit ${href} (opens in new tab)`}
     >
       {normalizedChildren}
-      {icon ?? (showIcon ? <ExternalLinkIcon className="w-4 h-4" aria-hidden="true" /> : null)}
+      {icon ??
+        (showIcon ? (
+          <ExternalLinkIcon
+            className="inline-block h-[1em] w-[1em] ml-0.5 align-[-0.125em]"
+            aria-hidden="true"
+          />
+        ) : null)}
     </a>
   );
 }
