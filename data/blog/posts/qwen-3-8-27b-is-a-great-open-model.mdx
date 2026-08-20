@@ -6,6 +6,7 @@ publishedAt: "2026-08-19"
 updatedAt: "2026-08-19"
 author: "william-callahan"
 tags: ["ai", "qwen", "llm", "open-source", "llama.cpp", "self-hosting", "coding-agents"]
+coverImage: "/images/posts/qwen-3-8-27b-is-a-great-open-model.png"
 ---
 
 There have been some great new models released in recent weeks, including K3 from Kimi and Qwen 3.8 from Alibaba Cloud.
@@ -14,7 +15,7 @@ If my memory serves correctly, we're roughly on the anniversary of the release o
 
 Those were great models upon their release as well, and were announced in proximity to the bigger fleet of the new auto-routing GPT-5 models. I used gpt-oss-120b for several months in production pipelines of my own inference network.
 
-What is astounding is how much progress we've made over the last year. Using the same hardware as last year, the Qwen 3.8 27B parameter model is seemingly twice as intelligent and capable as those high-quality last-year models.
+What is astounding is how much progress we've made over the last year. Using the same hardware as last year, the [Qwen 3.8 27B parameter model](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) is seemingly twice as intelligent and capable as those high-quality last-year models.
 
 And Kimi's K3 model is quite good as well, but it is also still a behemoth 2.8T parameter model I won't be self-hosting anytime soon. It is the first open-source model I've ever used day-to-day as a substitute for my frontier primary model drivers (Claude Fable/Opus, ChatGPT Sol, and the rest).
 
@@ -35,7 +36,7 @@ I can now run an agent harness like Claude Code or Codex in my CLI with my own s
 
 ## How fast is it?
 
-I run a small fleet of machines for my day job (aVenture, which provides AI agents for private company research), and here is what I'm seeing from some of the fleet metrics so far (1 session at a time, 256k max context window, 65k max tokens per message):
+I run a small fleet of machines for my day job ([aVenture, which provides AI agents for private company research](https://aventure.vc)), and here is what I'm seeing from some of the fleet metrics so far (1 session at a time, 256k max context window, 65k max tokens per message):
 
 | Hardware | Speed |
 | --- | --- |
@@ -43,7 +44,9 @@ I run a small fleet of machines for my day job (aVenture, which provides AI agen
 | NVIDIA 5090 (32GB) | ~106 tok/sec |
 | Mac Studio (M1 Ultra, 128GB) | ~15 tok/sec |
 
-They are currently running on llama.cpp. It's not perfect, and deployment was still too time intensive. For example, using its default of `xhigh` reasoning uses a lot of tokens. So I'll share what I settled on below for my config so far.
+_Note: these are averages across similar hardware for each group_
+
+They are currently running on llama.cpp. It's not perfect, and deployment was still too time intensive. For example, using its [default of `xhigh` reasoning uses a lot of tokens](https://simonwillison.net/2026/Aug/16/qwen-38-27b/). So I'll share what I settled on below for my config so far.
 
 ```bash
 docker run -d --name llama-qwen38 \
@@ -76,4 +79,4 @@ docker run -d --name llama-qwen38 \
 
 One of the things I was seeking in this model (beyond high accuracy in tool calls/bash use) was _just enough knowledge to know to seek/confirm/validate_, but not so much they _rely mainly on their world knowledge_ instead (a form of [epistemic humility](https://en.wikipedia.org/wiki/Epistemic_humility)). This seems to be an effective balance: quick, reliable tool calls with reasoning, and capable of performing the research tasks to agentically/autonomously get the data it needs to solve the problems/tasks passed to it.
 
-And with substantially fewer tokens per task when compared to frontier models. First results are promising, I'll update this over time with my observations in the weeks ahead.
+And with substantially fewer tokens per task when compared to frontier models. First results are promising.
