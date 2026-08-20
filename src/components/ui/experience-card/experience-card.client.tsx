@@ -67,7 +67,13 @@ export function ExperienceCardClient({
         <div className="flex items-start gap-5">
           <div className="w-12 h-12 relative flex-shrink-0">
             {website ? (
-              <ExternalLink href={website} title={company} rawTitle={true} showIcon={false}>
+              <ExternalLink
+                href={website}
+                title={company}
+                rawTitle={true}
+                showIcon={false}
+                className="block"
+              >
                 <LogoImage
                   src={logoData.url}
                   width={48}

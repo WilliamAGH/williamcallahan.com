@@ -262,20 +262,20 @@ html {
     font-size: 16px; /* Ensure consistent paragraph font size */
   }
 
-  /* Force code blocks to wrap properly */
+  /* Force block code (<pre> and its <code>) to wrap; inline <code> keeps
+     component-level `whitespace-normal` so it breaks at word boundaries only */
   .blog-content pre,
-  .blog-content code {
+  .blog-content pre code {
     white-space: pre-wrap;
     overflow-wrap: break-word;
     word-wrap: break-word;
   }
 
-  /* Force long URLs and paths to break */
-  .blog-content a[href],
-  .blog-content [class*="language-bash"],
-  .blog-content [class*="language-shell"],
-  .blog-content [class*="language-zsh"] {
-    word-break: break-all;
+  /* Long URLs break only when they would otherwise overflow the line;
+     character-level `break-all` splitting is banned here (it splits words mid-character) */
+  .blog-content a[href] {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
 
   /* Positioning is handled by components */
@@ -312,11 +312,6 @@ html {
   .prose h5,
   .prose h6 {
     overflow-wrap: break-word; /* Ensure wrapping for all prose elements */
-  }
-
-  /* Ensure long words or strings don't overflow their container */
-  .break-words-anywhere {
-    word-break: break-all; /* More aggressive breaking if needed */
   }
 
   /* MDX figure percentage width modifiers (5% increments). */
