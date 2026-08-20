@@ -1,0 +1,79 @@
+---
+title: "Qwen 3.8 27B Is a Great Open Model"
+slug: "qwen-3-8-27b-is-a-great-open-model"
+excerpt: "A year after OpenAI's gpt-oss, Qwen 3.8 27B is the first local model I'd let write code in an agent harness — fast enough to use live, small enough to self-host, and seemingly twice as capable as last year's open weights on the same hardware."
+publishedAt: "2026-08-19"
+updatedAt: "2026-08-19"
+author: "william-callahan"
+tags: ["ai", "qwen", "llm", "open-source", "llama.cpp", "self-hosting", "coding-agents"]
+---
+
+There have been some great new models released in recent weeks, including K3 from Kimi and Qwen 3.8 from Alibaba Cloud.
+
+If my memory serves correctly, we're roughly on the anniversary of the release of OpenAI's open-weights models last year: gpt-oss (the 20B and 120B parameter mixture-of-experts models).
+
+Those were great models upon their release as well, and were announced in proximity to the bigger fleet of the new auto-routing GPT-5 models. I used gpt-oss-120b for several months in production pipelines of my own inference network.
+
+What is astounding is how much progress we've made over the last year. Using the same hardware as last year, the Qwen 3.8 27B parameter model is seemingly twice as intelligent and capable as those high-quality last-year models.
+
+And Kimi's K3 model is quite good as well, but it is also still a behemoth 2.8T parameter model I won't be self-hosting anytime soon. It is the first open-source model I've ever used day-to-day as a substitute for my frontier primary model drivers (Claude Fable/Opus, ChatGPT Sol, and the rest).
+
+## I've grown a bit cynical of new model releases
+
+I'm in San Francisco, in the midst of AI boom (bubble?) times, and X/Twitter and even mainstream news these days can see new model releases get covered. But this model is good.
+
+I do run some evals, and perhaps I'll publish some evals or benchmarks in the future — but I can already tell you it passes several litmus tests most models have to clear.
+
+## Litmus tests for a local agent model
+
+I can now run an agent harness like Claude Code or Codex in my CLI with my own self-hosted Qwen 3.8 instance, and:
+
+- **It's fast enough**: it can perform tasks live, not just batches in the background
+- **It's capable**: it can now perform tool calls (bash CLI/terminal commands with nuanced arguments and flags, web searches, MCP, and invoking from a large grouping of skills)
+- **It codes**: its code quality and reasoning capabilities are finally adequate enough for me to let it be the first local model I'd let write code
+- **It writes**: I personally rather dislike most AI writing styles, but I've enjoyed the personality and change of tone from this model
+
+## How fast is it?
+
+I run a small fleet of machines for my day job (aVenture, which provides AI agents for private company research), and here is what I'm seeing from some of the fleet metrics so far (1 session at a time, 256k max context window, 65k max tokens per message):
+
+| Hardware | Speed |
+| --- | --- |
+| AMD Strix Halo (128GB) | ~29 tok/sec |
+| NVIDIA 5090 (32GB) | ~106 tok/sec |
+| Mac Studio (M1 Ultra, 128GB) | ~15 tok/sec |
+
+They are currently running on llama.cpp. It's not perfect, and deployment was still too time intensive. For example, using its default of `xhigh` reasoning uses a lot of tokens. So I'll share what I settled on below for my config so far.
+
+```bash
+docker run -d --name llama-qwen38 \
+    --restart no \
+    --privileged \
+    --device /dev/dri \
+    --device /dev/kfd \
+    --memory 60g \
+    --memory-swap 60g \
+    -p 8081:8080 \
+    -v /mnt/models:/models:ro \
+    --entrypoint /app/llama-server \
+    ghcr.io/ggml-org/llama.cpp:server-vulkan@sha256:9b3cdba3a2e027ed16dff50cc491c1ec2bd0bf8e415f1ee0f65f247569228a15 \
+    --host 0.0.0.0 --port 8080 \
+    --alias qwen3.8-27b \
+    -m /models/qwen3.8-27b/Qwen3.8-27B-UD-Q4_K_XL.gguf \
+    --mmproj /models/qwen3.8-27b/mmproj-BF16.gguf \
+    -c 262144 \
+    -fa on --no-mmap \
+    --cache-type-k f16 --cache-type-v f16 \
+    --kv-unified --jinja \
+    -ngl 999999 -t 12 -b 512 -ub 512 -np 1 \
+    --reasoning on \
+    --reasoning-effort medium \
+    --spec-type draft-mtp \
+    --spec-draft-n-max 4 \
+    --spec-draft-p-min 0.2 \
+    --timeout 7200
+```
+
+One of the things I was seeking in this model (beyond high accuracy in tool calls/bash use) was _just enough knowledge to know to seek/confirm/validate_, but not so much they _rely mainly on their world knowledge_ instead (a form of [epistemic humility](https://en.wikipedia.org/wiki/Epistemic_humility)). This seems to be an effective balance: quick, reliable tool calls with reasoning, and capable of performing the research tasks to agentically/autonomously get the data it needs to solve the problems/tasks passed to it.
+
+And with substantially fewer tokens per task when compared to frontier models. First results are promising, I'll update this over time with my observations in the weeks ahead.

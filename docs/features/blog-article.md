@@ -46,7 +46,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 
 ### Content Files
 
-- **data/blog/posts/\*.mdx**: Blog post content files (28 posts)
+- **data/blog/posts/\*.mdx**: Blog post content files (29 posts)
   - Written in MDX format (Markdown with JSX)
   - Includes frontmatter metadata (title, author, date, tags, etc.)
   - Can embed React components like tabs, tweets, and custom elements
