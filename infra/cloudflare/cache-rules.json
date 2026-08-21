@@ -68,6 +68,55 @@
       "enabled": true
     },
     {
+      "description": "[managed] Cache public static assets (/images, /fonts, /scripts, favicon, touch icons); never edge-store errors",
+      "expression": "starts_with(http.request.uri.path, \"/images/\") or starts_with(http.request.uri.path, \"/fonts/\") or starts_with(http.request.uri.path, \"/scripts/\") or http.request.uri.path eq \"/favicon.ico\" or http.request.uri.path eq \"/apple-touch-icon.png\" or http.request.uri.path eq \"/apple-touch-icon-precomposed.png\"",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "respect_origin",
+          "status_code_ttl": [
+            {
+              "status_code_range": {
+                "from": 400,
+                "to": 599
+              },
+              "value": -1
+            }
+          ]
+        },
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
+      },
+      "enabled": true
+    },
+    {
+      "description": "[managed] Cache RSS feed and sitemap (/feed.xml, /sitemap.xml); never edge-store errors",
+      "expression": "http.request.uri.path eq \"/feed.xml\" or http.request.uri.path eq \"/sitemap.xml\"",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "override_origin",
+          "default": 3600,
+          "status_code_ttl": [
+            {
+              "status_code_range": {
+                "from": 400,
+                "to": 599
+              },
+              "value": -1
+            }
+          ]
+        },
+        "browser_ttl": {
+          "mode": "respect_origin"
+        }
+      },
+      "enabled": true
+    },
+    {
       "description": "[managed] Cache OpenGraph image redirects (/api/og-image)",
       "expression": "starts_with(http.request.uri.path, \"/api/og-image\")",
       "action": "set_cache_settings",

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-utils";
 import { GET as getIp } from "@/app/api/ip/route";
@@ -61,6 +62,8 @@ describe("Cloudflare header enforcement", () => {
     else if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
       throw new Error("Could not remove NextResponse.rewrite test implementation");
     }
+    for (const id of ["@sentry/nextjs", "node:child_process", "node:fs"]) vi.doUnmock(id);
+    vi.resetModules();
   });
 
   afterAll(() => {
@@ -172,10 +175,6 @@ describe("Cloudflare header enforcement", () => {
     );
   });
   describe("next.config release identity", () => {
-    afterEach(() => {
-      for (const id of ["@sentry/nextjs", "node:child_process", "node:fs"]) vi.doUnmock(id);
-      vi.resetModules();
-    });
     it("delegates development build identity to Next", async () => {
       clearDeploymentId();
       vi.stubEnv("NODE_ENV", "development");
@@ -232,6 +231,78 @@ describe("Cloudflare header enforcement", () => {
       vi.doMock("node:child_process", () => ({ execFileSync: () => execFileSync("git-missing") }));
       vi.doMock("node:fs", () => ({ readFileSync: () => "stale-build" }));
       await expect(loadNextConfig()).rejects.toThrow("Production builds require");
+    });
+  });
+  describe("public static asset cache policy", () => {
+    it("keeps development responses free of asset cache headers", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "development");
+      const nextConfig = await loadNextConfig();
+      await expect(nextConfig.headers()).resolves.toEqual([]);
+    });
+    it("sets browser and CDN TTLs for public assets without immutable", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_DEPLOYMENT_ID", "release_2026-08-21");
+      const nextConfig = await loadNextConfig();
+      const headerRules = await nextConfig.headers();
+      const publicAssetSources = [
+        "/images/:path*",
+        "/fonts/:path*",
+        "/scripts/:path*",
+        "/favicon.ico",
+        "/apple-touch-icon.png",
+        "/apple-touch-icon-precomposed.png",
+      ];
+      expect(headerRules).toHaveLength(publicAssetSources.length);
+      for (const source of publicAssetSources) {
+        const rule = headerRules.find((entry) => entry.source === source);
+        if (!rule) throw new Error(`missing cache header rule for ${source}`);
+        const headers = Object.fromEntries(rule.headers.map(({ key, value }) => [key, value]));
+        expect(headers["Cache-Control"]).toBe("public, max-age=14400");
+        expect(headers["Cache-Control"]).not.toContain("immutable");
+        expect(headers["CDN-Cache-Control"]).toBe("public, max-age=86400");
+      }
+    });
+    it("guards public asset and feed paths against edge-stored error responses", () => {
+      interface CacheRule {
+        expression: string;
+        action_parameters: {
+          edge_ttl: {
+            mode: string;
+            default?: number;
+            status_code_ttl?: { status_code_range: { from: number; to: number }; value: number }[];
+          };
+          browser_ttl: { mode: string };
+        };
+      }
+      const config = JSON.parse(readFileSync("infra/cloudflare/cache-rules.json", "utf8")) as {
+        rules: CacheRule[];
+      };
+      const publicAssets = config.rules.find((rule) => rule.expression.includes('"/images/"'));
+      const feeds = config.rules.find((rule) => rule.expression.includes('"/feed.xml"'));
+      expect(publicAssets).toBeDefined();
+      expect(feeds).toBeDefined();
+      for (const token of [
+        '"/images/"',
+        '"/fonts/"',
+        '"/scripts/"',
+        '"/favicon.ico"',
+        '"/apple-touch-icon.png"',
+        '"/apple-touch-icon-precomposed.png"',
+      ]) {
+        expect(publicAssets?.expression).toContain(token);
+      }
+      expect(feeds?.expression).toContain('"/sitemap.xml"');
+      expect(publicAssets?.action_parameters.edge_ttl.mode).toBe("respect_origin");
+      expect(feeds?.action_parameters.edge_ttl.mode).toBe("override_origin");
+      expect(feeds?.action_parameters.edge_ttl.default).toBe(3600);
+      for (const rule of [publicAssets, feeds]) {
+        expect(rule?.action_parameters.edge_ttl.status_code_ttl).toContainEqual({
+          status_code_range: { from: 400, to: 599 },
+          value: -1,
+        });
+        expect(rule?.action_parameters.browser_ttl.mode).toBe("respect_origin");
+      }
     });
   });
   describe("production deployment verification", () => {
