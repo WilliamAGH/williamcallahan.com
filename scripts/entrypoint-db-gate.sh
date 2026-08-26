@@ -26,6 +26,8 @@ rewrite_database_url_for_internal_service() {
         DATABASE_URL="$DATABASE_URL" \
         EXTERNAL_DB_HOST="$EXTERNAL_PRODUCTION_DB_HOST" \
         EXTERNAL_DB_PORT="$EXTERNAL_PRODUCTION_DB_PORT" \
+        DEFAULT_INTERNAL_DB_HOST="$DEFAULT_INTERNAL_PRODUCTION_DB_HOST" \
+        DEFAULT_INTERNAL_DB_PORT="$DEFAULT_INTERNAL_PRODUCTION_DB_PORT" \
         INTERNAL_DB_HOST="$internal_host" \
         INTERNAL_DB_PORT="$internal_port" \
         node <<'NODE'
@@ -36,12 +38,18 @@ if (!raw) {
 try {
   const parsed = new URL(raw);
   const currentPort = parsed.port || "5432";
-  if (
+  const isExternalEndpoint =
     parsed.hostname === process.env.EXTERNAL_DB_HOST &&
-    currentPort === process.env.EXTERNAL_DB_PORT
-  ) {
-    parsed.hostname = process.env.INTERNAL_DB_HOST ?? parsed.hostname;
-    parsed.port = process.env.INTERNAL_DB_PORT ?? parsed.port;
+    currentPort === process.env.EXTERNAL_DB_PORT;
+  const isDefaultInternalEndpoint =
+    parsed.hostname === process.env.DEFAULT_INTERNAL_DB_HOST &&
+    currentPort === process.env.DEFAULT_INTERNAL_DB_PORT;
+  const targetHost = process.env.INTERNAL_DB_HOST ?? parsed.hostname;
+  const targetPort = process.env.INTERNAL_DB_PORT ?? currentPort;
+  const targetChanged = parsed.hostname !== targetHost || currentPort !== targetPort;
+  if ((isExternalEndpoint || isDefaultInternalEndpoint) && targetChanged) {
+    parsed.hostname = targetHost;
+    parsed.port = targetPort;
     process.stdout.write(parsed.toString());
   }
 } catch (e) {

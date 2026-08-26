@@ -192,6 +192,8 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
     --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=false \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN,required=false \
     --mount=type=secret,id=DATABASE_URL,env=DATABASE_URL,required=false \
+    --mount=type=secret,id=INTERNAL_DATABASE_HOST,target=/run/secrets/build/INTERNAL_DATABASE_HOST,required=false \
+    --mount=type=secret,id=INTERNAL_DATABASE_PORT,target=/run/secrets/build/INTERNAL_DATABASE_PORT,required=false \
     --mount=type=secret,id=S3_BUCKET,target=/run/secrets/build/S3_BUCKET,required=false \
     --mount=type=secret,id=S3_SERVER_URL,target=/run/secrets/build/S3_SERVER_URL,required=false \
     --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,target=/run/secrets/build/NEXT_PUBLIC_S3_CDN_URL,required=false \
@@ -203,6 +205,8 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
     --mount=type=secret,id=NEXT_PUBLIC_SENTRY_DSN,env=NEXT_PUBLIC_SENTRY_DSN,required=false \
     bash -c 'set -euo pipefail \
       && for secret_path in /run/secrets/build/*; do if [ -f "${secret_path}" ]; then name="${secret_path##*/}"; value="$(cat "${secret_path}")"; if [ -n "${value}" ]; then export "${name}=${value}"; fi; fi; done \
+      && source /app/scripts/entrypoint-db-gate.sh \
+      && rewrite_database_url_for_internal_service \
       && if [ -n "${S3_SESSION_TOKEN:-}" ]; then export AWS_SESSION_TOKEN="${S3_SESSION_TOKEN}"; fi \
       && if [ -n "${SOURCE_COMMIT:-}" ] && [ "${SOURCE_COMMIT}" != "unknown" ]; then \
         release_id="${SOURCE_COMMIT}"; \
