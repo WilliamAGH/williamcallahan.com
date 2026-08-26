@@ -49,7 +49,12 @@ export default defineConfig({
       "./config/vitest/setup.ts",
     ],
     include: ["**/__tests__/**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["**/node_modules/**", "**/.next/**", "**/src/types/test.ts"],
+    exclude: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/.claude/worktrees/**",
+      "**/src/types/test.ts",
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
