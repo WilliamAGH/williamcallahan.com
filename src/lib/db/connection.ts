@@ -16,8 +16,6 @@ const DEFAULT_DATABASE_POOL_MAX = 5;
 const PRODUCTION_ENVIRONMENT = "production";
 const EXTERNAL_PRODUCTION_DB_HOST = "167.234.219.57";
 const EXTERNAL_PRODUCTION_DB_PORT = "5438";
-const DEFAULT_INTERNAL_PRODUCTION_DB_HOST = "q0kks8ww044c0o4w4o4ok408";
-const DEFAULT_INTERNAL_PRODUCTION_DB_PORT = "5432";
 const DEFAULT_POSTGRES_PORT = "5432";
 const UNPARSEABLE_DATABASE_URL_TARGET = "<unparseable-database-url>";
 
@@ -44,22 +42,9 @@ const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string
     return rawUrl;
   }
 
+  let parsed: URL;
   try {
-    const parsed = new URL(rawUrl);
-    if (
-      parsed.hostname !== EXTERNAL_PRODUCTION_DB_HOST ||
-      parsed.port !== EXTERNAL_PRODUCTION_DB_PORT
-    ) {
-      return rawUrl;
-    }
-
-    const internalHost =
-      process.env.INTERNAL_DATABASE_HOST?.trim() || DEFAULT_INTERNAL_PRODUCTION_DB_HOST;
-    const internalPort =
-      process.env.INTERNAL_DATABASE_PORT?.trim() || DEFAULT_INTERNAL_PRODUCTION_DB_PORT;
-    parsed.hostname = internalHost;
-    parsed.port = internalPort;
-    return parsed.toString();
+    parsed = new URL(rawUrl);
   } catch (error) {
     console.warn(
       "[db/connection] Failed to parse DATABASE_URL for internal rewrite:",
@@ -68,6 +53,25 @@ const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string
     );
     return rawUrl;
   }
+
+  if (
+    parsed.hostname !== EXTERNAL_PRODUCTION_DB_HOST ||
+    parsed.port !== EXTERNAL_PRODUCTION_DB_PORT
+  ) {
+    return rawUrl;
+  }
+
+  const internalHost = process.env.INTERNAL_DATABASE_HOST?.trim();
+  const internalPort = process.env.INTERNAL_DATABASE_PORT?.trim();
+  if (!internalHost || !internalPort) {
+    throw new Error(
+      "INTERNAL_DATABASE_HOST and INTERNAL_DATABASE_PORT are required for the production database route.",
+    );
+  }
+
+  parsed.hostname = internalHost;
+  parsed.port = internalPort;
+  return parsed.toString();
 };
 
 const databaseUrl = rewriteDatabaseUrlForProductionSite(process.env.DATABASE_URL?.trim());

@@ -144,9 +144,9 @@ not a substitute for the positive and negative verification above.
 For immediate diagnosis, appending a fresh URL-safe `?dpl=<diagnostic-id>` to an asset request
 selects a new Cloudflare cache key under this zone's default query-string policy. A successful
 response proves the origin has the asset, but it does not evict the poisoned object or change
-the Docker-owned deployment identity. A same-`SOURCE_COMMIT` rebuild deliberately retains its
+the Docker-owned deployment identity. A same-source-revision rebuild deliberately retains its
 `dpl` value, so recovery requires a Cloudflare exact-URL/deployment purge or a new source
-revision with a new `SOURCE_COMMIT`.
+revision.
 
 ## Baseline Browser Mapping Warning
 

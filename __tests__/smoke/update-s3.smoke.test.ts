@@ -193,10 +193,8 @@ describe("Scheduler and data-updater flag consistency", () => {
     expect(dockerfile).toContain("rewrite_database_url_for_internal_service");
   });
 
-  it.each([
-    "postgresql://user:password@167.234.219.57:5438/database?sslmode=require",
-    "postgresql://user:password@q0kks8ww044c0o4w4o4ok408:5432/database?sslmode=require",
-  ])("rewrites production database source %s to the explicit target route", (databaseUrl) => {
+  it("rewrites the production database proxy route to the explicit target", () => {
+    const databaseUrl = "postgresql://user:password@167.234.219.57:5438/database?sslmode=require";
     const result = spawnSync(
       "bash",
       [
@@ -225,6 +223,54 @@ describe("Scheduler and data-updater flag consistency", () => {
     expect(rewritten.username).toBe("user");
     expect(rewritten.password).toBe("password");
     expect(rewritten.searchParams.get("sslmode")).toBe("require");
+  });
+
+  it("rejects a production database proxy route without an explicit target", () => {
+    const env = {
+      ...process.env,
+      DATABASE_URL: "postgresql://user:password@167.234.219.57:5438/database?sslmode=require",
+      NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
+    };
+    delete env.INTERNAL_DATABASE_HOST;
+    delete env.INTERNAL_DATABASE_PORT;
+
+    const result = spawnSync(
+      "bash",
+      [
+        "-c",
+        'source "$1"; rewrite_database_url_for_internal_service',
+        "bash",
+        "scripts/entrypoint-db-gate.sh",
+      ],
+      { cwd: process.cwd(), encoding: "utf8", env },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("INTERNAL_DATABASE_HOST and INTERNAL_DATABASE_PORT");
+  });
+
+  it("keeps an already-direct production database route without a target override", () => {
+    const env = {
+      ...process.env,
+      DATABASE_URL: "postgresql://user:password@100.64.0.10:6432/database?sslmode=require",
+      NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
+    };
+    delete env.INTERNAL_DATABASE_HOST;
+    delete env.INTERNAL_DATABASE_PORT;
+
+    const result = spawnSync(
+      "bash",
+      [
+        "-c",
+        'source "$1"; rewrite_database_url_for_internal_service >/dev/null; printf "%s" "$DATABASE_URL"',
+        "bash",
+        "scripts/entrypoint-db-gate.sh",
+      ],
+      { cwd: process.cwd(), encoding: "utf8", env },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe(env.DATABASE_URL);
   });
 
   it("fails closed when bootstrap cache revalidation cannot reach the web app", () => {

@@ -1,7 +1,7 @@
-# Scheduler service for Coolify (docker-compose buildpack).
-# Coolify setup: Base Directory "/", Compose file "scheduler/docker-compose.yml".
-# Coolify runs compose with --project-directory at the repo root, so the build
-# context is "." even though this compose file lives in scheduler/.
+# Local Docker Compose definition for the scheduler resource budget.
+# Production uses a native Dokploy GitHub application with scheduler/Dockerfile;
+# it does not import this Compose file. Run from the repository root with
+# --project-directory . when using this definition so build context "." is the root.
 # Copy the web app's environment variables to this service (same Doppler/env set);
 # it reuses DATABASE_URL, S3_*, BOOKMARK_*/GITHUB_* secrets, and Google sitemap creds.
 #

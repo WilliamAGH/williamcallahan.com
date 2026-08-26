@@ -6,8 +6,8 @@
 ##
 ## Build from the REPOSITORY ROOT context:
 ##   docker build -f scheduler/Dockerfile -t williamcallahan-scheduler:latest .
-## (Coolify: docker-compose buildpack with scheduler/docker-compose.yml, or
-##  Dockerfile buildpack with Base Directory "/" and this Dockerfile location.)
+## Production uses this Dockerfile in Dokploy's native GitHub application with
+## the repository root as its build context.
 ##
 ARG BASE_REGISTRY=public.ecr.aws/debian
 

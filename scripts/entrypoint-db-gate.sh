@@ -7,8 +7,6 @@
 CANONICAL_PRODUCTION_SITE_URL="https://williamcallahan.com"
 EXTERNAL_PRODUCTION_DB_HOST="167.234.219.57"
 EXTERNAL_PRODUCTION_DB_PORT="5438"
-DEFAULT_INTERNAL_PRODUCTION_DB_HOST="q0kks8ww044c0o4w4o4ok408"
-DEFAULT_INTERNAL_PRODUCTION_DB_PORT="5432"
 
 is_canonical_production_runtime() {
     [ "${NEXT_PUBLIC_SITE_URL:-}" = "${CANONICAL_PRODUCTION_SITE_URL}" ]
@@ -19,15 +17,14 @@ rewrite_database_url_for_internal_service() {
         return 0
     fi
 
-    local internal_host="${INTERNAL_DATABASE_HOST:-$DEFAULT_INTERNAL_PRODUCTION_DB_HOST}"
-    local internal_port="${INTERNAL_DATABASE_PORT:-$DEFAULT_INTERNAL_PRODUCTION_DB_PORT}"
+    local internal_host="${INTERNAL_DATABASE_HOST:-}"
+    local internal_port="${INTERNAL_DATABASE_PORT:-}"
     local rewritten_url
-    rewritten_url="$(
+
+    if ! rewritten_url="$(
         DATABASE_URL="$DATABASE_URL" \
         EXTERNAL_DB_HOST="$EXTERNAL_PRODUCTION_DB_HOST" \
         EXTERNAL_DB_PORT="$EXTERNAL_PRODUCTION_DB_PORT" \
-        DEFAULT_INTERNAL_DB_HOST="$DEFAULT_INTERNAL_PRODUCTION_DB_HOST" \
-        DEFAULT_INTERNAL_DB_PORT="$DEFAULT_INTERNAL_PRODUCTION_DB_PORT" \
         INTERNAL_DB_HOST="$internal_host" \
         INTERNAL_DB_PORT="$internal_port" \
         node <<'NODE'
@@ -41,13 +38,17 @@ try {
   const isExternalEndpoint =
     parsed.hostname === process.env.EXTERNAL_DB_HOST &&
     currentPort === process.env.EXTERNAL_DB_PORT;
-  const isDefaultInternalEndpoint =
-    parsed.hostname === process.env.DEFAULT_INTERNAL_DB_HOST &&
-    currentPort === process.env.DEFAULT_INTERNAL_DB_PORT;
-  const targetHost = process.env.INTERNAL_DB_HOST ?? parsed.hostname;
-  const targetPort = process.env.INTERNAL_DB_PORT ?? currentPort;
+  if (!isExternalEndpoint) {
+    process.exit(0);
+  }
+  const targetHost = process.env.INTERNAL_DB_HOST;
+  const targetPort = process.env.INTERNAL_DB_PORT;
+  if (!targetHost || !targetPort) {
+    console.error("[Entrypoint] INTERNAL_DATABASE_HOST and INTERNAL_DATABASE_PORT are required for the production database route.");
+    process.exit(1);
+  }
   const targetChanged = parsed.hostname !== targetHost || currentPort !== targetPort;
-  if ((isExternalEndpoint || isDefaultInternalEndpoint) && targetChanged) {
+  if (targetChanged) {
     parsed.hostname = targetHost;
     parsed.port = targetPort;
     process.stdout.write(parsed.toString());
@@ -57,7 +58,9 @@ try {
   process.exit(1);
 }
 NODE
-    )"
+    )"; then
+        return 1
+    fi
 
     if [ -n "$rewritten_url" ]; then
         export DATABASE_URL="$rewritten_url"
