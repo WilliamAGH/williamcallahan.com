@@ -188,6 +188,43 @@ describe("Scheduler and data-updater flag consistency", () => {
     expect(dockerfile).toContain("for secret_path in /run/secrets/build/*");
     expect(dockerfile).not.toContain("ARG S3_SECRET_ACCESS_KEY");
     expect(dockerfile).toContain("--mount=type=secret,id=S3_SECRET_ACCESS_KEY");
+    expect(dockerfile).toContain("id=INTERNAL_DATABASE_HOST,target=/run/secrets/build/");
+    expect(dockerfile).toContain("id=INTERNAL_DATABASE_PORT,target=/run/secrets/build/");
+    expect(dockerfile).toContain("rewrite_database_url_for_internal_service");
+  });
+
+  it.each([
+    "postgresql://user:password@167.234.219.57:5438/database?sslmode=require",
+    "postgresql://user:password@q0kks8ww044c0o4w4o4ok408:5432/database?sslmode=require",
+  ])("rewrites production database source %s to the explicit target route", (databaseUrl) => {
+    const result = spawnSync(
+      "bash",
+      [
+        "-c",
+        'source "$1"; rewrite_database_url_for_internal_service >/dev/null; printf "%s" "$DATABASE_URL"',
+        "bash",
+        "scripts/entrypoint-db-gate.sh",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          DATABASE_URL: databaseUrl,
+          INTERNAL_DATABASE_HOST: "100.64.0.10",
+          INTERNAL_DATABASE_PORT: "6432",
+          NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    const rewritten = new URL(result.stdout);
+    expect(rewritten.hostname).toBe("100.64.0.10");
+    expect(rewritten.port).toBe("6432");
+    expect(rewritten.username).toBe("user");
+    expect(rewritten.password).toBe("password");
+    expect(rewritten.searchParams.get("sslmode")).toBe("require");
   });
 
   it("fails closed when bootstrap cache revalidation cannot reach the web app", () => {
