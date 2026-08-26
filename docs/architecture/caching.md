@@ -31,6 +31,12 @@ See `docs/architecture/caching.mmd` for the current write/read/supporting flow.
   `infra/cloudflare/cache-rules.json` honors the origin policy for successful responses and
   prevents Cloudflare edge storage of `/_next/static` responses from 400 through 599 with
   `status_code_ttl: -1`; that edge setting does not add or mutate origin `Cache-Control` headers.
+- Public static assets (`/images`, `/fonts`, `/scripts`, favicon, touch icons) get explicit origin
+  headers from `next.config.ts` `headers()`: `Cache-Control: public, max-age=14400` for browsers
+  and `CDN-Cache-Control: public, max-age=86400` for the edge. They are never `immutable` because
+  keys are overwritten in place (for example blog cover images). The matching cache rule applies
+  the same `status_code_ttl: -1` error guard; `/feed.xml` and `/sitemap.xml` are edge-cached for
+  one hour via `override_origin` with the same guard.
 - Cache behavior is intentional per route type; APIs do not rely on UI cache directives.
 
 ## Implementation Pattern

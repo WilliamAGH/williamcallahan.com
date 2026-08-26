@@ -129,7 +129,6 @@ ENV USE_NEXTJS_CACHE=false
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 # Serialize static page generation to reduce peak memory and DB pool contention
 ENV STATIC_GEN_CONCURRENCY=1
-ARG SOURCE_COMMIT=unknown
 
 # 3. Accept and propagate public env vars for Next.js build (changes occasionally)
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
@@ -183,9 +182,9 @@ RUN bash -c 'set -euo pipefail \
 # Build orchestration runs through Bun scripts, but Next.js build runs on Node.
 # This keeps cacheComponents timer semantics aligned with Next.js expectations.
 #
-# Credentials are mounted directly as environment variables. Public Coolify
-# values use canonical secret filenames and only replace ARG/ENV values when
-# present, so absent optional secrets cannot erase build arguments.
+# Credentials are mounted directly as environment variables. Public build
+# configuration uses canonical secret filenames and only replaces ARG/ENV values
+# when present, so absent optional secrets cannot erase build arguments.
 # S3_SESSION_TOKEN is mirrored to AWS_SESSION_TOKEN for SDK compatibility.
 # Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
 RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false \
@@ -208,12 +207,7 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
       && source /app/scripts/entrypoint-db-gate.sh \
       && rewrite_database_url_for_internal_service \
       && if [ -n "${S3_SESSION_TOKEN:-}" ]; then export AWS_SESSION_TOKEN="${S3_SESSION_TOKEN}"; fi \
-      && if [ -n "${SOURCE_COMMIT:-}" ] && [ "${SOURCE_COMMIT}" != "unknown" ]; then \
-        release_id="${SOURCE_COMMIT}"; \
-      else \
-        release_id="$(git rev-parse --short HEAD)"; \
-        echo "Derived deployment ID from the Git build context because SOURCE_COMMIT was not supplied."; \
-      fi \
+      && release_id="$(git rev-parse --short HEAD)" \
       && export GIT_HASH="${release_id}" \
       && export NEXT_DEPLOYMENT_ID="${release_id}" \
       && echo "Building Next.js deployment ${release_id}" \
@@ -235,7 +229,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Create non-root user (never changes) - standard UID 1001 for Next.js containers
-#    Ensures consistent permissions with Coolify and other container orchestrators
+#    Ensures consistent permissions with Dokploy and other container orchestrators
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs --create-home --home-dir /home/nextjs nextjs
 
@@ -247,11 +241,6 @@ ENV CONTAINER=true
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 # 4. Build arguments and environment (rarely changes, but after static layers)
-# Coolify supplies SOURCE_COMMIT only when Include Source Commit in Build is enabled.
-# Native Dokploy builds keep exact public identity in .next/BUILD_ID; this label stays supplemental.
-ARG SOURCE_COMMIT=unknown
-LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
-
 # Re-declare the build args so we can forward them (ARG values are scoped per stage)
 ARG S3_BUCKET
 ARG S3_SERVER_URL

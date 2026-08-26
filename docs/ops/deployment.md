@@ -28,12 +28,8 @@ preserves ordinary `--build-arg` values when the corresponding optional secret i
 
 ## Web Release Identity
 
-The web `Dockerfile` owns how a production release identity reaches `next build`.
-Coolify's **Include Source Commit in Build** setting supplies the `SOURCE_COMMIT` build
-argument, which is also used for the `org.opencontainers.image.revision` label. Native
-Dokploy Git builds do not supply that build argument, so the builder derives the identity
-from its checked-out Git `HEAD` instead. A missing build argument and unavailable Git metadata
-is a build failure, never a UUID fallback. The build exports the selected identity as both
+The web `Dockerfile` derives the production release identity from the checked-out Git
+`HEAD`; unavailable Git metadata is a build failure. The build exports that identity as both
 `GIT_HASH` and `NEXT_DEPLOYMENT_ID` before `next build`. When `next start` reloads
 `next.config.ts` in the Git-free runner, the configuration reuses the immutable
 `.next/BUILD_ID` produced by that image.
@@ -41,13 +37,11 @@ is a build failure, never a UUID fallback. The build exports the selected identi
 Next.js therefore uses one identity for both `generateBuildId` and the `?dpl=<release-id>`
 suffix on advertised JavaScript assets. A same-source-revision rebuild intentionally retains
 its `dpl` value. For native Dokploy deployments, prove that revision with the deployment's
-recorded Git revision and the public `.next/BUILD_ID`; the OCI label is supplemental because
-Dokploy does not pass `SOURCE_COMMIT`. Scheduler deployments have no public build ID, so prove
-their recorded Git revision, running image digest, and heartbeat together. Recovery from an
-already cached bad asset requires a Cloudflare purge or a build with a new identity. Do not
-replace this identity with a fixed package-version value or configure a Cloudflare cache key
-that ignores the `dpl` query. Coolify documents `SOURCE_COMMIT` and the setting at
-[Dockerfile Build Pack](https://coolify.io/docs/applications/build-packs/dockerfile).
+recorded Git revision and the public `.next/BUILD_ID`. Scheduler deployments have no public
+build ID, so prove their recorded Git revision, running image digest, and heartbeat together.
+Recovery from an already cached bad asset requires a Cloudflare purge or a build with a new
+identity. Do not replace this identity with a fixed package-version value or configure a
+Cloudflare cache key that ignores the `dpl` query.
 
 After deployment, run
 `bun run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/BUILD_ID)"`
@@ -167,5 +161,5 @@ When `NEXT_PUBLIC_SITE_URL=https://williamcallahan.com`, startup applies two saf
    `infisical-wc-prod`.
 2. The app startup is gated until the resolved database endpoint is reachable.
 
-The retained Coolify rollback source may still use its service-name default. Dokploy
-production must keep the explicit direct-tailnet host and port references.
+The stopped rollback records retain their former service-name default. Dokploy production must
+keep the explicit direct-tailnet host and port references.

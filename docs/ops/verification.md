@@ -128,6 +128,12 @@ bun run deploy:cf-cache-rules
 The commands require `CF_ZONE_ID` and the preferred `CF_API_TOKEN`; the global-key fallback
 requires both `CLOUDFLARE_API_KEY` and `CLOUDFLARE_EMAIL`.
 
+When a release adds origin cacheable headers to paths newly covered by a cache rule's
+`status_code_ttl` guard (for example the public static asset rule), apply the cache rules
+before or with the app release. In the gap after an app-first release, error responses for
+those paths still carry the origin's `CDN-Cache-Control`, so Cloudflare may edge-store a
+missing-asset `404` until the guard rule exists.
+
 ## Cache Purge
 
 When a prior response incorrectly cached an asset or a negative asset response, purge
@@ -138,9 +144,9 @@ not a substitute for the positive and negative verification above.
 For immediate diagnosis, appending a fresh URL-safe `?dpl=<diagnostic-id>` to an asset request
 selects a new Cloudflare cache key under this zone's default query-string policy. A successful
 response proves the origin has the asset, but it does not evict the poisoned object or change
-the Docker-owned deployment identity. A same-`SOURCE_COMMIT` rebuild deliberately retains its
+the Docker-owned deployment identity. A same-source-revision rebuild deliberately retains its
 `dpl` value, so recovery requires a Cloudflare exact-URL/deployment purge or a new source
-revision with a new `SOURCE_COMMIT`.
+revision.
 
 ## Baseline Browser Mapping Warning
 

@@ -675,7 +675,6 @@ File/Path Functionality Description
 - [x] `backfill-domain-embeddings.node.mjs` `data-access` - Node runtime backfill for Qwen3-Embedding-4B embeddings across `ai_analysis_latest`, `opengraph_metadata`, and `thoughts` tables
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
 - [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `scheduler/data-updater.ts`
-- [x] `pre-build-checks.sh` `build` - Pre-build check script
 - [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
 - [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
 - [x] `run-tests.sh` `testing-config` - Script to run all tests
@@ -688,14 +687,14 @@ File/Path Functionality Description
 
 ## Scheduler Directory
 
-Standalone scheduler container source (`scheduler/Dockerfile` builds without `next build`; deployed as a separate Coolify service).
+Standalone scheduler container source (`scheduler/Dockerfile` builds without `next build`; deployed as a native Dokploy GitHub application).
 
 - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
 - [x] `submit-sitemap.ts` `seo` - Script to submit sitemap to search engines
 - [x] `entrypoint.sh` `deployment` - Scheduler container entrypoint (DB gate, Node data bootstrap, web-cache revalidation, sitemap submission, cron scheduler)
 - [x] `Dockerfile` `deployment` - Scheduler image (deps + tsx runtime, no Next.js build)
-- [x] `docker-compose.yml` `deployment` - Coolify compose service with 1-CPU / 3G limits
+- [x] `docker-compose.yml` `deployment` - Local Compose definition mirroring the scheduler's 1-CPU / 3G production limits
 - [x] `diagnose-scheduler.sh` `batch-fetch-update` - Scheduler diagnostic report script
 - [x] **lib/**
   - [x] `google-indexing.ts` `seo` - Google Indexing API submission helpers

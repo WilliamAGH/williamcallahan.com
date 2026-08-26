@@ -144,10 +144,37 @@ function resolveStaticGenerationMaxConcurrency(): number {
   }
 }
 
+// Public assets are served by Next's `send` with `Cache-Control: public, max-age=0`,
+// forcing Cloudflare to revalidate every request. Give them an explicit policy instead:
+// browsers keep the effective 4h TTL; the edge keeps objects for 1 day. Keys are
+// overwritten in place (e.g. blog cover images), so these must never be `immutable`.
+// `infra/cloudflare/cache-rules.json` owns the matching status_code_ttl guard that keeps
+// error responses for these paths out of the edge cache.
+const PUBLIC_ASSET_CACHE_HEADERS = [
+  { key: "Cache-Control", value: "public, max-age=14400" },
+  { key: "CDN-Cache-Control", value: "public, max-age=86400" },
+];
+const PUBLIC_ASSET_SOURCES = [
+  "/images/:path*",
+  "/fonts/:path*",
+  "/scripts/:path*",
+  "/favicon.ico",
+  "/apple-touch-icon.png",
+  "/apple-touch-icon-precomposed.png",
+];
+
 function createNextConfig(releaseId: string | null) {
   return {
     typescript: { ignoreBuildErrors: true },
     outputFileTracingIncludes: { "/": ["./data/**/*"] },
+    async headers() {
+      // Development keeps Next's revalidate-everything behavior so in-place asset edits show up.
+      if (process.env.NODE_ENV !== "production") return [];
+      return PUBLIC_ASSET_SOURCES.map((source) => ({
+        source,
+        headers: PUBLIC_ASSET_CACHE_HEADERS,
+      }));
+    },
     turbopack: {
       rules: { "*.svg": { loaders: ["@svgr/webpack"], as: "*.js" } },
       resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],

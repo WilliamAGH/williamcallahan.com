@@ -20,7 +20,6 @@ import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 import { useClientBookmarks } from "@/hooks/use-client-bookmarks";
 
 const isDevelopment = process.env.NODE_ENV === "development";
-const PRODUCTION_SITE_URL = "https://williamcallahan.com";
 /** Number of leading cards eligible for image preloading */
 const IMAGE_PRELOAD_THRESHOLD = 4;
 
@@ -42,16 +41,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   const pathname = usePathname();
   const isRootBookmarksRoute = pathname === "/bookmarks";
 
-  // Determine if refresh button should be shown
-  const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
-  let showRefreshButton = isDevelopment;
-  if (coolifyUrl) {
-    const normalizedCoolifyUrl = coolifyUrl.endsWith("/") ? coolifyUrl.slice(0, -1) : coolifyUrl;
-    const normalizedTargetUrl = PRODUCTION_SITE_URL;
-    if (normalizedCoolifyUrl === normalizedTargetUrl) {
-      showRefreshButton = false;
-    }
-  }
+  const showRefreshButton = isDevelopment;
 
   // Delegate client-side bookmark fetching to dedicated hook
   const {
