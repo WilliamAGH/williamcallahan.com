@@ -226,7 +226,7 @@ describe("Scheduler and data-updater flag consistency", () => {
   });
 
   it("rejects a production database proxy route without an explicit target", () => {
-    const env = {
+    const env: NodeJS.ProcessEnv = {
       ...process.env,
       DATABASE_URL: "postgresql://user:password@167.234.219.57:5438/database?sslmode=require",
       NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
@@ -250,7 +250,7 @@ describe("Scheduler and data-updater flag consistency", () => {
   });
 
   it("keeps an already-direct production database route without a target override", () => {
-    const env = {
+    const env: NodeJS.ProcessEnv = {
       ...process.env,
       DATABASE_URL: "postgresql://user:password@100.64.0.10:6432/database?sslmode=require",
       NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
