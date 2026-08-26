@@ -28,26 +28,30 @@ when the corresponding optional secret is absent.
 
 ## Web Release Identity
 
-The web `Dockerfile` owns how a production release identity reaches `next build`. Enable
-Coolify's **Include Source Commit in Build** setting so it supplies the official
-`SOURCE_COMMIT` build argument. That SHA becomes both the build identity and the
-`org.opencontainers.image.revision` label. When `SOURCE_COMMIT` is absent, Docker creates and
-logs a UUID deployment identity; the OCI revision label stays `unknown` because no source
-revision was supplied. The build exports its selected identity as both `GIT_HASH` and
-`NEXT_DEPLOYMENT_ID` before `next build`. When `next start` reloads `next.config.ts` in the
-Git-free runner, the configuration reuses the immutable `.next/BUILD_ID` produced by that image.
+The web `Dockerfile` owns how a production release identity reaches `next build`.
+Coolify's **Include Source Commit in Build** setting supplies the `SOURCE_COMMIT` build
+argument, which is also used for the `org.opencontainers.image.revision` label. Native
+Dokploy Git builds do not supply that build argument, so the builder derives the identity
+from its checked-out Git `HEAD` instead. A missing build argument and unavailable Git metadata
+is a build failure, never a UUID fallback. The build exports the selected identity as both
+`GIT_HASH` and `NEXT_DEPLOYMENT_ID` before `next build`. When `next start` reloads
+`next.config.ts` in the Git-free runner, the configuration reuses the immutable
+`.next/BUILD_ID` produced by that image.
 
 Next.js therefore uses one identity for both `generateBuildId` and the `?dpl=<release-id>`
-suffix on advertised JavaScript assets. A same-`SOURCE_COMMIT` rebuild intentionally retains
-its `dpl` value; the UUID path changes on every uncached image build. Recovery from an already
-cached bad asset requires a Cloudflare purge or a build with a new identity. Do not replace this
-identity with a fixed package-version value or configure a Cloudflare cache key that ignores the
-`dpl` query. Coolify documents `SOURCE_COMMIT` and the setting at
+suffix on advertised JavaScript assets. A same-source-revision rebuild intentionally retains
+its `dpl` value. For native Dokploy deployments, prove that revision with the deployment's
+recorded Git revision and the public `.next/BUILD_ID`; the OCI label is supplemental because
+Dokploy does not pass `SOURCE_COMMIT`. Scheduler deployments have no public build ID, so prove
+their recorded Git revision, running image digest, and heartbeat together. Recovery from an
+already cached bad asset requires a Cloudflare purge or a build with a new identity. Do not
+replace this identity with a fixed package-version value or configure a Cloudflare cache key
+that ignores the `dpl` query. Coolify documents `SOURCE_COMMIT` and the setting at
 [Dockerfile Build Pack](https://coolify.io/docs/applications/build-packs/dockerfile).
 
-After deployment, configure the web Coolify resource's Post Deployment Command to run
-`bun run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/BUILD_ID)"`.
-The smoke test fails unless
+After deployment, run
+`bun run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/BUILD_ID)"`
+from the deployed web image or pass its recorded release ID explicitly. The smoke test fails unless
 `/investments` advertises one shared nonempty deployment ID and every advertised script
 loads successfully through the public Cloudflare URL. It verifies JavaScript only; it does
 not inspect CSS assets.

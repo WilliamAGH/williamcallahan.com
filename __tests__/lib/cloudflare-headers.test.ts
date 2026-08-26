@@ -135,6 +135,9 @@ describe("Cloudflare header enforcement", () => {
   });
   it("skips enforcement outside production", () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEPLOYMENT_ENV", "development");
+    vi.stubEnv("API_BASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
     const headers = new Headers();
     const response = requireCloudflareHeaders(headers, { route: "/api/ai/token" });
     expect(response).toBeNull();
