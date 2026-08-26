@@ -21,10 +21,10 @@ SHA-256 in Node's
 unsupported architectures. Do not replace that stage with a floating NodeSource
 `node_*.x` channel or application-level compatibility code.
 
-Coolify exposes build-time variables as BuildKit secrets. The web Dockerfile mounts
-public build configuration as canonical files under `/run/secrets/build`, then promotes
-only present values before `bun run build`. This preserves ordinary `--build-arg` values
-when the corresponding optional secret is absent.
+Production Dokploy builds resolve `infisical-wc-prod` vault references into BuildKit
+secrets. The web Dockerfile mounts public build configuration as canonical files under
+`/run/secrets/build`, then promotes only present values before `bun run build`. This
+preserves ordinary `--build-arg` values when the corresponding optional secret is absent.
 
 ## Web Release Identity
 
@@ -93,35 +93,34 @@ docker buildx build --target node --build-arg BASE_REGISTRY=docker.io/library --
 docker run --rm williamcallahan-scheduler-node-runtime-check:24.18.0 node --version
 ```
 
-## Scheduler Service (Coolify)
+## Production Control Plane (Dokploy)
 
-The scheduler deploys as a **separate Coolify resource** on the same host, using the
-same environment variable set as the web app (`DATABASE_URL`, `S3_*`, `BOOKMARK_*`,
-`GITHUB_*`, `GOOGLE_SEARCH_INDEXING_*`, `NEXT_PUBLIC_SITE_URL`, `API_BASE_URL`,
-`NEXT_PUBLIC_S3_CDN_URL`, ...). For the current Coolify scheduler resource:
+Dokploy project `BMXTsKla8_lsB6n63EqFT`, production environment
+`Twbm9C6LWHx9U5K6GxHuj`, owns both production applications:
 
-```text
-NEXT_PUBLIC_SITE_URL=https://williamcallahan.com
-API_BASE_URL=https://williamcallahan.com
-NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud
-INTERNAL_DATABASE_HOST=100.86.115.120
-INTERNAL_DATABASE_PORT=5438
-```
+| Application | ID                      | Git source | Replicas | Resources                                                                |
+| ----------- | ----------------------- | ---------- | -------- | ------------------------------------------------------------------------ |
+| Web         | `bUgv7h_BN9tuULqqZjmRp` | `main`     | 2        | 10 GiB memory limit, 8 GiB reservation, no CPU limit or CPU reservation  |
+| Scheduler   | `OUteyEQrGINFHwCyYMVUa` | `main`     | 1        | 1 CPU limit, 3 GiB memory limit, 512 MiB reservation, no CPU reservation |
 
-Two options:
+Both use the native GitHub push trigger, build on Dokploy server `haiku-5`
+(`9nmaEL2XqWCSYUjB7p83V`), and publish through the hosted Nexus registry before
+Swarm placement. Only nodes labeled `williamcallahan.com.production=true` are
+eligible; `MaxReplicas: 1` keeps the two web replicas split across `haiku-0` and
+`haiku-5`. Updates and rollbacks are `stop-first`, so the pair never requests a
+third temporary slot.
 
-1. **Docker Compose buildpack** (preferred — carries CPU/memory limits): Base Directory `/`,
-   Compose file `scheduler/docker-compose.yml`. The service caps at 1 CPU / 3G so batch
-   jobs can never saturate the 2-core host alongside the web app. Coolify invokes compose
-   with the repo root as `--project-directory`, so the compose build context must stay `.`.
-2. **Dockerfile buildpack**: Base Directory `/`, Dockerfile location `scheduler/Dockerfile`
-   (set CPU/memory limits in the Coolify resource settings instead).
+`infisical-wc-prod` (`DmhmwE6WCLgWnnieZuPso`) is the production configuration
+owner. Dokploy stores only `${{vault.infisical-wc-prod.KEY}}` references; never copy
+secret values into an application environment, build argument, repository file, or
+deployment command. The provider assignment to the project and production environment
+is the attachment for both applications.
 
-Keep the scheduler resource's Coolify Build Server option disabled. The compose
-resource has no registry image configured, and Coolify 4.1.2 must execute the
-helper/build path on `popos-sf1`; routing this resource through the global build
-server (`popos-sf5`) fails before the build phase when Coolify tries to `docker exec`
-the deployment helper.
+The retained Coolify web (`d4oco0ck4o80g8skokgwcsk0`) and scheduler
+(`wmegirwbmj6ahx0pkzhqvi9l`) records are rollback sources only. Keep them stopped after
+the DNS cutover; do not delete them or re-enable their source deployment automation.
+
+## Scheduler Service
 
 The scheduler image does **not** run `next build` — it installs dependencies and runs
 TypeScript directly via tsx, so its builds take minutes, not tens of minutes. No ports
@@ -136,8 +135,8 @@ canonical bookmark embedding batch; later data-updater cycles drain due checkpoi
 updater owns the default operation set, including books and search indexes. The scheduler next
 reuses its canonical authenticated endpoint inventory to invalidate
 bookmark, books, and GitHub web caches before sitemap submission and cron. A bootstrap or cache
-revalidation failure logs an error and exits instead of serving stale data; the compose service's
-`unless-stopped` restart policy retries it.
+revalidation failure logs an error and exits instead of serving stale data; Swarm restarts the
+failed task according to the Dokploy service policy.
 
 Local build + one-shot data prefetch:
 
@@ -163,8 +162,10 @@ docker run -d -p 3000:3000 --name williamcallahan-com williamcallahan-com
 
 When `NEXT_PUBLIC_SITE_URL=https://williamcallahan.com`, startup applies two safeguards:
 
-1. `DATABASE_URL` is rewritten from the public proxy endpoint (`167.234.219.57:5438`) to the internal PostgreSQL service (`q0kks8ww044c0o4w4o4ok408:5432`).
+1. `DATABASE_URL` is rewritten from the public proxy endpoint to the
+   `INTERNAL_DATABASE_HOST` and `INTERNAL_DATABASE_PORT` supplied by
+   `infisical-wc-prod`.
 2. The app startup is gated until the resolved database endpoint is reachable.
 
-If PostgreSQL runs on another Tailscale-connected host, set `INTERNAL_DATABASE_HOST`
-and `INTERNAL_DATABASE_PORT`; those values replace the default internal service target.
+The retained Coolify rollback source may still use its service-name default. Dokploy
+production must keep the explicit direct-tailnet host and port references.
