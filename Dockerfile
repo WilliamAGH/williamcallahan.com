@@ -108,7 +108,7 @@ FROM base AS builder
 #    fontconfig + fonts-dejavu required for @react-pdf/renderer PDF generation during static generation
 #    The package-declared checksum-pinned Node runtime is inherited so Next.js builds on Node.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash fontconfig fonts-dejavu-core ripgrep \
+    bash fontconfig fonts-dejavu-core git ripgrep \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -207,8 +207,8 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
       && if [ -n "${SOURCE_COMMIT:-}" ] && [ "${SOURCE_COMMIT}" != "unknown" ]; then \
         release_id="${SOURCE_COMMIT}"; \
       else \
-        release_id="$(node -e "console.log(require(\"node:crypto\").randomUUID())")"; \
-        echo "Generated deployment ID because Coolify SOURCE_COMMIT was not supplied. Enable Include Source Commit in Build to bind the image to its source revision."; \
+        release_id="$(git rev-parse --short HEAD)"; \
+        echo "Derived deployment ID from the Git build context because SOURCE_COMMIT was not supplied."; \
       fi \
       && export GIT_HASH="${release_id}" \
       && export NEXT_DEPLOYMENT_ID="${release_id}" \
