@@ -19,6 +19,8 @@ import oxlint from "eslint-plugin-oxlint";
 const GLOBAL_IGNORES = [
   "node_modules/",
   ".next/",
+  "tmp/",
+  ".claude/",
   ".husky/",
   "out/",
   "src/components/ui/code-block/prism-syntax-highlighting/prism.js",
