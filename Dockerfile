@@ -244,7 +244,7 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 # 4. Build arguments and environment (rarely changes, but after static layers)
 # Coolify supplies SOURCE_COMMIT only when Include Source Commit in Build is enabled.
-# The UUID fallback is a deployment identity, not a source-control revision.
+# Native Dokploy builds keep exact public identity in .next/BUILD_ID; this label stays supplemental.
 ARG SOURCE_COMMIT=unknown
 LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 
