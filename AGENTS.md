@@ -193,6 +193,7 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [TST1d] Test coverage is mandatory: new functionality and significant modifications require corresponding tests before task completion
 - [TST1e] Discovery-first: before writing tests, locate existing test files (`__tests__/`, `*.test.ts`) and follow established patterns
 - [TST1f] Test outcomes, not implementations: assert on outputs, return values, observable behavior—never on internal method calls or implementation details; refactor-resilient tests are required
+- [TST1g] `bun run verify` is the complete local browser-free gate. Browser verification is explicit via `bun run verify:browser` in GitHub CI; macOS Codex sessions must not run Playwright or another local browser process from any repo/worktree/tmp/scratch/private path.
 
 ### [CP1] Task Completion Protocol
 

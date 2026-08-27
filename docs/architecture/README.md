@@ -50,7 +50,7 @@ Example schemas:
   ingestion inputs owned by `src/types/schemas/blog-frontmatter.ts`.
 - `config/blog-render-canaries.ts` owns the two blog article render canaries. The
   Chromium E2E test and production smoke helper import that one catalog; `bun run verify`
-  is the required local and CI gate for the browser layer.
+  is the local browser-free gate and GitHub CI owns `bun run verify:browser`.
 - Production blog smoke validates server HTML, then focused production-browser dogfood
   verifies client rendering and declared article interactions; see `docs/ops/verification.md`.
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).

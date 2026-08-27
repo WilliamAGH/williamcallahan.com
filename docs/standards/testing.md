@@ -47,17 +47,17 @@ tracked `next-env.d.ts` to its isolated development-types path; the exit handler
 regenerates the tracked declaration so a passing or failing browser run leaves the
 worktree hygienic.
 
-Run the complete local and CI gate with:
+Run the complete local browser-free gate with:
 
 ```bash
 bun run verify
 ```
 
-It includes the Chromium blog E2E test after static checks, type checks, and Vitest.
 The automated GitHub gate in `.github/workflows/verification.yml` runs for pull
 requests targeting `main` (with `workflow_dispatch` reserved for manual runs), installs
-Chromium, and invokes that same command. The pre-push hook in `.config/lefthook.yml`
-runs the production build and then `bun run verify`.
+Chromium, and invokes `bun run verify:browser`, which adds the blog E2E test after the
+browser-free gate. The pre-push hook in `.config/lefthook.yml` runs the production build
+and then the browser-free `bun run verify` gate.
 
 ## MDX Toolchain Compatibility
 

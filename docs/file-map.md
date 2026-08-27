@@ -539,7 +539,7 @@ File/Path Functionality Description
 - [x] `.cursorrules` `config` - Cursor AI configuration
 - [x] `.env-example` `config` - Example environment variables
 - [x] `.gitignore` `config` - Git ignore file
-- [x] `.github/workflows/verification.yml` `testing-config` - GitHub PR-to-main verification gate; installs Chromium, runs `bun run verify`, and uploads failed Playwright artifacts
+- [x] `.github/workflows/verification.yml` `testing-config` - GitHub PR-to-main verification gate; installs Chromium, runs `bun run verify:browser`, and uploads failed Playwright artifacts
 - [x] `bun.lock` `deps` - Bun lockfile
 - [x] `components.json` `config` - ShadCN UI component configuration
 - [x] `Dockerfile` `deployment` - Web image build with one release identity for Next build IDs and `dpl` asset cache keys

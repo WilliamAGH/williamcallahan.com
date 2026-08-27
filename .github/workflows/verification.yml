@@ -32,7 +32,7 @@ jobs:
           rg --version
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
-      - run: bun run verify
+      - run: bun run verify:browser
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v7
