@@ -184,16 +184,19 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [VR1g] Validate each slice: run `bun run validate` for every completed end-to-end slice ([CC1e]); independent slices may proceed in parallel, dependent slices stay serial — validation still gates each slice
 - [VR1h] Contract cleanup handoff must name the canonical owner, list each duplicate owner removed, prove that tests/fixtures now bind or import the canonical owner, and explicitly call out any remaining duplicate owner as a blocker
 - [VR1i] Watch every push's Actions run to a terminal verdict — one watcher per SHA, polls >= 60s; fix failures, commit, and push until green
+- [VR1j] Cheapest-lane ladder: answer each question on the cheapest lane that can answer it, climbing only when the lane below cannot — editor diagnostics or `bun run type-check` -> `bun run lint:checks` -> a scratch probe run with `bun` from a file kept outside the repo ([CP1a]) -> the running `bun run dev` server -> a committed test at the observable boundary ([TST1f]); only the last rung persists, and rungs below it are never committed
 
 ### [TST1] Testing Protocols
 
 - [TST1a] Never run `bun test` directly. Always use `bun run test*` scripts so Vitest loads `config/vitest/`.
 - [TST1b] Direct `bun test` bypasses the project config and causes missing `vi.mock`, module resolution failures—treat this as a violation
 - [TST1c] Do not "fix" test issues by adding polyfills/downgrading Vitest; fix the setup/configuration correctly
-- [TST1d] Test coverage is mandatory: new functionality and significant modifications require corresponding tests before task completion
+- [TST1d] Test coverage is mandatory: new functionality and significant modifications require a test at an observable boundary before task completion; when no boundary is reachable, ship no test and state that honest zero in the handoff — a manufactured assertion is worse than none
 - [TST1e] Discovery-first: before writing tests, locate existing test files (`__tests__/`, `*.test.ts`) and follow established patterns
-- [TST1f] Test outcomes, not implementations: assert on outputs, return values, observable behavior—never on internal method calls or implementation details; refactor-resilient tests are required
+- [TST1f] Assert only at an observable boundary — rendered output, response body, returned value, computed style; never internal method calls, implementation details, or the source text of the artifact under test; refactor-resilient tests are required
 - [TST1g] `bun run verify` is the complete local browser-free gate. Browser verification is explicit via `bun run verify:browser` in GitHub CI; macOS Codex sessions must not run Playwright or another local browser process from any repo/worktree/tmp/scratch/private path.
+- [TST1h] Tautological tests are banned: never read the source, CSS, JSON, or config file whose behavior the test claims to prove and assert on that file's text (for example, asserting `src/app/globals.css` contains a dark-mode media query instead of asserting the computed style or rendered output). Sole carve-out: gates where the file's text is itself the governed surface, such as a generated manifest checked against its inputs. Deciding question before writing any test: would it fail under a plausible regression implemented with different text?
+- [TST1i] Probes are not tests: agent self-checks — including asserting the inverse of a mistake you just made — are ephemeral probes; run them, read the output, delete them before committing. Committed tests pin durable behavioral contracts only
 
 ### [CP1] Task Completion Protocol
 

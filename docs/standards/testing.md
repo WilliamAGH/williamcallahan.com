@@ -29,6 +29,67 @@ synchronous Server and Client Components. Every async App Router route regressio
 requires Playwright E2E coverage at the actual route layer; do not substitute a
 component/unit-test workaround for an async page, layout, or Server Action flow.
 
+## Observable Boundaries, Probes, and the Cheapest Lane
+
+### Assert at a boundary, or assert nothing ([TST1d], [TST1f])
+
+A test earns its place only by asserting something a user or a caller can observe:
+
+- rendered DOM through `@testing-library/react` — queries, roles, visible text
+- what a route handler or Server Action returns — status, headers, parsed body
+- the return value of a module under `src/lib/**`
+- the live route in Playwright when the path is an async Server Component ([TST1g])
+
+Internals are not boundaries. Spy call counts, private helper shapes, module export
+lists, and the source text of the artifact under test all keep passing while the
+behavior is broken.
+
+When no boundary is reachable — the behavior lives only in Tailwind's compiled output,
+only at the Cloudflare edge, or only in an async server path Vitest cannot render — write
+no test and say so in the handoff. An honest zero is a real result. A manufactured
+assertion is worse than none: it buys a green check and sells the next regression.
+
+### Tautological tests are banned ([TST1h])
+
+A test that reads the file whose behavior it claims to prove, then asserts on that
+file's text, proves only that the file still contains the string it contains. Asserting
+that `src/app/globals.css` holds a dark-mode media query, or that a config module
+mentions a flag, is a spell-checker wearing a test's name.
+
+Before writing any test, ask: **would this fail under a plausible regression implemented
+with different text?** If a different property, a different selector, a different import
+path, or a formatter pass could reintroduce the bug while the assertion still passes,
+the test is tautological. Assert the computed style or the rendered output instead, or
+take the honest zero.
+
+Carve-out: gates where the file's text *is* the governed surface — a generated artifact
+checked against the inputs that generate it. `__tests__/lib/blog-cover-image-map.test.ts`
+qualifies: it reads `data/blog/cover-image-map.json` because that manifest is the
+shipped contract, and it compares the manifest against MDX frontmatter rather than
+against itself.
+
+### Probes are not tests ([TST1i])
+
+An agent checking its own work is running a probe, not writing a test. Probes include
+any assertion aimed at the inverse of a mistake just made — proof that this edit landed,
+not proof that a contract holds. Run the probe, read the output, delete it before
+committing. Only durable behavioral contracts get committed test files; a repository of
+probes is a repository of noise that future changes must keep green for no reason.
+
+### The cheapest-lane ladder ([VR1j])
+
+Climb only when the rung below cannot answer the question:
+
+1. **Types** — editor diagnostics, or `bun run type-check` / `bun run type-check:tests`.
+2. **Lint** — `bun run lint:checks` (ast-grep rules via `bun run lint:ast-grep`).
+3. **Scratch probe** — a throwaway `.ts` file kept *outside* the repo (the session
+   scratchpad or `/tmp`, per [CP1a]) and executed with `bun /tmp/probe.ts`. Bun runs
+   TypeScript directly; import repo modules by absolute path, because the `@/` alias
+   resolves through `tsconfig.json` and is unavailable from outside the repo.
+4. **Running app** — `bun run dev`, then exercise the real route.
+5. **Committed test** — an assertion at the observable boundary. This is the only
+   persistent rung; everything above it is deleted when the question is answered.
+
 ## Blog Render Gate
 
 `config/blog-render-canaries.ts` is the sole owner of the two representative blog
