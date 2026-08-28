@@ -62,7 +62,7 @@ path, or a formatter pass could reintroduce the bug while the assertion still pa
 the test is tautological. Assert the computed style or the rendered output instead, or
 take the honest zero.
 
-Carve-out: gates where the file's text *is* the governed surface — a generated artifact
+Carve-out: gates where the file's text _is_ the governed surface — a generated artifact
 checked against the inputs that generate it. `__tests__/lib/blog-cover-image-map.test.ts`
 qualifies: it reads `data/blog/cover-image-map.json` because that manifest is the
 shipped contract, and it compares the manifest against MDX frontmatter rather than
@@ -82,7 +82,7 @@ Climb only when the rung below cannot answer the question:
 
 1. **Types** — editor diagnostics, or `bun run type-check` / `bun run type-check:tests`.
 2. **Lint** — `bun run lint:checks` (ast-grep rules via `bun run lint:ast-grep`).
-3. **Scratch probe** — a throwaway `.ts` file kept *outside* the repo (the session
+3. **Scratch probe** — a throwaway `.ts` file kept _outside_ the repo (the session
    scratchpad or `/tmp`, per [CP1a]) and executed with `bun /tmp/probe.ts`. Bun runs
    TypeScript directly; import repo modules by absolute path, because the `@/` alias
    resolves through `tsconfig.json` and is unavailable from outside the repo.
