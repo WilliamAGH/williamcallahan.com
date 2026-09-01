@@ -117,7 +117,7 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 ### Runtime Fetch Strategy
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds read bookmarks from PostgreSQL in runtime paths.
-- `app/sitemap.ts` iterates DB-backed pagination via `getBookmarksIndex()` + `getBookmarksPage()` and streams tag metadata via `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()` so the sitemap never materializes the full dataset in memory.
+- `app/sitemap.ts` iterates DB-backed pagination via `getBookmarksIndex()` + `getBookmarksPage()` and resolves tag page counts in one grouped query (`listCanonicalTagPageCounts()`) so the sitemap never materializes the full dataset in memory.
 - All bookmark data is served from PostgreSQL at runtime; no local JSON snapshot step is required.
 
 ### Rendering Strategy
