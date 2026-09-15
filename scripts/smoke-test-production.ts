@@ -215,7 +215,7 @@ class ProductionSmokeTests {
         `/_next/static/chunks/smoke-missing-${crypto.randomUUID()}.js`,
         404,
       ],
-      ["Analytics script is not edge-cached", `/stats/script.js?smoke=${crypto.randomUUID()}`, 200],
+      ["Retired Umami analytics is disabled", `/stats/script.js?smoke=${crypto.randomUUID()}`, 410],
     ] as const) {
       await this.record(name, path, {
         expectedStatus,

@@ -21,6 +21,8 @@
 
 const RAILWAY_TEST_DEPLOYMENTS = "https://*.up.railway.app";
 export const UMAMI_ORIGIN = "https://umami.iocloudhost.net";
+/** Retained for reactivation, but the retired Umami service is currently disabled. */
+export const UMAMI_ENABLED = false;
 
 // Clerk authentication domains
 // @see https://clerk.com/docs/security/clerk-csp
@@ -58,7 +60,6 @@ export const CSP_DIRECTIVES = {
     //   (next-mdx-remote/rsc <MDXRemote>) so no client `new Function` exists, then remove this directive.
     //   Until that lands, this is load-bearing — do not remove. Pinned by __tests__/lib/utils.test.ts.
     "'unsafe-eval'",
-    UMAMI_ORIGIN,
     "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
     "https://*.sentry.io",
@@ -73,7 +74,6 @@ export const CSP_DIRECTIVES = {
   ],
   connectSrc: [
     "'self'",
-    UMAMI_ORIGIN,
     "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
     "https://*.sentry.io",

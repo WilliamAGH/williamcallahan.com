@@ -1,10 +1,10 @@
 # Analytics Component Tests (`__tests__/components/analytics/Analytics.test.tsx`)
 
-This file contains tests for the `Analytics` client component, which is responsible for integrating Umami and Plausible analytics into the application.
+This file contains tests for the `Analytics` client component, which retains the Umami integration for possible reactivation while keeping the retired service disabled and preserving active analytics providers.
 
 ## Key Functionalities Tested
 
-1. **Script Initialization**: Verifies that the Umami and Plausible analytics scripts are correctly loaded and initialized. This is achieved by mocking `next/script` and simulating the script loading process, including the creation of global `umami` and `plausible` objects.
+1. **Provider Initialization**: Verifies that retired Umami is not initialized while active analytics providers remain available.
 2. **Path Handling**: Ensures that the component correctly handles different URL paths, including regular pages and blog post paths. The `usePathname` hook from `next/navigation` is mocked to simulate different routes.
 3. **Environment Variable Dependency**: Checks that the analytics scripts are not initialized if the required environment variables (`NEXT_PUBLIC_UMAMI_WEBSITE_ID`, `NEXT_PUBLIC_SITE_URL`) are missing.
 4. **Page View Tracking on Route Change**: Tests that page views are tracked correctly when the route changes. This involves re-rendering the component with a new path and verifying that the `umami.track` function is called with the updated path information.
@@ -75,9 +75,11 @@ This architecture ensures that analytics are a non-critical, resilient feature t
 
 ## Same-Origin Proxy Configuration
 
-### Same-Origin Delivery (`/stats/**`, `/api/send`)
+### Retained Umami Proxy (`/stats/**`, `/api/send`)
 
-All Umami traffic is routed through the site's own domain. `src/proxy.ts` owns both
+The retained Umami routes are owned by `src/proxy.ts` and return a cache-safe `410` while
+Umami is disabled. The implementation and origin remain available for a future reactivation.
+When enabled, Umami traffic is routed through the site's own domain. `src/proxy.ts` owns both
 paths and preserves each request query string. Tracker assets under `/stats/**` are fetched and
 returned directly so their final response has explicit `no-store` browser and CDN directives;
 an external Next.js rewrite would allow Umami's upstream `Cache-Control` to overwrite that

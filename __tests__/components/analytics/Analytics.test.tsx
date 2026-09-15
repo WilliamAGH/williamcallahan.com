@@ -176,7 +176,7 @@ describe("Analytics", () => {
     vi.doUnmock("next/script");
   });
 
-  it("initializes analytics scripts correctly", async () => {
+  it("does not initialize retired Umami while retaining active analytics", async () => {
     render(<Analytics />);
 
     // Use async timer advancement to properly flush promises
@@ -184,22 +184,8 @@ describe("Analytics", () => {
       await vi.advanceTimersByTimeAsync(200);
     });
 
-    // Verify scripts loaded and tracking was called
-    const umami = getGlobalUmami();
-    if (!umami) {
-      throw new Error("Expected globalThis.umami to be defined after script load");
-    }
-    expect(umami.track).toHaveBeenCalled();
+    expect(getGlobalUmami()).toBeUndefined();
     expect(hasGlobalPlausible()).toBe(true);
-
-    // Verify tracking was called with correct arguments
-    expect(umami.track).toHaveBeenCalledWith(
-      "pageview",
-      expect.objectContaining({
-        path: "/test-page",
-        website: mockWebsiteId,
-      }),
-    );
   });
 
   it("handles blog post paths correctly", () => {
@@ -233,7 +219,7 @@ describe("Analytics", () => {
     expect(hasGlobalPlausible()).toBe(false);
   });
 
-  it("tracks page views on route changes", async () => {
+  it("does not track through retired Umami on route changes", async () => {
     // Start with initial path
     mockUsePathname.mockReturnValue("/initial-path");
     const { rerender } = render(<Analytics />);
@@ -243,21 +229,7 @@ describe("Analytics", () => {
       await vi.advanceTimersByTimeAsync(200);
     });
 
-    // Verify at least one call was for the initial path
-    const umami = getGlobalUmami();
-    if (!umami) {
-      throw new Error("Expected globalThis.umami to be defined after initial render");
-    }
-    expect(umami.track).toHaveBeenCalled();
-    expect(umami.track).toHaveBeenCalledWith(
-      "pageview",
-      expect.objectContaining({
-        path: "/initial-path",
-      }),
-    );
-
-    // Clear the mock for next assertions
-    umami.track.mockClear();
+    expect(getGlobalUmami()).toBeUndefined();
 
     // Change pathname
     mockUsePathname.mockReturnValue("/new-path");
@@ -271,15 +243,7 @@ describe("Analytics", () => {
       await vi.advanceTimersByTimeAsync(200);
     });
 
-    // Verify the track call triggered by the pathname change
-    expect(umami.track).toHaveBeenCalledWith(
-      "pageview",
-      expect.objectContaining({
-        path: "/new-path",
-      }),
-    );
-    // Ensure it was called exactly once after the clear
-    expect(umami.track).toHaveBeenCalledTimes(1);
+    expect(getGlobalUmami()).toBeUndefined();
   });
 
   it("handles script load errors gracefully with warning", async () => {
@@ -296,8 +260,7 @@ describe("Analytics", () => {
     expect(container).toBeTruthy();
     // Global umami should not be defined when script errors
     expect(getGlobalUmami()).toBeUndefined();
-    // Warning should be logged via onError handler
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(consoleWarnSpy).not.toHaveBeenCalledWith(
       "[Analytics] Failed to load Umami script - continuing without analytics",
     );
   });
