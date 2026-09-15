@@ -4,6 +4,7 @@
 
 import {
   generateSlugMapping,
+  reconcileSlugMapping,
   saveSlugMapping,
   loadSlugMapping,
   getSlugForBookmark,
@@ -128,6 +129,74 @@ describe("Bookmark Slug Mapping", () => {
       expect(mapping.count).toBe(0);
       expect(Object.keys(mapping.slugs)).toHaveLength(0);
       expect(Object.keys(mapping.reverseMap)).toHaveLength(0);
+    });
+  });
+
+  describe("reconcileSlugMapping", () => {
+    it("keeps the persisted slug when a known bookmark changes title or input order", () => {
+      const incoming: Parameters<typeof reconcileSlugMapping>[0] = [
+        {
+          id: "new-bookmark",
+          url: "https://example.com/new",
+          title: "New bookmark",
+        },
+        {
+          id: "existing-bookmark",
+          url: "https://github.com/example/renamed",
+          title: "Renamed repository",
+        },
+      ];
+      const persisted: Parameters<typeof reconcileSlugMapping>[1] = [
+        { id: "existing-bookmark", slug: "github-com-original-repository" },
+      ];
+
+      const mapping = reconcileSlugMapping(incoming.toReversed(), persisted);
+
+      expect(mapping.slugs["existing-bookmark"]?.slug).toBe("github-com-original-repository");
+    });
+
+    it("reserves a removed bookmark's slug for a new colliding bookmark", () => {
+      const incoming: Parameters<typeof reconcileSlugMapping>[0] = [
+        {
+          id: "incoming-bookmark",
+          url: "https://github.com/example/new-repository",
+          title: "Release notes",
+        },
+      ];
+      const persisted: Parameters<typeof reconcileSlugMapping>[1] = [
+        { id: "removed-bookmark", slug: "github-com-release-notes" },
+      ];
+
+      const mapping = reconcileSlugMapping(incoming, persisted);
+      const incomingSlug = mapping.slugs["incoming-bookmark"]?.slug;
+
+      expect(incomingSlug).not.toBe("github-com-release-notes");
+      expect(mapping.reverseMap["github-com-release-notes"]).toBeUndefined();
+      expect(mapping.reverseMap[incomingSlug ?? ""]).toBe("incoming-bookmark");
+    });
+
+    it("is deterministic with persisted reservations", () => {
+      const incoming: Parameters<typeof reconcileSlugMapping>[0] = [
+        {
+          id: "new-a",
+          url: "https://github.com/example/a",
+          title: "Release notes",
+        },
+        {
+          id: "new-b",
+          url: "https://github.com/example/b",
+          title: "Release notes",
+        },
+      ];
+      const persisted: Parameters<typeof reconcileSlugMapping>[1] = [
+        { id: "removed-bookmark", slug: "github-com-release-notes" },
+      ];
+
+      const first = reconcileSlugMapping(incoming, persisted);
+      const second = reconcileSlugMapping(incoming.toReversed(), persisted);
+
+      expect(first.slugs).toEqual(second.slugs);
+      expect(first.reverseMap).toEqual(second.reverseMap);
     });
   });
 

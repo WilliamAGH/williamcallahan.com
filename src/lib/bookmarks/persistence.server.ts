@@ -38,12 +38,13 @@ export async function backfillDueBookmarkEmbeddings(bookmarks: UnifiedBookmark[]
 /**
  * Write bookmark master data to PostgreSQL.
  *
- * @param bookmarksWithSlugs - Bookmarks with embedded slugs
+ * @param bookmarks - Fresh bookmarks whose slugs will be reconciled with PostgreSQL
  */
 export async function writeBookmarkMasterFiles(
-  bookmarksWithSlugs: UnifiedBookmark[],
-): Promise<void> {
+  bookmarks: UnifiedBookmark[],
+): Promise<UnifiedBookmark[]> {
   const { upsertUnifiedBookmarks } = await import("@/lib/db/mutations/bookmarks");
-  await upsertUnifiedBookmarks(bookmarksWithSlugs);
-  await backfillBookmarkEmbeddingRows(bookmarksWithSlugs, process.env.IS_DATA_UPDATER === "true");
+  const reconciledBookmarks = await upsertUnifiedBookmarks(bookmarks);
+  await backfillBookmarkEmbeddingRows(reconciledBookmarks, process.env.IS_DATA_UPDATER === "true");
+  return reconciledBookmarks;
 }

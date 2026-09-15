@@ -116,7 +116,9 @@ describe("backfillBookmarkEmbeddings", () => {
     mocks.onConflictDoUpdate.mockReset().mockResolvedValue(undefined);
     mocks.resolveConfig.mockReset().mockReturnValue(embeddingConfig);
     mocks.transaction.mockClear();
-    mocks.upsertBookmarks.mockReset().mockResolvedValue(undefined);
+    mocks.upsertBookmarks
+      .mockReset()
+      .mockImplementation((bookmarks: UnifiedBookmark[]) => Promise.resolve(bookmarks));
     mocks.values.mockClear();
     mocks.where.mockReset().mockResolvedValue(undefined);
     process.env.AI_DEFAULT_EMBEDDING_MODEL = embeddingConfig.model;
