@@ -16,7 +16,7 @@ declare global {
       NEXT_PUBLIC_SITE_URL: string;
 
       // Analytics Configuration
-      /** Umami Analytics website ID for tracking */
+      /** Retained Umami website ID; Umami is currently disabled. */
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: string;
 
       // S3 CDN Configuration

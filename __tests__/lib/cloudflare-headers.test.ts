@@ -4,7 +4,6 @@ import { readFileSync } from "node:fs";
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-utils";
 import { GET as getIp } from "@/app/api/ip/route";
-import { UMAMI_ORIGIN } from "@/config/csp";
 import { config as proxyConfig, proxy } from "@/proxy";
 import {
   fetchStaticScript,
@@ -169,13 +168,11 @@ describe("Cloudflare header enforcement", () => {
       }),
     ).toBe(shouldMatch);
   });
-  it("keeps analytics event ingestion on the exact upstream rewrite", async () => {
+  it("disables retired analytics event ingestion without an upstream request", async () => {
     const response = await proxy(
       createProxyRequest("https://williamcallahan.com/api/send?event=pageview", "POST"),
     );
-    expect(response.headers.get("x-middleware-rewrite")).toBe(
-      `${UMAMI_ORIGIN}/api/send?event=pageview`,
-    );
+    expect(response.status).toBe(410);
   });
   describe("next.config release identity", () => {
     it("delegates development build identity to Next", async () => {

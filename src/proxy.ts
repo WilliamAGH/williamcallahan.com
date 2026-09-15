@@ -15,7 +15,7 @@
 // See: https://nextjs.org/docs/app/getting-started/proxy
 // Using `edge` here (not deprecated `experimental-edge`).
 
-import { UMAMI_ORIGIN } from "@/config/csp";
+import { UMAMI_ENABLED, UMAMI_ORIGIN } from "@/config/csp";
 import { buildCspHeader } from "@/lib/middleware/csp-header";
 import { NextResponse, type NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
@@ -78,6 +78,10 @@ async function createAnalyticsProxyResponse(request: NextRequest): Promise<NextR
     destination.pathname = pathname.slice("/stats".length) || "/";
   } else {
     return null;
+  }
+
+  if (!UMAMI_ENABLED) {
+    return new NextResponse(null, { status: 410, headers: ANALYTICS_CACHE_HEADERS });
   }
 
   destination.search = search;

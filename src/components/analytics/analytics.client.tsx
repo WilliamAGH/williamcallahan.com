@@ -11,6 +11,7 @@
 "use client";
 
 import Script from "next/script";
+import { UMAMI_ENABLED } from "@/config/csp";
 import type { JSX } from "react";
 
 /** Umami hard limit on event names (see GH issue #2986) */
@@ -59,7 +60,7 @@ export function Analytics(): JSX.Element | null {
   })();
 
   const shouldLoadUmami = (() => {
-    if (!umamiWebsiteId || !siteUrl) return false;
+    if (!UMAMI_ENABLED || !umamiWebsiteId || !siteUrl) return false;
     if (globalThis.window === undefined) return false;
     try {
       void globalThis.localStorage.length;

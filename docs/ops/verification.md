@@ -108,7 +108,7 @@ ANALYTICS_URL="$BASE_URL/stats/script.js?smoke=$(uuidgen | tr '[:upper:]' '[:low
 FIRST_ANALYTICS_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$ANALYTICS_URL")"
 SECOND_ANALYTICS_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$ANALYTICS_URL")"
 for response in "$FIRST_ANALYTICS_RESPONSE" "$SECOND_ANALYTICS_RESPONSE"; do
-  assert_no_store_response "$response" 200
+  assert_no_store_response "$response" 410
 done
 ```
 
