@@ -66,6 +66,9 @@ redoc-demo.html
 # Claude Code user-local settings (per-user, not committed)
 .claude/
 
+# Task worktrees (inside-repo checkouts, never committed)
+.worktrees/
+
 # S3 reset audits directory
 .s3-reset-audits/
 bookmarks.json
