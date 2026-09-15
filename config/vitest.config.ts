@@ -52,6 +52,7 @@ export default defineConfig({
     exclude: [
       "**/node_modules/**",
       "**/.next/**",
+      "**/.worktrees/**",
       "**/.claude/worktrees/**",
       "**/src/types/test.ts",
     ],
