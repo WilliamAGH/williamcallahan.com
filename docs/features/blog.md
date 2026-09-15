@@ -49,6 +49,7 @@ The "blog" functionality encompasses components and utilities that manage the di
 - Build stability: both detail and tag routes include a safe placeholder static param fallback to satisfy Cache Components requirements when datasets are temporarily empty.
 - Blog tag routes (`app/blog/tags/[tagSlug]/page.tsx`) now provide `generateStaticParams()` from `getAllTags()` and still render the “Discover More” related-content section sourced from the first post on the page, with the active tag excluded from recommendations.
 - Components are modular, allowing reuse across different views, with special attention to accessibility and responsive design as seen in features like collapsible background info boxes.
-- Required render verification is `bun run verify`; after deployment run
+- Required local verification is browser-free `bun run verify`; GitHub CI adds the
+  explicit `bun run verify:browser` render gate. After deployment run
   `bun run deploy:smoke-test -- <base-url> [auth-token] [--expected-release-id=<id>]`
   and perform the focused browser dogfood procedure in `docs/ops/verification.md`.

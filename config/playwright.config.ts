@@ -2,6 +2,12 @@ import { defineConfig } from "@playwright/test";
 import { dirname, resolve } from "node:path";
 import { BLOG_RENDER_CANARIES } from "./blog-render-canaries";
 
+if (process.platform === "darwin" && process.env.CODEX_SESSION_ID) {
+  throw new Error(
+    "Browser launch is blocked in the Codex macOS sandbox; use the GitHub verification browser job.",
+  );
+}
+
 const baseURL = "http://127.0.0.1:3100";
 const readinessURL = `${baseURL}/blog/${BLOG_RENDER_CANARIES[0].slug}`;
 

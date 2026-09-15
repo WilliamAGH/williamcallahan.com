@@ -48,7 +48,7 @@ export const projects: Project[] = [
       "Web app that merges search with an AI chat assistant: select results, then ask GPT/Groq/Gemini using that grounded context. Built with Next.js, TypeScript, Convex Database, and Vercel AI SDK, with heavy server-side scraping/parsing to filter only relevant context.",
     shortSummary: "AI-powered web search with a contextual chat assistant",
     url: "https://researchly.chat",
-    imageKey: "images/other/projects/searchAI.png",
+    imageKey: "images/other/projects/researchly-macos-app.png",
     tags: [
       "AI",
       "Web Search",

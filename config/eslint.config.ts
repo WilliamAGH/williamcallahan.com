@@ -18,6 +18,7 @@ import oxlint from "eslint-plugin-oxlint";
 
 const GLOBAL_IGNORES = [
   "node_modules/",
+  ".worktrees/",
   ".next/",
   "tmp/",
   ".claude/",
