@@ -7,10 +7,10 @@
 ## ${BASE_REGISTRY}/debian:bookworm-slim resolves to a valid image.
 ## Examples:
 ##   - public.ecr.aws/debian  (ECR Public — publisher namespace required)
-##   - docker.io/library       (Docker Hub official)
+##   - dockerhub.haiku.host    (Docker Hub mirror)
 ##   - your.mirror.example     (private mirror — flat namespace)
 ##
-ARG BASE_REGISTRY=public.ecr.aws/debian
+ARG BASE_REGISTRY=dockerhub.haiku.host
 
 # Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
 # which requires glibc (Alpine uses musl libc which is incompatible).
