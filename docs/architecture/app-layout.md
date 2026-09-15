@@ -58,6 +58,9 @@ Root layout wrapper providing global styles, providers, and consistent UI struct
 
 ### Responsive Header
 
+- Social icons render directly in the static header. They have no asynchronous work
+  and do not need Suspense; separate streamed icon segments can collide with resumed
+  page segments during partial prerendering.
 - Below `lg`: Condensed X/GitHub header; the mobile drawer adds LinkedIn and Discord
 - Desktop: Full social icon set in bordered container
 - Max widths: 95% -> 1400px (xl) -> 1800px (2xl)

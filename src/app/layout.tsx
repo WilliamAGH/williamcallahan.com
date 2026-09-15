@@ -165,18 +165,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
                       {/* Condensed Version (GitHub + X) - Hidden on lg and up */}
                       <div className="lg:hidden">
-                        <Suspense fallback={null}>
-                          {/* Render GitHub + X only (condensed header) */}
-                          <SocialIcons excludePlatforms={["discord", "linkedin", "bluesky"]} />
-                        </Suspense>
+                        <SocialIcons excludePlatforms={["discord", "linkedin", "bluesky"]} />
                       </div>
 
                       {/* Full Version - Hidden below lg */}
                       <div className="header-icons hidden lg:flex items-center p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
-                        <Suspense fallback={null}>
-                          {/* Render all icons except Bluesky in the main header */}
-                          <SocialIcons excludePlatforms={["bluesky"]} />
-                        </Suspense>
+                        <SocialIcons excludePlatforms={["bluesky"]} />
                       </div>
 
                       {/* Theme Toggle - Always visible */}
