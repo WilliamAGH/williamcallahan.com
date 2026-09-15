@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => {
     return operation(transactionExecutor);
   });
   const persistedSlugs: Array<{ id: string; slug: string; url: string; title: string }> = [];
-  const getSlugMappingRows = vi.fn(async (executor: unknown) => {
+  const getSlugMappingRows = vi.fn(async (_executor: unknown) => {
     events.push("read");
     return persistedSlugs;
   });
@@ -85,7 +85,7 @@ function buildInsert(overrides: Partial<UnifiedBookmark> = {}) {
 }
 
 function renderFirstTransactionQuery(): { sql: string; params: unknown[] } {
-  const query = mocks.execute.mock.calls[0]?.[0];
+  const query = (mocks.execute.mock.calls[0] as unknown[] | undefined)?.[0];
   if (!is(query, SQL)) throw new Error("Expected transaction lock SQL.");
   return new PgDialect().sqlToQuery(query);
 }
@@ -148,7 +148,9 @@ describe("bookmark refresh writes", () => {
     });
 
     const reconciled = await upsertUnifiedBookmarks([incoming]);
-    const insertedBookmark = mocks.values.mock.calls[0]?.[0] as { slug?: string } | undefined;
+    const insertedBookmark = (mocks.values.mock.calls[0] as unknown[] | undefined)?.[0] as
+      | { slug?: string }
+      | undefined;
 
     expect(renderFirstTransactionQuery().sql).toContain(
       "lock table bookmarks in share row exclusive mode",
@@ -171,7 +173,9 @@ describe("bookmark refresh writes", () => {
 
     await upsertUnifiedBookmark(buildBookmark({ slug: "newly-generated-url", title: "Renamed" }));
 
-    const insertedBookmark = mocks.values.mock.calls[0]?.[0] as { slug?: string } | undefined;
+    const insertedBookmark = (mocks.values.mock.calls[0] as unknown[] | undefined)?.[0] as
+      | { slug?: string }
+      | undefined;
     expect(insertedBookmark?.slug).toBe("stable-bookmark-url");
     expect(mocks.getSlugMappingRows).toHaveBeenCalledWith(mocks.transactionExecutor);
     expect(mocks.deleteRows).not.toHaveBeenCalled();

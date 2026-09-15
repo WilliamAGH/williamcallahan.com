@@ -197,7 +197,7 @@ export function applySlugMapping(
  * @param overwrite - Kept for API compatibility; ignored in DB mode
  */
 export async function saveSlugMapping(
-  bookmarks: BookmarkSlugSource[],
+  bookmarks: readonly BookmarkSlugSource[],
   overwrite = true,
 ): Promise<void> {
   void overwrite;
@@ -274,32 +274,7 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
       return null;
     }
 
-    const slugs: BookmarkSlugMapping["slugs"] = {};
-    const reverseMap: BookmarkSlugMapping["reverseMap"] = {};
-
-    for (const row of slugRows) {
-      slugs[row.id] = {
-        id: row.id,
-        slug: row.slug,
-        url: row.url,
-        title: row.title || row.url,
-      };
-      reverseMap[row.slug] = row.id;
-    }
-
-    const checksumPayload = Object.keys(slugs)
-      .toSorted((a, b) => a.localeCompare(b))
-      .map((id) => [id, slugs[id]?.slug]);
-    const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
-
-    const mapping = bookmarkSlugMappingSchema.parse({
-      version: "1.0.0",
-      generated: new Date(getDeterministicTimestamp()).toISOString(),
-      count: slugRows.length,
-      checksum,
-      slugs,
-      reverseMap,
-    });
+    const mapping = buildSlugMapping(slugRows, slugRows);
 
     if (isSlugManagerLoggingEnabled) {
       logger.info(
