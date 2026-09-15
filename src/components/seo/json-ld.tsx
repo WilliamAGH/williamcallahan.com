@@ -19,8 +19,8 @@ const subscribeToClientRuntime = (): (() => void) => () => undefined;
 const getClientRuntimeSnapshot = (): boolean => true;
 const getServerRuntimeSnapshot = (): boolean => false;
 
-export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element | null {
-  // Preserve crawler-visible server markup while keeping client-only hidden mounts inert.
+export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element {
+  // Keep the host node stable during streamed hydration and hidden mounts inert.
   const isClientRuntime = useSyncExternalStore(
     subscribeToClientRuntime,
     getClientRuntimeSnapshot,
@@ -38,10 +38,6 @@ export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element | nul
     };
   }, []);
 
-  if (!isDocumentActive) {
-    return null;
-  }
-
   /**
    * JSON-LD must be embedded using dangerouslySetInnerHTML to avoid issues
    * with the HTML parser prematurely closing the <script> tag when the JSON
@@ -55,7 +51,7 @@ export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element | nul
 
   return (
     <script
-      type="application/ld+json"
+      type={isDocumentActive ? "application/ld+json" : "application/json"}
       {...(id ? { id } : {})}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: Necessary for embedding JSON-LD, and the content is sanitized.
       dangerouslySetInnerHTML={{ __html: json }}
