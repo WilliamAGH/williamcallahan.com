@@ -19,25 +19,12 @@
  */
 
 import type { JSX } from "react";
-import type { Mock } from "vitest";
 
 export type PageComponentModule = {
   default: (props: {
     params: Record<string, string>;
     searchParams: Record<string, string>;
   }) => Promise<JSX.Element> | JSX.Element;
-};
-
-export type UmamiMock = Mock & {
-  track: Mock;
-};
-
-export type MockScriptProps = {
-  id: string;
-  onLoad?: () => void;
-  onError?: (error: Error) => void;
-  src?: string;
-  strategy?: string;
 };
 
 export type MockExternalLinkProps = {

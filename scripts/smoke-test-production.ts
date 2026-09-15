@@ -209,19 +209,11 @@ class ProductionSmokeTests {
       validateResponse: async (response) =>
         response.headers.get("access-control-allow-origin") === null,
     });
-    for (const [name, path, expectedStatus] of [
-      [
-        "Missing static chunk is not edge-cached",
-        `/_next/static/chunks/smoke-missing-${crypto.randomUUID()}.js`,
-        404,
-      ],
-      ["Analytics script is not edge-cached", `/stats/script.js?smoke=${crypto.randomUUID()}`, 200],
-    ] as const) {
-      await this.record(name, path, {
-        expectedStatus,
-        validateResponse: (response) => this.hasNoStoreRepeat(path, response, expectedStatus),
-      });
-    }
+    const missingStaticChunk = `/_next/static/chunks/smoke-missing-${crypto.randomUUID()}.js`;
+    await this.record("Missing static chunk is not edge-cached", missingStaticChunk, {
+      expectedStatus: 404,
+      validateResponse: (response) => this.hasNoStoreRepeat(missingStaticChunk, response, 404),
+    });
   }
 
   async runAPITests(): Promise<void> {

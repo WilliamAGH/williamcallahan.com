@@ -20,7 +20,6 @@
  */
 
 const RAILWAY_TEST_DEPLOYMENTS = "https://*.up.railway.app";
-export const UMAMI_ORIGIN = "https://umami.iocloudhost.net";
 
 // Clerk authentication domains
 // @see https://clerk.com/docs/security/clerk-csp
@@ -58,8 +57,6 @@ export const CSP_DIRECTIVES = {
     //   (next-mdx-remote/rsc <MDXRemote>) so no client `new Function` exists, then remove this directive.
     //   Until that lands, this is load-bearing — do not remove. Pinned by __tests__/lib/utils.test.ts.
     "'unsafe-eval'",
-    UMAMI_ORIGIN,
-    "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
     "https://*.sentry.io",
     "https://scripts.simpleanalyticscdn.com",
@@ -73,8 +70,6 @@ export const CSP_DIRECTIVES = {
   ],
   connectSrc: [
     "'self'",
-    UMAMI_ORIGIN,
-    "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
     "https://*.sentry.io",
     "https://*.ingest.sentry.io",
@@ -114,6 +109,7 @@ export const CSP_DIRECTIVES = {
     "https://*.twimg.com",
     "https://react-tweet.vercel.app",
     "https://queue.simpleanalyticscdn.com",
+    "https://in.getclicky.com",
     ...CLERK_DOMAINS.images,
     "https://*.callahan.cloud",
     "https://*.digitaloceanspaces.com",

@@ -15,7 +15,6 @@
 // See: https://nextjs.org/docs/app/getting-started/proxy
 // Using `edge` here (not deprecated `experimental-edge`).
 
-import { UMAMI_ORIGIN } from "@/config/csp";
 import { buildCspHeader } from "@/lib/middleware/csp-header";
 import { NextResponse, type NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
@@ -52,63 +51,10 @@ const SECURITY_HEADERS = {
 } as const;
 
 const NO_CACHE_VALUE = "no-store, no-cache, must-revalidate, proxy-revalidate" as const;
-const ANALYTICS_CACHE_HEADERS = {
-  "Cache-Control": NO_CACHE_VALUE,
-  Pragma: "no-cache",
-  Expires: "0",
-  "CDN-Cache-Control": "no-store, max-age=0",
-  "Cloudflare-CDN-Cache-Control": "no-store, max-age=0",
-} as const;
-const ANALYTICS_RESPONSE_HEADERS = ["content-type", "etag", "last-modified", "vary"] as const;
-const ANALYTICS_FETCH_TIMEOUT_MS = 10_000;
-
 function setSecurityHeaders(response: NextResponse): void {
   for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(header, value);
   }
-}
-
-async function createAnalyticsProxyResponse(request: NextRequest): Promise<NextResponse | null> {
-  const { pathname, search } = request.nextUrl;
-  const destination = new URL(UMAMI_ORIGIN);
-
-  if (pathname === "/api/send") {
-    destination.pathname = pathname;
-  } else if (pathname === "/stats" || pathname.startsWith("/stats/")) {
-    destination.pathname = pathname.slice("/stats".length) || "/";
-  } else {
-    return null;
-  }
-
-  destination.search = search;
-  if (pathname === "/api/send") {
-    return NextResponse.rewrite(destination, { headers: ANALYTICS_CACHE_HEADERS });
-  }
-  const timeoutSignal = AbortSignal.timeout(ANALYTICS_FETCH_TIMEOUT_MS);
-  let upstream: Response;
-  try {
-    upstream = await fetch(destination, {
-      method: request.method,
-      headers: { "Accept-Encoding": "identity" },
-      cache: "no-store",
-      redirect: "error",
-      signal: AbortSignal.any([request.signal, timeoutSignal]),
-    });
-  } catch (error) {
-    if (!timeoutSignal.aborted) throw error;
-    console.error(`[Proxy] Analytics upstream timed out after ${ANALYTICS_FETCH_TIMEOUT_MS}ms`);
-    return new NextResponse(null, { status: 504, headers: ANALYTICS_CACHE_HEADERS });
-  }
-  const responseHeaders = new Headers(ANALYTICS_CACHE_HEADERS);
-  for (const header of ANALYTICS_RESPONSE_HEADERS) {
-    const value = upstream.headers.get(header);
-    if (value) responseHeaders.set(header, value);
-  }
-  return new NextResponse(upstream.body, {
-    status: upstream.status,
-    statusText: upstream.statusText,
-    headers: Object.fromEntries(responseHeaders),
-  });
 }
 
 function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): void {
@@ -151,15 +97,13 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const analyticsResponse = await createAnalyticsProxyResponse(request);
-
   // If the request is for a .map file, let Next.js handle it directly
   // without applying our custom headers or logic.
-  if (pathname.endsWith(".map") && !analyticsResponse) {
+  if (pathname.endsWith(".map")) {
     return NextResponse.next(); // Pass through without modifications
   }
 
-  const response = analyticsResponse ?? NextResponse.next();
+  const response = NextResponse.next();
   const ip = getClientIp(request.headers);
 
   setSecurityHeaders(response);
@@ -171,7 +115,7 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const url = request.nextUrl.pathname;
   const isDev = process.env.NODE_ENV === "development";
 
-  if (!analyticsResponse) setCacheHeaders(response, url, isDev);
+  setCacheHeaders(response, url, isDev);
 
   if (shouldLogRequest(pathname, request.method)) {
     // Log the request with the real IP
@@ -274,6 +218,5 @@ export const config = {
     "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/ai/chat|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api(?!/ai/chat)|trpc)(.*)",
     "/_next/image(.*)",
-    "/stats/:path*",
   ],
 };

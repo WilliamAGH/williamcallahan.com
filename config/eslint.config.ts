@@ -223,11 +223,6 @@ const config = defineConfig(
       "@typescript-eslint/naming-convention": "off",
     },
   },
-  {
-    files: ["public/scripts/plausible-init.js"],
-    rules: {},
-  },
-
   // Project-specific global type uniqueness is enforced by `bun scripts/check-duplicate-types.ts`
   // (deterministic build-time check, not an ESLint rule — see scripts/check-duplicate-types.ts)
 
