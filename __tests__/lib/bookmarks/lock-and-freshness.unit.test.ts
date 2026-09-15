@@ -87,7 +87,9 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
     mockBackfillDueBookmarkEmbeddings.mockResolvedValue(undefined);
     mockGetAllBookmarks.mockResolvedValue([]);
     mockRebuildBookmarkTaxonomyState.mockResolvedValue(undefined);
-    mockWriteBookmarkMasterFiles.mockResolvedValue(undefined);
+    mockWriteBookmarkMasterFiles.mockImplementation((bookmarks: UnifiedBookmark[]) =>
+      Promise.resolve(bookmarks),
+    );
     mockProcessBookmarksInBatches.mockImplementation((bookmarks: UnifiedBookmark[]) =>
       Promise.resolve(bookmarks),
     );

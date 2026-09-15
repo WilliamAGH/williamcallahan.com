@@ -85,7 +85,9 @@ describe("refresh change-detection behavior (unit)", () => {
     mockBackfillDueBookmarkEmbeddings.mockResolvedValue(undefined);
     mockGetAllBookmarks.mockResolvedValue([]);
     mockRebuildBookmarkTaxonomyState.mockResolvedValue(undefined);
-    mockWriteBookmarkMasterFiles.mockResolvedValue(undefined);
+    mockWriteBookmarkMasterFiles.mockImplementation((bookmarks: UnifiedBookmark[]) =>
+      Promise.resolve(bookmarks),
+    );
     mockProcessBookmarksInBatches.mockImplementation((bookmarks: UnifiedBookmark[]) =>
       Promise.resolve(bookmarks),
     );
@@ -116,6 +118,22 @@ describe("refresh change-detection behavior (unit)", () => {
     expect(result).toEqual(dataset);
     expect(mockWriteBookmarkMasterFiles).toHaveBeenCalledTimes(1);
     expect(mockRebuildBookmarkTaxonomyState).not.toHaveBeenCalled();
+  });
+
+  it("returns the persisted slug reconciliation to refresh callers", async () => {
+    const dataset = [buildBookmark("a")];
+    const reconciled = [{ ...dataset[0], slug: "stable-bookmark-a" }];
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
+      count: 0,
+      checksum: "count:0",
+    });
+    mockWriteBookmarkMasterFiles.mockResolvedValue(reconciled);
+
+    bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
+    bookmarksModule.initializeBookmarksDataAccess();
+
+    await expect(bookmarksModule.refreshAndPersistBookmarks()).resolves.toEqual(reconciled);
+    expect(mockSaveSlugMapping).toHaveBeenCalledWith(reconciled, true);
   });
 
   it("persists when bookmark count changes", async () => {
