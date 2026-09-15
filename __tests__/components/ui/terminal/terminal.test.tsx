@@ -167,6 +167,7 @@ describe("Terminal Component", () => {
       push: mockRouterPush,
       replace: vi.fn(),
       prefetch: vi.fn(),
+      bfcacheId: "test-bfcache-id",
     });
 
     mockUseRegisteredWindowState.mockClear();
