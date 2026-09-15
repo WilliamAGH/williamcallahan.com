@@ -5,9 +5,10 @@ import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import {
   BOOKMARK_ENRICHMENT_FIELDS,
   mapUnifiedBookmarksToBookmarkInserts,
-  mapUnifiedBookmarkToBookmarkInsert,
 } from "@/lib/db/bookmark-record-mapper";
+import { applySlugMapping, reconcileSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
+import { getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
 import {
   bookmarkIndexState,
   bookmarkTags,
@@ -22,6 +23,8 @@ import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 const GLOBAL_BOOKMARK_INDEX_STATE_ID = "global";
 const UPSERT_MAX_RETRIES = 3;
 const UPSERT_RETRY_DELAY_MS = 500;
+
+type BookmarkWriteExecutor = Pick<typeof db, "delete" | "insert">;
 
 /**
  * Enrichment-owned columns ([BOOKMARK_ENRICHMENT_FIELDS]) are produced by
@@ -118,10 +121,11 @@ const resolveTagMetadata = (
   return null;
 };
 
-export async function upsertBookmark(data: BookmarkInsert): Promise<void> {
-  assertDatabaseWriteAllowed("upsertBookmark");
-
-  await db
+async function upsertBookmark(
+  executor: Pick<typeof db, "insert">,
+  data: BookmarkInsert,
+): Promise<void> {
+  await executor
     .insert(bookmarks)
     .values(data)
     .onConflictDoUpdate({
@@ -130,48 +134,20 @@ export async function upsertBookmark(data: BookmarkInsert): Promise<void> {
     });
 }
 
-async function upsertBookmarkWithRetry(data: BookmarkInsert): Promise<void> {
-  let attempt = 0;
-  while (attempt < UPSERT_MAX_RETRIES) {
-    try {
-      await upsertBookmark(data);
-      return;
-    } catch (error) {
-      attempt += 1;
-      const shouldRetry = attempt < UPSERT_MAX_RETRIES && isRetryableUpsertError(error);
-      if (!shouldRetry) {
-        throw error;
-      }
-
-      const delayMilliseconds = UPSERT_RETRY_DELAY_MS * attempt;
-      console.warn(
-        `[db/mutations/bookmarks] Upsert retry ${attempt}/${UPSERT_MAX_RETRIES - 1} for bookmark ${data.id} after transient connection error.`,
-      );
-      await sleep(delayMilliseconds);
-    }
-  }
-}
-
-export async function upsertUnifiedBookmark(bookmark: UnifiedBookmark): Promise<void> {
-  await upsertBookmark(mapUnifiedBookmarkToBookmarkInsert(bookmark));
-}
-
-export async function upsertBookmarks(data: readonly BookmarkInsert[]): Promise<void> {
-  if (data.length === 0) {
-    return;
-  }
-
-  for (const bookmarkData of data) {
-    await upsertBookmarkWithRetry(bookmarkData);
-  }
-}
-
-export async function rebuildBookmarkTaxonomyState(
-  bookmarksData: readonly UnifiedBookmark[],
-  changeDetected: boolean = true,
+async function upsertBookmarks(
+  executor: Pick<typeof db, "insert">,
+  data: readonly BookmarkInsert[],
 ): Promise<void> {
-  assertDatabaseWriteAllowed("rebuildBookmarkTaxonomyState");
+  for (const bookmarkData of data) {
+    await upsertBookmark(executor, bookmarkData);
+  }
+}
 
+async function rebuildBookmarkTaxonomyStateInTransaction(
+  executor: BookmarkWriteExecutor,
+  bookmarksData: readonly UnifiedBookmark[],
+  changeDetected: boolean,
+): Promise<void> {
   const timestamp = Date.now();
   const lastModified = new Date(timestamp).toISOString();
 
@@ -252,62 +228,117 @@ export async function rebuildBookmarkTaxonomyState(
     ),
   };
 
-  await db.transaction(async (tx) => {
-    if (tagDefinitionRows.length > 0) {
-      await tx
-        .insert(bookmarkTags)
-        .values(tagDefinitionRows)
-        .onConflictDoUpdate({
-          target: bookmarkTags.tagSlug,
-          set: {
-            tagName: sql`excluded.tag_name`,
-            updatedAt: timestamp,
-          },
-        });
-    }
-
-    if (incomingPrimaryTagSlugs.length === 0) {
-      await tx.delete(bookmarkTags).where(eq(bookmarkTags.tagStatus, "primary"));
-    } else {
-      await tx
-        .delete(bookmarkTags)
-        .where(
-          and(
-            eq(bookmarkTags.tagStatus, "primary"),
-            notInArray(bookmarkTags.tagSlug, incomingPrimaryTagSlugs),
-          ),
-        );
-    }
-
-    await tx.delete(bookmarkTagLinks);
-    if (tagLinkRows.length > 0) {
-      await tx.insert(bookmarkTagLinks).values(tagLinkRows);
-    }
-
-    await tx.delete(bookmarkTagIndexState);
-    if (tagIndexRows.length > 0) {
-      await tx.insert(bookmarkTagIndexState).values(tagIndexRows);
-    }
-
-    await tx
-      .insert(bookmarkIndexState)
-      .values(globalIndexRow)
+  if (tagDefinitionRows.length > 0) {
+    await executor
+      .insert(bookmarkTags)
+      .values(tagDefinitionRows)
       .onConflictDoUpdate({
-        target: bookmarkIndexState.id,
-        set: buildBookmarkIndexStateUpdate(globalIndexRow),
+        target: bookmarkTags.tagSlug,
+        set: {
+          tagName: sql`excluded.tag_name`,
+          updatedAt: timestamp,
+        },
       });
+  }
+
+  if (incomingPrimaryTagSlugs.length === 0) {
+    await executor.delete(bookmarkTags).where(eq(bookmarkTags.tagStatus, "primary"));
+  } else {
+    await executor
+      .delete(bookmarkTags)
+      .where(
+        and(
+          eq(bookmarkTags.tagStatus, "primary"),
+          notInArray(bookmarkTags.tagSlug, incomingPrimaryTagSlugs),
+        ),
+      );
+  }
+
+  await executor.delete(bookmarkTagLinks);
+  if (tagLinkRows.length > 0) {
+    await executor.insert(bookmarkTagLinks).values(tagLinkRows);
+  }
+
+  await executor.delete(bookmarkTagIndexState);
+  if (tagIndexRows.length > 0) {
+    await executor.insert(bookmarkTagIndexState).values(tagIndexRows);
+  }
+
+  await executor
+    .insert(bookmarkIndexState)
+    .values(globalIndexRow)
+    .onConflictDoUpdate({
+      target: bookmarkIndexState.id,
+      set: buildBookmarkIndexStateUpdate(globalIndexRow),
+    });
+}
+
+export async function rebuildBookmarkTaxonomyState(
+  bookmarksData: readonly UnifiedBookmark[],
+  changeDetected: boolean = true,
+): Promise<void> {
+  assertDatabaseWriteAllowed("rebuildBookmarkTaxonomyState");
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`lock table bookmarks in share row exclusive mode`);
+    await rebuildBookmarkTaxonomyStateInTransaction(tx, bookmarksData, changeDetected);
   });
 }
 
+async function writeUnifiedBookmarks(
+  bookmarksData: readonly UnifiedBookmark[],
+  rebuildTaxonomy: boolean,
+): Promise<UnifiedBookmark[]> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await db.transaction(async (tx) => {
+        await tx.execute(sql`lock table bookmarks in share row exclusive mode`);
+        const persistedSlugs = await getSlugMappingRowsFromDatabase(tx);
+        const mapping = reconcileSlugMapping(bookmarksData, persistedSlugs);
+        const reconciledBookmarks = applySlugMapping(bookmarksData, mapping);
+        const inserts = mapUnifiedBookmarksToBookmarkInserts(reconciledBookmarks);
+
+        await upsertBookmarks(tx, inserts);
+        if (rebuildTaxonomy) {
+          await rebuildBookmarkTaxonomyStateInTransaction(tx, reconciledBookmarks, true);
+        }
+        return reconciledBookmarks;
+      });
+    } catch (error) {
+      attempt += 1;
+      if (attempt >= UPSERT_MAX_RETRIES || !isRetryableUpsertError(error)) {
+        throw error;
+      }
+
+      const delayMilliseconds = UPSERT_RETRY_DELAY_MS * attempt;
+      console.warn(
+        `[db/mutations/bookmarks] Refresh transaction retry ${attempt}/${UPSERT_MAX_RETRIES - 1} after transient connection error.`,
+      );
+      await sleep(delayMilliseconds);
+    }
+  }
+}
+
+/**
+ * Reconcile durable slug ownership and persist the bookmark dataset as one transaction.
+ * The table lock serializes refreshes and legacy bookmark writers together.
+ */
 export async function upsertUnifiedBookmarks(
   bookmarksData: readonly UnifiedBookmark[],
-): Promise<void> {
-  const inserts = mapUnifiedBookmarksToBookmarkInserts(bookmarksData);
-  await upsertBookmarks(inserts);
-  await rebuildBookmarkTaxonomyState(bookmarksData, true);
+): Promise<UnifiedBookmark[]> {
+  assertDatabaseWriteAllowed("upsertUnifiedBookmarks");
+  return writeUnifiedBookmarks(bookmarksData, true);
+}
+
+export async function upsertUnifiedBookmark(bookmark: UnifiedBookmark): Promise<void> {
+  assertDatabaseWriteAllowed("upsertUnifiedBookmark");
+  await writeUnifiedBookmarks([bookmark], false);
 }
 
 export async function deleteBookmark(bookmarkId: string): Promise<void> {
   assertDatabaseWriteAllowed("deleteBookmark");
-  await db.delete(bookmarks).where(eq(bookmarks.id, bookmarkId));
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`lock table bookmarks in share row exclusive mode`);
+    await tx.delete(bookmarks).where(eq(bookmarks.id, bookmarkId));
+  });
 }

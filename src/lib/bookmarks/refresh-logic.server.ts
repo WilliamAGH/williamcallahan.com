@@ -1,10 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
 import { envLogger } from "@/lib/utils/env-logger";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/schemas/bookmark";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { RefreshBookmarksCallback } from "@/types/lib";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
-import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { saveSlugMapping } from "@/lib/bookmarks/slug-manager";
 import {
   isBookmarkServiceLoggingEnabled,
   LOG_PREFIX,
@@ -16,22 +16,6 @@ import {
   backfillDueBookmarkEmbeddings,
   writeBookmarkMasterFiles,
 } from "@/lib/bookmarks/persistence.server";
-
-function attachSlugsToBookmarks(
-  bookmarks: UnifiedBookmark[],
-  mapping: BookmarkSlugMapping,
-  context: string,
-): UnifiedBookmark[] {
-  return bookmarks.map((bookmark) => {
-    const entry = mapping.slugs[bookmark.id];
-    if (!entry) {
-      throw new Error(
-        `${LOG_PREFIX} Missing slug mapping for bookmark id=${bookmark.id} (${context})`,
-      );
-    }
-    return { ...bookmark, slug: entry.slug };
-  });
-}
 
 const logBookmarkDataAccessEvent = (message: string, data?: Record<string, unknown>): void => {
   if (!isBookmarkServiceLoggingEnabled) return;
@@ -122,13 +106,9 @@ async function persistBookmarksWithSlugs(
   bookmarks: UnifiedBookmark[],
   context: string,
 ): Promise<UnifiedBookmark[]> {
-  const mapping = generateSlugMapping(bookmarks);
-  const bookmarksWithSlugs = attachSlugsToBookmarks(bookmarks, mapping, context);
-
-  await saveSlugMappingOrThrow(bookmarksWithSlugs, context);
-  await writeBookmarkMasterFiles(bookmarksWithSlugs);
-
-  return bookmarksWithSlugs;
+  const reconciledBookmarks = await writeBookmarkMasterFiles(bookmarks);
+  await saveSlugMappingOrThrow(reconciledBookmarks, context);
+  return reconciledBookmarks;
 }
 
 async function refreshWithoutStructuralChange(

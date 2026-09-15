@@ -40,6 +40,120 @@ const logSlugEnvironmentOnce = (context: string): void => {
   );
 };
 
+export type PersistedBookmarkSlug = Pick<UnifiedBookmark, "id" | "slug">;
+
+function reservePersistedSlugs(persistedSlugs: readonly PersistedBookmarkSlug[]): {
+  persistedById: Map<string, string>;
+  slugOwners: Map<string, string>;
+} {
+  const persistedById = new Map<string, string>();
+  const slugOwners = new Map<string, string>();
+
+  for (const { id, slug } of persistedSlugs) {
+    if (slug.trim().length === 0) {
+      throw new Error(`[SlugManager] Persisted bookmark ${id} has an empty slug.`);
+    }
+
+    const priorSlug = persistedById.get(id);
+    if (priorSlug !== undefined && priorSlug !== slug) {
+      throw new Error(`[SlugManager] Persisted bookmark ${id} has conflicting slug ownership.`);
+    }
+
+    const priorOwner = slugOwners.get(slug);
+    if (priorOwner !== undefined && priorOwner !== id) {
+      throw new Error(
+        `[SlugManager] Persisted slug ${slug} is owned by both ${priorOwner} and ${id}.`,
+      );
+    }
+
+    persistedById.set(id, slug);
+    slugOwners.set(slug, id);
+  }
+
+  return { persistedById, slugOwners };
+}
+
+function allocateAvailableSlug(
+  candidate: string,
+  bookmarkId: string,
+  slugOwners: ReadonlyMap<string, string>,
+): string {
+  const candidateOwner = slugOwners.get(candidate);
+  if (candidateOwner === undefined || candidateOwner === bookmarkId) {
+    return candidate;
+  }
+
+  const idSuffix = bookmarkId.slice(0, 8);
+  let suffix = 1;
+  let slug = `${candidate}-${idSuffix}`;
+  while (slugOwners.has(slug) && slugOwners.get(slug) !== bookmarkId) {
+    suffix += 1;
+    slug = `${candidate}-${idSuffix}-${suffix}`;
+  }
+  return slug;
+}
+
+function buildSlugMapping(
+  bookmarks: readonly BookmarkSlugSource[],
+  persistedSlugs: readonly PersistedBookmarkSlug[],
+): BookmarkSlugMapping {
+  const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
+  const reverseMap: Record<string, string> = {};
+  const { persistedById, slugOwners } = reservePersistedSlugs(persistedSlugs);
+  const seenBookmarkIds = new Set<string>();
+
+  const sortedBookmarks = bookmarks.toSorted((a, b) => a.id.localeCompare(b.id));
+  const candidates = sortedBookmarks.map((bookmark) => ({
+    id: bookmark.id,
+    url: bookmark.url,
+    title: bookmark.title,
+  }));
+
+  for (const bookmark of sortedBookmarks) {
+    if (seenBookmarkIds.has(bookmark.id)) {
+      throw new Error(`[SlugManager] Duplicate bookmark id in refresh input: ${bookmark.id}.`);
+    }
+    seenBookmarkIds.add(bookmark.id);
+
+    const suppliedSlug =
+      typeof bookmark.slug === "string" && bookmark.slug.trim().length > 0 ? bookmark.slug : null;
+    const candidate =
+      persistedById.get(bookmark.id) ??
+      suppliedSlug ??
+      generateUniqueSlug(bookmark.url, candidates, bookmark.id, bookmark.title);
+
+    if (!candidate) {
+      throw new Error(
+        `[SlugManager] CRITICAL: Failed to generate slug for bookmark ${bookmark.id}. ` +
+          `URL: ${bookmark.url}, Title: ${bookmark.title}`,
+      );
+    }
+
+    const slug = allocateAvailableSlug(candidate, bookmark.id, slugOwners);
+    slugs[bookmark.id] = {
+      id: bookmark.id,
+      slug,
+      url: bookmark.url,
+      title: bookmark.title || bookmark.url,
+    };
+    reverseMap[slug] = bookmark.id;
+    slugOwners.set(slug, bookmark.id);
+  }
+
+  const checksumPayload = Object.keys(slugs)
+    .toSorted((a, b) => a.localeCompare(b))
+    .map((id) => [id, slugs[id]?.slug]);
+
+  return bookmarkSlugMappingSchema.parse({
+    version: "1.0.0",
+    generated: new Date(getDeterministicTimestamp()).toISOString(),
+    count: bookmarks.length,
+    checksum: createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex"),
+    slugs,
+    reverseMap,
+  });
+}
+
 /**
  * Generate deterministic slug mapping for all bookmarks.
  * Ensures every bookmark gets a unique, stable slug for routing.
@@ -48,78 +162,29 @@ const logSlugEnvironmentOnce = (context: string): void => {
  * @returns Mapping with slugs, reverse lookup, and checksum
  * @throws Error if any bookmark cannot generate a slug
  */
-export function generateSlugMapping(bookmarks: BookmarkSlugSource[]): BookmarkSlugMapping {
-  const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
-  const reverseMap: Record<string, string> = {};
+export function generateSlugMapping(bookmarks: readonly BookmarkSlugSource[]): BookmarkSlugMapping {
+  return buildSlugMapping(bookmarks, []);
+}
 
-  // Sort bookmarks by ID for consistent ordering (string comparison)
-  const sortedBookmarks = bookmarks.toSorted((a, b) => a.id.localeCompare(b.id));
+/** Reconcile fresh records against the persisted slug ownership map. */
+export function reconcileSlugMapping(
+  bookmarks: readonly BookmarkSlugSource[],
+  persistedSlugs: readonly PersistedBookmarkSlug[],
+): BookmarkSlugMapping {
+  return buildSlugMapping(bookmarks, persistedSlugs);
+}
 
-  // Build candidates array once (performance optimization: avoids O(n²) array rebuilding)
-  const candidates = sortedBookmarks
-    .map((b) => ({ id: b.id, url: b.url, title: b.title }))
-    .filter((c) => typeof c.url === "string" && c.url.length > 0);
-
-  for (const bookmark of sortedBookmarks) {
-    const existingSlug =
-      typeof bookmark.slug === "string" && bookmark.slug.trim().length > 0 ? bookmark.slug : null;
-
-    // Pass bookmark title for content-sharing domains (YouTube, Reddit, etc.)
-    let slug =
-      existingSlug ??
-      generateUniqueSlug(
-        bookmark.url || "",
-        candidates,
-        bookmark.id,
-        bookmark.title, // ✅ Pass title for content-sharing domain slug generation
-      );
-
-    // Validate that a slug was generated
-    if (!slug) {
-      throw new Error(
-        `[SlugManager] CRITICAL: Failed to generate slug for bookmark ${bookmark.id}. ` +
-          `URL: ${bookmark.url}, Title: ${bookmark.title}`,
-      );
+export function applySlugMapping(
+  bookmarks: readonly UnifiedBookmark[],
+  mapping: BookmarkSlugMapping,
+): UnifiedBookmark[] {
+  return bookmarks.map((bookmark) => {
+    const entry = mapping.slugs[bookmark.id];
+    if (!entry) {
+      throw new Error(`[SlugManager] Missing slug mapping for bookmark ${bookmark.id}.`);
     }
-
-    // Collision safety: ensure reverseMap doesn't already own this slug
-    if (reverseMap[slug] && reverseMap[slug] !== bookmark.id) {
-      slug = `${slug}-${bookmark.id.slice(0, 8)}`;
-    }
-
-    slugs[bookmark.id] = {
-      id: bookmark.id,
-      slug,
-      url: bookmark.url,
-      title: bookmark.title || bookmark.url,
-    };
-
-    reverseMap[slug] = bookmark.id;
-  }
-
-  // Validate that every bookmark has a slug
-  const missingSlugIds = bookmarks.filter((b) => !slugs[b.id]).map((b) => b.id);
-  if (missingSlugIds.length > 0) {
-    throw new Error(
-      `[SlugManager] CRITICAL: ${missingSlugIds.length} bookmarks missing slugs: ${missingSlugIds.join(", ")}`,
-    );
-  }
-
-  // Generate checksum for change detection based on [id, slug] pairs in a stable order
-  const checksumPayload = Object.keys(slugs)
-    .toSorted((a, b) => a.localeCompare(b))
-    .map((id) => [id, slugs[id]?.slug]);
-  const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
-
-  const mapping = {
-    version: "1.0.0",
-    generated: new Date(getDeterministicTimestamp()).toISOString(),
-    count: bookmarks.length,
-    checksum,
-    slugs,
-    reverseMap,
-  };
-  return bookmarkSlugMappingSchema.parse(mapping);
+    return { ...bookmark, slug: entry.slug };
+  });
 }
 
 /**

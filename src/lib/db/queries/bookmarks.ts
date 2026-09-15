@@ -269,10 +269,10 @@ export async function getBookmarkIdBySlug(slug: string): Promise<string | null> 
   return rows[0]?.id ?? null;
 }
 
-export async function getSlugMappingRowsFromDatabase(): Promise<
-  Array<{ id: string; slug: string; url: string; title: string }>
-> {
-  return db
+export async function getSlugMappingRowsFromDatabase(
+  executor: Pick<typeof db, "select"> = db,
+): Promise<Array<{ id: string; slug: string; url: string; title: string }>> {
+  return executor
     .select({
       id: bookmarks.id,
       slug: bookmarks.slug,
