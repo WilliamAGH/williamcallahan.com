@@ -116,12 +116,16 @@ Hidden Activities preserve host DOM with `display: none` while disconnecting lay
 effects; they do not unmount route-owned elements. Document-global consumers therefore
 must not treat visual hiding as semantic removal.
 
-Keep route-scoped JSON-LD in the canonical `JsonLdScript` Client Component leaf. Its
-server snapshot preserves the native prerendered script for crawlers. Client-only hidden
-mounts start inactive; a visible route's layout effect activates its script before paint,
-and cleanup removes it through React reconciliation when the owning Activity becomes
-hidden. Do not replace this lifecycle with document queries, mutation observers, route
-registries, hard navigation, IDs, or `next/script` deduplication.
+Keep route-scoped JSON-LD in the canonical `JsonLdScript` Client Component leaf.
+Its server snapshot preserves the native script for crawlers. Keep the script node
+present during streamed hydration: omitting it on the initial client render can
+misalign the following Suspense boundary. Inactive routes use `application/json`
+instead of `application/ld+json`, so their preserved DOM contributes no structured
+data. The visible route's layout effect activates JSON-LD before paint; cleanup
+returns the script to ordinary JSON when its Activity hides. Client-only hidden
+mounts start inactive. Do not replace this lifecycle with document queries,
+mutation observers, route registries, hard navigation, IDs, or `next/script`
+deduplication.
 
 Installed evidence: `node_modules/next/dist/client/components/layout-router.js` retains
 inactive segments in hidden Activities; `node_modules/react-dom/cjs/react-dom-client.development.js`

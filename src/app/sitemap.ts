@@ -25,6 +25,7 @@
  */
 
 import type { MetadataRoute } from "next";
+import { io } from "next/cache";
 
 import { updatedAt as educationUpdatedAt } from "@/data/education";
 import { updatedAt as experienceUpdatedAt } from "@/data/experience";
@@ -56,10 +57,6 @@ import {
   collectThoughtSitemapData,
 } from "@/lib/sitemap/content-collectors";
 import { getLatestDate, getSafeDate, isTestEnvironment } from "@/lib/sitemap/date-utils";
-
-// Metadata route handlers are cached by default; force runtime execution so
-// sitemap output cannot be frozen from a build-phase environment snapshot.
-export const dynamic = "force-dynamic";
 
 let runtimeSitemapCache: {
   generatedAt: number;
@@ -185,6 +182,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (isTestEnvironment()) {
     return buildSitemapEntries();
   }
+
+  await io();
 
   if (hasFreshRuntimeSitemapCache()) {
     return runtimeSitemapCache!.entries;

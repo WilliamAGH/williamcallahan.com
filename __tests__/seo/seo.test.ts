@@ -122,6 +122,9 @@ describe("JsonLdScript", () => {
     );
 
     expect(document.querySelector('script[type="application/ld+json"]')).toBeNull();
+    const inactiveScript = document.querySelector('script[type="application/json"]');
+    expect(inactiveScript).not.toBeNull();
+    expect(JSON.parse(inactiveScript?.textContent ?? "")).toEqual(data);
   });
 });
 

@@ -274,6 +274,21 @@ export interface StandardTweetEmbedProps {
   className?: string;
 }
 
+declare global {
+  interface Window {
+    twttr?: {
+      widgets: {
+        createTweet(
+          tweetId: string,
+          element: HTMLElement,
+          options: Record<string, unknown>,
+        ): Promise<HTMLElement | undefined>;
+        load(element?: HTMLElement): void;
+      };
+    };
+  }
+}
+
 /**
  * Reading time metadata for a blog post
  * @see {@link "https://github.com/theodorusclarence/reading-time"}
