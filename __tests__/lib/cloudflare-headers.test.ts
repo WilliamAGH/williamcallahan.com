@@ -4,15 +4,29 @@ import { readFileSync } from "node:fs";
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-utils";
 import { GET as getIp } from "@/app/api/ip/route";
+import { config as proxyConfig, proxy } from "@/proxy";
 import {
   fetchStaticScript,
   parseSmokeTestArguments,
   validateAdvertisedJavaScript,
 } from "../../scripts/smoke-test-production";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER } from "next/constants";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
+const originalRewrite = Object.getOwnPropertyDescriptor(NextResponse, "rewrite");
 const clearDeploymentId = () => Reflect.deleteProperty(process.env, "NEXT_DEPLOYMENT_ID");
+const createRewriteResponse: typeof NextResponse.rewrite = (destination, init) => {
+  const response = NextResponse.next(init);
+  response.headers.set("x-middleware-rewrite", destination.toString());
+  return response;
+};
+function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
+  const request = new NextRequest(url, { method });
+  Object.defineProperty(request, "nextUrl", { value: new URL(url) });
+  Object.defineProperty(request, "signal", { value: new AbortController().signal });
+  return request;
+}
 async function loadNextConfig(phase = PHASE_PRODUCTION_BUILD) {
   vi.resetModules();
   vi.doMock("@sentry/nextjs", () => ({
@@ -36,9 +50,17 @@ describe("Cloudflare header enforcement", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
     process.env = { ...ORIGINAL_ENV };
+    Object.defineProperty(NextResponse, "rewrite", {
+      configurable: true,
+      value: createRewriteResponse,
+    });
   });
 
   afterEach(() => {
+    if (originalRewrite) Object.defineProperty(NextResponse, "rewrite", originalRewrite);
+    else if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
+      throw new Error("Could not remove NextResponse.rewrite test implementation");
+    }
     for (const id of ["@sentry/nextjs", "node:child_process", "node:fs"]) vi.doUnmock(id);
     vi.resetModules();
   });
@@ -133,6 +155,24 @@ describe("Cloudflare header enforcement", () => {
     const response = await getIp(request);
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toBe("99.9.208.198");
+  });
+  it.each([
+    ["/stats/script.js", true],
+    ["/api/send", true],
+    ["/_next/static/chunks/app.js", false],
+  ])("matches %s for same-origin Umami delivery", (path, shouldMatch) => {
+    expect(
+      unstable_doesMiddlewareMatch({
+        config: proxyConfig,
+        url: `https://williamcallahan.com${path}`,
+      }),
+    ).toBe(shouldMatch);
+  });
+  it("disables retired analytics event ingestion without an upstream request", async () => {
+    const response = await proxy(
+      createProxyRequest("https://williamcallahan.com/api/send?event=pageview", "POST"),
+    );
+    expect(response.status).toBe(410);
   });
   describe("next.config release identity", () => {
     it("delegates development build identity to Next", async () => {

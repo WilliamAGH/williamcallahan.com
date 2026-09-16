@@ -256,6 +256,7 @@ function createNextConfig(releaseId: string | null) {
         { protocol: "https", hostname: "icons.duckduckgo.com" },
         { protocol: "https", hostname: "www.google.com" },
         { protocol: "https", hostname: "external-content.duckduckgo.com" },
+        { protocol: "https", hostname: "plausible.iocloudhost.net" },
         { protocol: "https", hostname: "*.iocloudhost.net" },
         { protocol: "https", hostname: "*.popos-sf1.com" },
         { protocol: "https", hostname: "*.popos-sf2.com" },

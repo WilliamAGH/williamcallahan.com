@@ -131,8 +131,10 @@ ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV STATIC_GEN_CONCURRENCY=1
 
 # 3. Accept and propagate public env vars for Next.js build (changes occasionally)
+ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ARG NEXT_PUBLIC_SITE_URL
 ARG DEPLOYMENT_ENV
+ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV DEPLOYMENT_ENV=$DEPLOYMENT_ENV
 
@@ -195,6 +197,7 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
     --mount=type=secret,id=S3_SERVER_URL,target=/run/secrets/build/S3_SERVER_URL,required=false \
     --mount=type=secret,id=NEXT_PUBLIC_S3_CDN_URL,target=/run/secrets/build/NEXT_PUBLIC_S3_CDN_URL,required=false \
     --mount=type=secret,id=NEXT_PUBLIC_SITE_URL,target=/run/secrets/build/NEXT_PUBLIC_SITE_URL,required=false \
+    --mount=type=secret,id=NEXT_PUBLIC_UMAMI_WEBSITE_ID,target=/run/secrets/build/NEXT_PUBLIC_UMAMI_WEBSITE_ID,required=false \
     --mount=type=secret,id=DEPLOYMENT_ENV,target=/run/secrets/build/DEPLOYMENT_ENV,required=false \
     --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN,required=false \
     --mount=type=secret,id=SENTRY_DSN,env=SENTRY_DSN,required=false \
@@ -243,6 +246,7 @@ ARG S3_BUCKET
 ARG S3_SERVER_URL
 ARG NEXT_PUBLIC_S3_CDN_URL
 ARG DEPLOYMENT_ENV
+ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ARG NEXT_PUBLIC_SITE_URL
 
 # Make sure they are present at runtime (can still be overridden with `docker run -e`)
@@ -252,6 +256,7 @@ ENV S3_BUCKET=$S3_BUCKET \
     S3_SERVER_URL=$S3_SERVER_URL \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL \
     DEPLOYMENT_ENV=$DEPLOYMENT_ENV \
+    NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     XDG_CACHE_HOME=/home/nextjs/.cache \
     # Disable Next.js "use cache" in production runtime due to "Connection closed" instability

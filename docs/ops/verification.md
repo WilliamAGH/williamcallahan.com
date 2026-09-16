@@ -68,12 +68,17 @@ printf '%s\n' "$ASSET_PATHS" | while read -r asset_path; do
 done
 ```
 
-Then request one unique missing chunk twice at the identical URL. The origin response must have `Cache-Control`
+Then request one unique missing chunk twice at the identical URL and one cache-busted
+same-origin analytics tracker URL twice. The origin/proxy response must have `Cache-Control`
 containing `no-store`; `CDN-Cache-Control` and `Cloudflare-CDN-Cache-Control` may be absent,
 but each must contain `no-store` when emitted. Independently, neither response may report
 `CF-Cache-Status: HIT` or an `Age` header. Cloudflare's `status_code_ttl: -1` rule prevents
 edge storage of failed static chunks; it does not mutate their origin response headers. The
-missing chunk must be `404`.
+missing chunk must be `404`; the analytics tracker must be `200`.
+
+`src/proxy.ts` returns `/stats/**` directly after fetching the fixed Umami origin. Do not replace
+that response with an external Next.js rewrite: Next 16 applies proxy headers before forwarding,
+then the upstream response can overwrite the browser `Cache-Control` field.
 
 ```bash
 set -euo pipefail
@@ -99,11 +104,17 @@ for response in "$FIRST_MISSING_RESPONSE" "$SECOND_MISSING_RESPONSE"; do
   assert_no_store_response "$response" 404
 done
 
+ANALYTICS_URL="$BASE_URL/stats/script.js?smoke=$(uuidgen | tr '[:upper:]' '[:lower:]')"
+FIRST_ANALYTICS_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$ANALYTICS_URL")"
+SECOND_ANALYTICS_RESPONSE="$(curl -sS -D - -o /dev/null -w 'status=%{http_code}\n' "$ANALYTICS_URL")"
+for response in "$FIRST_ANALYTICS_RESPONSE" "$SECOND_ANALYTICS_RESPONSE"; do
+  assert_no_store_response "$response" 410
+done
 ```
 
 The production smoke command also performs the `/investments` content and advertised-script
-assertion plus the missing-static-chunk cache assertion alongside the other production user-path
-checks.
+assertion plus the missing-static-chunk and analytics-script cache assertions alongside the
+other production user-path checks.
 
 For a Cache Rules change, preview the declarative
 `infra/cloudflare/cache-rules.json` configuration before deployment, then apply it only after

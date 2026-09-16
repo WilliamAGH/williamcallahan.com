@@ -32,7 +32,7 @@ File/Path Functionality Description
 ## Components Directory
 
 - [x] **analytics/**
-  - [x] `analytics.client.tsx` `analytics` - Client-side Simple Analytics and Clicky scripts
+  - [x] `analytics.client.tsx` `analytics` - Client-side analytics tracking component
 - [~] **features/**
   - [x] `index.ts` `components` - Removed; import feature components from concrete files
   - [x] **bookmarks/**
@@ -436,6 +436,7 @@ File/Path Functionality Description
 ## Types Directory
 
 - [x] `accelerator.ts` `investments` - Types for accelerator programs
+- [x] `analytics.d.ts` `analytics` - TypeScript definitions for analytics
 - [x] `blog.ts` `blog` - Types for blog posts and authors
 - [x] `book-ai-analysis.ts` `books` - Types for book AI analysis (state, props, context)
 - [x] `bookmark.ts` `bookmarks` - Types for bookmarks
@@ -772,7 +773,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
   - [x] `bookmarks.backend.connection.test.ts` `bookmarks` - Backend connection tests for bookmarks
   - [x] **components/**
     - [x] **analytics/**
-      - [x] `Analytics.test.tsx` `analytics` - Active analytics provider rendering tests
+      - [x] `Analytics.test.tsx` `analytics` - Analytics component tests
     - [x] **features/**
       - [x] **investments/**
         - [x] `investment-card.test.tsx` `investments` - Investment card component tests
@@ -804,6 +805,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `select-best-image.test.ts` `bookmarks` - Bookmark image selection security tests
     - [x] `cache.test.ts` `caching` - Cache utility tests
     - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guard tests
+    - [x] **middleware/**
+      - [x] `proxy-analytics.test.ts` `analytics` - Same-origin proxy delivery, header sanitization, timeout, and failure tests
     - [x] `data-access.s3.test.ts` `s3-object-storage` - S3 data access tests
     - [x] `env-logger.test.ts` `log-error-debug-handling` - EnvLogger safe stringify tests
     - [x] `imageAnalysis.test.ts` `image-handling` - Image analysis tests
