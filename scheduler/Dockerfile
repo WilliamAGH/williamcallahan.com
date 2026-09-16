@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=dockerhub.haiku.host/docker/dockerfile:1
 ##
 ## Scheduler container image (cron jobs, data updater, sitemap submission).
 ## No Next.js build — tsx runs TypeScript directly against src/lib, so this
@@ -9,7 +9,7 @@
 ## Production uses this Dockerfile in Dokploy's native GitHub application with
 ## the repository root as its build context.
 ##
-ARG BASE_REGISTRY=public.ecr.aws/debian
+ARG BASE_REGISTRY=dockerhub.haiku.host
 
 # ---------- Node stage ----------
 # Install the package.json-declared official Node.js release once for both dependency and runtime stages.

@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=dockerhub.haiku.host/docker/dockerfile:1
 ##
 ## Multi-stage build for Next.js application with Bun
 ## Note: Requires BuildKit (DOCKER_BUILDKIT=1) for secret mount support

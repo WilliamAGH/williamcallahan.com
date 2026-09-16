@@ -79,10 +79,10 @@ together from the matching official release manifest, then verify each projected
 before deploying:
 
 ```bash
-docker buildx build --target node --build-arg BASE_REGISTRY=docker.io/library --load \
+docker buildx build --target node --build-arg BASE_REGISTRY=dockerhub.haiku.host --load \
   -t williamcallahan-com-node-runtime-check:24.18.0 .
 docker run --rm williamcallahan-com-node-runtime-check:24.18.0 node --version
-docker buildx build --target node --build-arg BASE_REGISTRY=docker.io/library --load \
+docker buildx build --target node --build-arg BASE_REGISTRY=dockerhub.haiku.host --load \
   -f scheduler/Dockerfile -t williamcallahan-scheduler-node-runtime-check:24.18.0 .
 docker run --rm williamcallahan-scheduler-node-runtime-check:24.18.0 node --version
 ```
