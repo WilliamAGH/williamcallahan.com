@@ -107,14 +107,6 @@ export function sanitizeTagSlug(text: string): string {
  * tagToSlug('C++') // Returns 'c-plus-plus'
  * tagToSlug('.NET') // Returns 'dotnet'
  */
-/** Route for a tag or genre listing, keyed by the content type that owns it. */
-export const TAG_URL: Record<AggregatedTag["contentType"], (slug: string) => string> = {
-  blog: (slug) => `/blog/tags/${slug}`,
-  bookmarks: (slug) => `/bookmarks/tags/${slug}`,
-  projects: (slug) => `/projects?tag=${slug}`,
-  books: (slug) => `/books?genre=${slug}`,
-};
-
 export function tagToSlug(tag: string): string {
   if (!tag) return "";
 
@@ -154,6 +146,14 @@ export function tagToSlug(tag: string): string {
     .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
     .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
 }
+
+/** Route for a tag or genre listing, keyed by the content type that owns it. */
+export const TAG_URL: Record<AggregatedTag["contentType"], (slug: string) => string> = {
+  blog: (slug) => `/blog/tags/${slug}`,
+  bookmarks: (slug) => `/bookmarks/tags/${slug}`,
+  projects: (slug) => `/projects?tag=${slug}`,
+  books: (slug) => `/books?genre=${slug}`,
+};
 
 /**
  * Convert slug back to a displayable tag format
