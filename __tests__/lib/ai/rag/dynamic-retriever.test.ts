@@ -153,7 +153,14 @@ describe("RAG Dynamic Retriever", () => {
             setTimeout(
               () =>
                 resolve([
-                  { title: "aVenture.vc", description: "Research", url: "/projects", score: 0.9 },
+                  {
+                    id: "p1",
+                    type: "project" as const,
+                    title: "aVenture.vc",
+                    description: "Research",
+                    url: "/projects",
+                    score: 0.9,
+                  },
                 ]),
               30,
             ),
