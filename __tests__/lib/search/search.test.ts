@@ -110,7 +110,11 @@ vi.mock("@/lib/db/queries/query-embedding", () => ({
   buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { RRF_K } from "@/lib/db/queries/hybrid-search-config";
+import {
+  KEYWORD_CANDIDATE_LIMIT,
+  RRF_K,
+  RRF_RANKER_COUNT,
+} from "@/lib/db/queries/hybrid-search-config";
 import {
   searchInvestments,
   searchExperience,
@@ -255,7 +259,20 @@ describe("search", () => {
       const results = await search(query);
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results.map((r) => r.score)).toEqual(results.map((_, rank) => 1 / (RRF_K + rank + 1)));
+      expect(results.map((r) => r.score)).toEqual(
+        results.map((_, rank) => RRF_RANKER_COUNT / (RRF_K + rank + 1)),
+      );
+    });
+
+    it("ranks its best result above the weakest hybrid row rather than below it", async () => {
+      // A hybrid domain sums one reciprocal rank per ranker, so its lowest
+      // possible dual-list row still scores RRF_RANKER_COUNT / (RRF_K + limit).
+      // A single-ranker domain scoring 1 / (RRF_K + 1) would sort beneath every
+      // one of them in the site-wide list no matter how exact the match.
+      const weakestHybridRow = RRF_RANKER_COUNT / (RRF_K + KEYWORD_CANDIDATE_LIMIT);
+      const [best] = await search(query);
+
+      expect(best?.score).toBeGreaterThan(weakestHybridRow);
     });
   });
 

@@ -6,7 +6,7 @@
 
 The search functionality provides site-wide and section-specific search capabilities with PostgreSQL hybrid retrieval (full-text + word-level trigram + pgvector), BM25 for the two static domains, caching, and rate limiting. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, education, projects, books, thoughts, tags, and AI analysis.
 
-> **Note on Hybrid Retrieval:** Blog posts, bookmarks, books, investments, projects, and thoughts run in PostgreSQL: keyword candidates (`ts_rank_cd` + `word_similarity`) and semantic candidates (pgvector cosine) are ranked separately and merged with Reciprocal Rank Fusion (`1 / (RRF_K + rank)` per list, owner: `lib/db/queries/hybrid-search-config.ts`). Experience, education, tags, and AI analysis rank in TypeScript and are mapped onto the same reciprocal-rank scale by `scoreByRank()`, so the site-wide route can sort every domain's results together. A keyword-only match can never be pushed out by the semantic candidate set: ranks, not raw scores, decide the merge.
+> **Note on Hybrid Retrieval:** Blog posts, bookmarks, books, investments, projects, and thoughts run in PostgreSQL: keyword candidates (`ts_rank_cd` + `word_similarity`) and semantic candidates (pgvector cosine) are ranked separately and merged with Reciprocal Rank Fusion (`1 / (RRF_K + rank)` per list, owner: `lib/db/queries/hybrid-search-config.ts`). Experience, education, tags, and AI analysis rank in TypeScript and are mapped onto the same scale by `scoreByRank()`, which multiplies the reciprocal rank by `RRF_RANKER_COUNT` because those domains run one ranker where a hybrid domain runs two. Without that factor a hybrid row present in both lists at rank 50 (`2/110`) outranks an exact single-ranker match at rank 1 (`1/61`), so the site-wide sort buries it. The keyword-only fallback scales the same way: with no query embedding no semantic ranker runs, so its rank fills both slots.
 
 > **Query embedding:** the query is embedded once per request in the API route (`buildQueryEmbedding`) and passed to every searcher as `QueryEmbeddingContext.precomputed`. If that single call fails, every domain runs keyword-only; searchers never embed the query themselves when a context is present.
 
@@ -170,7 +170,7 @@ function searchContent<T>(
    - Multi-word AND search (`combineWith: "AND"`)
 3. **Fallback Strategy**: Substring search if MiniSearch fails
 4. **Exact Match Priority**: Optional exact field matching
-5. **Rank scale**: Every searcher returns `score = 1 / (RRF_K + rank)`; PostgreSQL domains sum the keyword and semantic reciprocal ranks
+5. **Rank scale**: PostgreSQL domains sum one reciprocal rank per ranker (`1 / (RRF_K + rank)` each, ceiling `2/61`); single-ranker domains and the keyword-only fallback return `RRF_RANKER_COUNT / (RRF_K + rank)` so both shapes share that ceiling. A hybrid row surfaced by only one of two live rankers stays at `1 / (RRF_K + rank)` — the other ranker saw it and passed.
 
 ## Performance Optimizations
 

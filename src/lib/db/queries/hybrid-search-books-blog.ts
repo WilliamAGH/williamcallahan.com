@@ -14,6 +14,7 @@ import {
   FTS_WEIGHT,
   TRIGRAM_WEIGHT,
   RRF_K,
+  RRF_RANKER_COUNT,
   KEYWORD_CANDIDATE_LIMIT,
   SEMANTIC_CANDIDATE_LIMIT,
   DEFAULT_LIMIT,
@@ -98,7 +99,7 @@ export async function hybridSearchBooks(options: {
     keyword_score: number;
   }>(sql`
     SELECT id, title, slug, authors, description, cover_url,
-      1.0 / (${RRF_K} + row_number() OVER (ORDER BY
+      ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
         ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
           + word_similarity(${trimmed}, title) * ${TRIGRAM_WEIGHT} DESC, id DESC)) AS keyword_score
     FROM books
@@ -200,7 +201,7 @@ export async function hybridSearchBlogPosts(options: {
     keyword_score: number;
   }>(sql`
     SELECT id, title, slug, excerpt, author_name, tags, published_at,
-      1.0 / (${RRF_K} + row_number() OVER (ORDER BY
+      ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
         ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
           + word_similarity(${trimmed}, title) * ${TRIGRAM_WEIGHT} DESC, id DESC)) AS keyword_score
     FROM blog_posts

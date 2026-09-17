@@ -11,7 +11,7 @@ import type MiniSearch from "minisearch";
 import type { ScoredResult } from "@/types/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
-import { RRF_K } from "@/lib/db/queries/hybrid-search-config";
+import { RRF_K, RRF_RANKER_COUNT } from "@/lib/db/queries/hybrid-search-config";
 
 const EXACT_MATCH_SCORE_MULTIPLIER = 2;
 
@@ -128,10 +128,19 @@ export function searchContent<T>(
 }
 
 /**
- * Replace raw scores with reciprocal-rank scores (1 / (RRF_K + rank)) so lists
- * produced by different scorers (BM25, tag heuristics, analysis matching) sort
- * together with the PostgreSQL hybrid results, which use the same formula.
+ * Replace raw scores with reciprocal-rank scores so lists produced by a single
+ * scorer (BM25, tag heuristics, analysis matching) sort together with the
+ * PostgreSQL hybrid results, which sum one reciprocal rank per ranker.
+ *
+ * The rank is scaled by RRF_RANKER_COUNT: a domain with one ranker is read as
+ * that rank in every list it has, so its best row reaches the same ceiling as a
+ * hybrid row ranked first by both rankers. A hybrid row that only one ranker
+ * surfaced stays below both, which is the correct reading — the other ranker
+ * saw it and passed.
  */
 export function scoreByRank<T extends { score: number }>(results: T[]): T[] {
-  return results.map((result, rank) => ({ ...result, score: 1 / (RRF_K + rank + 1) }));
+  return results.map((result, rank) => ({
+    ...result,
+    score: RRF_RANKER_COUNT / (RRF_K + rank + 1),
+  }));
 }

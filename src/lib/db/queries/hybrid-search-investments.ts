@@ -14,6 +14,7 @@ import {
   FTS_WEIGHT,
   TRIGRAM_WEIGHT,
   RRF_K,
+  RRF_RANKER_COUNT,
   KEYWORD_CANDIDATE_LIMIT,
   SEMANTIC_CANDIDATE_LIMIT,
   DEFAULT_LIMIT,
@@ -108,7 +109,7 @@ export async function hybridSearchInvestments(options: {
     keyword_score: number;
   }>(sql`
     SELECT id, name, slug, description, category, stage, status, operating_status, location,
-      1.0 / (${RRF_K} + row_number() OVER (ORDER BY
+      ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
         ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
           + word_similarity(${trimmed}, name) * ${TRIGRAM_WEIGHT} DESC, id DESC)) AS keyword_score
     FROM investments
@@ -214,7 +215,7 @@ export async function hybridSearchProjects(options: {
     keyword_score: number;
   }>(sql`
     SELECT id, name, slug, description, short_summary, url, image_key, tags,
-      1.0 / (${RRF_K} + row_number() OVER (ORDER BY
+      ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
         ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
           + word_similarity(${trimmed}, name) * ${TRIGRAM_WEIGHT} DESC, id DESC)) AS keyword_score
     FROM projects

@@ -19,6 +19,21 @@ export const TRIGRAM_WEIGHT = 0.5;
 /** RRF smoothing constant; 60 is the standard value from the original RRF paper. */
 export const RRF_K = 60;
 
+/**
+ * Ranked candidate lists fused per hybrid domain (keyword + semantic).
+ *
+ * A domain that ran a single ranker multiplies its reciprocal rank by this, so
+ * one rank is read as that rank in every slot the domain has. Without it the
+ * sum of two reciprocal ranks is read against a single one in the site-wide
+ * sort, and the worst dual-list row (2/110) outranks the best single-ranker row
+ * (1/61) regardless of match quality.
+ *
+ * This applies to the keyword-only fallback too: with no query embedding no
+ * semantic ranker runs at all, so its rank fills both slots. A row missing from
+ * a list that did run still contributes 0 — that ranker saw it and passed.
+ */
+export const RRF_RANKER_COUNT = 2;
+
 /** Maximum keyword (FTS + trigram) candidate rows per query. */
 export const KEYWORD_CANDIDATE_LIMIT = 50;
 

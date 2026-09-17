@@ -29,6 +29,7 @@ import {
   FTS_WEIGHT,
   TRIGRAM_WEIGHT,
   RRF_K,
+  RRF_RANKER_COUNT,
   KEYWORD_CANDIDATE_LIMIT,
   SEMANTIC_CANDIDATE_LIMIT,
   DEFAULT_LIMIT,
@@ -138,7 +139,7 @@ async function hydrateScoredBookmarks(
 
 async function keywordOnlySearch(query: string, limit: number): Promise<BookmarkFtsSearchHit[]> {
   const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
-  const keywordScore = sql<number>`1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
+  const keywordScore = sql<number>`${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
     + word_similarity(${query}, ${bookmarks.title}) * ${TRIGRAM_WEIGHT} DESC, ${bookmarks.id} DESC))`;
 
   const rows = await db
@@ -283,7 +284,7 @@ export async function hybridSearchThoughts(options: {
   }
 
   const tsQuery = sql`websearch_to_tsquery('english', ${normalizedQuery})`;
-  const keywordScore = sql<number>`1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${thoughts.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
+  const keywordScore = sql<number>`${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${thoughts.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
     + word_similarity(${normalizedQuery}, ${thoughts.title}) * ${TRIGRAM_WEIGHT} DESC, ${thoughts.id} DESC))`;
   const rows = await db
     .select({
