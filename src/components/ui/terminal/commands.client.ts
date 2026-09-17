@@ -33,8 +33,12 @@ const searchByScope = (scope: string, query: string, signal?: AbortSignal) =>
 const performSiteWideSearch = (query: string, signal?: AbortSignal) =>
   fetchSearchResults(`/api/search/all?q=${encodeURIComponent(query)}`, signal);
 
-const isAbortError = (error: unknown): boolean =>
-  error instanceof DOMException && error.name === "AbortError";
+// fetch() rejects with signal.reason verbatim, and every terminal abort passes a
+// string reason (use-terminal.client.tsx), so the thrown value is not a
+// DOMException. The signal is the reliable witness; the DOMException arm still
+// covers an abort() called with no reason.
+const isAbortError = (error: unknown, signal?: AbortSignal): boolean =>
+  signal?.aborted === true || (error instanceof DOMException && error.name === "AbortError");
 
 const HELP_MESSAGE = `
 Available commands:
@@ -365,7 +369,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
         selectionItems: results,
       };
     } catch (error: unknown) {
-      if (isAbortError(error)) throw error;
+      if (isAbortError(error, signal)) throw error;
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred while searching.";
       console.error(`Error searching in section ${command}:`, errorMessage);
@@ -438,7 +442,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
       selectionItems: allResults,
     };
   } catch (error: unknown) {
-    if (isAbortError(error)) throw error;
+    if (isAbortError(error, signal)) throw error;
     console.error(
       "Site-wide search API call failed:",
       error instanceof Error ? error.message : "Unknown error",

@@ -327,6 +327,28 @@ describe("Terminal Commands", () => {
       await expect(handleCommand("blog test", controller.signal)).rejects.toBe(abortError);
     });
 
+    it("propagates an abort carrying a string reason, the shape the terminal sends", async () => {
+      // use-terminal.client.tsx aborts with "superseded" / "clear_exit" /
+      // "unmount", and fetch() rejects with signal.reason verbatim, so the
+      // rejection is a plain string rather than a DOMException. Returning an
+      // error result here would print a search failure into a cleared terminal.
+      for (const reason of ["superseded", "clear_exit", "unmount"]) {
+        const controller = new AbortController();
+        mockFetch.mockRejectedValueOnce(reason);
+        controller.abort(reason);
+
+        await expect(handleCommand("blog test", controller.signal)).rejects.toBe(reason);
+      }
+    });
+
+    it("propagates a string-reason abort from the site-wide search path too", async () => {
+      const controller = new AbortController();
+      mockFetch.mockRejectedValueOnce("superseded");
+      controller.abort("superseded");
+
+      await expect(handleCommand("unknown command", controller.signal)).rejects.toBe("superseded");
+    });
+
     it("should propagate AbortSignal through all search paths", async () => {
       const controller = new AbortController();
       const mockResponse = createJsonResponse([
