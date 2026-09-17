@@ -27,7 +27,7 @@ import {
   EDUCATION_INDEX_CONFIG,
   PROJECTS_INDEX_CONFIG,
 } from "../config";
-import { SEARCH_INDEX_KEYS, INDEX_TTL, USE_S3_INDEXES } from "../constants";
+import { SEARCH_INDEX_KEYS, USE_S3_INDEXES } from "../constants";
 
 /**
  * Loads a search index from PostgreSQL if available, falls back to building in-memory.
@@ -39,11 +39,28 @@ import { SEARCH_INDEX_KEYS, INDEX_TTL, USE_S3_INDEXES } from "../constants";
  * @param ttl - Cache TTL for the index
  * @returns The MiniSearch index
  */
+/**
+ * Hold one in-flight/settled load per index.
+ *
+ * These indexes are built from data that ships with the deploy, so one load per
+ * process is correct. Without this every search re-read the serialized artifact
+ * from PostgreSQL or rebuilt the MiniSearch index, because request coalescing
+ * only shares a promise while it is in flight. A rejected load is not retained,
+ * so a transient artifact failure cannot wedge the process.
+ */
+function memoized<T>(load: () => Promise<T>): () => Promise<T> {
+  let pending: Promise<T> | undefined;
+  return () =>
+    (pending ??= load().catch((error: unknown) => {
+      pending = undefined;
+      throw error;
+    }));
+}
+
 async function loadOrBuildIndex<T>(
   domain: StaticSearchIndexArtifactDomain,
   cacheKey: string,
   buildFn: () => MiniSearch<T>,
-  _ttl: number,
   config?: IndexFieldConfig<T>,
 ): Promise<MiniSearch<T>> {
   let index: MiniSearch<T>;
@@ -87,15 +104,14 @@ function buildInvestmentsIndex(): MiniSearch<Investment> {
  * Get or build the investments search index.
  * Loads from PostgreSQL if available, falls back to building in-memory.
  */
-export async function getInvestmentsIndex(): Promise<MiniSearch<Investment>> {
-  return loadOrBuildIndex(
+export const getInvestmentsIndex: () => Promise<MiniSearch<Investment>> = memoized(() =>
+  loadOrBuildIndex(
     "investments",
     SEARCH_INDEX_KEYS.INVESTMENTS,
     buildInvestmentsIndex,
-    INDEX_TTL.STATIC,
     INVESTMENTS_INDEX_CONFIG,
-  );
-}
+  ),
+);
 
 /** Re-export investments data for use by searchers */
 export { investments };
@@ -110,15 +126,14 @@ function buildExperienceIndex(): MiniSearch<Experience> {
  * Get or build the experience search index.
  * Loads from PostgreSQL if available, falls back to building in-memory.
  */
-export async function getExperienceIndex(): Promise<MiniSearch<Experience>> {
-  return loadOrBuildIndex(
+export const getExperienceIndex: () => Promise<MiniSearch<Experience>> = memoized(() =>
+  loadOrBuildIndex(
     "experience",
     SEARCH_INDEX_KEYS.EXPERIENCE,
     buildExperienceIndex,
-    INDEX_TTL.STATIC,
     EXPERIENCE_INDEX_CONFIG,
-  );
-}
+  ),
+);
 
 /** Re-export experiences data for use by searchers */
 export { experiences };
@@ -154,15 +169,14 @@ function buildEducationIndex(): MiniSearch<EducationEntry> {
  * Get or build the education search index.
  * Loads from PostgreSQL if available, falls back to building in-memory.
  */
-export async function getEducationIndex(): Promise<MiniSearch<EducationEntry>> {
-  return loadOrBuildIndex(
+export const getEducationIndex: () => Promise<MiniSearch<EducationEntry>> = memoized(() =>
+  loadOrBuildIndex(
     "education",
     SEARCH_INDEX_KEYS.EDUCATION,
     buildEducationIndex,
-    INDEX_TTL.STATIC,
     EDUCATION_INDEX_CONFIG,
-  );
-}
+  ),
+);
 
 // --- Projects ---
 
@@ -174,15 +188,14 @@ function buildProjectsIndex(): MiniSearch<Project> {
  * Get or build the projects search index.
  * Loads from PostgreSQL if available, falls back to building in-memory.
  */
-export async function getProjectsIndex(): Promise<MiniSearch<Project>> {
-  return loadOrBuildIndex(
+export const getProjectsIndex: () => Promise<MiniSearch<Project>> = memoized(() =>
+  loadOrBuildIndex(
     "projects",
     SEARCH_INDEX_KEYS.PROJECTS,
     buildProjectsIndex,
-    INDEX_TTL.STATIC,
     PROJECTS_INDEX_CONFIG,
-  );
-}
+  ),
+);
 
 /** Re-export projects data for use by searchers */
 export { projectsData };
