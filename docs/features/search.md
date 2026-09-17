@@ -8,7 +8,7 @@ The search functionality provides site-wide and section-specific search capabili
 
 > **Note on Hybrid Retrieval:** Blog posts, bookmarks, books, investments, projects, and thoughts run in PostgreSQL: keyword candidates (`ts_rank_cd` + `word_similarity`) and semantic candidates (pgvector cosine) are ranked separately and merged with Reciprocal Rank Fusion (`1 / (RRF_K + rank)` per list, owner: `lib/db/queries/hybrid-search-config.ts`). Experience, education, tags, and AI analysis rank in TypeScript and are mapped onto the same scale by `scoreByRank()`, which multiplies the reciprocal rank by `RRF_RANKER_COUNT` because those domains run one ranker where a hybrid domain runs two. Without that factor a hybrid row present in both lists at rank 50 (`2/110`) outranks an exact single-ranker match at rank 1 (`1/61`), so the site-wide sort buries it. The keyword-only fallback scales the same way: with no query embedding no semantic ranker runs, so its rank fills both slots.
 
-> **Query embedding:** the query is embedded once per request in the API route (`buildQueryEmbedding`) and passed to every searcher as `QueryEmbeddingContext.precomputed`. If that single call fails, every domain runs keyword-only; searchers never embed the query themselves when a context is present.
+> **Query embedding:** the query is embedded once per request in the API route (`buildQueryEmbedding`) and passed as `QueryEmbeddingContext.precomputed` to the searchers that accept one. Experience, education, and tags take no context, so a request scoped only to those skips the call entirely (`KEYWORD_ONLY_SCOPES` in `app/api/search/all/route.ts`); the scoped route embeds only for `analysis`. If the single call fails, every domain runs keyword-only; searchers never embed the query themselves when a context is present.
 
 ## Forbidden Patterns
 
@@ -55,7 +55,7 @@ export async function GET() {
 
 3. **Generic Search**: `searchContent<T>` function used by all search implementations.
 
-4. **Caching**: Next.js Cache Components with search tags/lifetimes (~15-minute profiles for server search reads); lazy loading in terminal.
+4. **Caching**: Next.js Cache Components with search tags/lifetimes (~15-minute profiles for server search reads). The terminal no longer preloads search; it fetches per command.
 
 5. **Search Quality**: Reciprocal Rank Fusion merges keyword and semantic candidate lists inside PostgreSQL; MiniSearch (all terms required, prefix + fuzzy) remains the BM25 stage for experience and education. Tag counts come from one PostgreSQL aggregate (`lib/db/queries/tag-counts.ts`) instead of loading every bookmark, post, and book per query.
 
