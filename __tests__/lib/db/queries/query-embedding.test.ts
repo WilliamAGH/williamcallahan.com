@@ -47,5 +47,16 @@ describe("buildQueryEmbedding", () => {
   it("embeds the query once when no context is supplied", async () => {
     await expect(buildQueryEmbedding("postgres", "[test]")).resolves.toEqual(vector);
     expect(mockEmbedTexts).toHaveBeenCalledTimes(1);
+    expect(mockEmbedTexts).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 4_000 }));
+  });
+
+  it("bounds the request by the caller's budget when one is given", async () => {
+    // RAG awaits this before its scope searches, so its own per-scope budget has
+    // to cap the embedding too or the advertised latency is exceeded before any
+    // scope timeout applies.
+    await expect(buildQueryEmbedding("postgres", "[test]", undefined, 3_000)).resolves.toEqual(
+      vector,
+    );
+    expect(mockEmbedTexts).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 3_000 }));
   });
 });

@@ -16,6 +16,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 
 // One call per request now, so a slow inference queue costs at most this once; a
 // timeout silently turns the whole request keyword-only, which is the worse outcome.
+// A caller with a tighter latency budget than this passes its own.
 const QUERY_EMBEDDING_TIMEOUT_MS = 4_000;
 
 /**
@@ -27,11 +28,15 @@ const QUERY_EMBEDDING_TIMEOUT_MS = 4_000;
  * When a `context` is supplied the caller already embedded the query once for
  * the whole request: its `precomputed` vector is used as-is, and an absent
  * vector means keyword-only for every domain rather than a retry per domain.
+ *
+ * `timeoutMs` lets a caller bound the call by its own latency budget; it only
+ * applies when no `context` is supplied, since a context needs no request.
  */
 export async function buildQueryEmbedding(
   query: string,
   logContext: string,
   context?: QueryEmbeddingContext,
+  timeoutMs: number = QUERY_EMBEDDING_TIMEOUT_MS,
 ): Promise<number[] | undefined> {
   if (context) {
     return context.precomputed;
@@ -57,7 +62,7 @@ export async function buildQueryEmbedding(
       config: embeddingConfig,
       input: [query],
       tier: "production-z",
-      timeoutMs: QUERY_EMBEDDING_TIMEOUT_MS,
+      timeoutMs,
     });
     const vector = vectors[0];
     if (!vector || vector.length !== CONTENT_EMBEDDING_DIMENSIONS) {

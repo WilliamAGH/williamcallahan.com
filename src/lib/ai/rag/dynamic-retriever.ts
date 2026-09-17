@@ -130,8 +130,11 @@ export async function retrieveRelevantContent(
   // Embed once per retrieval so concurrent scope searchers share the vector
   // instead of each hitting the embedding endpoint in parallel.
   const sanitizedQuery = sanitizeSearchQuery(query);
+  // Bound by this retrieval's own budget: the embedding is awaited before the
+  // scope searches start, so a longer default would let RAG exceed the latency
+  // it advertises before any scope timeout applies.
   const precomputed = sanitizedQuery
-    ? await buildQueryEmbedding(sanitizedQuery, "[RAG]")
+    ? await buildQueryEmbedding(sanitizedQuery, "[RAG]", undefined, timeoutMs)
     : undefined;
   const embeddingContext: QueryEmbeddingContext = { precomputed };
 
