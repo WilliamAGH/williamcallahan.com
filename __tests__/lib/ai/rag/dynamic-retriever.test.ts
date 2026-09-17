@@ -129,6 +129,49 @@ describe("RAG Dynamic Retriever", () => {
     vi.clearAllMocks();
   });
 
+  describe("latency budget", () => {
+    it("still searches when the embedding endpoint exhausts its share of the deadline", async () => {
+      // An endpoint that always outruns whatever budget it is given: the real
+      // buildQueryEmbedding returns undefined at its timeout, and every searcher
+      // accepts that and runs keyword-only. Handing the embedding the whole
+      // retrieval deadline left nothing for the scopes, so withScopeTimeout
+      // failed all of them and RAG came back empty exactly when the fallback
+      // should have carried it.
+      vi.mocked(buildQueryEmbedding).mockImplementationOnce(
+        async (_query, _logContext, _context, timeoutMs) => {
+          await new Promise((resolve) => setTimeout(resolve, timeoutMs ?? 0));
+          return undefined;
+        },
+      );
+
+      // A searcher that takes real time, as a database query does. An
+      // already-resolved mock would win the race against even a 0 ms timer on
+      // the microtask queue and hide the starvation entirely.
+      vi.mocked(searchProjects).mockImplementationOnce(
+        async () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve([
+                  { title: "aVenture.vc", description: "Research", url: "/projects", score: 0.9 },
+                ]),
+              30,
+            ),
+          ),
+      );
+
+      const { results, status } = await retrieveRelevantContent(
+        "What projects has William built?",
+        {
+          timeoutMs: 200,
+        },
+      );
+
+      expect(status).toBe("success");
+      expect(results.length).toBeGreaterThan(0);
+    });
+  });
+
   describe("scope detection", () => {
     it("detects projects scope", async () => {
       const { results, status } = await retrieveRelevantContent("What projects has William built?");
