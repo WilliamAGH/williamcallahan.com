@@ -11,6 +11,8 @@
  *   DEPLOYMENT_ENV=production node scripts/seed-projects.node.mjs [--dry-run]
  */
 
+import { withDatabase } from "./lib/with-database.node.mjs";
+
 const PREFIX = "[seed-projects]";
 
 function hasFlag(flag) {
@@ -18,11 +20,7 @@ function hasFlag(flag) {
 }
 
 async function run() {
-  const { register } = await import("tsx/esm/api");
-  const unregister = register({ tsconfig: "./tsconfig.json" });
-  let closeDatabaseConnection;
-
-  try {
+  await withDatabase(async () => {
     const { projects } = await import("../data/projects.ts");
     console.log(`${PREFIX} Found ${projects.length} projects`);
     if (hasFlag("--dry-run")) {
@@ -31,18 +29,10 @@ async function run() {
       return;
     }
 
-    const database = await import("../src/lib/db/connection.ts");
-    closeDatabaseConnection = database.closeDatabaseConnection;
     const { upsertProjects } = await import("../src/lib/db/mutations/projects.ts");
     const upserted = await upsertProjects(projects);
     console.log(`${PREFIX} Upserted ${upserted} projects`);
-  } finally {
-    try {
-      if (closeDatabaseConnection !== undefined) await closeDatabaseConnection();
-    } finally {
-      await unregister();
-    }
-  }
+  });
 }
 
 await run();

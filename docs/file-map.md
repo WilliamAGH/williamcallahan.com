@@ -667,7 +667,8 @@ File/Path Functionality Description
 - [x] `blog-render-smoke.ts` `blog` - Shared deployed-HTML validator for the canonical blog render canaries; rejects missing article content and the MDX fallback
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
-- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for bookmark rows of the unified `embeddings` table; registers `tsx/esm/api` and delegates to the canonical `backfillBookmarkEmbeddings` owner so batching, embedding-text contract, and `embedding_failures` checkpointing are not restated
+- [x] `lib/with-database.node.mjs` `db` - Shared Node-script bootstrap: registers `tsx/esm/api`, runs a task against the TypeScript database owners, closes the shared connection; used by every seed, backfill, and gate script
+- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for bookmark rows of the unified `embeddings` table; runs through `withDatabase` and delegates to the canonical `backfillBookmarkEmbeddings` owner so batching, embedding-text contract, and `embedding_failures` checkpointing are not restated
 - [x] `ingest-bookmark-tag-aliases.node.mjs` `bookmarks` - Node runtime LLM-driven tag alias ingestion using bookmark tag context + embedding-nearest related bookmarks; writes to `bookmarks_tags` + `bookmarks_tags_links`
 - [x] `backfill-scraped-content.node.mjs` `bookmarks` - Node runtime backfill for `scraped_content_text` column from Karakeep `content.htmlContent` via HTML-to-plain-text conversion
 - [x] `backfill-computed-fields.node.mjs` `bookmarks` - Node runtime backfill for `word_count` and `reading_time` derived from `scraped_content_text` (whitespace split, 200 WPM)

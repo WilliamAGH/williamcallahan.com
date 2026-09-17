@@ -33,7 +33,8 @@
  *   node scripts/compare-bookmark-search.node.mjs
  *
  * Env:
- *   BOOKMARKS_API_URL, BOOKMARK_BEARER_TOKEN, DATABASE_URL  (required)
+ *   BOOKMARKS_API_URL, BOOKMARK_BEARER_TOKEN, DATABASE_URL  (required; read by
+ *   src/lib/constants.ts and src/lib/db/connection.ts)
  *   SITE_SEARCH_BASE   site origin, default http://localhost:3000
  *
  * Flags:
@@ -41,7 +42,7 @@
  */
 
 import "dotenv/config";
-import postgres from "postgres";
+import { withDatabase } from "./lib/with-database.node.mjs";
 
 /** Karakeep page size per query. */
 const KARAKEEP_LIMIT = 50;
@@ -101,18 +102,6 @@ const QUERIES = [
   { q: "annthropic", why: "near-misspelling of anthropic; tests fuzzy recall" },
 ];
 
-function readRequiredEnv(name) {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is required.`);
-  return value;
-}
-
-/** Karakeep base URLs are stored without the API suffix; normalize like lib/constants.ts. */
-function normalizeKarakeepBase(rawUrl) {
-  const trimmed = rawUrl.replace(/\/?$/, "");
-  return /\/api(\/v\d+)?$/.test(trimmed) ? trimmed : `${trimmed}/api/v1`;
-}
-
 async function fetchJson(url, init) {
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   if (!response.ok) {
@@ -150,16 +139,18 @@ function formatRow(cells, widths) {
 
 async function main() {
   const verbose = process.argv.includes("--verbose");
-  const karakeepBase = normalizeKarakeepBase(readRequiredEnv("BOOKMARKS_API_URL"));
-  const karakeepToken = readRequiredEnv("BOOKMARK_BEARER_TOKEN");
-  const databaseUrl = readRequiredEnv("DATABASE_URL");
+  const { BOOKMARKS_API_CONFIG } = await import("../src/lib/constants.ts");
+  const karakeepBase = BOOKMARKS_API_CONFIG.API_URL;
+  const karakeepToken = BOOKMARKS_API_CONFIG.BEARER_TOKEN;
+  if (!karakeepToken) throw new Error("BOOKMARK_BEARER_TOKEN is required.");
   const siteBase = (process.env.SITE_SEARCH_BASE?.trim() || "http://localhost:3000").replace(
     /\/?$/,
     "",
   );
 
-  const sql = postgres(databaseUrl, { ssl: "require", max: 1 });
-  const bookmarkRows = await sql`select id from bookmarks`;
+  const { db } = await import("../src/lib/db/connection.ts");
+  const { sql } = await import("drizzle-orm");
+  const bookmarkRows = await db.execute(sql`select id from bookmarks`);
   const siteBookmarkIds = new Set(bookmarkRows.map((row) => row.id));
 
   console.log("=== Bookmark search parity gate ===");
@@ -188,16 +179,17 @@ async function main() {
     }
 
     const reference = inScope.slice(0, KARAKEEP_REFERENCE_DEPTH);
-    const lexicalIds = new Set(
-      (
-        await sql`select id from bookmarks
-          where id = any(${reference.map((hit) => hit.id)})
-            and to_tsvector('english',
-                  coalesce(title, '') || ' ' || coalesce(description, '') || ' '
-                  || jsonb_path_query_array(tags, '$[*].name')::text)
-                @@ websearch_to_tsquery('english', ${q})`
-      ).map((row) => row.id),
-    );
+    // drizzle's sql template expands an array parameter to a parenthesized list.
+    const lexicalRows =
+      reference.length === 0
+        ? []
+        : await db.execute(sql`select id from bookmarks
+            where id in ${reference.map((hit) => hit.id)}
+              and to_tsvector('english',
+                    coalesce(title, '') || ' ' || coalesce(description, '') || ' '
+                    || jsonb_path_query_array(tags, '$[*].name')::text)
+                  @@ websearch_to_tsquery('english', ${q})`);
+    const lexicalIds = new Set(lexicalRows.map((row) => row.id));
     const siteIds = await searchSite(siteBase, q);
     const siteIdSet = new Set(siteIds);
     const missing = reference.filter((hit) => !siteIdSet.has(hit.id));
@@ -292,10 +284,9 @@ async function main() {
   console.log();
   console.log(passed ? "VERDICT: PASS" : "VERDICT: FAIL");
   if (!passed) process.exitCode = 1;
-  await sql.end({ timeout: 5 });
 }
 
-main().catch((error) => {
+withDatabase(main).catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

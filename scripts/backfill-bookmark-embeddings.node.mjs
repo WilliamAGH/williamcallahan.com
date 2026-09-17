@@ -25,6 +25,8 @@
  *   --max-rows N     Stop after N rows
  */
 
+import { withDatabase } from "./lib/with-database.node.mjs";
+
 const PREFIX = "[backfill-bookmark-embeddings]";
 
 function readFlagValue(flag) {
@@ -44,23 +46,11 @@ function parsePositiveInteger(flag) {
 }
 
 async function runBackfill(options) {
-  const { register } = await import("tsx/esm/api");
-  const unregister = register({ tsconfig: "./tsconfig.json" });
-  let closeDatabaseConnection;
-
-  try {
-    const database = await import("../src/lib/db/connection.ts");
-    closeDatabaseConnection = database.closeDatabaseConnection;
+  return withDatabase(async () => {
     const { backfillBookmarkEmbeddings } =
       await import("../src/lib/db/mutations/bookmark-embeddings.ts");
-    return await backfillBookmarkEmbeddings(options);
-  } finally {
-    try {
-      if (closeDatabaseConnection !== undefined) await closeDatabaseConnection();
-    } finally {
-      await unregister();
-    }
-  }
+    return backfillBookmarkEmbeddings(options);
+  });
 }
 
 const dryRun = process.argv.slice(2).includes("--dry-run");
