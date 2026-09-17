@@ -151,11 +151,16 @@ export function tagToSlug(tag: string): string {
 /**
  * Route for a tag or genre listing, keyed by the content type that owns it.
  *
- * Each entry takes the raw tag and slugs it the way that route resolves one, so
- * a link here always addresses a page the route can serve. The blog route
- * matches on kebabCase (src/app/blog/tags/[tagSlug]/page.tsx); every other tag
- * route matches on tagToSlug. Slugging with the wrong one 404s: "agents.md"
- * resolves to /blog/tags/agents-md, not /blog/tags/agentsdotmd.
+ * Each entry slugs the raw tag the way its own route resolves one. The blog
+ * route generates and matches params with kebabCase
+ * (src/app/blog/tags/[tagSlug]/page.tsx); the bookmarks route resolves with
+ * tagToSlug (src/app/bookmarks/tags/[...slug]/page.tsx). Using the other
+ * function 404s: "agents.md" is served at /blog/tags/agents-md, never at
+ * /blog/tags/agentsdotmd.
+ *
+ * projects and books take a query parameter rather than a route segment, and
+ * their pages are not verified to consume it; those two entries preserve the
+ * pre-existing tagToSlug form rather than asserting it is correct.
  */
 export const TAG_URL: Record<AggregatedTag["contentType"], (tag: string) => string> = {
   blog: (tag) => `/blog/tags/${kebabCase(tag)}`,
