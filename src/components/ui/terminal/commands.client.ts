@@ -7,7 +7,7 @@
 "use client";
 
 import type { CommandResult, SelectionEntry } from "@/types/terminal";
-import { searchResultsSchema, type SearchResult } from "@/types/schemas/search";
+import { searchResultsSchema } from "@/types/schemas/search";
 import { transformSearchResultToTerminalResult } from "@/lib/utils/search-helpers";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 import { isSectionKey, sections, terminalNavigationHelp } from "./sections";
