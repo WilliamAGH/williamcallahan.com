@@ -23,6 +23,7 @@
  *   --dry-run        Embed without writing (requires --max-rows; unwritten rows requeue)
  *   --batch-size N   Rows per embedding request (default 16, max 128)
  *   --max-rows N     Stop after N rows
+ *   --bookmark-ids a,b   Only these bookmark ids
  */
 
 import { withDatabase } from "./lib/with-database.node.mjs";
@@ -61,15 +62,19 @@ if (dryRun && maxRows === undefined) {
   );
 }
 
+const bookmarkIds = readFlagValue("--bookmark-ids")?.split(",").filter(Boolean);
+
 const result = await runBackfill({
   dryRun,
   retryTransientFailures: true,
   batchSize: parsePositiveInteger("--batch-size"),
   maxRows,
+  ...(bookmarkIds?.length ? { bookmarkIds } : {}),
 });
 
 console.table(result);
-if (result.remainingRows > 0) {
+// A bounded run (--max-rows or --bookmark-ids) is expected to leave rows behind.
+if (result.remainingRows > 0 && maxRows === undefined && !bookmarkIds?.length) {
   console.error(`${PREFIX} ${result.remainingRows} bookmarks still have no embedding.`);
   process.exit(1);
 }

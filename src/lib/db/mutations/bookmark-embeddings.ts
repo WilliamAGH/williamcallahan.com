@@ -22,6 +22,12 @@ import type {
 export const BOOKMARK_EMBEDDING_BATCH_SIZE = 16;
 const MAX_BATCH_SIZE = 128;
 const BATCH_EMBEDDING_RETRY = { maxRetries: 2, baseDelayMs: 1_000, maxDelayMs: 15_000 };
+/**
+ * Characters sent per embedding request. The client's deadline scales with
+ * payload (0.5 ms/char), so this bounds one request to about 150 s while a
+ * single maximum-length page (250,000 chars) still fits on its own.
+ */
+const BATCH_CHAR_BUDGET = 300_000;
 const FAILED_BATCH_RETRY_DELAY_MS = 15 * 60 * 1_000;
 
 function resolveBatchSize(input?: number): number {
@@ -261,14 +267,27 @@ export async function backfillBookmarkEmbeddings(
     console.log(
       `[bookmark-embeddings] Selecting up to ${remainingBudget} rows (processed=${processedRows}).`,
     );
-    const rows = await readMissingEmbeddingRows(remainingBudget, bookmarkIds);
-    if (rows.length === 0) {
+    const selected = await readMissingEmbeddingRows(remainingBudget, bookmarkIds);
+    if (selected.length === 0) {
       console.log("[bookmark-embeddings] No remaining rows to backfill.");
       break;
     }
 
-    console.log(`[bookmark-embeddings] Generating embeddings for ${rows.length} rows.`);
-    const embeddingInput = rows.map((row) => buildBookmarkEmbeddingInput(row));
+    // Trim the batch to the character budget; rows left out are reselected next loop.
+    const rows: typeof selected = [];
+    const embeddingInput: string[] = [];
+    let batchChars = 0;
+    for (const row of selected) {
+      const text = buildBookmarkEmbeddingInput(row);
+      if (rows.length > 0 && batchChars + text.length > BATCH_CHAR_BUDGET) break;
+      rows.push(row);
+      embeddingInput.push(text);
+      batchChars += text.length;
+    }
+
+    console.log(
+      `[bookmark-embeddings] Generating embeddings for ${rows.length} rows (${batchChars} chars).`,
+    );
     let embeddings: number[][];
     try {
       embeddings = await embedTextsWithEndpointCompatibleModel({

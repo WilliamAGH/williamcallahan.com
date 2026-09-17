@@ -274,3 +274,28 @@ describe("backfillBookmarkEmbeddings", () => {
     expect(mocks.deleteRows).toHaveBeenCalledOnce();
   });
 });
+
+describe("backfillBookmarkEmbeddings request sizing", () => {
+  it("splits an oversized batch so each embedding request stays within the character budget", async () => {
+    // db.execute returns raw column names; the reader maps scraped_content_text.
+    const longRows = ["one", "two", "three"].map((id) => ({
+      ...createBookmarkEmbeddingRow(id),
+      scraped_content_text: "x".repeat(200_000),
+    }));
+    mocks.execute
+      .mockResolvedValueOnce(longRows)
+      .mockResolvedValueOnce(longRows.slice(1))
+      .mockResolvedValueOnce(longRows.slice(2))
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ cnt: 0 }]);
+    mocks.embed.mockResolvedValue([createEmbedding()]);
+
+    const result = await backfillBookmarkEmbeddings({ batchSize: 16 });
+
+    expect(mocks.embed).toHaveBeenCalledTimes(3);
+    for (const call of mocks.embed.mock.calls) {
+      expect((call[0] as { input: string[] }).input).toHaveLength(1);
+    }
+    expect(result.processedRows).toBe(3);
+  });
+});

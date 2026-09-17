@@ -75,7 +75,7 @@ Enrichment-owned columns are listed once in `BOOKMARK_ENRICHMENT_FIELDS` (`lib/d
 
 ### Backfill Scripts
 
-All backfill scripts are standalone Node (`#!/usr/bin/env node`) scripts using `postgres` directly. They share a production write guard pattern (`assertDatabaseWriteAllowed`) and support `--dry-run`, `--force`, and `--ids` flags.
+All backfill scripts are Node (`#!/usr/bin/env node`) scripts. Scripts that write through a Drizzle mutation run inside `scripts/lib/with-database.node.mjs`, which registers the TypeScript loader and closes the shared connection; the mutation's `assertDatabaseWriteAllowed` is the production write guard. The embedding backfill supports `--dry-run` (with `--max-rows`), `--batch-size`, `--max-rows`, and `--bookmark-ids`; older `postgres`-client scripts keep their own `--dry-run`, `--force`, and `--ids` flags.
 
 ```bash
 # Source env and run any backfill script
