@@ -252,7 +252,7 @@ describe("Search Index Serialization", () => {
       expect(searchSpy).toHaveBeenCalledWith("needle", {
         prefix: true,
         fuzzy: 0.2,
-        combineWith: "OR",
+        combineWith: "AND",
       });
       expect(results[0]?.item.id).toBe("title-hit");
     });

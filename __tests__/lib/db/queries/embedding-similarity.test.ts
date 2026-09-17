@@ -288,19 +288,23 @@ describe("hybrid search SQL ranking", () => {
     ]);
   });
 
-  it("orders keyword candidates before limiting embedding-mode project search", async () => {
+  it("ranks keyword and semantic candidates separately and fuses them by reciprocal rank", async () => {
     mockExecute.mockResolvedValueOnce([]);
     const embedding = Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0);
 
     await hybridSearchProjects({ query: "aventure", embedding, limit: 5 });
 
     const rendered = renderLastExecuteSql();
-    expect(rendered).toContain("AS keyword_score");
-    expect(rendered).toContain("ORDER BY keyword_score DESC, id DESC");
+    expect(rendered).toContain("AS keyword_rank");
+    expect(rendered).toContain("ORDER BY keyword_rank");
+    expect(rendered).toContain("AS semantic_rank");
+    expect(rendered).toContain("k.keyword_rank), 0)");
+    expect(rendered).toContain("s.semantic_rank), 0) AS score");
+    expect(rendered).toContain("ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id");
     expect(rendered).toContain("LIMIT $");
   });
 
-  it("uses trigram-weighted keyword score for book fallback search", async () => {
+  it("uses word-level trigram similarity and reciprocal rank for book fallback search", async () => {
     mockExecute.mockResolvedValueOnce([
       {
         id: "book-1",
@@ -316,10 +320,11 @@ describe("hybrid search SQL ranking", () => {
     const results = await hybridSearchBooks({ query: "typescrip", limit: 1 });
 
     const rendered = renderLastExecuteSql();
-    expect(rendered).toContain("similarity(title");
+    expect(rendered).toContain("word_similarity(");
+    expect(rendered).toContain("<% title");
+    expect(rendered).toContain("row_number() OVER (ORDER BY");
     expect(rendered).toContain("AS keyword_score");
-    expect(rendered).toContain("OR title %");
-    expect(rendered).toContain("ORDER BY keyword_score DESC, id DESC");
+    expect(rendered).toContain("ORDER BY keyword_score DESC LIMIT");
     expect(results[0]?.score).toBe(0.25);
   });
 });

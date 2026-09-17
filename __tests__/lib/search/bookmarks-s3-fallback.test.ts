@@ -52,12 +52,12 @@ describe("searchBookmarks - hybrid PostgreSQL search", () => {
     expect(results[0]?.score).toBe(0.92);
   });
 
-  it("sanitizes query before passing to hybrid search", async () => {
+  it("normalizes the query (lowercase, collapsed whitespace, punctuation kept) before hybrid search", async () => {
     mockHybridSearchBookmarks.mockResolvedValueOnce([]);
 
-    await searchBookmarks("test.*special[chars]");
+    await searchBookmarks("  Next.js   Tools ");
     expect(mockHybridSearchBookmarks).toHaveBeenCalledWith(
-      expect.objectContaining({ query: "test special chars" }),
+      expect.objectContaining({ query: "next.js tools" }),
     );
   });
 
