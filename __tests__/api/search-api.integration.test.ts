@@ -245,6 +245,29 @@ describe("Search API: GET /api/search/all", () => {
       expect(bookmarkRows).toHaveLength(24);
     });
 
+    it("ranks every content row above tag rows even when the tags score higher", async () => {
+      const { searchTags } = await import("@/lib/search/searchers/tag-search");
+      const tags = Array.from({ length: 5 }, (_, index) => ({
+        id: `tag:bookmarks:search-${index}`,
+        type: "tag" as const,
+        title: `[Bookmarks] > [Tags] > Search ${index}`,
+        url: `/bookmarks/tags/search-${index}`,
+        score: 1, // above every mocked content row
+      }));
+      vi.mocked(searchTags).mockResolvedValueOnce(tags);
+
+      const response = await GET(
+        new MockNextRequest("http://localhost:3000/api/search/all?q=search") as any,
+      );
+      const data = await response.json();
+      const types: string[] = data.results.map((r: { type: string }) => r.type);
+
+      const firstTag = types.indexOf("tag");
+      const lastContent = types.length - 1 - [...types].toReversed().findIndex((t) => t !== "tag");
+      expect(firstTag).toBeGreaterThan(lastContent);
+      expect(types.filter((t) => t === "tag")).toHaveLength(5);
+    });
+
     it("keeps the focused domain's full budget alongside the other domains", async () => {
       const { searchBookmarks } = await import("@/lib/search/searchers/dynamic-searchers");
       const { searchBlogPostsServerSide } = await import("@/lib/blog/server-search");

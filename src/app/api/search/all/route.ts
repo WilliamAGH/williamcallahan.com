@@ -311,7 +311,12 @@ export async function GET(request: NextRequest) {
       // mixed list; a single-scope request has nothing to share the budget with.
       const MAX_RESULTS_PER_CATEGORY =
         scopes?.size === 1 ? MAX_TOTAL_RESULTS : DEFAULT_RESULTS_PER_CATEGORY;
-      const byScore = (a: SearchResult, b: SearchResult) => b.score - a.score;
+      // Tag rows are navigation, not content: a bookmark or post that matches the
+      // query outranks every "[Tags] > ..." row regardless of score, and tags only
+      // fill slots that content left empty.
+      const navigational = (result: SearchResult): number => (result.type === "tag" ? 1 : 0);
+      const byRelevance = (a: SearchResult, b: SearchResult) =>
+        navigational(a) - navigational(b) || b.score - a.score;
       const byScope: Array<[SearchScope, SearchResult[]]> = [
         ["blog", prefixedBlogResults],
         ["investments", prefixedInvestmentResults],
@@ -334,10 +339,10 @@ export async function GET(request: NextRequest) {
       const others = byScope
         .filter(([scope]) => scope !== focus)
         .flatMap(([, rows]) => rows.slice(0, MAX_RESULTS_PER_CATEGORY))
-        .toSorted(byScore)
+        .toSorted(byRelevance)
         .slice(0, focus ? DEFAULT_RESULTS_PER_CATEGORY : MAX_TOTAL_RESULTS);
 
-      return [...focused, ...others].toSorted(byScore);
+      return [...focused, ...others].toSorted(byRelevance);
     });
 
     return NextResponse.json(

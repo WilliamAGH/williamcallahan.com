@@ -171,7 +171,8 @@ function searchContent<T>(
 3. **Fallback Strategy**: Substring search if MiniSearch fails
 4. **Exact Match Priority**: Optional exact field matching
 5. **Rank scale**: PostgreSQL domains sum one reciprocal rank per ranker (`1 / (RRF_K + rank)` each, ceiling `2/61`); single-ranker domains and the keyword-only fallback return `RRF_RANKER_COUNT / (RRF_K + rank)` so both shapes share that ceiling. A hybrid row surfaced by only one of two live rankers stays at `1 / (RRF_K + rank)` — the other ranker saw it and passed.
-6. **Bookmark keyword fields**: `bookmarks.search_vector` (owner: `lib/db/schema/bookmarks.ts`) weights title A, description and tag names B, summary C, note and `scraped_content_text` D — tags and page text carry evidence that appears nowhere else on a bookmark
+6. **Tags rank after content**: `/api/search/all` sorts every content row before every `[Tags] > …` row, then by score within each group; tag rows only fill slots content left empty. A tag can share the top RRF ceiling with a bookmark that matched both rankers, and the reader asked for the bookmark.
+7. **Bookmark keyword fields**: `bookmarks.search_vector` (owner: `lib/db/schema/bookmarks.ts`) weights title A, description and tag names B, summary C, note and `scraped_content_text` D — tags and page text carry evidence that appears nowhere else on a bookmark
 
 ## Performance Optimizations
 
