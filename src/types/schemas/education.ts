@@ -145,16 +145,6 @@ export const educationCardClientPropsSchema = z.object({
 });
 
 /**
- * Schema for certification card client props
- */
-export const certificationCardClientPropsSchema = z.object({
-  certification: certificationSchema.extend({
-    logoData: educationLogoDataSchema.optional(),
-  }),
-  className: z.string().optional(),
-});
-
-/**
  * Type exports using z.infer for single source of truth
  */
 export type Education = z.infer<typeof educationSchema>;
@@ -167,7 +157,6 @@ export type ProcessedClass = z.infer<typeof processedClassItemSchema>;
 export type ProcessedCertification = z.infer<typeof processedCertificationItemSchema>;
 export type EducationClientProps = z.infer<typeof educationClientPropsSchema>;
 export type EducationCardClientProps = z.infer<typeof educationCardClientPropsSchema>;
-export type CertificationCardClientProps = z.infer<typeof certificationCardClientPropsSchema>;
 
 /**
  * Validation functions for external data

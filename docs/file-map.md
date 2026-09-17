@@ -84,7 +84,7 @@ File/Path Functionality Description
     - [x] `blog-tags.tsx` `blog` - Tag list display
     - [x] `index.ts` `blog` - Removed; import shared blog components from concrete files
   - [x] **education/**
-    - [x] `certification-card.{client,server}.tsx` `education` - list of education certifications cards
+    - [x] `certification-card.{client,server}.tsx` `education` - Removed; certifications now render as table rows in `education.client.tsx`
     - [x] `education-card.{client,server}.tsx` `education` - list of education/university cards
     - [x] `education.{client,server}.tsx` `education` - list/cards for education
   - [x] **experience/**
