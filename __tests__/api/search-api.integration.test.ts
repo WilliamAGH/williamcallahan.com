@@ -220,6 +220,72 @@ describe("Search API: GET /api/search/all", () => {
       }
     });
 
+    it("gives a single-scope request the whole result budget instead of the per-category slice", async () => {
+      const { searchBookmarks } = await import("@/lib/search/searchers/dynamic-searchers");
+      const thirty = Array.from({ length: 30 }, (_, index) => ({
+        id: `bm-${index}`,
+        type: "bookmark" as const,
+        title: `Bookmark ${index}`,
+        url: `/bookmarks/bm-${index}`,
+        score: 1 / (60 + index + 1),
+      }));
+      vi.mocked(searchBookmarks).mockResolvedValueOnce(thirty).mockResolvedValueOnce(thirty);
+
+      const scoped = await GET(
+        new MockNextRequest("http://localhost:3000/api/search/all?q=budget&scope=bookmarks") as any,
+      );
+      const scopedData = await scoped.json();
+      expect(scopedData.results).toHaveLength(30);
+
+      const mixed = await GET(
+        new MockNextRequest("http://localhost:3000/api/search/all?q=budget") as any,
+      );
+      const mixedData = await mixed.json();
+      const bookmarkRows = mixedData.results.filter((r: { type: string }) => r.type === "bookmark");
+      expect(bookmarkRows).toHaveLength(24);
+    });
+
+    it("keeps the focused domain's full budget alongside the other domains", async () => {
+      const { searchBookmarks } = await import("@/lib/search/searchers/dynamic-searchers");
+      const { searchBlogPostsServerSide } = await import("@/lib/blog/server-search");
+      const sixty = Array.from({ length: 60 }, (_, index) => ({
+        id: `bm-${index}`,
+        type: "bookmark" as const,
+        title: `Bookmark ${index}`,
+        url: `/bookmarks/bm-${index}`,
+        score: 1 / (60 + index + 1),
+      }));
+      // Thirty posts that all outscore bookmarks ranked 25-50 must not evict them.
+      const thirtyPosts = Array.from({ length: 30 }, (_, index) => ({
+        id: `post-${index}`,
+        type: "post" as const,
+        title: `Post ${index}`,
+        url: `/blog/post-${index}`,
+        score: 1 / (60 + index + 1) + 0.001,
+      }));
+      vi.mocked(searchBookmarks).mockResolvedValueOnce(sixty);
+      vi.mocked(searchBlogPostsServerSide).mockResolvedValueOnce(thirtyPosts);
+
+      const response = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=focused&focus=bookmarks",
+        ) as any,
+      );
+      const data = await response.json();
+
+      const bookmarkRows = data.results.filter((r: { type: string }) => r.type === "bookmark");
+      const otherRows = data.results.filter((r: { type: string }) => r.type !== "bookmark");
+      expect(bookmarkRows).toHaveLength(50);
+      expect(otherRows).toHaveLength(24);
+      expect(otherRows.filter((r: { type: string }) => r.type === "post").length).toBeGreaterThan(
+        15,
+      );
+      expect(data.results.length).toBe(74);
+
+      const scores = data.results.map((r: { score: number }) => r.score);
+      expect(scores).toEqual([...scores].toSorted((a: number, b: number) => b - a));
+    });
+
     /**
      * @description Should handle queries with special characters
      */

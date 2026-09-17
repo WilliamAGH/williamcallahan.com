@@ -549,6 +549,7 @@ File/Path Functionality Description
 - [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
 - [x] `drizzle/0024_embedding-failures.sql` `data-access` - Migration adding durable per-embedding upstream failure checkpoints and retry timestamps
+- [x] `drizzle/0025_bookmark-search-vector-tags-and-content.sql` `search` - Migration rebuilding the `bookmarks.search_vector` generated column so tag names (weight B) and `scraped_content_text` (weight D) are indexed, and recreating its GIN index
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Runtime instrumentation dispatch and request-error header redaction
 - [x] `src/proxy.ts` `middleware` - Next.js Proxy entrypoint; owns route protection and final no-store delivery for same-origin analytics assets
@@ -666,14 +667,15 @@ File/Path Functionality Description
 - [x] `blog-render-smoke.ts` `blog` - Shared deployed-HTML validator for the canonical blog render canaries; rejects missing article content and the MDX fallback
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
-- [x] `backfill-bookmark-embeddings.ts` `bookmarks` - CLI backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings`
-- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings` with resilient postgres-js connectivity; supports `--force` to regenerate all embeddings
+- [x] `lib/with-database.node.mjs` `db` - Shared Node-script bootstrap: registers `tsx/esm/api`, runs a task against the TypeScript database owners, closes the shared connection; used by every seed, backfill, and gate script
+- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for bookmark rows of the unified `embeddings` table; runs through `withDatabase` and delegates to the canonical `backfillBookmarkEmbeddings` owner so batching, embedding-text contract, and `embedding_failures` checkpointing are not restated
 - [x] `ingest-bookmark-tag-aliases.node.mjs` `bookmarks` - Node runtime LLM-driven tag alias ingestion using bookmark tag context + embedding-nearest related bookmarks; writes to `bookmarks_tags` + `bookmarks_tags_links`
 - [x] `backfill-scraped-content.node.mjs` `bookmarks` - Node runtime backfill for `scraped_content_text` column from Karakeep `content.htmlContent` via HTML-to-plain-text conversion
 - [x] `backfill-computed-fields.node.mjs` `bookmarks` - Node runtime backfill for `word_count` and `reading_time` derived from `scraped_content_text` (whitespace split, 200 WPM)
 - [x] `backfill-og-metadata.node.mjs` `bookmarks` - Node runtime backfill for `og_title`, `og_description`, `og_image` by fetching bookmark URLs and parsing `<meta property="og:*">` tags
 - [x] `backfill-logo-data.node.mjs` `bookmarks` - Node runtime backfill for `logo_data` JSONB from PostgreSQL `image_manifests` logo payloads
 - [x] `backfill-og-etags.node.mjs` `bookmarks` - Node runtime backfill for `og_image_etag` via HEAD requests to bookmark `og_image` URLs; also refreshes `og_image_last_fetched_at`
+- [x] `compare-bookmark-search.node.mjs` `search` - Node runtime parity gate comparing `/api/search/all?scope=bookmarks` against upstream Karakeep search over 25 fixed queries; exits non-zero when inclusion of upstream's in-scope hits drops below the thresholds documented in `docs/features/search.md`
 - [x] `backfill-domain-embeddings.node.mjs` `data-access` - Node runtime backfill for Qwen3-Embedding-4B embeddings across `ai_analysis_latest`, `opengraph_metadata`, and `thoughts` tables
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
 - [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `scheduler/data-updater.ts`

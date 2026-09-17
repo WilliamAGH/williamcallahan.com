@@ -10,6 +10,14 @@ import type {
 } from "@/types/schemas/ai-openai-compatible";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+/**
+ * Service time on the batch tier scales with total input size, so a fixed
+ * timeout silently caps how much text a request may carry. Measured against
+ * the configured endpoint with real bookmark prose: 32 768 chars in 8.5 s,
+ * 131 072 in 32.5 s, 262 144 in 73.7 s — a linear ~3 400 chars/s. Budgeting
+ * 2 000 chars/s keeps ~1.7x headroom over that measurement.
+ */
+const TIMEOUT_MS_PER_INPUT_CHAR = 0.5;
 const RECOMMENDED_INPUT_TOKENS = 8_192;
 const APPROXIMATE_CHARS_PER_TOKEN = 4;
 const INPUT_CHUNK_CHAR_LIMIT = RECOMMENDED_INPUT_TOKENS * APPROXIMATE_CHARS_PER_TOKEN;
@@ -53,6 +61,22 @@ export function getEndpointCompatibleEmbeddingRetryAfterMilliseconds(
   error: unknown,
 ): number | undefined {
   return error instanceof EndpointCompatibleEmbeddingRequestError ? error.retryAfterMs : undefined;
+}
+
+/**
+ * Request deadline for one embeddings call. An explicit caller value wins so
+ * interactive search keeps its short bound; otherwise the deadline follows the
+ * size of the payload actually being sent, never a fixed constant.
+ */
+export function resolveEndpointCompatibleEmbeddingTimeoutMs(
+  input: readonly string[],
+  explicitTimeoutMs?: number,
+): number {
+  if (typeof explicitTimeoutMs === "number" && Number.isFinite(explicitTimeoutMs)) {
+    return explicitTimeoutMs;
+  }
+  const totalChars = input.reduce((total, text) => total + text.length, 0);
+  return Math.max(DEFAULT_TIMEOUT_MS, Math.ceil(totalChars * TIMEOUT_MS_PER_INPUT_CHAR));
 }
 
 function isRetryableEmbeddingRequestError(error: unknown): boolean {
@@ -190,10 +214,7 @@ export async function embedTextsWithEndpointCompatibleModel(args: {
     throw new Error("Endpoint-compatible embedding API key is required.");
   }
 
-  const timeoutMs =
-    typeof args.timeoutMs === "number" && Number.isFinite(args.timeoutMs)
-      ? args.timeoutMs
-      : DEFAULT_TIMEOUT_MS;
+  const timeoutMs = resolveEndpointCompatibleEmbeddingTimeoutMs(request.input, args.timeoutMs);
   const requestEmbeddings = async (): Promise<number[][]> => {
     const timeoutSignal = AbortSignal.timeout(timeoutMs);
     const requestSignal = args.signal

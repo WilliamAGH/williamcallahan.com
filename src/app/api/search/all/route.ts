@@ -9,6 +9,9 @@
  * - scope: Comma-separated list of sources to search (optional)
  *   Valid scopes: blog, investments, experience, education, bookmarks, projects, books, thoughts, tags, analysis
  *   Example: ?q=react&scope=blog,projects
+ * - focus: A single scope that keeps its full searcher budget while every other
+ *   source stays capped; unlike scope it never removes a source from the search.
+ *   Example: ?q=react&focus=bookmarks
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
@@ -177,6 +180,12 @@ export async function GET(request: NextRequest) {
     const needsEmbedding =
       scopes === null || Array.from(scopes).some((scope) => !KEYWORD_ONLY_SCOPES.has(scope));
 
+    // Optional focus parameter: one scope keeps its full budget, the rest stay capped
+    const focusScopes = parseScopes(request.nextUrl.searchParams.get("focus"));
+    const [requestedFocus = null] = focusScopes?.size === 1 ? [...focusScopes] : [];
+    // "posts" is an alias for "blog", matching the scope handling below
+    const focus = requestedFocus === "posts" ? "blog" : requestedFocus;
+
     // Early exit if the sanitized query is empty
     if (query.length === 0) {
       return NextResponse.json(
@@ -195,7 +204,7 @@ export async function GET(request: NextRequest) {
 
     // Build cache key including scope for proper coalescing
     const scopeKey = scopes ? Array.from(scopes).toSorted().join(",") : "all";
-    const cacheKey = `${scopeKey}:${query}`;
+    const cacheKey = `${scopeKey}:${focus ?? "none"}:${query}`;
 
     // Perform site-wide search with request coalescing
     const results = await coalesceSearchRequest<SearchResult[]>(cacheKey, async () => {
@@ -296,25 +305,39 @@ export async function GET(request: NextRequest) {
       // No additional prefix needed for these
 
       // Limit results per category to prevent memory explosion
-      const MAX_RESULTS_PER_CATEGORY = 24;
       const MAX_TOTAL_RESULTS = 50;
-
-      // Combine all results with limits
-      const combined = [
-        ...prefixedBlogResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedInvestmentResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedExperienceResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedEducationResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedBookmarkResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedProjectResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedBookResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedThoughtResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...tagResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...analysisResults.slice(0, MAX_RESULTS_PER_CATEGORY),
+      const DEFAULT_RESULTS_PER_CATEGORY = 24;
+      // The per-category cap keeps one domain from crowding out the others in a
+      // mixed list; a single-scope request has nothing to share the budget with.
+      const MAX_RESULTS_PER_CATEGORY =
+        scopes?.size === 1 ? MAX_TOTAL_RESULTS : DEFAULT_RESULTS_PER_CATEGORY;
+      const byScore = (a: SearchResult, b: SearchResult) => b.score - a.score;
+      const byScope: Array<[SearchScope, SearchResult[]]> = [
+        ["blog", prefixedBlogResults],
+        ["investments", prefixedInvestmentResults],
+        ["experience", prefixedExperienceResults],
+        ["education", prefixedEducationResults],
+        ["bookmarks", prefixedBookmarkResults],
+        ["projects", prefixedProjectResults],
+        ["books", prefixedBookResults],
+        ["thoughts", prefixedThoughtResults],
+        ["tags", tagResults],
+        ["analysis", analysisResults],
       ];
 
-      // Sort by relevance score (highest first) then limit total results
-      return combined.toSorted((a, b) => b.score - a.score).slice(0, MAX_TOTAL_RESULTS);
+      // A focused domain keeps its whole searcher budget (up to MAX_TOTAL_RESULTS);
+      // every other domain is capped per category and then competes for the
+      // remaining slots, so the focused hits are never evicted by the merge.
+      const focused = byScope
+        .filter(([scope]) => scope === focus)
+        .flatMap(([, rows]) => rows.slice(0, MAX_TOTAL_RESULTS));
+      const others = byScope
+        .filter(([scope]) => scope !== focus)
+        .flatMap(([, rows]) => rows.slice(0, MAX_RESULTS_PER_CATEGORY))
+        .toSorted(byScore)
+        .slice(0, focus ? DEFAULT_RESULTS_PER_CATEGORY : MAX_TOTAL_RESULTS);
+
+      return [...focused, ...others].toSorted(byScore);
     });
 
     return NextResponse.json(

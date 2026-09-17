@@ -171,6 +171,7 @@ function searchContent<T>(
 3. **Fallback Strategy**: Substring search if MiniSearch fails
 4. **Exact Match Priority**: Optional exact field matching
 5. **Rank scale**: PostgreSQL domains sum one reciprocal rank per ranker (`1 / (RRF_K + rank)` each, ceiling `2/61`); single-ranker domains and the keyword-only fallback return `RRF_RANKER_COUNT / (RRF_K + rank)` so both shapes share that ceiling. A hybrid row surfaced by only one of two live rankers stays at `1 / (RRF_K + rank)` — the other ranker saw it and passed.
+6. **Bookmark keyword fields**: `bookmarks.search_vector` (owner: `lib/db/schema/bookmarks.ts`) weights title A, description and tag names B, summary C, note and `scraped_content_text` D — tags and page text carry evidence that appears nowhere else on a bookmark
 
 ## Performance Optimizations
 
@@ -223,6 +224,41 @@ function searchContent<T>(
 2. **Cache Tests**: Hit/miss behavior, storage
 3. **Search Tests**: Exact, partial, multi-word
 4. **Integration Tests**: API endpoint behavior
+
+### Upstream Parity Gate
+
+`scripts/compare-bookmark-search.node.mjs` measures the site's bookmark search
+against the upstream Karakeep search it mirrors. For each of 25 fixed queries
+(derived from real Karakeep titles and tag names) it calls
+`{BOOKMARKS_API_URL}/bookmarks/search` and `/api/search/all?scope=bookmarks`
+(a single-scope request gets the full 50-result budget), restricts the upstream
+answer to ids present in the site's `bookmarks` table, and reports how much of
+upstream's top 10 in-scope hits the site returns. Two rules gate it (exit 1 on
+failure): mean inclusion across all reference hits must be at least 0.90, and,
+per query, at least half of the reference hits whose title, description, or tag
+names match the query must be present. Upstream hits that match only in page
+text or only in Karakeep's embedding space count toward the mean but cannot fail
+a single query alone ("descript" stems like "description", so upstream's top 10
+is mostly pages whose body says "description"). The site must also return at
+least as many results as the reference set. This is the gate's definition of
+"equal or greater accuracy": everything upstream ranks in its top 10 for a
+query that our stored fields can justify is present in our answer, and the
+overall inclusion of upstream's top 10 stays above 0.90; ordering between the
+two engines is reported per query but not gated. Run it with `bun run
+search:parity` against a warm local server.
+
+```bash
+set -a; source .env; set +a
+bun run dev &                                    # warm http://localhost:3000 once
+node scripts/compare-bookmark-search.node.mjs    # add --verbose to list every miss
+```
+
+`SITE_SEARCH_BASE` (default `http://localhost:3000`) points the gate at another
+origin. Run it under Node, never bun — it opens a PostgreSQL connection (CLAUDE.md
+[RT1]). Inclusion is bounded by two data conditions the gate cannot fix on its
+own: bookmarks with no row in `embeddings` are unreachable by the semantic layer,
+and bookmarks Karakeep holds outside the mirrored list are reported separately as
+out of scope.
 
 ## Future Enhancements
 

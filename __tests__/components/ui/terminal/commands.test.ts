@@ -252,6 +252,62 @@ describe("Terminal Commands", () => {
       });
     });
 
+    it("focuses bookmarks for site-wide searches made from a bookmarks page", async () => {
+      window.history.replaceState({}, "", "/bookmarks/some-slug");
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      try {
+        await handleCommand("unknown command");
+      } finally {
+        window.history.replaceState({}, "", "/");
+      }
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command&focus=bookmarks",
+        expect.objectContaining({ signal: undefined }),
+      );
+    });
+
+    it("focuses bookmarks when the --bookmarks flag is used off the bookmarks page", async () => {
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      await handleCommand("unknown --bookmarks command");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command&focus=bookmarks",
+        expect.objectContaining({ signal: undefined }),
+      );
+    });
+
+    it("refuses a bookmarks flag with no search terms instead of sending an empty query", async () => {
+      const result = await handleCommand("-b");
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("needs search terms"),
+      });
+    });
+
+    it("strips the bookmarks flag from a section search instead of sending it as text", async () => {
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      await handleCommand("bookmarks postgres -b");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/search/bookmarks?q=postgres", expect.anything());
+    });
+
+    it("accepts -b as the short form of the bookmarks flag", async () => {
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      await handleCommand("unknown command -b");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command&focus=bookmarks",
+        expect.objectContaining({ signal: undefined }),
+      );
+    });
+
     it("should show not recognized message when no results found", async () => {
       mockFetch.mockResolvedValueOnce(createJsonResponse([]));
 

@@ -30,8 +30,25 @@ async function fetchSearchResults(path: string, signal?: AbortSignal): Promise<S
 const searchByScope = (scope: string, query: string, signal?: AbortSignal) =>
   fetchSearchResults(`/api/search/${scope}?q=${encodeURIComponent(query)}`, signal);
 
-const performSiteWideSearch = (query: string, signal?: AbortSignal) =>
-  fetchSearchResults(`/api/search/all?q=${encodeURIComponent(query)}`, signal);
+const performSiteWideSearch = (query: string, focus: string | null, signal?: AbortSignal) =>
+  fetchSearchResults(
+    `/api/search/all?q=${encodeURIComponent(query)}${focus ? `&focus=${focus}` : ""}`,
+    signal,
+  );
+
+const BOOKMARK_FOCUS_FLAGS = new Set(["--bookmarks", "-b"]);
+
+/**
+ * Splits a site-wide search input into the query and the focused scope.
+ * Bookmarks are focused by an explicit flag anywhere in the input, or implicitly
+ * while the reader is on a bookmarks page.
+ */
+function resolveSiteWideSearch(terms: string[]): { query: string; focus: string | null } {
+  const query = terms.filter((term) => !BOOKMARK_FOCUS_FLAGS.has(term));
+  const flagged = query.length !== terms.length;
+  const onBookmarksPage = /^\/bookmarks(\/|$)/.test(window.location.pathname);
+  return { query: query.join(" "), focus: flagged || onBookmarksPage ? "bookmarks" : null };
+}
 
 // fetch() rejects with signal.reason verbatim, and every terminal abort passes a
 // string reason (use-terminal.client.tsx), so the thrown value is not a
@@ -51,6 +68,7 @@ Navigate:
 
 Search:
   <section> <query>  Search within a section
+  <query> --bookmarks  Site-wide search keeping up to 50 bookmark hits (-b also works)
   ai <message>       One-shot AI reply (no modal)
 
   e.g.  investments AI       blog claude
@@ -61,6 +79,7 @@ Quick jumps:
   ${terminalNavigationHelp.quickJumps}
 
 Or just type anything to search the entire site.
+On /bookmarks, site-wide searches focus bookmarks without the flag.
 `.trim();
 
 /**
@@ -153,7 +172,22 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
     };
   }
 
-  const [command, ...args] = trimmedInput.split(" ");
+  // The bookmarks flag is meaningful on every path: strip it before dispatch.
+  const { query: flaglessInput, focus } = resolveSiteWideSearch(trimmedInput.split(" "));
+  if (flaglessInput.length === 0) {
+    return {
+      results: [
+        {
+          type: "text",
+          id: crypto.randomUUID(),
+          input: "",
+          output: "The bookmarks flag needs search terms, e.g. `--bookmarks postgres`.",
+          timestamp: Date.now(),
+        },
+      ],
+    };
+  }
+  const [command, ...args] = flaglessInput.split(" ");
 
   // 1. First check for direct commands that take precedence
 
@@ -389,7 +423,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
 
   // 4. If not a direct command or section command, perform site-wide search
   // IMPORTANT: This now takes precedence over "command not recognized" to fix the multi-word search issue
-  const searchTerms = [command, ...args].join(" ");
+  const searchTerms = flaglessInput;
 
   try {
     // Log search info for debugging (safe logging - no object dumps)
@@ -397,7 +431,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
       console.log(`[Terminal Search] Performing site-wide search for: "${searchTerms}"`);
     }
 
-    const allResults = await performSiteWideSearch(searchTerms, signal);
+    const allResults = await performSiteWideSearch(searchTerms, focus, signal);
 
     // Log results for debugging (safe logging - only counts and basic info)
     if (process.env.NODE_ENV === "development") {
