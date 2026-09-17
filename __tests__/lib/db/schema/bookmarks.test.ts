@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { getTableColumns, type SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
@@ -37,12 +37,18 @@ describe("bookmarks search_vector", () => {
   });
 
   it("has a migration that rebuilds the column with the schema's exact expression", () => {
-    const migration = readFileSync(
-      "drizzle/0025_bookmark-search-vector-tags-and-content.sql",
-      "utf8",
-    );
+    // The newest search_vector migration is the shape production ends on, so
+    // that is the one the schema must agree with. Naming a fixed file here made
+    // the next rebuild fail this test for the wrong reason.
+    const name = readdirSync("drizzle")
+      .filter((file) => /^\d+_.*bookmark-search-vector.*\.sql$/.test(file))
+      .toSorted()
+      .at(-1);
+    if (!name) throw new Error("no bookmark-search-vector migration found in drizzle/");
+
+    const migration = readFileSync(`drizzle/${name}`, "utf8");
     const generated = migration.match(/GENERATED ALWAYS AS \(([\s\S]*?)\) STORED/);
-    if (!generated?.[1]) throw new Error("migration 0025 has no GENERATED ALWAYS AS expression");
+    if (!generated?.[1]) throw new Error(`${name} has no GENERATED ALWAYS AS expression`);
 
     // Same expression modulo table qualification and whitespace: a weight or
     // field change on either side fails here.
