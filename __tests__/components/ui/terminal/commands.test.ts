@@ -161,25 +161,36 @@ describe("Terminal Commands", () => {
       });
     });
 
-    it("should handle blog search API failure", async () => {
+    it("surfaces a blog search API failure instead of reporting no results", async () => {
       mockFetch.mockRejectedValueOnce(new Error("API Error"));
 
       const result = await handleCommand("blog test query");
 
       expect(result.results?.[0]).toMatchObject({
         type: "text",
-        output: expect.stringContaining('No results found in Blog for "test query"'),
+        output: "Error searching blog: API Error",
       });
     });
 
-    it("should handle blog search with non-200 response", async () => {
+    it("surfaces a non-200 blog search response", async () => {
       mockFetch.mockResolvedValueOnce(new Response(null, { status: 500 }));
 
       const result = await handleCommand("blog test query");
 
       expect(result.results?.[0]).toMatchObject({
         type: "text",
-        output: expect.stringContaining('No results found in Blog for "test query"'),
+        output: "Error searching blog: Search API returned 500",
+      });
+    });
+
+    it("tells the user to wait when the search API rate limit is hit", async () => {
+      mockFetch.mockResolvedValueOnce(new Response(null, { status: 429 }));
+
+      const result = await handleCommand("blog test query");
+
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Too many searches in the last minute"),
       });
     });
 
@@ -257,25 +268,25 @@ describe("Terminal Commands", () => {
       expect(result.selectionItems).toBeUndefined();
     });
 
-    it("should handle site-wide search API failure", async () => {
+    it("surfaces a site-wide search API failure instead of 'Command not recognized'", async () => {
       mockFetch.mockRejectedValueOnce(new Error("API Error"));
 
       const result = await handleCommand("unknown command");
 
       expect(result.results?.[0]).toMatchObject({
         type: "text",
-        output: expect.stringContaining("Command not recognized"),
+        output: "Error during site-wide search: API Error",
       });
     });
 
-    it("should handle unknown errors in site-wide search", async () => {
+    it("surfaces unknown errors in site-wide search", async () => {
       mockFetch.mockRejectedValueOnce("Not an Error object");
 
       const result = await handleCommand("unknown command");
 
       expect(result.results?.[0]).toMatchObject({
         type: "text",
-        output: expect.stringContaining("Command not recognized"),
+        output: expect.stringContaining("Error during site-wide search:"),
       });
     });
   });
@@ -305,7 +316,7 @@ describe("Terminal Commands", () => {
       );
     });
 
-    it("should handle aborted requests gracefully", async () => {
+    it("propagates an abort so the terminal can discard the superseded command", async () => {
       const controller = new AbortController();
       const abortError = new DOMException("Aborted", "AbortError");
 
@@ -313,12 +324,7 @@ describe("Terminal Commands", () => {
 
       controller.abort();
 
-      const result = await handleCommand("blog test", controller.signal);
-
-      expect(result.results?.[0]).toMatchObject({
-        type: "text",
-        output: expect.stringContaining('No results found in Blog for "test"'),
-      });
+      await expect(handleCommand("blog test", controller.signal)).rejects.toBe(abortError);
     });
 
     it("should propagate AbortSignal through all search paths", async () => {

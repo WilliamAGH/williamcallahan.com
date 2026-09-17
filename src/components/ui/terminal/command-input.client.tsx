@@ -7,8 +7,7 @@
 
 "use client";
 
-import { forwardRef, useCallback, useRef, useId, useState, useEffect } from "react";
-import { preloadSearch } from "./commands.client";
+import { forwardRef, useCallback, useId, useState, useEffect } from "react";
 import type { CommandInputProps } from "@/types/ui/terminal";
 
 // Breakpoint for mobile placeholder (matches Tailwind's sm breakpoint)
@@ -35,24 +34,9 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
   }, []);
 
   // Preload search when user types enough characters
-  const MIN_PRELOAD_LENGTH = 2;
-  const hasPreloaded = useRef(false);
-
   const handleChange = useCallback(
     (newValue: string) => {
       onChange(newValue);
-
-      // Preload search functionality after typing 2+ characters
-      if (!hasPreloaded.current && newValue.length >= MIN_PRELOAD_LENGTH) {
-        hasPreloaded.current = true;
-        // Preload in the background without blocking
-        if (typeof requestIdleCallback !== "undefined") {
-          requestIdleCallback(() => preloadSearch(), { timeout: 100 });
-        } else {
-          // Fallback for browsers without requestIdleCallback
-          setTimeout(() => preloadSearch(), 0);
-        }
-      }
     },
     [onChange],
   );

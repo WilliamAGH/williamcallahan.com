@@ -77,7 +77,7 @@ describe("Search API Guards", () => {
 
   describe("SEARCH_RATE_LIMIT", () => {
     it("has correct configuration", () => {
-      expect(SEARCH_RATE_LIMIT.maxRequests).toBe(10);
+      expect(SEARCH_RATE_LIMIT.maxRequests).toBe(30);
       expect(SEARCH_RATE_LIMIT.windowMs).toBe(60000);
     });
   });
