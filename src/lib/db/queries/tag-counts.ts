@@ -9,15 +9,8 @@
 
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
-import { tagToSlug } from "@/lib/utils/tag-utils";
+import { TAG_URL, tagToSlug } from "@/lib/utils/tag-utils";
 import type { AggregatedTag } from "@/types/schemas/search";
-
-const TAG_URL: Record<AggregatedTag["contentType"], (slug: string) => string> = {
-  blog: (slug) => `/blog/tags/${slug}`,
-  bookmarks: (slug) => `/bookmarks/tags/${slug}`,
-  projects: (slug) => `/projects?tag=${slug}`,
-  books: (slug) => `/books?genre=${slug}`,
-};
 
 /**
  * ponytail: seed-blog-posts/seed-projects wrote tags as a JSON *string* holding

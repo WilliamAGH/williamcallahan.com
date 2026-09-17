@@ -29,7 +29,6 @@ vi.mock("../../../../src/components/ui/terminal/commands.client", async () => {
   return {
     ...actual,
     handleCommand: vi.fn(),
-    preloadSearch: vi.fn(),
   };
 });
 

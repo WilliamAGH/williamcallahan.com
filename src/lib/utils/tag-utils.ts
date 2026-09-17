@@ -16,6 +16,7 @@ const COMBINING_DIACRITICAL_END = 0x036f;
 const MIN_SINGULARIZE_LENGTH = 3;
 
 import type { BookmarkTag } from "@/types/schemas/bookmark";
+import type { AggregatedTag } from "@/types/schemas/search";
 import { normalizeString } from "@/lib/utils";
 import { sanitizeControlChars } from "@/lib/utils/sanitize";
 
@@ -106,6 +107,14 @@ export function sanitizeTagSlug(text: string): string {
  * tagToSlug('C++') // Returns 'c-plus-plus'
  * tagToSlug('.NET') // Returns 'dotnet'
  */
+/** Route for a tag or genre listing, keyed by the content type that owns it. */
+export const TAG_URL: Record<AggregatedTag["contentType"], (slug: string) => string> = {
+  blog: (slug) => `/blog/tags/${slug}`,
+  bookmarks: (slug) => `/bookmarks/tags/${slug}`,
+  projects: (slug) => `/projects?tag=${slug}`,
+  books: (slug) => `/books?genre=${slug}`,
+};
+
 export function tagToSlug(tag: string): string {
   if (!tag) return "";
 

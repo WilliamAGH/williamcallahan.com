@@ -129,29 +129,31 @@ export async function GET(
     // Perform the appropriate search based on scope with request coalescing
     const coalesceKey = `${scope}:${query}`;
     const results = await coalesceSearchRequest<SearchResult[]>(coalesceKey, async () => {
-      const context = { precomputed: await buildQueryEmbedding(query, `[search/${scope}]`) };
       switch (scope) {
         case "blog":
         case "posts":
-          return searchBlogPostsServerSide(query, context);
+          return searchBlogPostsServerSide(query);
         case "investments":
-          return searchInvestments(query, context);
+          return searchInvestments(query);
         case "experience":
           return searchExperience(query);
         case "education":
           return searchEducation(query);
         case "bookmarks":
-          return searchBookmarks(query, context);
+          return searchBookmarks(query);
         case "projects":
-          return searchProjects(query, context);
+          return searchProjects(query);
         case "books":
-          return searchBooks(query, context);
+          return searchBooks(query);
         case "thoughts":
-          return searchThoughts(query, context);
+          return searchThoughts(query);
         case "tags":
           return searchTags(query);
         case "analysis":
-          return searchAiAnalysis(query, context);
+          // Three parent searches share one query embedding.
+          return searchAiAnalysis(query, {
+            precomputed: await buildQueryEmbedding(query, "[search/analysis]"),
+          });
         default:
           return [];
       }
