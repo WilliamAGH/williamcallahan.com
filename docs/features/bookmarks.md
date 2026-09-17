@@ -91,7 +91,8 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-og-metadata.
 DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-logo-data.node.mjs
 
 # Embeddings (Qwen3-Embedding-4B, 2560-d halfvec)
-DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-embeddings.node.mjs --force --batch-size 4
+unset NEXT_PUBLIC_SITE_URL  # write guard resolves a localhost site URL as development
+DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-embeddings.node.mjs --batch-size 4
 ```
 
 ### Tag Alias Canonicalization Ingestion
