@@ -37,12 +37,36 @@ describe("bookmarks search_vector", () => {
   });
 
   it("has a migration that rebuilds the column with the schema's exact expression", () => {
-    const migration = readFileSync(
-      "drizzle/0025_bookmark-search-vector-tags-and-content.sql",
-      "utf8",
-    );
+    // The shape production ends on is the last search_vector migration the
+    // journal lists, not the highest-numbered file on disk: drizzle applies the
+    // journal, and this repo already carries 0023_engagement-covering-index.sql
+    // with no journal entry. Naming a fixed file here instead made the next
+    // rebuild fail this test for the wrong reason.
+    const journal: unknown = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8"));
+    if (
+      typeof journal !== "object" ||
+      journal === null ||
+      !("entries" in journal) ||
+      !Array.isArray(journal.entries)
+    ) {
+      throw new Error("drizzle/meta/_journal.json has no entries array");
+    }
+    const tags = journal.entries
+      .map((entry: unknown) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        "tag" in entry &&
+        typeof entry.tag === "string"
+          ? entry.tag
+          : null,
+      )
+      .filter((tag): tag is string => tag !== null && tag.includes("bookmark-search-vector"));
+    const name = tags.at(-1);
+    if (!name) throw new Error("no bookmark-search-vector migration listed in the drizzle journal");
+
+    const migration = readFileSync(`drizzle/${name}.sql`, "utf8");
     const generated = migration.match(/GENERATED ALWAYS AS \(([\s\S]*?)\) STORED/);
-    if (!generated?.[1]) throw new Error("migration 0025 has no GENERATED ALWAYS AS expression");
+    if (!generated?.[1]) throw new Error(`${name} has no GENERATED ALWAYS AS expression`);
 
     // Same expression modulo table qualification and whitespace: a weight or
     // field change on either side fails here.

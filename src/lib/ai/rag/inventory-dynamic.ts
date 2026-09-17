@@ -58,9 +58,10 @@ const buildTagsRows = (tags: AggregatedTag[]): string[] =>
   tags
     .toSorted((a, b) => b.count - a.count || a.name.localeCompare(b.name))
     .map((tag) =>
+      // No slug here: url is the addressable form, and for blog tags the two
+      // disagree by design (the route resolves on kebabCase, tag.slug does not).
       formatLine({
         name: tag.name,
-        slug: tag.slug,
         contentType: tag.contentType,
         count: tag.count,
         url: tag.url,

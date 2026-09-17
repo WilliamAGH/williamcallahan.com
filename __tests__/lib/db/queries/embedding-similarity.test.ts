@@ -32,12 +32,17 @@ import {
 } from "@/lib/db/queries/embedding-similarity";
 import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 
+/**
+ * The rendered SQL is the only boundary these queries expose without a live
+ * database, so the assertions below read it. Whitespace is collapsed first so
+ * they pin the query's shape rather than its formatting.
+ */
 function renderLastExecuteSql(): string {
   const call = mockExecute.mock.calls.at(-1);
   if (!call) throw new Error("Expected db.execute to be called");
   const query = call[0];
   if (!is(query, SQL)) throw new Error("Expected db.execute to receive a SQL query");
-  return new PgDialect().sqlToQuery(query).sql;
+  return new PgDialect().sqlToQuery(query).sql.replace(/\s+/g, " ").trim();
 }
 
 function createBookmarkFixture(id: string) {
@@ -303,6 +308,33 @@ describe("hybrid search SQL ranking", () => {
     expect(rendered).toContain("ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id");
     expect(rendered).toContain("LIMIT $");
   });
+
+  it.each([
+    ["projects", hybridSearchProjects],
+    ["books", hybridSearchBooks],
+  ])(
+    "breaks tied cosine distances on entity_id in the %s semantic CTE, rank and candidate set alike",
+    async (_name, search) => {
+      // Ordering on distance alone hands tied rows arbitrary row_number() values.
+      // The window order decides the rank the RRF score is computed from; the
+      // CTE order decides which rows survive SEMANTIC_CANDIDATE_LIMIT. Both need
+      // the tie-break, and the outer ORDER BY can repair neither.
+      mockExecute.mockResolvedValueOnce([]);
+      const embedding = Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0);
+
+      await search({ query: "aventure", embedding, limit: 5 });
+
+      const rendered = renderLastExecuteSql();
+      const semanticCte = rendered.slice(
+        rendered.indexOf("semantic_results AS ("),
+        rendered.indexOf("combined AS ("),
+      );
+
+      expect(semanticCte).not.toBe("");
+      // one in the window ORDER BY, one in the CTE ORDER BY
+      expect(semanticCte.split(", entity_id").length - 1).toBe(2);
+    },
+  );
 
   it("uses word-level trigram similarity and reciprocal rank for book fallback search", async () => {
     mockExecute.mockResolvedValueOnce([

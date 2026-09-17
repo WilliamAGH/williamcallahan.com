@@ -27,6 +27,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { searchBooks, searchBookmarks } from "./dynamic-searchers";
 import { searchProjects } from "./static-searchers";
 import { scoreByRank } from "../search-content";
+import { MAX_RECIPROCAL_RANK_SCORE } from "@/lib/db/queries/hybrid-search-config";
 
 /** Extract searchable text from bookmark analysis. */
 function extractBookmarkText(analysis: AnyAnalysisResponse): string[] {
@@ -273,8 +274,13 @@ async function searchDomainAnalysis(
           title: `[${config.prefix}] > ${parent.title.replace(/^\[.*?\]\s*/, "")} > "${snippet}"`,
           description: truncate("summary" in analysis ? analysis.summary : "", 150),
           url: parent.url,
-          // Combine parent relevance with analysis match quality
-          score: parent.score * 0.4 + score * 0.6,
+          // Both terms on 0..1 before weighting. parent.score is a
+          // reciprocal-rank value capped at MAX_RECIPROCAL_RANK_SCORE, while
+          // scoreAnalysisMatch adds up to 1.0 per matched text and so runs to
+          // several units; blending them raw let the analysis term outweigh
+          // parent relevance by roughly two orders of magnitude, which made the
+          // 0.4 weight decorative.
+          score: (parent.score / MAX_RECIPROCAL_RANK_SCORE) * 0.4 + (score / matchCount) * 0.6,
         });
       }
     }

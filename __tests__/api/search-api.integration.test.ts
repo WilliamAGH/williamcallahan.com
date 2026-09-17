@@ -343,6 +343,30 @@ describe("Search API: GET /api/search/all", () => {
     /**
      * @description Should handle concurrent requests without failing
      */
+    it("ignores a focus the scope filter excludes", async () => {
+      // scope=blog never runs the bookmark searcher, so honoring focus=bookmarks
+      // spent the focused budget on nothing and dropped blog from the
+      // single-scope budget of 50 back to the shared per-category cap of 24.
+      const { searchBlogPostsServerSide } = await import("@/lib/blog/server-search");
+      const thirty = Array.from({ length: 30 }, (_, index) => ({
+        id: `post-${index}`,
+        type: "blog-post" as const,
+        title: `Post ${index}`,
+        url: `/blog/post-${index}`,
+        score: 1 / (60 + index + 1),
+      }));
+      vi.mocked(searchBlogPostsServerSide).mockResolvedValueOnce(thirty);
+
+      const response = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=budget&scope=blog&focus=bookmarks",
+        ) as any,
+      );
+      const data = await response.json();
+
+      expect(data.results).toHaveLength(30);
+    });
+
     it("skips the query embedding when no requested scope reads a vector", async () => {
       queryEmbeddingMocks.buildQueryEmbedding.mockClear();
 

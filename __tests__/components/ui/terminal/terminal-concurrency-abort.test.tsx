@@ -67,12 +67,12 @@ const createAbortableCommand = () => {
   const handler = (_input: string, signal?: AbortSignal) => {
     if (signal) {
       if (signal.aborted) {
-        deferred.reject(new DOMException("Aborted", "AbortError"));
+        deferred.reject(signal.reason);
       } else {
         signal.addEventListener(
           "abort",
           () => {
-            deferred.reject(new DOMException("Aborted", "AbortError"));
+            deferred.reject(signal.reason);
           },
           { once: true },
         );
@@ -89,12 +89,12 @@ const createAbortableAiChat = () => {
     const signal = options?.signal;
     if (signal) {
       if (signal.aborted) {
-        deferred.reject(new DOMException("Aborted", "AbortError"));
+        deferred.reject(signal.reason);
       } else {
         signal.addEventListener(
           "abort",
           () => {
-            deferred.reject(new DOMException("Aborted", "AbortError"));
+            deferred.reject(signal.reason);
           },
           { once: true },
         );
@@ -211,6 +211,41 @@ describe("AbortController Cleanup", () => {
     });
 
     abortSpy.mockRestore();
+    deferred.resolve({ results: [] });
+  });
+
+  it("discards a cleared search instead of writing an error into the cleared history", async () => {
+    // use-terminal aborts with the string "clear_exit", and fetch() rejects with
+    // signal.reason verbatim, so the rejection is that string and not a
+    // DOMException. Treating only DOMException as an abort put a generic error
+    // line into the history the user had just cleared.
+    const { deferred, handler } = createAbortableCommand();
+    mockHandleCommand.mockImplementationOnce(handler);
+
+    const { result } = renderHook(() => useTerminal(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <TerminalProvider>{children}</TerminalProvider>
+      ),
+    });
+
+    act(() => {
+      result.current.setInput("blog test");
+    });
+    await act(async () => {
+      void result.current.handleSubmit();
+    });
+
+    await waitFor(() => {
+      expect(mockHandleCommand).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      result.current.clearAndExitChat();
+      await Promise.resolve();
+    });
+
+    expect(result.current.history.filter((entry) => entry.type === "error")).toHaveLength(0);
+
     deferred.resolve({ results: [] });
   });
 

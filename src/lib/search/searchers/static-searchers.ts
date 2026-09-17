@@ -17,7 +17,7 @@ import {
 } from "../loaders/static-content";
 import type { QueryEmbeddingContext } from "@/types/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
-import { RRF_K, RRF_RANKER_COUNT } from "@/lib/db/queries/hybrid-search-config";
+import { MAX_RECIPROCAL_RANK_SCORE } from "@/lib/db/queries/hybrid-search-config";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import {
   hybridSearchInvestments,
@@ -129,7 +129,7 @@ export async function searchProjects(
       title: "Projects",
       description: "Explore all projects",
       url: "/projects",
-      score: RRF_RANKER_COUNT / (RRF_K + 1),
+      score: MAX_RECIPROCAL_RANK_SCORE,
     });
   }
 

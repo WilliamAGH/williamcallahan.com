@@ -54,7 +54,9 @@ export const bookmarks = pgTable(
       (): SQL => sql`
         setweight(to_tsvector('english', coalesce(${bookmarks.title}, '')), 'A') ||
         setweight(to_tsvector('english', coalesce(${bookmarks.description}, '')), 'B') ||
-        setweight(to_tsvector('english', jsonb_path_query_array(${bookmarks.tags}, '$[*].name')::text), 'B') ||
+        setweight(to_tsvector('english',
+          jsonb_path_query_array(${bookmarks.tags}, '$[*].name')::text || ' ' ||
+          jsonb_path_query_array(${bookmarks.tags}, '$[*] ? (@.type() == "string")')::text), 'B') ||
         setweight(to_tsvector('english', coalesce(${bookmarks.summary}, '')), 'C') ||
         setweight(to_tsvector('english', coalesce(${bookmarks.note}, '')), 'D') ||
         setweight(to_tsvector('english', coalesce(${bookmarks.scrapedContentText}, '')), 'D')
