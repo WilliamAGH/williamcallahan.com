@@ -30,6 +30,7 @@ import {
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { validateSearchQuery } from "@/lib/validators/search";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { VALID_SCOPES, type SearchResult, type SearchScope } from "@/types/schemas/search";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
@@ -185,15 +186,18 @@ export async function GET(request: NextRequest) {
 
     // Perform site-wide search with request coalescing
     const results = await coalesceSearchRequest<SearchResult[]>(cacheKey, async () => {
+      // Embed the query once; every searcher reuses the vector instead of racing
+      // nine embedding calls against the per-call timeout.
+      const context = { precomputed: await buildQueryEmbedding(query, "[search/all]") };
       // Only run searches for requested scopes (or all if no scope specified)
       // Each search is wrapped with a timeout to prevent slow sources from blocking
       // Note: "posts" is an alias for "blog" (handled identically to scoped route)
       const settled = await Promise.allSettled([
         shouldSearch("blog") || shouldSearch("posts")
-          ? withTimeout(searchBlogPostsServerSide(query), SOURCE_TIMEOUT_MS, "blog")
+          ? withTimeout(searchBlogPostsServerSide(query, context), SOURCE_TIMEOUT_MS, "blog")
           : Promise.resolve([]),
         shouldSearch("investments")
-          ? withTimeout(searchInvestments(query), SOURCE_TIMEOUT_MS, "investments")
+          ? withTimeout(searchInvestments(query, context), SOURCE_TIMEOUT_MS, "investments")
           : Promise.resolve([]),
         shouldSearch("experience")
           ? withTimeout(searchExperience(query), SOURCE_TIMEOUT_MS, "experience")
@@ -202,22 +206,22 @@ export async function GET(request: NextRequest) {
           ? withTimeout(searchEducation(query), SOURCE_TIMEOUT_MS, "education")
           : Promise.resolve([]),
         shouldSearch("bookmarks")
-          ? withTimeout(searchBookmarks(query), SOURCE_TIMEOUT_MS, "bookmarks")
+          ? withTimeout(searchBookmarks(query, context), SOURCE_TIMEOUT_MS, "bookmarks")
           : Promise.resolve([]),
         shouldSearch("projects")
-          ? withTimeout(searchProjects(query), SOURCE_TIMEOUT_MS, "projects")
+          ? withTimeout(searchProjects(query, context), SOURCE_TIMEOUT_MS, "projects")
           : Promise.resolve([]),
         shouldSearch("books")
-          ? withTimeout(searchBooks(query), SOURCE_TIMEOUT_MS, "books")
+          ? withTimeout(searchBooks(query, context), SOURCE_TIMEOUT_MS, "books")
           : Promise.resolve([]),
         shouldSearch("thoughts")
-          ? withTimeout(searchThoughts(query), SOURCE_TIMEOUT_MS, "thoughts")
+          ? withTimeout(searchThoughts(query, context), SOURCE_TIMEOUT_MS, "thoughts")
           : Promise.resolve([]),
         shouldSearch("tags")
           ? withTimeout(searchTags(query), SOURCE_TIMEOUT_MS, "tags")
           : Promise.resolve([]),
         shouldSearch("analysis")
-          ? withTimeout(searchAiAnalysis(query), SOURCE_TIMEOUT_MS, "analysis")
+          ? withTimeout(searchAiAnalysis(query, context), SOURCE_TIMEOUT_MS, "analysis")
           : Promise.resolve([]),
       ]);
 

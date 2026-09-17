@@ -2,109 +2,16 @@
  * Tag Search
  *
  * Search tags across all content types: blog, bookmarks, projects, books.
- * Uses the tag aggregator to collect and search tags.
+ * Tag counts come from one PostgreSQL aggregate (see db/queries/tag-counts).
  *
  * @module lib/search/searchers/tag-search
  */
 
 import type { SearchResult, AggregatedTag } from "@/types/schemas/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
-import { envLogger } from "@/lib/utils/env-logger";
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
-import type { QueryEmbeddingContext } from "@/types/search";
-import { aggregateTags } from "../tag-aggregator";
-import { getBookmarksIndex, getCachedBooksData } from "../loaders/dynamic-content";
-import { projectsData } from "../loaders/static-content";
-import { rerankScoredResultsWithEmbeddings } from "../search-content";
-
-/**
- * Get blog post tags with counts from MDX posts.
- */
-async function getBlogTagsWithCounts(): Promise<AggregatedTag[]> {
-  try {
-    const { getAllMDXPostsForSearch } = await import("@/lib/blog/mdx");
-    const posts = await getAllMDXPostsForSearch();
-
-    return aggregateTags({
-      items: posts,
-      getTags: (post) => post.tags,
-      contentType: "blog",
-      urlPattern: (slug) => `/blog/tags/${slug}`,
-    });
-  } catch (error) {
-    envLogger.log("Failed to get blog tags", { error: String(error) }, { category: "Search" });
-    // RC1a: error logged; empty array is per-source graceful degradation
-  }
-  return [];
-}
-
-/**
- * Get project tags with counts.
- */
-async function getProjectTagsWithCounts(): Promise<AggregatedTag[]> {
-  return aggregateTags({
-    items: projectsData,
-    getTags: (p) => p.tags,
-    contentType: "projects",
-    urlPattern: (slug) => `/projects?tag=${slug}`,
-  });
-}
-
-/**
- * Get bookmark tags with counts from indexed bookmarks.
- */
-async function getBookmarkTagsWithCounts(): Promise<AggregatedTag[]> {
-  try {
-    const { bookmarks } = await getBookmarksIndex();
-
-    return aggregateTags({
-      items: bookmarks,
-      getTags: (bookmark) => bookmark.tags.split("\n").filter(Boolean),
-      contentType: "bookmarks",
-      urlPattern: (slug) => `/bookmarks/tags/${slug}`,
-    });
-  } catch (error) {
-    envLogger.log("Failed to get bookmark tags", { error: String(error) }, { category: "Search" });
-    // RC1a: error logged; empty array is per-source graceful degradation
-  }
-  return [];
-}
-
-/**
- * Get book genres with counts.
- */
-async function getBookGenresWithCounts(): Promise<AggregatedTag[]> {
-  try {
-    const books = await getCachedBooksData();
-
-    return aggregateTags({
-      items: books,
-      getTags: (book) => book.genres,
-      contentType: "books",
-      urlPattern: (slug) => `/books?genre=${slug}`,
-    });
-  } catch (error) {
-    envLogger.log("Failed to get book genres", { error: String(error) }, { category: "Search" });
-    // RC1a: error logged; empty array is per-source graceful degradation
-  }
-  return [];
-}
-
-/**
- * Aggregate all tags from all content types.
- */
-async function aggregateAllTags(): Promise<AggregatedTag[]> {
-  // Gather tags from all sources in parallel
-  const [blogTags, projectTags, bookmarkTags, bookGenres] = await Promise.all([
-    getBlogTagsWithCounts(),
-    getProjectTagsWithCounts(),
-    getBookmarkTagsWithCounts(),
-    getBookGenresWithCounts(),
-  ]);
-
-  const allTags = [...blogTags, ...projectTags, ...bookmarkTags, ...bookGenres];
-  return allTags;
-}
+import { listTagCounts } from "@/lib/db/queries/tag-counts";
+import { scoreByRank } from "../search-content";
 
 /**
  * Format tag title for terminal display.
@@ -128,14 +35,11 @@ function formatTagTitle(tag: AggregatedTag): string {
  * Search tags across all content types.
  * Returns tags matching the query with proper hierarchy display.
  */
-export async function searchTags(
-  query: string,
-  context?: QueryEmbeddingContext,
-): Promise<SearchResult[]> {
+export async function searchTags(query: string): Promise<SearchResult[]> {
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const allTags = await aggregateAllTags();
+  const allTags = await listTagCounts();
 
   // Filter tags by query using fuzzy substring matching
   const queryLower = sanitizedQuery.toLowerCase();
@@ -188,16 +92,7 @@ export async function searchTags(
     return true;
   });
 
-  const reranked = await rerankScoredResultsWithEmbeddings({
-    query: sanitizedQuery,
-    scoredResults: limitedTags.map(({ tag, score }) => ({ item: tag, score })),
-    getRerankText: (tag) => `${tag.name}\n${tag.contentType}`,
-    logContext: "[searchTags]",
-    queryEmbedding: context?.precomputed,
-  });
-
-  // Transform to SearchResult format
-  const results: SearchResult[] = reranked.map(({ item: tag, score }) => ({
+  const results: SearchResult[] = limitedTags.map(({ tag, score }) => ({
     id: `tag:${tag.contentType}:${tag.slug}`,
     type: "tag" as const,
     title: formatTagTitle(tag),
@@ -206,5 +101,5 @@ export async function searchTags(
     score,
   }));
 
-  return results;
+  return scoreByRank(results);
 }

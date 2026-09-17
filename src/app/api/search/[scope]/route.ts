@@ -23,6 +23,7 @@ import {
 } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { SearchScopeValidator, validateSearchQuery } from "@/lib/validators/search";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { type SearchResult } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
@@ -128,68 +129,29 @@ export async function GET(
     // Perform the appropriate search based on scope with request coalescing
     const coalesceKey = `${scope}:${query}`;
     const results = await coalesceSearchRequest<SearchResult[]>(coalesceKey, async () => {
+      const context = { precomputed: await buildQueryEmbedding(query, `[search/${scope}]`) };
       switch (scope) {
         case "blog":
         case "posts":
-          return searchBlogPostsServerSide(query);
+          return searchBlogPostsServerSide(query, context);
         case "investments":
-          return searchInvestments(query);
+          return searchInvestments(query, context);
         case "experience":
           return searchExperience(query);
         case "education":
           return searchEducation(query);
         case "bookmarks":
-          return searchBookmarks(query);
+          return searchBookmarks(query, context);
         case "projects":
-          return searchProjects(query);
+          return searchProjects(query, context);
         case "books":
-          return searchBooks(query);
+          return searchBooks(query, context);
         case "thoughts":
-          return searchThoughts(query);
+          return searchThoughts(query, context);
         case "tags":
           return searchTags(query);
         case "analysis":
-          return searchAiAnalysis(query);
-        case "all": {
-          const [
-            posts,
-            bookmarks,
-            projects,
-            investments,
-            experience,
-            education,
-            books,
-            thoughts,
-            tags,
-            analysis,
-          ] = await Promise.all([
-            searchBlogPostsServerSide(query),
-            searchBookmarks(query),
-            searchProjects(query),
-            searchInvestments(query),
-            searchExperience(query),
-            searchEducation(query),
-            searchBooks(query),
-            searchThoughts(query),
-            searchTags(query),
-            searchAiAnalysis(query),
-          ]);
-
-          const combined = [
-            ...posts,
-            ...bookmarks,
-            ...projects,
-            ...investments,
-            ...experience,
-            ...education,
-            ...books,
-            ...thoughts,
-            ...tags,
-            ...analysis,
-          ];
-
-          return combined.toSorted((a, b) => b.score - a.score).slice(0, 50);
-        }
+          return searchAiAnalysis(query, context);
         default:
           return [];
       }

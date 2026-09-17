@@ -1,15 +1,16 @@
 /**
  * Search Query Validation Utilities
  *
- * Provides validation and sanitization for search queries to prevent
- * ReDoS attacks and ensure safe processing.
+ * Normalizes search queries: length cap, whitespace collapse, edge punctuation
+ * trim, lowercase. Punctuation inside the query is kept because PostgreSQL
+ * indexes tokens like "next.js" whole, and no consumer compiles the query
+ * into a regular expression.
  */
 
 import { VALID_SCOPES, type SearchQueryValidationResult } from "@/types/schemas/search";
 
 /**
- * Validates and sanitizes a search query to prevent ReDoS attacks
- * and ensure safe processing.
+ * Validates and normalizes a search query.
  *
  * @param query - The raw search query
  * @returns Object with sanitized query and validation status
@@ -44,12 +45,8 @@ export function validateSearchQuery(query: unknown): SearchQueryValidationResult
     };
   }
 
-  // Remove or escape potentially dangerous regex characters
-  // This prevents ReDoS attacks from malicious regex patterns
-  let sanitized = trimmed.replace(/[.*+?^${}()|[\]\\]/g, " ");
-
-  // Replace multiple consecutive spaces with single space
-  sanitized = sanitized.replace(/\s+/g, " ");
+  // Collapse whitespace runs to a single space
+  let sanitized = trimmed.replace(/\s+/g, " ");
 
   // Remove leading/trailing special characters (Unicode-aware)
   sanitized = sanitized.replace(/^[^\p{L}\p{N}\p{M}_]+|[^\p{L}\p{N}\p{M}_]+$/gu, "");

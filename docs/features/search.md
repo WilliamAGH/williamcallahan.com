@@ -4,9 +4,11 @@
 
 ## Overview
 
-The search functionality provides site-wide and section-specific search capabilities with BM25/fuzzy matching, hybrid vector reranking, caching, and security features. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, education, projects, books, thoughts, tags, and AI analysis.
+The search functionality provides site-wide and section-specific search capabilities with PostgreSQL hybrid retrieval (full-text + word-level trigram + pgvector), BM25 for the two static domains, caching, and rate limiting. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, education, projects, books, thoughts, tags, and AI analysis.
 
-> **Note on Hybrid Retrieval:** Search uses domain-specific hybrid paths. Bookmark SQL returns ranked IDs and hydrates full records through the typed Drizzle projection; thoughts use PostgreSQL hybrid retrieval directly. Other domains run BM25/keyword retrieval with embedding reranking.
+> **Note on Hybrid Retrieval:** Blog posts, bookmarks, books, investments, projects, and thoughts run in PostgreSQL: keyword candidates (`ts_rank_cd` + `word_similarity`) and semantic candidates (pgvector cosine) are ranked separately and merged with Reciprocal Rank Fusion (`1 / (RRF_K + rank)` per list, owner: `lib/db/queries/hybrid-search-config.ts`). Experience, education, tags, and AI analysis rank in TypeScript and are mapped onto the same reciprocal-rank scale by `scoreByRank()`, so the site-wide route can sort every domain's results together. A keyword-only match can never be pushed out by the semantic candidate set: ranks, not raw scores, decide the merge.
+
+> **Query embedding:** the query is embedded once per request in the API route (`buildQueryEmbedding`) and passed to every searcher as `QueryEmbeddingContext.precomputed`. If that single call fails, every domain runs keyword-only; searchers never embed the query themselves when a context is present.
 
 ## Forbidden Patterns
 
@@ -55,11 +57,11 @@ export async function GET() {
 
 4. **Caching**: Next.js Cache Components with search tags/lifetimes (~15-minute profiles for server search reads); lazy loading in terminal.
 
-5. **Search Quality**: Hybrid retrieval blends keyword relevance and semantic similarity. MiniSearch remains the BM25/fuzzy keyword candidate stage for non-PostgreSQL domains.
+5. **Search Quality**: Reciprocal Rank Fusion merges keyword and semantic candidate lists inside PostgreSQL; MiniSearch (all terms required, prefix + fuzzy) remains the BM25 stage for experience and education. Tag counts come from one PostgreSQL aggregate (`lib/db/queries/tag-counts.ts`) instead of loading every bookmark, post, and book per query.
 
 6. **Index Parity**: S3-loaded indexes hydrate with the same MiniSearch options (boost, fuzzy, idField, extractField) used during build to keep relevance scoring consistent with fresh indexes.
 
-7. **Security**: Query validation (Unicode-aware), ReDoS prevention, 100-char limit, and shared rate limiting via `applySearchGuards()` across search routes.
+7. **Security**: Query validation (Unicode-aware, 100-char limit, whitespace and edge-punctuation normalization) and shared rate limiting via `applySearchGuards()` across search routes. Punctuation inside the query is kept: PostgreSQL indexes tokens such as `next.js` whole, and no consumer compiles the query into a regular expression. A 429 is shown to the terminal user as a rate-limit message.
 
 ## Key Files & Responsibilities
 
@@ -70,16 +72,15 @@ export async function GET() {
 - **`lib/search/searchers/dynamic-searchers.ts`**: Dynamic-domain searchers
   - `searchBookmarks()`, `searchBooks()`
 - **`lib/search/searchers/thoughts-search.ts`**: PostgreSQL-backed hybrid thoughts search
-- **`lib/search/search-content.ts`**: Generic content scoring/reranking utilities
+- **`lib/search/search-content.ts`**: MiniSearch scoring plus `scoreByRank()` (shared reciprocal-rank scale)
 - **`lib/search/search-factory.ts`**: Shared cached-search factory used by searchers
 
 - **`lib/blog/server-search.ts`**: Blog-specific search
   - `searchBlogPostsServerSide()`: Searches blog posts with caching
 
 - **`lib/validators/search.ts`**: Query validation
-  - `validateSearchQuery()`: Validates and sanitizes input
+  - `validateSearchQuery()`: Validates and normalizes input (length cap, whitespace, edge punctuation, lowercase)
   - `sanitizeSearchQuery()`: Simple sanitization helper
-  - Prevents ReDoS attacks and dangerous patterns, preserves Unicode letter queries
 
 ### API Endpoints
 
@@ -111,13 +112,8 @@ export async function GET() {
 ### Integration Points
 
 - **`components/ui/terminal/commands.client.ts`**: Terminal integration
-  - Uses consolidated API endpoint
-  - Implements lazy loading with `preloadSearch()`
-  - No longer imports server modules
-
-- **`components/ui/terminal/command-input.client.tsx`**: Input handling
-  - Triggers search preloading after 2 characters
-  - Uses `requestIdleCallback` for performance
+  - Uses consolidated API endpoint; never imports server modules
+  - Non-2xx responses and network failures surface as terminal error lines; aborts propagate so a superseded command is discarded
 
 ### Type Definitions
 
@@ -137,26 +133,18 @@ See [search.mmd](./search.mmd) for detailed architecture diagrams including:
 ### Simplified Flow
 
 ```
-User Input -> Terminal -> Preload Search -> API Request -> Validation
-                                              |
-                                        Cache Check
-                                         /        \
-                                    Cached    Not Cached
-                                      |           |
-                                   Return    Search Function
-                                              |
-                                         MiniSearch
-                                         /        \
-                                   Success    Fallback
-                                      |           |
-                                   Fuzzy     Substring
-                                   Search     Search
-                                      \         /
-                                       Results
-                                          |
-                                    Cache Store
-                                          |
-                                      Response
+User Input -> Terminal -> API Request -> Validation -> Embed query once
+                                                            |
+                                          +-----------------+-----------------+
+                                          |                                   |
+                              PostgreSQL hybrid domains            TypeScript domains
+                        (blog, bookmarks, books, investments,   (experience, education,
+                         projects, thoughts)                     tags, AI analysis)
+                        keyword rank + semantic rank -> RRF      rank -> scoreByRank()
+                                          |                                   |
+                                          +-----------------+-----------------+
+                                                            |
+                                              sort by score (one scale) -> Response
 ```
 
 ## Search Algorithm
@@ -175,13 +163,14 @@ function searchContent<T>(
 
 ### Features
 
-1. **Query Sanitization**: Removes dangerous regex patterns
-2. **MiniSearch Integration**:
-   - Fuzzy matching (10% edit distance)
+1. **Query Normalization**: Whitespace collapse, edge-punctuation trim, lowercase; inner punctuation kept
+2. **MiniSearch Integration** (experience, education):
+   - Fuzzy matching (20% edit distance)
    - Prefix matching for autocomplete
-   - Multi-word AND search
+   - Multi-word AND search (`combineWith: "AND"`)
 3. **Fallback Strategy**: Substring search if MiniSearch fails
 4. **Exact Match Priority**: Optional exact field matching
+5. **Rank scale**: Every searcher returns `score = 1 / (RRF_K + rank)`; PostgreSQL domains sum the keyword and semantic reciprocal ranks
 
 ## Performance Optimizations
 
@@ -192,12 +181,11 @@ function searchContent<T>(
 - **Key Format**: `search:{dataType}:{normalizedQuery}`
 - **Tagged Invalidation**: Search cache profiles are invalidated by domain tag/path updates
 
-### Lazy Loading
+### Request shape
 
-1. **Preload Trigger**: After 2 characters typed
-2. **Background Loading**: Uses `requestIdleCallback`
-3. **One-time Load**: Functions cached after first use
-4. **API-based**: No server modules in client bundle
+1. One query embedding per API request, shared by every domain
+2. Tag counts: one PostgreSQL `GROUP BY` (about 40 ms), no index or catalog loads
+3. API-based: no server modules in the client bundle
 
 ### Index Management
 
@@ -210,9 +198,8 @@ function searchContent<T>(
 ### Query Validation
 
 - **Length Limit**: 100 characters maximum
-- **Special Characters**: Sanitized to prevent ReDoS
 - **Empty Queries**: Rejected with error message
-- **Pattern Removal**: Strips regex metacharacters
+- **Edge Punctuation**: Stripped at both ends; inner punctuation (`next.js`, `c#`) kept for token matching
 
 ### API Security
 

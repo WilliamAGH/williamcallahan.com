@@ -26,7 +26,7 @@ import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
 import { searchBooks, searchBookmarks } from "./dynamic-searchers";
 import { searchProjects } from "./static-searchers";
-import { rerankScoredResultsWithEmbeddings } from "../search-content";
+import { scoreByRank } from "../search-content";
 
 /** Extract searchable text from bookmark analysis. */
 function extractBookmarkText(analysis: AnyAnalysisResponse): string[] {
@@ -304,16 +304,10 @@ export async function searchAiAnalysis(
   );
 
   // Combine, sort by score, and limit
-  const allResults = domainResults
-    .flat()
-    .toSorted((a, b) => b.score - a.score)
-    .slice(0, MAX_TOTAL_RESULTS);
-  const reranked = await rerankScoredResultsWithEmbeddings({
-    query: sanitizedQuery,
-    scoredResults: allResults.map((item) => ({ item, score: item.score })),
-    getRerankText: (item) => [item.title, item.description ?? ""].join("\n"),
-    logContext: "[searchAiAnalysis]",
-    queryEmbedding: context?.precomputed,
-  });
-  return reranked.map(({ item, score }) => ({ ...item, score }));
+  return scoreByRank(
+    domainResults
+      .flat()
+      .toSorted((a, b) => b.score - a.score)
+      .slice(0, MAX_TOTAL_RESULTS),
+  );
 }

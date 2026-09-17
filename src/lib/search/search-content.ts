@@ -9,10 +9,9 @@
 
 import type MiniSearch from "minisearch";
 import type { ScoredResult } from "@/types/search";
-import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
-import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import { envLogger } from "@/lib/utils/env-logger";
+import { RRF_K } from "@/lib/db/queries/hybrid-search-config";
 
 const EXACT_MATCH_SCORE_MULTIPLIER = 2;
 
@@ -66,7 +65,7 @@ export function searchContent<T>(
       const searchResults = miniSearchIndex.search(sanitizedQuery, {
         prefix: true, // Allow prefix matching for autocomplete-like behavior
         fuzzy: 0.2, // Allow typos (20% edit distance)
-        combineWith: "OR", // Any term can match; MiniSearch scoring ranks multi-term hits higher
+        combineWith: "AND", // Every term must match; OR let one fuzzy/prefix hit surface unrelated rows
       });
 
       // Reuse pattern from searchBookmarks(): capture scores in a Map
@@ -127,124 +126,11 @@ export function searchContent<T>(
     });
 }
 
-const DEFAULT_VECTOR_WEIGHT = 0.45;
-const DEFAULT_KEYWORD_WEIGHT = 0.55;
-const DEFAULT_CANDIDATE_LIMIT = 24;
-const DEFAULT_TIMEOUT_MS = 4_000;
-
-function cosineSimilarity(left: number[], right: number[]): number {
-  if (left.length !== right.length || left.length === 0) {
-    return 0;
-  }
-
-  let dot = 0;
-  let leftNorm = 0;
-  let rightNorm = 0;
-  for (let index = 0; index < left.length; index += 1) {
-    const leftValue = left[index];
-    const rightValue = right[index];
-    if (leftValue === undefined || rightValue === undefined) {
-      return 0;
-    }
-    dot += leftValue * rightValue;
-    leftNorm += leftValue * leftValue;
-    rightNorm += rightValue * rightValue;
-  }
-
-  if (leftNorm === 0 || rightNorm === 0) {
-    return 0;
-  }
-  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
-}
-
-function normalizeScores(values: number[]): number[] {
-  if (values.length === 0) {
-    return [];
-  }
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  if (max === min) {
-    return values.map(() => 1);
-  }
-
-  return values.map((value) => (value - min) / (max - min));
-}
-
-export async function rerankScoredResultsWithEmbeddings<T>(options: {
-  query: string;
-  scoredResults: ScoredResult<T>[];
-  getRerankText: (item: T) => string;
-  logContext: string;
-  candidateLimit?: number;
-  timeoutMs?: number;
-  keywordWeight?: number;
-  vectorWeight?: number;
-  /** Precomputed query vector to skip embedding the query in the batched call. */
-  queryEmbedding?: number[];
-}): Promise<ScoredResult<T>[]> {
-  const sanitizedQuery = sanitizeSearchQuery(options.query);
-  if (!sanitizedQuery) {
-    return options.scoredResults;
-  }
-  if (process.env.NODE_ENV !== "production") {
-    return options.scoredResults;
-  }
-
-  const embeddingConfig = resolveDefaultEndpointCompatibleEmbeddingConfig();
-  const MIN_RERANK_CANDIDATES = 2;
-  if (!embeddingConfig || options.scoredResults.length < MIN_RERANK_CANDIDATES) {
-    return options.scoredResults;
-  }
-
-  const candidateLimit = options.candidateLimit ?? DEFAULT_CANDIDATE_LIMIT;
-  const candidates = options.scoredResults.slice(0, candidateLimit);
-  const texts = candidates.map(({ item }) => options.getRerankText(item).trim());
-  if (texts.some((text) => text.length === 0)) {
-    return options.scoredResults;
-  }
-
-  const precomputedQueryVector = options.queryEmbedding;
-  const batchInput = precomputedQueryVector ? texts : [sanitizedQuery, ...texts];
-
-  try {
-    const vectors = await embedTextsWithEndpointCompatibleModel({
-      config: embeddingConfig,
-      input: batchInput,
-      tier: "production-z",
-      timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-    });
-    const queryVector = precomputedQueryVector ?? vectors[0];
-    if (!queryVector) {
-      return options.scoredResults;
-    }
-    const candidateVectorOffset = precomputedQueryVector ? 0 : 1;
-
-    const keywordScores = normalizeScores(candidates.map((candidate) => candidate.score));
-    const vectorScores = normalizeScores(
-      candidates.map((_, index) =>
-        cosineSimilarity(queryVector, vectors[index + candidateVectorOffset] ?? []),
-      ),
-    );
-
-    const keywordWeight = options.keywordWeight ?? DEFAULT_KEYWORD_WEIGHT;
-    const vectorWeight = options.vectorWeight ?? DEFAULT_VECTOR_WEIGHT;
-    const reranked = candidates.map((candidate, index) => ({
-      item: candidate.item,
-      score:
-        (keywordScores[index] ?? 0) * keywordWeight + (vectorScores[index] ?? 0) * vectorWeight,
-    }));
-
-    return [
-      ...reranked.toSorted((a, b) => b.score - a.score),
-      ...options.scoredResults.slice(candidateLimit),
-    ];
-  } catch (error) {
-    envLogger.log(
-      `${options.logContext} hybrid rerank failed; keeping keyword order`,
-      { error: error instanceof Error ? error.message : String(error) },
-      { category: "Search" },
-    );
-    return options.scoredResults;
-  }
+/**
+ * Replace raw scores with reciprocal-rank scores (1 / (RRF_K + rank)) so lists
+ * produced by different scorers (BM25, tag heuristics, analysis matching) sort
+ * together with the PostgreSQL hybrid results, which use the same formula.
+ */
+export function scoreByRank<T extends { score: number }>(results: T[]): T[] {
+  return results.map((result, rank) => ({ ...result, score: 1 / (RRF_K + rank + 1) }));
 }

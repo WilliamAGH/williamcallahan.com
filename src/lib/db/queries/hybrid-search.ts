@@ -27,7 +27,7 @@ import type { BookmarkFtsSearchHit } from "@/types/db/bookmarks";
 import {
   FTS_WEIGHT,
   TRIGRAM_WEIGHT,
-  VECTOR_WEIGHT,
+  RRF_K,
   KEYWORD_CANDIDATE_LIMIT,
   SEMANTIC_CANDIDATE_LIMIT,
   DEFAULT_LIMIT,
@@ -67,19 +67,18 @@ async function hybridSearchWithEmbedding(
   const rows = await db.execute<{ id: string; hybrid_score: number }>(sql`
     WITH keyword_results AS (
       SELECT id,
-        ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-        similarity(title, ${query}) AS trgm_score,
-        ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-          + similarity(title, ${query}) * ${TRIGRAM_WEIGHT} AS keyword_score
+          row_number() OVER (ORDER BY
+            ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+              + word_similarity(${query}, title) * ${TRIGRAM_WEIGHT} DESC, id DESC) AS keyword_rank
       FROM bookmarks
       WHERE search_vector @@ ${tsQuery}
-         OR title % ${query}
-      ORDER BY keyword_score DESC, id DESC
+         OR ${query} <% title
+      ORDER BY keyword_rank
       LIMIT ${KEYWORD_CANDIDATE_LIMIT}
     ),
     semantic_results AS (
       SELECT e.entity_id AS id,
-        1.0 - (e.qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
+        row_number() OVER (ORDER BY e.qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS semantic_rank
       FROM embeddings e
       JOIN bookmarks existing_bookmark ON existing_bookmark.id = e.entity_id
       WHERE e.domain = 'bookmark'
@@ -90,9 +89,8 @@ async function hybridSearchWithEmbedding(
     combined AS (
       SELECT
         COALESCE(k.id, s.id) AS id,
-        COALESCE(k.fts_score, 0) * ${FTS_WEIGHT}
-          + COALESCE(k.trgm_score, 0) * ${TRIGRAM_WEIGHT}
-          + COALESCE(s.vec_score, 0) * ${VECTOR_WEIGHT} AS score
+        COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
+            + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
       FROM keyword_results k
       FULL OUTER JOIN semantic_results s ON k.id = s.id
     )
@@ -138,8 +136,8 @@ async function hydrateScoredBookmarks(
 
 async function keywordOnlySearch(query: string, limit: number): Promise<BookmarkFtsSearchHit[]> {
   const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
-  const keywordScore = sql<number>`ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
-    + similarity(${bookmarks.title}, ${query}) * ${TRIGRAM_WEIGHT}`;
+  const keywordScore = sql<number>`1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
+    + word_similarity(${query}, ${bookmarks.title}) * ${TRIGRAM_WEIGHT} DESC, ${bookmarks.id} DESC))`;
 
   const rows = await db
     .select({
@@ -147,7 +145,7 @@ async function keywordOnlySearch(query: string, limit: number): Promise<Bookmark
       score: keywordScore,
     })
     .from(bookmarks)
-    .where(sql`${bookmarks.searchVector} @@ ${tsQuery} OR ${bookmarks.title} % ${query}`)
+    .where(sql`${bookmarks.searchVector} @@ ${tsQuery} OR ${query} <% ${bookmarks.title}`)
     .orderBy(sql`${keywordScore} DESC`, desc(bookmarks.dateBookmarked), desc(bookmarks.id))
     .limit(limit);
 
@@ -234,19 +232,18 @@ export async function hybridSearchThoughts(options: {
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
-          ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(title, ${normalizedQuery}) AS trgm_score,
-          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-            + similarity(title, ${normalizedQuery}) * ${TRIGRAM_WEIGHT} AS keyword_score
+          row_number() OVER (ORDER BY
+            ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+              + word_similarity(${normalizedQuery}, title) * ${TRIGRAM_WEIGHT} DESC, id DESC) AS keyword_rank
         FROM thoughts
         WHERE draft = false
-          AND (search_vector @@ ${tsQuery} OR title % ${normalizedQuery})
-        ORDER BY keyword_score DESC, id DESC
+          AND (search_vector @@ ${tsQuery} OR ${normalizedQuery} <% title)
+        ORDER BY keyword_rank
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
         SELECT entity_id AS id,
-          1.0 - (qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
+          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS semantic_rank
         FROM embeddings
         WHERE domain = 'thought'
           AND qwen_4b_fp16_embedding IS NOT NULL
@@ -256,9 +253,8 @@ export async function hybridSearchThoughts(options: {
       combined AS (
         SELECT
           COALESCE(k.id, s.id) AS id,
-          COALESCE(k.fts_score, 0) * ${FTS_WEIGHT}
-            + COALESCE(k.trgm_score, 0) * ${TRIGRAM_WEIGHT}
-            + COALESCE(s.vec_score, 0) * ${VECTOR_WEIGHT} AS score
+          COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
+            + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k
         FULL OUTER JOIN semantic_results s ON k.id = s.id
       )
@@ -284,8 +280,8 @@ export async function hybridSearchThoughts(options: {
   }
 
   const tsQuery = sql`websearch_to_tsquery('english', ${normalizedQuery})`;
-  const keywordScore = sql<number>`ts_rank_cd(${thoughts.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
-    + similarity(${thoughts.title}, ${normalizedQuery}) * ${TRIGRAM_WEIGHT}`;
+  const keywordScore = sql<number>`1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${thoughts.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
+    + word_similarity(${normalizedQuery}, ${thoughts.title}) * ${TRIGRAM_WEIGHT} DESC, ${thoughts.id} DESC))`;
   const rows = await db
     .select({
       id: thoughts.id,
@@ -300,7 +296,7 @@ export async function hybridSearchThoughts(options: {
     })
     .from(thoughts)
     .where(
-      sql`${thoughts.draft} = false AND (${thoughts.searchVector} @@ ${tsQuery} OR ${thoughts.title} % ${normalizedQuery})`,
+      sql`${thoughts.draft} = false AND (${thoughts.searchVector} @@ ${tsQuery} OR ${normalizedQuery} <% ${thoughts.title})`,
     )
     .orderBy(sql`${keywordScore} DESC`, desc(thoughts.createdAt), desc(thoughts.id))
     .limit(limit);

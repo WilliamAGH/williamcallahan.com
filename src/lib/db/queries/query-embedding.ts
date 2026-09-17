@@ -14,7 +14,9 @@ import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatibl
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import { envLogger } from "@/lib/utils/env-logger";
 
-const QUERY_EMBEDDING_TIMEOUT_MS = 1_500;
+// One call per request now, so a slow inference queue costs at most this once; a
+// timeout silently turns the whole request keyword-only, which is the worse outcome.
+const QUERY_EMBEDDING_TIMEOUT_MS = 4_000;
 
 /**
  * Embed a search query for hybrid search semantic layer.
@@ -22,26 +24,17 @@ const QUERY_EMBEDDING_TIMEOUT_MS = 1_500;
  * Returns undefined (not throws) on failure so hybrid search
  * gracefully falls back to FTS-only.
  *
- * When `context.precomputed` is supplied and has the correct dimensionality,
- * it is returned directly — no HTTP call is made.
+ * When a `context` is supplied the caller already embedded the query once for
+ * the whole request: its `precomputed` vector is used as-is, and an absent
+ * vector means keyword-only for every domain rather than a retry per domain.
  */
 export async function buildQueryEmbedding(
   query: string,
   logContext: string,
   context?: QueryEmbeddingContext,
 ): Promise<number[] | undefined> {
-  if (context?.precomputed) {
-    if (context.precomputed.length === CONTENT_EMBEDDING_DIMENSIONS) {
-      return context.precomputed;
-    }
-    envLogger.log(
-      `${logContext} precomputed query embedding has wrong dimensionality; re-embedding`,
-      {
-        received: context.precomputed.length,
-        expected: CONTENT_EMBEDDING_DIMENSIONS,
-      },
-      { category: "Search" },
-    );
+  if (context) {
+    return context.precomputed;
   }
 
   let embeddingConfig: ReturnType<typeof resolveDefaultEndpointCompatibleEmbeddingConfig> = null;

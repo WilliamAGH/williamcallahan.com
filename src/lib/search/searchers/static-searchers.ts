@@ -69,9 +69,6 @@ export const searchExperience = createCachedSearchFunction({
     url: `/experience#${exp.id}`,
     score,
   }),
-  hybridRerank: {
-    getRerankText: (exp) => [exp.company, exp.role, exp.period].join("\n"),
-  },
 });
 
 /**
@@ -91,9 +88,6 @@ export const searchEducation = createCachedSearchFunction({
     url: item.path,
     score,
   }),
-  hybridRerank: {
-    getRerankText: (item) => [item.label, item.description].join("\n"),
-  },
 });
 
 /**

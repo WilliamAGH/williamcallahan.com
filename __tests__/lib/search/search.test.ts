@@ -110,6 +110,7 @@ vi.mock("@/lib/db/queries/query-embedding", () => ({
   buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { RRF_K } from "@/lib/db/queries/hybrid-search-config";
 import {
   searchInvestments,
   searchExperience,
@@ -144,10 +145,10 @@ describe("search", () => {
       expect(result.error).toContain("too long");
     });
 
-    it("should sanitize special regex characters", () => {
-      const result = validateSearchQuery("test.*query[abc]");
+    it("keeps punctuation inside the query so dotted tokens like next.js survive", () => {
+      const result = validateSearchQuery("  Next.js   App Router ");
       expect(result.isValid).toBe(true);
-      expect(result.sanitized).toBe("test query abc");
+      expect(result.sanitized).toBe("next.js app router");
     });
 
     it("should preserve Unicode letters in search queries", () => {
@@ -249,6 +250,13 @@ describe("search", () => {
       });
       expect(result?.url).toMatch(url);
     });
+
+    it("scores results by reciprocal rank so every domain sorts on one scale", async () => {
+      const results = await search(query);
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.map((r) => r.score)).toEqual(results.map((_, rank) => 1 / (RRF_K + rank + 1)));
+    });
   });
 
   describe("searchProjects", () => {
@@ -306,11 +314,10 @@ describe("search", () => {
   });
 
   describe("searchThoughts", () => {
-    it("returns the thoughts page when no thought rows match", async () => {
+    it("returns nothing when no thought rows match", async () => {
       mockHybridSearchThoughts.mockResolvedValueOnce([]);
       const results = await searchThoughts("thoughts");
-      expect(results).toHaveLength(1);
-      expect(results[0]?.url).toBe("/thoughts");
+      expect(results).toHaveLength(0);
     });
 
     it("returns mapped thought detail results when hybrid rows exist", async () => {
