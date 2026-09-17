@@ -258,7 +258,7 @@ describe("Search API: GET /api/search/all", () => {
       // Thirty posts that all outscore bookmarks ranked 25-50 must not evict them.
       const thirtyPosts = Array.from({ length: 30 }, (_, index) => ({
         id: `post-${index}`,
-        type: "post" as const,
+        type: "blog-post" as const,
         title: `Post ${index}`,
         url: `/blog/post-${index}`,
         score: 1 / (60 + index + 1) + 0.001,
@@ -277,9 +277,9 @@ describe("Search API: GET /api/search/all", () => {
       const otherRows = data.results.filter((r: { type: string }) => r.type !== "bookmark");
       expect(bookmarkRows).toHaveLength(50);
       expect(otherRows).toHaveLength(24);
-      expect(otherRows.filter((r: { type: string }) => r.type === "post").length).toBeGreaterThan(
-        15,
-      );
+      expect(
+        otherRows.filter((r: { type: string }) => r.type === "blog-post").length,
+      ).toBeGreaterThan(15);
       expect(data.results.length).toBe(74);
 
       const scores = data.results.map((r: { score: number }) => r.score);
