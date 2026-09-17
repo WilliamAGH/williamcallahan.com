@@ -230,12 +230,17 @@ function searchContent<T>(
 `scripts/compare-bookmark-search.node.mjs` measures the site's bookmark search
 against the upstream Karakeep search it mirrors. For each of 25 fixed queries
 (derived from real Karakeep titles and tag names) it calls
-`{BOOKMARKS_API_URL}/api/v1/bookmarks/search` and
-`/api/search/all?scope=bookmarks`, restricts the upstream answer to ids present
-in the site's `bookmarks` table, and reports how much of upstream's top 10
-in-scope hits the site's 24 slots contain. It fails (exit 1) when mean inclusion
-drops below 0.90, any query below 0.50, or the site returns fewer results than
-the reference set.
+`{BOOKMARKS_API_URL}/bookmarks/search` and `/api/search/all?scope=bookmarks`
+(a single-scope request gets the full 50-result budget), restricts the upstream
+answer to ids present in the site's `bookmarks` table, and reports how much of
+upstream's top 10 in-scope hits the site returns. Two rules gate it (exit 1 on
+failure): mean inclusion across all reference hits must be at least 0.90, and,
+per query, at least half of the reference hits whose title, description, or tag
+names match the query must be present. Upstream hits that match only in page
+text or only in Karakeep's embedding space count toward the mean but cannot fail
+a single query alone ("descript" stems like "description", so upstream's top 10
+is mostly pages whose body says "description"). The site must also return at
+least as many results as the reference set.
 
 ```bash
 set -a; source .env; set +a

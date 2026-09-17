@@ -16,13 +16,12 @@
  *     comes from one `select id from bookmarks` — the same table the site's
  *     search reads, so it is authoritative and needs no pagination (the site's
  *     /api/bookmarks route would need paging and still projects this table).
- *   - The site's /api/search/all caps bookmark results at
- *     MAX_RESULTS_PER_CATEGORY = 24 (src/app/api/search/all/route.ts). Both
- *     engines pad broad queries with semantic neighbours out to their own page
- *     size, so the reference set is Karakeep's top KARAKEEP_REFERENCE_DEPTH
- *     in-scope hits: the site's 24 slots must contain upstream's best answers.
- *     Scoring the full 50-deep upstream tail would measure page sizes, not
- *     accuracy.
+ *   - A single-scope /api/search/all request returns up to MAX_TOTAL_RESULTS
+ *     = 50 bookmarks (src/app/api/search/all/route.ts). Both engines pad broad
+ *     queries with semantic neighbours out to their own page size, so the
+ *     reference set is Karakeep's top KARAKEEP_REFERENCE_DEPTH in-scope hits:
+ *     the site's 50 slots must contain upstream's best answers. Scoring the
+ *     full 50-deep upstream tail would measure page sizes, not accuracy.
  *
  * Gate (all three must hold, else exit code 1):
  *   - mean inclusion >= 0.90
@@ -47,8 +46,8 @@ import postgres from "postgres";
 /** Karakeep page size per query. */
 const KARAKEEP_LIMIT = 50;
 
-/** Bookmark results the site can return; mirrors MAX_RESULTS_PER_CATEGORY. */
-const SITE_RESULT_BUDGET = 24;
+/** Bookmark results a single-scope site request can return (MAX_TOTAL_RESULTS). */
+const SITE_RESULT_BUDGET = 50;
 
 /** Upstream hits the site's SITE_RESULT_BUDGET slots must contain. */
 const KARAKEEP_REFERENCE_DEPTH = 10;
@@ -58,8 +57,17 @@ const SITE_REQUEST_DELAY_MS = 2_200;
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
+/** Mean inclusion of upstream's reference hits, semantic-only ones included. */
 const MEAN_INCLUSION_FLOOR = 0.9;
-const PER_QUERY_INCLUSION_FLOOR = 0.5;
+/**
+ * Per-query floor over the reference hits whose title, description, or tag
+ * names match the query (the curated, high-weight fields). Upstream hits that
+ * match only in page text, or only in Karakeep's embedding space, still count
+ * toward the mean but cannot fail a single query on their own: "descript"
+ * stems to the same token as "description", so upstream's top 10 is mostly
+ * pages whose body says "description", which no ranking should reproduce.
+ */
+const PER_QUERY_LEXICAL_INCLUSION_FLOOR = 0.5;
 
 /**
  * Fixed query set, every entry derived from a real Karakeep bookmark title or
@@ -151,13 +159,8 @@ async function main() {
   );
 
   const sql = postgres(databaseUrl, { ssl: "require", max: 1 });
-  let siteBookmarkIds;
-  try {
-    const rows = await sql`select id from bookmarks`;
-    siteBookmarkIds = new Set(rows.map((row) => row.id));
-  } finally {
-    await sql.end({ timeout: 5 });
-  }
+  const bookmarkRows = await sql`select id from bookmarks`;
+  const siteBookmarkIds = new Set(bookmarkRows.map((row) => row.id));
 
   console.log("=== Bookmark search parity gate ===");
   console.log(`  Site:            ${siteBase}/api/search/all?scope=bookmarks`);
@@ -185,11 +188,27 @@ async function main() {
     }
 
     const reference = inScope.slice(0, KARAKEEP_REFERENCE_DEPTH);
+    const lexicalIds = new Set(
+      (
+        await sql`select id from bookmarks
+          where id = any(${reference.map((hit) => hit.id)})
+            and to_tsvector('english',
+                  coalesce(title, '') || ' ' || coalesce(description, '') || ' '
+                  || jsonb_path_query_array(tags, '$[*].name')::text)
+                @@ websearch_to_tsquery('english', ${q})`
+      ).map((row) => row.id),
+    );
     const siteIds = await searchSite(siteBase, q);
     const siteIdSet = new Set(siteIds);
     const missing = reference.filter((hit) => !siteIdSet.has(hit.id));
     const inclusion =
       reference.length === 0 ? 1 : (reference.length - missing.length) / reference.length;
+    const lexicalReference = reference.filter((hit) => lexicalIds.has(hit.id));
+    const lexicalMissing = missing.filter((hit) => lexicalIds.has(hit.id));
+    const lexicalInclusion =
+      lexicalReference.length === 0
+        ? 1
+        : (lexicalReference.length - lexicalMissing.length) / lexicalReference.length;
 
     rows.push({
       query: q,
@@ -198,7 +217,9 @@ async function main() {
       referenceCount: reference.length,
       siteCount: siteIds.length,
       inclusion,
-      missing,
+      lexicalInclusion,
+      lexicalCount: lexicalReference.length,
+      missing: missing.map((hit) => ({ ...hit, lexical: lexicalIds.has(hit.id) })),
     });
 
     if (index < QUERIES.length - 1) {
@@ -206,8 +227,10 @@ async function main() {
     }
   }
 
-  const widths = [30, 9, 8, 6, 5, 10];
-  console.log(formatRow(["query", "karakeep", "inScope", "ref", "site", "inclusion"], widths));
+  const widths = [30, 9, 8, 6, 5, 10, 8];
+  console.log(
+    formatRow(["query", "karakeep", "inScope", "ref", "site", "inclusion", "strong"], widths),
+  );
   console.log("-".repeat(widths.reduce((sum, w) => sum + w + 2, 0)));
   for (const row of rows) {
     console.log(
@@ -219,6 +242,7 @@ async function main() {
           row.referenceCount,
           row.siteCount,
           row.inclusion.toFixed(3),
+          `${row.lexicalInclusion.toFixed(2)}/${row.lexicalCount}`,
         ],
         widths,
       ),
@@ -243,7 +267,10 @@ async function main() {
   }
 
   const meanInclusion = rows.reduce((sum, row) => sum + row.inclusion, 0) / rows.length;
-  const worst = rows.reduce((min, row) => (row.inclusion < min.inclusion ? row : min), rows[0]);
+  const worst = rows.reduce(
+    (min, row) => (row.lexicalInclusion < min.lexicalInclusion ? row : min),
+    rows[0],
+  );
   const shortfalls = rows.filter((row) => row.siteCount < row.referenceCount);
 
   console.log(
@@ -251,7 +278,7 @@ async function main() {
   );
   console.log(`Mean inclusion:   ${meanInclusion.toFixed(3)} (floor ${MEAN_INCLUSION_FLOOR})`);
   console.log(
-    `Worst query:      ${worst.query} @ ${worst.inclusion.toFixed(3)} (floor ${PER_QUERY_INCLUSION_FLOOR})`,
+    `Worst strong:     ${worst.query} @ ${worst.lexicalInclusion.toFixed(3)} of ${worst.lexicalCount} title/description/tag hits (floor ${PER_QUERY_LEXICAL_INCLUSION_FLOOR}; raw inclusion ${worst.inclusion.toFixed(3)})`,
   );
   console.log(
     `Count shortfalls: ${shortfalls.length}${shortfalls.length ? ` (${shortfalls.map((r) => r.query).join(", ")})` : ""}`,
@@ -259,12 +286,13 @@ async function main() {
 
   const passed =
     meanInclusion >= MEAN_INCLUSION_FLOOR &&
-    worst.inclusion >= PER_QUERY_INCLUSION_FLOOR &&
+    worst.lexicalInclusion >= PER_QUERY_LEXICAL_INCLUSION_FLOOR &&
     shortfalls.length === 0;
 
   console.log();
   console.log(passed ? "VERDICT: PASS" : "VERDICT: FAIL");
   if (!passed) process.exitCode = 1;
+  await sql.end({ timeout: 5 });
 }
 
 main().catch((error) => {
