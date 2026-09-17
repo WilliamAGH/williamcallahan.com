@@ -92,7 +92,8 @@ export interface TagSource<T> {
   /** Content type for the aggregated tags */
   contentType: AggregatedTagShape["contentType"];
   /** URL pattern generator for tag pages */
-  urlPattern: (slug: string) => string;
+  /** Builds the listing URL from the raw tag; the entry owns its own slugging. */
+  urlPattern: (tag: string) => string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

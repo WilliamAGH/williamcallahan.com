@@ -47,7 +47,7 @@ export async function listTagCounts(): Promise<AggregatedTag[]> {
       slug,
       contentType: row.content_type,
       count: Number(row.count),
-      url: TAG_URL[row.content_type](slug),
+      url: TAG_URL[row.content_type](row.name),
     };
   });
 }

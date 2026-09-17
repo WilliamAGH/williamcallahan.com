@@ -19,6 +19,7 @@ import type { BookmarkTag } from "@/types/schemas/bookmark";
 import type { AggregatedTag } from "@/types/schemas/search";
 import { normalizeString } from "@/lib/utils";
 import { sanitizeControlChars } from "@/lib/utils/sanitize";
+import { kebabCase } from "@/lib/utils/formatters";
 
 /**
  * Format tag for display: Title Case unless mixed-case proper nouns
@@ -147,12 +148,20 @@ export function tagToSlug(tag: string): string {
     .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
 }
 
-/** Route for a tag or genre listing, keyed by the content type that owns it. */
-export const TAG_URL: Record<AggregatedTag["contentType"], (slug: string) => string> = {
-  blog: (slug) => `/blog/tags/${slug}`,
-  bookmarks: (slug) => `/bookmarks/tags/${slug}`,
-  projects: (slug) => `/projects?tag=${slug}`,
-  books: (slug) => `/books?genre=${slug}`,
+/**
+ * Route for a tag or genre listing, keyed by the content type that owns it.
+ *
+ * Each entry takes the raw tag and slugs it the way that route resolves one, so
+ * a link here always addresses a page the route can serve. The blog route
+ * matches on kebabCase (src/app/blog/tags/[tagSlug]/page.tsx); every other tag
+ * route matches on tagToSlug. Slugging with the wrong one 404s: "agents.md"
+ * resolves to /blog/tags/agents-md, not /blog/tags/agentsdotmd.
+ */
+export const TAG_URL: Record<AggregatedTag["contentType"], (tag: string) => string> = {
+  blog: (tag) => `/blog/tags/${kebabCase(tag)}`,
+  bookmarks: (tag) => `/bookmarks/tags/${tagToSlug(tag)}`,
+  projects: (tag) => `/projects?tag=${tagToSlug(tag)}`,
+  books: (tag) => `/books?genre=${tagToSlug(tag)}`,
 };
 
 /**

@@ -16,6 +16,7 @@ vi.mock("@/lib/db/connection", () => ({ db: { execute: mockExecute } }));
 
 import { listTagCounts } from "@/lib/db/queries/tag-counts";
 import { TAG_URL, tagToSlug } from "@/lib/utils/tag-utils";
+import { kebabCase } from "@/lib/utils/formatters";
 
 describe("listTagCounts", () => {
   beforeEach(() => mockExecute.mockReset());
@@ -32,10 +33,10 @@ describe("listTagCounts", () => {
 
     // Bind the canonical owner rather than restating the routes here ([SS1c]).
     expect(tags.map((tag) => tag.url)).toEqual([
-      TAG_URL.blog(tagToSlug("react")),
-      TAG_URL.bookmarks(tagToSlug("ai")),
-      TAG_URL.projects(tagToSlug("typescript")),
-      TAG_URL.books(tagToSlug("fiction")),
+      TAG_URL.blog("react"),
+      TAG_URL.bookmarks("ai"),
+      TAG_URL.projects("typescript"),
+      TAG_URL.books("fiction"),
     ]);
   });
 
@@ -49,8 +50,19 @@ describe("listTagCounts", () => {
       slug: tagToSlug("next.js"),
       contentType: "blog",
       count: 7,
-      url: TAG_URL.blog(tagToSlug("next.js")),
+      url: TAG_URL.blog("next.js"),
     });
+  });
+
+  it("links a dotted blog tag to the slug its route actually serves", async () => {
+    // src/app/blog/tags/[tagSlug] resolves on kebabCase, so linking the
+    // tagToSlug form 404s: "agents.md" is served at agents-md, not agentsdotmd.
+    mockExecute.mockResolvedValueOnce([{ name: "agents.md", content_type: "blog", count: 2 }]);
+
+    const [tag] = await listTagCounts();
+
+    expect(tag?.url).toBe(`/blog/tags/${kebabCase("agents.md")}`);
+    expect(tag?.url).not.toContain(tagToSlug("agents.md"));
   });
 
   it("coerces a driver-stringified count to a number", async () => {

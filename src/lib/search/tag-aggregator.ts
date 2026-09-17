@@ -65,7 +65,7 @@ export async function aggregateTags<T>(source: TagSource<T>): Promise<Aggregated
       slug: tagToSlug(tag),
       contentType: source.contentType,
       count,
-      url: source.urlPattern(tagToSlug(tag)),
+      url: source.urlPattern(tag),
     }))
     .toSorted((a, b) => b.count - a.count);
 }
