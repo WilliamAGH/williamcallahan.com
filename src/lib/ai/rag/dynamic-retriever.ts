@@ -136,8 +136,13 @@ export async function retrieveRelevantContent(
   // Embed once per retrieval so concurrent scope searchers share the vector
   // instead of each hitting the embedding endpoint in parallel.
   const sanitizedQuery = sanitizeSearchQuery(query);
+  // The embedding may spend at most half the deadline. Handing it the whole
+  // budget starved the scopes: a slow endpoint left scopeTimeoutMs at 0, so
+  // every scope failed instantly and the keyword-only fallback that
+  // buildQueryEmbedding had already returned never got to run.
+  const embeddingTimeoutMs = Math.floor(timeoutMs / 2);
   const precomputed = sanitizedQuery
-    ? await buildQueryEmbedding(sanitizedQuery, "[RAG]", undefined, timeoutMs)
+    ? await buildQueryEmbedding(sanitizedQuery, "[RAG]", undefined, embeddingTimeoutMs)
     : undefined;
   const embeddingContext: QueryEmbeddingContext = { precomputed };
   const scopeTimeoutMs = Math.max(0, deadline - Date.now());
