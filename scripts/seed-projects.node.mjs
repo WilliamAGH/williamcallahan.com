@@ -1,100 +1,47 @@
 #!/usr/bin/env node
 /**
- * Seed projects table from static data/projects.ts.
+ * Seed the projects table from static data/projects.ts through the canonical
+ * upsertProjects mutation (Drizzle), so jsonb columns are serialized once.
  *
- * IMPORTANT: This script MUST run under Node.js (not bun). See CLAUDE.md [RT1].
+ * This script runs under Node.js (CLAUDE.md [RT1]); `tsx` registers the
+ * repository TypeScript resolver only for the mutation import.
  *
  * Usage:
  *   set -a; source .env; set +a
- *   DEPLOYMENT_ENV=production node scripts/seed-projects.node.mjs
- *
- * Flags:
- *   --dry-run   Show what would be seeded without writing
+ *   DEPLOYMENT_ENV=production node scripts/seed-projects.node.mjs [--dry-run]
  */
 
-import postgres from "postgres";
+const PREFIX = "[seed-projects]";
 
-const P = "[seed-projects]";
-const PRODUCTION = "production";
-
-function readEnv(n) {
-  const v = process.env[n]?.trim();
-  if (!v) throw new Error(`${n} is required.`);
-  return v;
-}
-function hasFlag(f) {
-  return process.argv.slice(2).includes(f);
-}
-function assertProdWrite(op) {
-  const raw = (process.env.DEPLOYMENT_ENV || process.env.NODE_ENV || "").trim().toLowerCase();
-  if ((raw === "prod" ? PRODUCTION : raw) !== PRODUCTION)
-    throw new Error(`[write-guard] Blocked "${op}": env="${raw}".`);
+function hasFlag(flag) {
+  return process.argv.slice(2).includes(flag);
 }
 
 async function run() {
-  const dry = hasFlag("--dry-run");
-  if (!dry) assertProdWrite("seed-projects");
-  const dbUrl = readEnv("DATABASE_URL");
-  const sql = postgres(dbUrl, { ssl: "require", max: 1, connect_timeout: 10 });
+  const { register } = await import("tsx/esm/api");
+  const unregister = register({ tsconfig: "./tsconfig.json" });
+  let closeDatabaseConnection;
 
   try {
-    let projects;
-    let generateProjectSlug;
-    try {
-      const [projectsMod, slugMod] = await Promise.all([
-        import("../data/projects.ts"),
-        import("../src/lib/projects/slug-helpers.ts"),
-      ]);
-      projects = projectsMod.projects;
-      generateProjectSlug = slugMod.generateProjectSlug;
-    } catch {
-      console.error(`${P} Cannot import project data and slug owner directly.`);
-      console.error(`${P} This script should be invoked via: bun run seed:projects`);
-      process.exit(1);
-    }
-
-    console.log(`${P} Found ${projects.length} projects`);
-    if (dry) {
-      for (const proj of projects) {
-        console.log(`  ${proj.id ?? generateProjectSlug(proj.name)}: ${proj.name}`);
-      }
-      console.log(`${P} Dry run complete.`);
+    const { projects } = await import("../data/projects.ts");
+    console.log(`${PREFIX} Found ${projects.length} projects`);
+    if (hasFlag("--dry-run")) {
+      for (const project of projects) console.log(`  ${project.id}: ${project.name}`);
+      console.log(`${PREFIX} Dry run complete.`);
       return;
     }
 
-    let upserted = 0;
-    for (const proj of projects) {
-      const id = proj.id ?? generateProjectSlug(proj.name);
-      const slug = generateProjectSlug(proj.name);
-      await sql`
-        INSERT INTO projects (
-          id, name, slug, description, short_summary, url,
-          github_url, image_key, tags, tech_stack,
-          note, cv_featured, registry_links
-        ) VALUES (
-          ${id}, ${proj.name}, ${slug}, ${proj.description},
-          ${proj.shortSummary}, ${proj.url},
-          ${proj.githubUrl ?? null}, ${proj.imageKey},
-          ${proj.tags ? sql.json(proj.tags) : null},
-          ${proj.techStack ? sql.json(proj.techStack) : null},
-          ${proj.note ?? null}, ${proj.cvFeatured ?? false},
-          ${proj.registryLinks ? sql.json(proj.registryLinks) : null}
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name, slug = EXCLUDED.slug,
-          description = EXCLUDED.description, short_summary = EXCLUDED.short_summary,
-          url = EXCLUDED.url, github_url = EXCLUDED.github_url,
-          image_key = EXCLUDED.image_key, tags = EXCLUDED.tags,
-          tech_stack = EXCLUDED.tech_stack, note = EXCLUDED.note,
-          cv_featured = EXCLUDED.cv_featured, registry_links = EXCLUDED.registry_links`;
-      upserted++;
-    }
-    console.log(`${P} Upserted ${upserted} projects`);
-
-    const verify = await sql`SELECT count(*)::int as cnt FROM projects`;
-    console.log(`${P} Total in table: ${verify[0].cnt}`);
+    const database = await import("../src/lib/db/connection.ts");
+    closeDatabaseConnection = database.closeDatabaseConnection;
+    const { upsertProjects } = await import("../src/lib/db/mutations/projects.ts");
+    const upserted = await upsertProjects(projects);
+    console.log(`${PREFIX} Upserted ${upserted} projects`);
   } finally {
-    await sql.end({ timeout: 5 });
+    try {
+      if (closeDatabaseConnection !== undefined) await closeDatabaseConnection();
+    } finally {
+      await unregister();
+    }
   }
 }
 
