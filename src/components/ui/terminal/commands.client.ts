@@ -404,7 +404,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
 
   // 4. If not a direct command or section command, perform site-wide search
   // IMPORTANT: This now takes precedence over "command not recognized" to fix the multi-word search issue
-  const { query: searchTerms, focus } = resolveSiteWideSearch(trimmedInput.split(" "));
+  const { query: searchTerms, focus } = resolveSiteWideSearch([command, ...args]);
 
   try {
     // Log search info for debugging (safe logging - no object dumps)
