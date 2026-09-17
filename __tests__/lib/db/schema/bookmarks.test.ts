@@ -1,0 +1,50 @@
+import { readFileSync } from "node:fs";
+import { getTableColumns, type SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { bookmarks } from "@/lib/db/schema/bookmarks";
+
+/**
+ * Tag names and scraped page text carry evidence that often appears nowhere
+ * else on a bookmark, so they belong in the full-text vector. The generated
+ * column's expression lives in two places by necessity — the schema owner and
+ * the SQL migration that applied it — and a schema edit without a migration
+ * silently leaves production on the old vector, so both are checked here.
+ */
+const TAG_EXTRACTION = "jsonb_path_query_array";
+
+function compiledSearchVectorExpression(): string {
+  const generated = getTableColumns(bookmarks).searchVector.generated;
+  if (!generated) throw new Error("bookmarks.search_vector is not a generated column");
+  const expression = typeof generated.as === "function" ? generated.as() : generated.as;
+  return new PgDialect().sqlToQuery(expression as SQL).sql;
+}
+
+describe("bookmarks search_vector", () => {
+  it("indexes tag names and scraped page text alongside the editorial fields", () => {
+    const expression = compiledSearchVectorExpression();
+
+    expect(expression).toContain(TAG_EXTRACTION);
+    for (const column of [
+      '"title"',
+      '"description"',
+      '"tags"',
+      '"summary"',
+      '"note"',
+      '"scraped_content_text"',
+    ]) {
+      expect(expression).toContain(column);
+    }
+  });
+
+  it("has a migration that rebuilds the column with the same tag extraction", () => {
+    const migration = readFileSync(
+      "drizzle/0025_bookmark-search-vector-tags-and-content.sql",
+      "utf8",
+    );
+
+    expect(migration).toContain('ALTER TABLE "bookmarks" DROP COLUMN IF EXISTS "search_vector"');
+    expect(migration).toContain(TAG_EXTRACTION);
+    expect(migration).toContain('"scraped_content_text"');
+    expect(migration).toContain('CREATE INDEX IF NOT EXISTS "idx_bookmarks_search_vector"');
+  });
+});

@@ -171,6 +171,7 @@ function searchContent<T>(
 3. **Fallback Strategy**: Substring search if MiniSearch fails
 4. **Exact Match Priority**: Optional exact field matching
 5. **Rank scale**: Every searcher returns `score = 1 / (RRF_K + rank)`; PostgreSQL domains sum the keyword and semantic reciprocal ranks
+6. **Bookmark keyword fields**: `bookmarks.search_vector` (owner: `lib/db/schema/bookmarks.ts`) weights title A, description and tag names B, summary C, note and `scraped_content_text` D — tags and page text carry evidence that appears nowhere else on a bookmark
 
 ## Performance Optimizations
 
@@ -223,6 +224,31 @@ function searchContent<T>(
 2. **Cache Tests**: Hit/miss behavior, storage
 3. **Search Tests**: Exact, partial, multi-word
 4. **Integration Tests**: API endpoint behavior
+
+### Upstream Parity Gate
+
+`scripts/compare-bookmark-search.node.mjs` measures the site's bookmark search
+against the upstream Karakeep search it mirrors. For each of 25 fixed queries
+(derived from real Karakeep titles and tag names) it calls
+`{BOOKMARKS_API_URL}/api/v1/bookmarks/search` and
+`/api/search/all?scope=bookmarks`, restricts the upstream answer to ids present
+in the site's `bookmarks` table, and reports how much of upstream's top 10
+in-scope hits the site's 24 slots contain. It fails (exit 1) when mean inclusion
+drops below 0.90, any query below 0.50, or the site returns fewer results than
+the reference set.
+
+```bash
+set -a; source .env; set +a
+bun run dev &                                    # warm http://localhost:3000 once
+node scripts/compare-bookmark-search.node.mjs    # add --verbose to list every miss
+```
+
+`SITE_SEARCH_BASE` (default `http://localhost:3000`) points the gate at another
+origin. Run it under Node, never bun — it opens a PostgreSQL connection (CLAUDE.md
+[RT1]). Inclusion is bounded by two data conditions the gate cannot fix on its
+own: bookmarks with no row in `embeddings` are unreachable by the semantic layer,
+and bookmarks Karakeep holds outside the mirrored list are reported separately as
+out of scope.
 
 ## Future Enhancements
 
