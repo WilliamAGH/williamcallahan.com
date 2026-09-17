@@ -18,13 +18,7 @@ import type {
   AiChatQueueResult,
   TerminalChatAbortReason,
 } from "@/types/ui/terminal";
-import {
-  ABORT_REASON_CLEAR_EXIT,
-  ABORT_REASON_SUPERSEDED,
-  ABORT_REASON_UNMOUNT,
-  ABORT_REASON_USER_CANCEL,
-  isTerminalChatAbortReason,
-} from "@/types/ui/terminal";
+import { ABORT_REASON_UNMOUNT, isTerminalChatAbortReason } from "@/types/ui/terminal";
 
 const TERMINAL_CHAT_QUEUE_LIMIT = 5;
 const STREAM_PREVIEW_MAX_CHARS = 240;
