@@ -279,6 +279,24 @@ describe("Terminal Commands", () => {
       );
     });
 
+    it("refuses a bookmarks flag with no search terms instead of sending an empty query", async () => {
+      const result = await handleCommand("-b");
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("needs search terms"),
+      });
+    });
+
+    it("strips the bookmarks flag from a section search instead of sending it as text", async () => {
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      await handleCommand("bookmarks postgres -b");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/search/bookmarks?q=postgres", expect.anything());
+    });
+
     it("accepts -b as the short form of the bookmarks flag", async () => {
       mockFetch.mockResolvedValueOnce(createJsonResponse([]));
 

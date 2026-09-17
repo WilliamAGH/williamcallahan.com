@@ -168,7 +168,22 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
     };
   }
 
-  const [command, ...args] = trimmedInput.split(" ");
+  // The bookmarks flag is meaningful on every path: strip it before dispatch.
+  const { query: flaglessInput, focus } = resolveSiteWideSearch(trimmedInput.split(" "));
+  if (flaglessInput.length === 0) {
+    return {
+      results: [
+        {
+          type: "text",
+          id: crypto.randomUUID(),
+          input: "",
+          output: "The bookmarks flag needs search terms, e.g. `--bookmarks postgres`.",
+          timestamp: Date.now(),
+        },
+      ],
+    };
+  }
+  const [command, ...args] = flaglessInput.split(" ");
 
   // 1. First check for direct commands that take precedence
 
@@ -404,7 +419,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
 
   // 4. If not a direct command or section command, perform site-wide search
   // IMPORTANT: This now takes precedence over "command not recognized" to fix the multi-word search issue
-  const { query: searchTerms, focus } = resolveSiteWideSearch([command, ...args]);
+  const searchTerms = flaglessInput;
 
   try {
     // Log search info for debugging (safe logging - no object dumps)

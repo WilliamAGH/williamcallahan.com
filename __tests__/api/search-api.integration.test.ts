@@ -239,14 +239,24 @@ describe("Search API: GET /api/search/all", () => {
 
     it("keeps the focused domain's full budget alongside the other domains", async () => {
       const { searchBookmarks } = await import("@/lib/search/searchers/dynamic-searchers");
+      const { searchBlogPostsServerSide } = await import("@/lib/blog/server-search");
       const sixty = Array.from({ length: 60 }, (_, index) => ({
         id: `bm-${index}`,
         type: "bookmark" as const,
         title: `Bookmark ${index}`,
         url: `/bookmarks/bm-${index}`,
-        score: 1 / (index + 2),
+        score: 1 / (60 + index + 1),
+      }));
+      // Thirty posts that all outscore bookmarks ranked 25-50 must not evict them.
+      const thirtyPosts = Array.from({ length: 30 }, (_, index) => ({
+        id: `post-${index}`,
+        type: "post" as const,
+        title: `Post ${index}`,
+        url: `/blog/post-${index}`,
+        score: 1 / (60 + index + 1) + 0.001,
       }));
       vi.mocked(searchBookmarks).mockResolvedValueOnce(sixty);
+      vi.mocked(searchBlogPostsServerSide).mockResolvedValueOnce(thirtyPosts);
 
       const response = await GET(
         new MockNextRequest(
@@ -258,10 +268,11 @@ describe("Search API: GET /api/search/all", () => {
       const bookmarkRows = data.results.filter((r: { type: string }) => r.type === "bookmark");
       const otherRows = data.results.filter((r: { type: string }) => r.type !== "bookmark");
       expect(bookmarkRows).toHaveLength(50);
-      expect(otherRows.map((r: { type: string }) => r.type)).toEqual(
-        expect.arrayContaining(["post", "project", "page", "book"]),
+      expect(otherRows).toHaveLength(24);
+      expect(otherRows.filter((r: { type: string }) => r.type === "post").length).toBeGreaterThan(
+        15,
       );
-      expect(data.results.length).toBeLessThanOrEqual(74);
+      expect(data.results.length).toBe(74);
 
       const scores = data.results.map((r: { score: number }) => r.score);
       expect(scores).toEqual([...scores].toSorted((a: number, b: number) => b - a));

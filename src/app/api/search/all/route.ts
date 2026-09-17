@@ -296,30 +296,33 @@ export async function GET(request: NextRequest) {
       // mixed list; a single-scope request has nothing to share the budget with.
       const MAX_RESULTS_PER_CATEGORY =
         scopes?.size === 1 ? MAX_TOTAL_RESULTS : DEFAULT_RESULTS_PER_CATEGORY;
-      // A focused domain keeps its full searcher budget; the extra headroom in the
-      // total lets those hits sit alongside the other domains instead of evicting them.
-      const limitFor = (scope: SearchScope): number =>
-        scope === focus ? MAX_TOTAL_RESULTS : MAX_RESULTS_PER_CATEGORY;
-      const resultBudget = focus
-        ? MAX_TOTAL_RESULTS + DEFAULT_RESULTS_PER_CATEGORY
-        : MAX_TOTAL_RESULTS;
-
-      // Combine all results with limits
-      const combined = [
-        ...prefixedBlogResults.slice(0, limitFor("blog")),
-        ...prefixedInvestmentResults.slice(0, limitFor("investments")),
-        ...prefixedExperienceResults.slice(0, limitFor("experience")),
-        ...prefixedEducationResults.slice(0, limitFor("education")),
-        ...prefixedBookmarkResults.slice(0, limitFor("bookmarks")),
-        ...prefixedProjectResults.slice(0, limitFor("projects")),
-        ...prefixedBookResults.slice(0, limitFor("books")),
-        ...prefixedThoughtResults.slice(0, limitFor("thoughts")),
-        ...tagResults.slice(0, limitFor("tags")),
-        ...analysisResults.slice(0, limitFor("analysis")),
+      const byScore = (a: SearchResult, b: SearchResult) => b.score - a.score;
+      const byScope: Array<[SearchScope, SearchResult[]]> = [
+        ["blog", prefixedBlogResults],
+        ["investments", prefixedInvestmentResults],
+        ["experience", prefixedExperienceResults],
+        ["education", prefixedEducationResults],
+        ["bookmarks", prefixedBookmarkResults],
+        ["projects", prefixedProjectResults],
+        ["books", prefixedBookResults],
+        ["thoughts", prefixedThoughtResults],
+        ["tags", tagResults],
+        ["analysis", analysisResults],
       ];
 
-      // Sort by relevance score (highest first) then limit total results
-      return combined.toSorted((a, b) => b.score - a.score).slice(0, resultBudget);
+      // A focused domain keeps its whole searcher budget (up to MAX_TOTAL_RESULTS);
+      // every other domain is capped per category and then competes for the
+      // remaining slots, so the focused hits are never evicted by the merge.
+      const focused = byScope
+        .filter(([scope]) => scope === focus)
+        .flatMap(([, rows]) => rows.slice(0, MAX_TOTAL_RESULTS));
+      const others = byScope
+        .filter(([scope]) => scope !== focus)
+        .flatMap(([, rows]) => rows.slice(0, MAX_RESULTS_PER_CATEGORY))
+        .toSorted(byScore)
+        .slice(0, focus ? DEFAULT_RESULTS_PER_CATEGORY : MAX_TOTAL_RESULTS);
+
+      return [...focused, ...others].toSorted(byScore);
     });
 
     return NextResponse.json(
