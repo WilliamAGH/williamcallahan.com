@@ -324,7 +324,9 @@ File/Path Functionality Description
     - [x] `books.ts` `books` - Books dataset read queries (latest pointer, snapshot, combined)
     - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest/versions/listing read queries
     - [x] `opengraph.ts` `seo` - OpenGraph metadata/override read queries with Zod validation
-    - [x] `hybrid-search.ts` `search` - Three-layer hybrid search: FTS + trigram + pgvector cosine
+    - [x] `hybrid-search.ts` `search` - Hybrid search (bookmarks, thoughts): FTS + word trigram + pgvector, merged by reciprocal rank fusion
+    - [x] `hybrid-search-config.ts` `search` - Shared RRF constant, keyword weights, and candidate limits for every hybrid query
+    - [x] `tag-counts.ts` `search` - Tag/genre usage counts per content type from one PostgreSQL aggregate
     - [x] `thoughts.ts` `thoughts` - Thought read queries (all/by-slug/by-id/categories/list-items)
     - [x] `image-manifests.ts` `image-handling` - Image manifest read queries by type
     - [x] `search-index-artifacts.ts` `search` - Search index artifact reads from PostgreSQL

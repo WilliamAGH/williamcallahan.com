@@ -157,6 +157,6 @@ sequenceDiagram
     
     %% Notes
     note over Cache: 15-minute TTL for results
-    note over MiniSearch: 10% fuzzy threshold, prefix matching
-    note over Search: Sanitization removes regex chars
+    note over MiniSearch: 20% fuzzy threshold, prefix matching, all terms required
+    note over Search: Validation keeps inner punctuation; every domain scores by reciprocal rank
 ```

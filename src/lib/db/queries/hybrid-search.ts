@@ -8,12 +8,13 @@
  *
  * Layers 1+2 run when a text query is provided.
  * Layer 3 runs when an embedding vector is provided.
- * Results are merged with configurable weights.
+ * Keyword and semantic candidates are merged with reciprocal rank fusion
+ * (see hybrid-search-config); ties go to the row with keyword evidence.
  *
  * @module db/queries/hybrid-search
  */
 
-import { desc, inArray, sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
@@ -89,6 +90,7 @@ async function hybridSearchWithEmbedding(
     combined AS (
       SELECT
         COALESCE(k.id, s.id) AS id,
+          k.keyword_rank,
         COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
             + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
       FROM keyword_results k
@@ -97,7 +99,7 @@ async function hybridSearchWithEmbedding(
     SELECT b.id, c.score AS hybrid_score
     FROM combined c
     JOIN bookmarks b ON b.id = c.id
-    ORDER BY c.score DESC
+    ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id
     LIMIT ${limit}
   `);
 
@@ -146,7 +148,7 @@ async function keywordOnlySearch(query: string, limit: number): Promise<Bookmark
     })
     .from(bookmarks)
     .where(sql`${bookmarks.searchVector} @@ ${tsQuery} OR ${query} <% ${bookmarks.title}`)
-    .orderBy(sql`${keywordScore} DESC`, desc(bookmarks.dateBookmarked), desc(bookmarks.id))
+    .orderBy(sql`${keywordScore} DESC`)
     .limit(limit);
 
   return rows.map((row) => ({
@@ -253,6 +255,7 @@ export async function hybridSearchThoughts(options: {
       combined AS (
         SELECT
           COALESCE(k.id, s.id) AS id,
+          k.keyword_rank,
           COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
             + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k
@@ -262,7 +265,7 @@ export async function hybridSearchThoughts(options: {
       FROM combined c
       JOIN thoughts t ON t.id = c.id
       WHERE t.draft = false
-      ORDER BY c.score DESC
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id
       LIMIT ${limit}
     `);
 
@@ -298,7 +301,7 @@ export async function hybridSearchThoughts(options: {
     .where(
       sql`${thoughts.draft} = false AND (${thoughts.searchVector} @@ ${tsQuery} OR ${normalizedQuery} <% ${thoughts.title})`,
     )
-    .orderBy(sql`${keywordScore} DESC`, desc(thoughts.createdAt), desc(thoughts.id))
+    .orderBy(sql`${keywordScore} DESC`)
     .limit(limit);
 
   return rows.map((row) => ({

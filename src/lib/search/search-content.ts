@@ -123,7 +123,8 @@ export function searchContent<T>(
       }
       // Partial matches get a lower score
       return { item, score: 0.5 };
-    });
+    })
+    .toSorted((a, b) => b.score - a.score);
 }
 
 /**

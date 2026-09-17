@@ -199,7 +199,7 @@ function searchContent<T>(
 
 - **Length Limit**: 100 characters maximum
 - **Empty Queries**: Rejected with error message
-- **Edge Punctuation**: Stripped at both ends; inner punctuation (`next.js`, `c#`) kept for token matching
+- **Edge Punctuation**: Stripped at both ends; inner punctuation (`next.js`, `node.js`) kept for token matching
 
 ### API Security
 

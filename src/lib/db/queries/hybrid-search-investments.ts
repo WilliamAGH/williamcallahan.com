@@ -69,6 +69,7 @@ export async function hybridSearchInvestments(options: {
       ),
       combined AS (
         SELECT COALESCE(k.id, s.id) AS id,
+          k.keyword_rank,
           COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
             + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k FULL OUTER JOIN semantic_results s ON k.id = s.id
@@ -76,7 +77,7 @@ export async function hybridSearchInvestments(options: {
       SELECT i.id, i.name, i.slug, i.description, i.category, i.stage,
              i.status, i.operating_status, i.location, c.score AS hybrid_score
       FROM combined c JOIN investments i ON i.id = c.id
-      ORDER BY c.score DESC LIMIT ${limit}
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id LIMIT ${limit}
     `);
 
     return rows.map((r) => ({
@@ -177,6 +178,7 @@ export async function hybridSearchProjects(options: {
       ),
       combined AS (
         SELECT COALESCE(k.id, s.id) AS id,
+          k.keyword_rank,
           COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
             + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k FULL OUTER JOIN semantic_results s ON k.id = s.id
@@ -184,7 +186,7 @@ export async function hybridSearchProjects(options: {
       SELECT p.id, p.name, p.slug, p.description, p.short_summary, p.url,
              p.image_key, p.tags, c.score AS hybrid_score
       FROM combined c JOIN projects p ON p.id = c.id
-      ORDER BY c.score DESC LIMIT ${limit}
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id LIMIT ${limit}
     `);
 
     return rows.map((r) => ({

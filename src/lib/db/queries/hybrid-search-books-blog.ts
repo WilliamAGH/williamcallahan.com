@@ -66,6 +66,7 @@ export async function hybridSearchBooks(options: {
       ),
       combined AS (
         SELECT COALESCE(k.id, s.id) AS id,
+          k.keyword_rank,
           COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
             + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k FULL OUTER JOIN semantic_results s ON k.id = s.id
@@ -73,7 +74,7 @@ export async function hybridSearchBooks(options: {
       SELECT b.id, b.title, b.slug, b.authors, b.description, b.cover_url,
              c.score AS hybrid_score
       FROM combined c JOIN books b ON b.id = c.id
-      ORDER BY c.score DESC LIMIT ${limit}
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id LIMIT ${limit}
     `);
 
     return rows.map((r) => ({
@@ -164,6 +165,7 @@ export async function hybridSearchBlogPosts(options: {
       ),
       combined AS (
         SELECT COALESCE(k.id, s.id) AS id,
+          k.keyword_rank,
           COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
             + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k FULL OUTER JOIN semantic_results s ON k.id = s.id
@@ -172,7 +174,7 @@ export async function hybridSearchBlogPosts(options: {
              bp.published_at, c.score AS hybrid_score
       FROM combined c JOIN blog_posts bp ON bp.id = c.id
       WHERE bp.draft = false
-      ORDER BY c.score DESC LIMIT ${limit}
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id LIMIT ${limit}
     `);
 
     return rows.map((r) => ({

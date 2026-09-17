@@ -33,7 +33,6 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Preload search when user types enough characters
   const handleChange = useCallback(
     (newValue: string) => {
       onChange(newValue);

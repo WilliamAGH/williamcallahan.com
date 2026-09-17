@@ -13,9 +13,9 @@ import { TAG_URL, tagToSlug } from "@/lib/utils/tag-utils";
 import type { AggregatedTag } from "@/types/schemas/search";
 
 /**
- * ponytail: seed-blog-posts/seed-projects wrote tags as a JSON *string* holding
- * an array (`"[\"a\"]"`), so decode that shape as well as a real array.
- * Drop this once the seeds store arrays and the rows are re-seeded.
+ * The blog-post and project seed scripts stored tags as a JSON *string* holding
+ * an array (`"[\"a\"]"`); decode that shape as well as a real array until the
+ * seeds store arrays and the rows are re-seeded.
  */
 const JSON_ARRAY = (column: string) =>
   sql.raw(

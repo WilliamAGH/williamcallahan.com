@@ -57,12 +57,12 @@ describe("Books Search", () => {
       expect(results[0]?.title).toBe("TypeScript Quickly");
     });
 
-    it("should pass sanitized query to hybrid search", async () => {
+    it("passes the normalized query (lowercased, punctuation kept) to hybrid search", async () => {
       mockHybridSearchBooks.mockResolvedValueOnce([]);
 
-      await searchBooks("test.*query[abc]");
+      await searchBooks("  Node.js   Patterns ");
       expect(mockHybridSearchBooks).toHaveBeenCalledWith(
-        expect.objectContaining({ query: "test query abc" }),
+        expect.objectContaining({ query: "node.js patterns" }),
       );
     });
   });
@@ -164,7 +164,7 @@ describe("Books Search", () => {
 
       const results = await searchBooks("Node.js");
 
-      expect(search).toHaveBeenCalledWith("node js", { prefix: true, fuzzy: 0.2 });
+      expect(search).toHaveBeenCalledWith("node.js", { prefix: true, fuzzy: 0.2 });
       expect(results[0]).toMatchObject({
         type: "book",
         title: "Node.js Patterns",
