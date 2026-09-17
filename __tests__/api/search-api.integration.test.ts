@@ -212,6 +212,31 @@ describe("Search API: GET /api/search/all", () => {
       }
     });
 
+    it("gives a single-scope request the whole result budget instead of the per-category slice", async () => {
+      const { searchBookmarks } = await import("@/lib/search/searchers/dynamic-searchers");
+      const thirty = Array.from({ length: 30 }, (_, index) => ({
+        id: `bm-${index}`,
+        type: "bookmark" as const,
+        title: `Bookmark ${index}`,
+        url: `/bookmarks/bm-${index}`,
+        score: 1 / (60 + index + 1),
+      }));
+      vi.mocked(searchBookmarks).mockResolvedValueOnce(thirty).mockResolvedValueOnce(thirty);
+
+      const scoped = await GET(
+        new MockNextRequest("http://localhost:3000/api/search/all?q=budget&scope=bookmarks") as any,
+      );
+      const scopedData = await scoped.json();
+      expect(scopedData.results).toHaveLength(30);
+
+      const mixed = await GET(
+        new MockNextRequest("http://localhost:3000/api/search/all?q=budget") as any,
+      );
+      const mixedData = await mixed.json();
+      const bookmarkRows = mixedData.results.filter((r: { type: string }) => r.type === "bookmark");
+      expect(bookmarkRows).toHaveLength(24);
+    });
+
     /**
      * @description Should handle queries with special characters
      */

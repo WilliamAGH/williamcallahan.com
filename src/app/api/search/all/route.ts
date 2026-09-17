@@ -281,8 +281,10 @@ export async function GET(request: NextRequest) {
       // No additional prefix needed for these
 
       // Limit results per category to prevent memory explosion
-      const MAX_RESULTS_PER_CATEGORY = 24;
       const MAX_TOTAL_RESULTS = 50;
+      // The per-category cap keeps one domain from crowding out the others in a
+      // mixed list; a single-scope request has nothing to share the budget with.
+      const MAX_RESULTS_PER_CATEGORY = scopes?.size === 1 ? MAX_TOTAL_RESULTS : 24;
 
       // Combine all results with limits
       const combined = [
