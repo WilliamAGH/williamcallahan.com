@@ -240,7 +240,12 @@ names match the query must be present. Upstream hits that match only in page
 text or only in Karakeep's embedding space count toward the mean but cannot fail
 a single query alone ("descript" stems like "description", so upstream's top 10
 is mostly pages whose body says "description"). The site must also return at
-least as many results as the reference set.
+least as many results as the reference set. This is the gate's definition of
+"equal or greater accuracy": everything upstream ranks in its top 10 for a
+query that our stored fields can justify is present in our answer, and the
+overall inclusion of upstream's top 10 stays above 0.90; ordering between the
+two engines is reported per query but not gated. Run it with `bun run
+search:parity` against a warm local server.
 
 ```bash
 set -a; source .env; set +a

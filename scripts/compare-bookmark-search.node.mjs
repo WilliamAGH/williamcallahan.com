@@ -41,7 +41,6 @@
  *   --verbose   print the query rationale list and every missing id/title
  */
 
-import "dotenv/config";
 import { withDatabase } from "./lib/with-database.node.mjs";
 
 /** Karakeep page size per query. */

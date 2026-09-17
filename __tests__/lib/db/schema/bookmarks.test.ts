@@ -36,15 +36,19 @@ describe("bookmarks search_vector", () => {
     }
   });
 
-  it("has a migration that rebuilds the column with the same tag extraction", () => {
+  it("has a migration that rebuilds the column with the schema's exact expression", () => {
     const migration = readFileSync(
       "drizzle/0025_bookmark-search-vector-tags-and-content.sql",
       "utf8",
     );
+    const generated = migration.match(/GENERATED ALWAYS AS \(([\s\S]*?)\) STORED/);
+    if (!generated?.[1]) throw new Error("migration 0025 has no GENERATED ALWAYS AS expression");
 
+    // Same expression modulo table qualification and whitespace: a weight or
+    // field change on either side fails here.
+    const normalize = (sql: string) => sql.replace(/"bookmarks"\./g, "").replace(/\s+/g, "");
+    expect(normalize(generated[1])).toBe(normalize(compiledSearchVectorExpression()));
     expect(migration).toContain('ALTER TABLE "bookmarks" DROP COLUMN IF EXISTS "search_vector"');
-    expect(migration).toContain(TAG_EXTRACTION);
-    expect(migration).toContain('"scraped_content_text"');
     expect(migration).toContain('CREATE INDEX IF NOT EXISTS "idx_bookmarks_search_vector"');
   });
 });
