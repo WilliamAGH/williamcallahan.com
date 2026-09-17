@@ -9,6 +9,9 @@
  * - scope: Comma-separated list of sources to search (optional)
  *   Valid scopes: blog, investments, experience, education, bookmarks, projects, books, thoughts, tags, analysis
  *   Example: ?q=react&scope=blog,projects
+ * - focus: A single scope that keeps its full searcher budget while every other
+ *   source stays capped; unlike scope it never removes a source from the search.
+ *   Example: ?q=react&focus=bookmarks
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
@@ -164,6 +167,12 @@ export async function GET(request: NextRequest) {
     const scopes = parseScopes(scopeParam);
     const shouldSearch = (scope: SearchScope): boolean => scopes === null || scopes.has(scope);
 
+    // Optional focus parameter: one scope keeps its full budget, the rest stay capped
+    const focusScopes = parseScopes(request.nextUrl.searchParams.get("focus"));
+    const [requestedFocus = null] = focusScopes?.size === 1 ? [...focusScopes] : [];
+    // "posts" is an alias for "blog", matching the scope handling below
+    const focus = requestedFocus === "posts" ? "blog" : requestedFocus;
+
     // Early exit if the sanitized query is empty
     if (query.length === 0) {
       return NextResponse.json(
@@ -182,7 +191,7 @@ export async function GET(request: NextRequest) {
 
     // Build cache key including scope for proper coalescing
     const scopeKey = scopes ? Array.from(scopes).toSorted().join(",") : "all";
-    const cacheKey = `${scopeKey}:${query}`;
+    const cacheKey = `${scopeKey}:${focus ?? "none"}:${query}`;
 
     // Perform site-wide search with request coalescing
     const results = await coalesceSearchRequest<SearchResult[]>(cacheKey, async () => {
@@ -282,26 +291,35 @@ export async function GET(request: NextRequest) {
 
       // Limit results per category to prevent memory explosion
       const MAX_TOTAL_RESULTS = 50;
+      const DEFAULT_RESULTS_PER_CATEGORY = 24;
       // The per-category cap keeps one domain from crowding out the others in a
       // mixed list; a single-scope request has nothing to share the budget with.
-      const MAX_RESULTS_PER_CATEGORY = scopes?.size === 1 ? MAX_TOTAL_RESULTS : 24;
+      const MAX_RESULTS_PER_CATEGORY =
+        scopes?.size === 1 ? MAX_TOTAL_RESULTS : DEFAULT_RESULTS_PER_CATEGORY;
+      // A focused domain keeps its full searcher budget; the extra headroom in the
+      // total lets those hits sit alongside the other domains instead of evicting them.
+      const limitFor = (scope: SearchScope): number =>
+        scope === focus ? MAX_TOTAL_RESULTS : MAX_RESULTS_PER_CATEGORY;
+      const resultBudget = focus
+        ? MAX_TOTAL_RESULTS + DEFAULT_RESULTS_PER_CATEGORY
+        : MAX_TOTAL_RESULTS;
 
       // Combine all results with limits
       const combined = [
-        ...prefixedBlogResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedInvestmentResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedExperienceResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedEducationResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedBookmarkResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedProjectResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedBookResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedThoughtResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...tagResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...analysisResults.slice(0, MAX_RESULTS_PER_CATEGORY),
+        ...prefixedBlogResults.slice(0, limitFor("blog")),
+        ...prefixedInvestmentResults.slice(0, limitFor("investments")),
+        ...prefixedExperienceResults.slice(0, limitFor("experience")),
+        ...prefixedEducationResults.slice(0, limitFor("education")),
+        ...prefixedBookmarkResults.slice(0, limitFor("bookmarks")),
+        ...prefixedProjectResults.slice(0, limitFor("projects")),
+        ...prefixedBookResults.slice(0, limitFor("books")),
+        ...prefixedThoughtResults.slice(0, limitFor("thoughts")),
+        ...tagResults.slice(0, limitFor("tags")),
+        ...analysisResults.slice(0, limitFor("analysis")),
       ];
 
       // Sort by relevance score (highest first) then limit total results
-      return combined.toSorted((a, b) => b.score - a.score).slice(0, MAX_TOTAL_RESULTS);
+      return combined.toSorted((a, b) => b.score - a.score).slice(0, resultBudget);
     });
 
     return NextResponse.json(

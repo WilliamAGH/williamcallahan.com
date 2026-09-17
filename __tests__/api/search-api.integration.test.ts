@@ -237,6 +237,36 @@ describe("Search API: GET /api/search/all", () => {
       expect(bookmarkRows).toHaveLength(24);
     });
 
+    it("keeps the focused domain's full budget alongside the other domains", async () => {
+      const { searchBookmarks } = await import("@/lib/search/searchers/dynamic-searchers");
+      const sixty = Array.from({ length: 60 }, (_, index) => ({
+        id: `bm-${index}`,
+        type: "bookmark" as const,
+        title: `Bookmark ${index}`,
+        url: `/bookmarks/bm-${index}`,
+        score: 1 / (index + 2),
+      }));
+      vi.mocked(searchBookmarks).mockResolvedValueOnce(sixty);
+
+      const response = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=focused&focus=bookmarks",
+        ) as any,
+      );
+      const data = await response.json();
+
+      const bookmarkRows = data.results.filter((r: { type: string }) => r.type === "bookmark");
+      const otherRows = data.results.filter((r: { type: string }) => r.type !== "bookmark");
+      expect(bookmarkRows).toHaveLength(50);
+      expect(otherRows.map((r: { type: string }) => r.type)).toEqual(
+        expect.arrayContaining(["post", "project", "page", "book"]),
+      );
+      expect(data.results.length).toBeLessThanOrEqual(74);
+
+      const scores = data.results.map((r: { score: number }) => r.score);
+      expect(scores).toEqual([...scores].toSorted((a: number, b: number) => b - a));
+    });
+
     /**
      * @description Should handle queries with special characters
      */
