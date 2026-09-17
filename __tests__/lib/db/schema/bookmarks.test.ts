@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { getTableColumns, type SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
@@ -37,16 +37,34 @@ describe("bookmarks search_vector", () => {
   });
 
   it("has a migration that rebuilds the column with the schema's exact expression", () => {
-    // The newest search_vector migration is the shape production ends on, so
-    // that is the one the schema must agree with. Naming a fixed file here made
-    // the next rebuild fail this test for the wrong reason.
-    const name = readdirSync("drizzle")
-      .filter((file) => /^\d+_.*bookmark-search-vector.*\.sql$/.test(file))
-      .toSorted()
-      .at(-1);
-    if (!name) throw new Error("no bookmark-search-vector migration found in drizzle/");
+    // The shape production ends on is the last search_vector migration the
+    // journal lists, not the highest-numbered file on disk: drizzle applies the
+    // journal, and this repo already carries 0023_engagement-covering-index.sql
+    // with no journal entry. Naming a fixed file here instead made the next
+    // rebuild fail this test for the wrong reason.
+    const journal: unknown = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8"));
+    if (
+      typeof journal !== "object" ||
+      journal === null ||
+      !("entries" in journal) ||
+      !Array.isArray(journal.entries)
+    ) {
+      throw new Error("drizzle/meta/_journal.json has no entries array");
+    }
+    const tags = journal.entries
+      .map((entry: unknown) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        "tag" in entry &&
+        typeof entry.tag === "string"
+          ? entry.tag
+          : null,
+      )
+      .filter((tag): tag is string => tag !== null && tag.includes("bookmark-search-vector"));
+    const name = tags.at(-1);
+    if (!name) throw new Error("no bookmark-search-vector migration listed in the drizzle journal");
 
-    const migration = readFileSync(`drizzle/${name}`, "utf8");
+    const migration = readFileSync(`drizzle/${name}.sql`, "utf8");
     const generated = migration.match(/GENERATED ALWAYS AS \(([\s\S]*?)\) STORED/);
     if (!generated?.[1]) throw new Error(`${name} has no GENERATED ALWAYS AS expression`);
 

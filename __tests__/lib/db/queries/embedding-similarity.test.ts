@@ -309,22 +309,32 @@ describe("hybrid search SQL ranking", () => {
     expect(rendered).toContain("LIMIT $");
   });
 
-  it("breaks tied cosine distances on entity_id so a rank, and its score, is reproducible", async () => {
-    // row_number() over distance alone hands tied rows arbitrary ranks, and the
-    // rank is what the RRF score is computed from, so the outer ORDER BY cannot
-    // repair it: the same query would return different scores between runs.
-    mockExecute.mockResolvedValueOnce([]);
-    const embedding = Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0);
+  it.each([
+    ["projects", hybridSearchProjects],
+    ["books", hybridSearchBooks],
+  ])(
+    "breaks tied cosine distances on entity_id in the %s semantic CTE, rank and candidate set alike",
+    async (_name, search) => {
+      // Ordering on distance alone hands tied rows arbitrary row_number() values.
+      // The window order decides the rank the RRF score is computed from; the
+      // CTE order decides which rows survive SEMANTIC_CANDIDATE_LIMIT. Both need
+      // the tie-break, and the outer ORDER BY can repair neither.
+      mockExecute.mockResolvedValueOnce([]);
+      const embedding = Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0);
 
-    await hybridSearchProjects({ query: "aventure", embedding, limit: 5 });
+      await search({ query: "aventure", embedding, limit: 5 });
 
-    const rendered = renderLastExecuteSql();
-    const windowOrder = rendered.slice(
-      rendered.indexOf("row_number() OVER (ORDER BY qwen_4b_fp16_embedding"),
-      rendered.indexOf(") AS semantic_rank"),
-    );
-    expect(windowOrder).toContain(", entity_id");
-  });
+      const rendered = renderLastExecuteSql();
+      const semanticCte = rendered.slice(
+        rendered.indexOf("semantic_results AS ("),
+        rendered.indexOf("combined AS ("),
+      );
+
+      expect(semanticCte).not.toBe("");
+      // one in the window ORDER BY, one in the CTE ORDER BY
+      expect(semanticCte.split(", entity_id").length - 1).toBe(2);
+    },
+  );
 
   it("uses word-level trigram similarity and reciprocal rank for book fallback search", async () => {
     mockExecute.mockResolvedValueOnce([
