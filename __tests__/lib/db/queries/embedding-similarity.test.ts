@@ -32,12 +32,17 @@ import {
 } from "@/lib/db/queries/embedding-similarity";
 import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 
+/**
+ * The rendered SQL is the only boundary these queries expose without a live
+ * database, so the assertions below read it. Whitespace is collapsed first so
+ * they pin the query's shape rather than its formatting.
+ */
 function renderLastExecuteSql(): string {
   const call = mockExecute.mock.calls.at(-1);
   if (!call) throw new Error("Expected db.execute to be called");
   const query = call[0];
   if (!is(query, SQL)) throw new Error("Expected db.execute to receive a SQL query");
-  return new PgDialect().sqlToQuery(query).sql;
+  return new PgDialect().sqlToQuery(query).sql.replace(/\s+/g, " ").trim();
 }
 
 function createBookmarkFixture(id: string) {
@@ -302,6 +307,23 @@ describe("hybrid search SQL ranking", () => {
     expect(rendered).toContain("s.semantic_rank), 0) AS score");
     expect(rendered).toContain("ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id");
     expect(rendered).toContain("LIMIT $");
+  });
+
+  it("breaks tied cosine distances on entity_id so a rank, and its score, is reproducible", async () => {
+    // row_number() over distance alone hands tied rows arbitrary ranks, and the
+    // rank is what the RRF score is computed from, so the outer ORDER BY cannot
+    // repair it: the same query would return different scores between runs.
+    mockExecute.mockResolvedValueOnce([]);
+    const embedding = Array.from({ length: CONTENT_EMBEDDING_DIMENSIONS }, () => 0);
+
+    await hybridSearchProjects({ query: "aventure", embedding, limit: 5 });
+
+    const rendered = renderLastExecuteSql();
+    const windowOrder = rendered.slice(
+      rendered.indexOf("row_number() OVER (ORDER BY qwen_4b_fp16_embedding"),
+      rendered.indexOf(") AS semantic_rank"),
+    );
+    expect(windowOrder).toContain(", entity_id");
   });
 
   it("uses word-level trigram similarity and reciprocal rank for book fallback search", async () => {

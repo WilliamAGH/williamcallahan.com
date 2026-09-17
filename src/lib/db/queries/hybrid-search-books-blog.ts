@@ -59,10 +59,10 @@ export async function hybridSearchBooks(options: {
       ),
       semantic_results AS (
         SELECT entity_id AS id,
-          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}) AS semantic_rank
+          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id) AS semantic_rank
         FROM embeddings
         WHERE domain = 'book' AND qwen_4b_fp16_embedding IS NOT NULL
-        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}
+        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id
         LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
       ),
       combined AS (
@@ -158,10 +158,10 @@ export async function hybridSearchBlogPosts(options: {
       ),
       semantic_results AS (
         SELECT entity_id AS id,
-          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}) AS semantic_rank
+          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id) AS semantic_rank
         FROM embeddings
         WHERE domain = 'blog' AND qwen_4b_fp16_embedding IS NOT NULL
-        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}
+        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id
         LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
       ),
       combined AS (
