@@ -34,6 +34,12 @@ export const RRF_K = 60;
  */
 export const RRF_RANKER_COUNT = 2;
 
+/**
+ * Highest score the shared reciprocal-rank scale can produce: rank 1 in every
+ * ranker slot. Divide by this to read a score as a 0..1 relevance.
+ */
+export const MAX_RECIPROCAL_RANK_SCORE = RRF_RANKER_COUNT / (RRF_K + 1);
+
 /** Maximum keyword (FTS + trigram) candidate rows per query. */
 export const KEYWORD_CANDIDATE_LIMIT = 50;
 
