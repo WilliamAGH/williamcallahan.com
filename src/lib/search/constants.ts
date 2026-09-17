@@ -22,20 +22,6 @@ export const SEARCH_INDEX_KEYS = {
 } as const;
 
 /**
- * Cache TTL values for search indexes (in seconds).
- */
-export const INDEX_TTL = {
-  /** Static content (investments, experience, education, projects) - 1 hour */
-  STATIC: 60 * 60,
-  /** Bookmarks - 2 hours (S3 indexes are rebuilt on deploy, frequent refresh not needed) */
-  BOOKMARKS: 2 * 60 * 60,
-  /** Books - 2 hours (slower-changing bookshelf data) */
-  BOOKS: 2 * 60 * 60,
-  /** Books raw data cache - 2 hours (shared between search index and genre extraction) */
-  BOOKS_DATA: 2 * 60 * 60,
-} as const;
-
-/**
  * Flag to control whether to load persisted indexes or build in-memory.
  * Default: true (use persisted indexes for reliability and performance)
  * Set USE_S3_SEARCH_INDEXES=false to force live fetching.

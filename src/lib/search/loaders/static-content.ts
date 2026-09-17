@@ -30,23 +30,16 @@ import {
 import { SEARCH_INDEX_KEYS, USE_S3_INDEXES } from "../constants";
 
 /**
- * Loads a search index from PostgreSQL if available, falls back to building in-memory.
- *
- * @template T - The document type being indexed
- * @param domain - Persisted search index artifact domain
- * @param cacheKey - Cache key for storing the loaded index
- * @param buildFn - Function to build the index if persisted load fails
- * @param ttl - Cache TTL for the index
- * @returns The MiniSearch index
- */
-/**
- * Hold one in-flight/settled load per index.
+ * Hold one settled load per index.
  *
  * These indexes are built from data that ships with the deploy, so one load per
  * process is correct. Without this every search re-read the serialized artifact
  * from PostgreSQL or rebuilt the MiniSearch index, because request coalescing
- * only shares a promise while it is in flight. A rejected load is not retained,
- * so a transient artifact failure cannot wedge the process.
+ * only shares a promise while it is in flight.
+ *
+ * A rejecting load is not retained. loadOrBuildIndex already falls back to
+ * buildFn when the artifact read fails, so this covers the narrower case of
+ * buildFn itself throwing rather than a transient artifact failure.
  */
 function memoized<T>(load: () => Promise<T>): () => Promise<T> {
   let pending: Promise<T> | undefined;
@@ -57,6 +50,16 @@ function memoized<T>(load: () => Promise<T>): () => Promise<T> {
     }));
 }
 
+/**
+ * Loads a search index from PostgreSQL if available, falls back to building in-memory.
+ *
+ * @template T - The document type being indexed
+ * @param domain - Persisted search index artifact domain
+ * @param cacheKey - Cache key naming the index in logs
+ * @param buildFn - Function to build the index if the persisted load fails
+ * @param config - Field configuration used when deserializing a persisted index
+ * @returns The MiniSearch index
+ */
 async function loadOrBuildIndex<T>(
   domain: StaticSearchIndexArtifactDomain,
   cacheKey: string,
