@@ -149,7 +149,29 @@ export interface AiChatInputProps {
 // AI Chat Queue Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type TerminalChatAbortReason = "user_cancel" | "superseded" | "clear_exit" | "unmount";
+export const ABORT_REASON_USER_CANCEL = "user_cancel";
+export const ABORT_REASON_SUPERSEDED = "superseded";
+export const ABORT_REASON_CLEAR_EXIT = "clear_exit";
+export const ABORT_REASON_UNMOUNT = "unmount";
+
+/** Every reason the terminal itself passes to AbortController.abort(). */
+export const TERMINAL_CHAT_ABORT_REASONS = [
+  ABORT_REASON_USER_CANCEL,
+  ABORT_REASON_SUPERSEDED,
+  ABORT_REASON_CLEAR_EXIT,
+  ABORT_REASON_UNMOUNT,
+] as const;
+
+export type TerminalChatAbortReason = (typeof TERMINAL_CHAT_ABORT_REASONS)[number];
+
+/**
+ * fetch() rejects with signal.reason verbatim, so an abort the terminal issued
+ * arrives as one of these strings rather than a DOMException. Test the signal
+ * for "was this aborted"; test the reason for "did we expect it".
+ */
+export function isTerminalChatAbortReason(reason: unknown): reason is TerminalChatAbortReason {
+  return (TERMINAL_CHAT_ABORT_REASONS as readonly unknown[]).includes(reason);
+}
 
 export interface AiChatQueueConfig {
   history: TerminalCommand[];

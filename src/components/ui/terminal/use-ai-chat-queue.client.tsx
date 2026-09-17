@@ -18,23 +18,16 @@ import type {
   AiChatQueueResult,
   TerminalChatAbortReason,
 } from "@/types/ui/terminal";
-
-const ABORT_REASON_USER_CANCEL = "user_cancel";
-const ABORT_REASON_SUPERSEDED = "superseded";
-const ABORT_REASON_CLEAR_EXIT = "clear_exit";
-const ABORT_REASON_UNMOUNT = "unmount";
+import {
+  ABORT_REASON_CLEAR_EXIT,
+  ABORT_REASON_SUPERSEDED,
+  ABORT_REASON_UNMOUNT,
+  ABORT_REASON_USER_CANCEL,
+  isTerminalChatAbortReason,
+} from "@/types/ui/terminal";
 
 const TERMINAL_CHAT_QUEUE_LIMIT = 5;
 const STREAM_PREVIEW_MAX_CHARS = 240;
-
-function isExpectedAbortReason(reason: unknown): boolean {
-  return (
-    reason === ABORT_REASON_USER_CANCEL ||
-    reason === ABORT_REASON_SUPERSEDED ||
-    reason === ABORT_REASON_CLEAR_EXIT ||
-    reason === ABORT_REASON_UNMOUNT
-  );
-}
 
 function buildStreamPreview(text: string): string {
   const condensed = text.replace(/\s+/g, " ").trim();
@@ -160,9 +153,9 @@ export function useAiChatQueue({
 
   const handleChatError = useCallback(
     (error: unknown, signal?: AbortSignal): void => {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        const reason: unknown = signal?.reason;
-        if (isExpectedAbortReason(reason)) {
+      if (signal?.aborted === true) {
+        const reason: unknown = signal.reason;
+        if (isTerminalChatAbortReason(reason)) {
           return;
         }
         addToHistory({
