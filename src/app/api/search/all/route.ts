@@ -175,6 +175,9 @@ export async function GET(request: NextRequest) {
     const scopeParam = request.nextUrl.searchParams.get("scope");
     const scopes = parseScopes(scopeParam);
     const shouldSearch = (scope: SearchScope): boolean => scopes === null || scopes.has(scope);
+    // "posts" is an alias for "blog", so either scope runs the blog searcher.
+    const runsScope = (scope: SearchScope): boolean =>
+      scope === "blog" ? shouldSearch("blog") || shouldSearch("posts") : shouldSearch(scope);
     // A request scoped entirely to keyword-only domains must not wait on the
     // embedding round trip for a vector no searcher reads.
     const needsEmbedding =
@@ -183,8 +186,10 @@ export async function GET(request: NextRequest) {
     // Optional focus parameter: one scope keeps its full budget, the rest stay capped
     const focusScopes = parseScopes(request.nextUrl.searchParams.get("focus"));
     const [requestedFocus = null] = focusScopes?.size === 1 ? [...focusScopes] : [];
-    // "posts" is an alias for "blog", matching the scope handling below
-    const focus = requestedFocus === "posts" ? "blog" : requestedFocus;
+    const focusScope = requestedFocus === "posts" ? "blog" : requestedFocus;
+    // A focus the scope filter excludes never runs, so honoring it would only
+    // spend the focused budget on nothing and shrink the domains that did run.
+    const focus = focusScope && runsScope(focusScope) ? focusScope : null;
 
     // Early exit if the sanitized query is empty
     if (query.length === 0) {
@@ -217,7 +222,7 @@ export async function GET(request: NextRequest) {
       // Each search is wrapped with a timeout to prevent slow sources from blocking
       // Note: "posts" is an alias for "blog" (handled identically to scoped route)
       const settled = await Promise.allSettled([
-        shouldSearch("blog") || shouldSearch("posts")
+        runsScope("blog")
           ? withTimeout(searchBlogPostsServerSide(query, context), SOURCE_TIMEOUT_MS, "blog")
           : Promise.resolve([]),
         shouldSearch("investments")
