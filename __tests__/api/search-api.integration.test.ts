@@ -9,6 +9,14 @@ import { GET } from "@/app/api/search/all/route";
 import { GET as getRelatedContent } from "@/app/api/related-content/route";
 import { GET as getRelatedContentDebug } from "@/app/api/related-content/debug/route";
 
+const queryEmbeddingMocks = vi.hoisted(() => ({
+  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/db/queries/query-embedding", () => ({
+  buildQueryEmbedding: queryEmbeddingMocks.buildQueryEmbedding,
+}));
+
 const relatedContentMocks = vi.hoisted(() => ({
   findSimilarByEntity: vi.fn().mockResolvedValue([]),
   sourceEmbeddingExists: vi.fn().mockResolvedValue(true),
@@ -246,6 +254,26 @@ describe("Search API: GET /api/search/all", () => {
     /**
      * @description Should handle concurrent requests without failing
      */
+    it("skips the query embedding when no requested scope reads a vector", async () => {
+      queryEmbeddingMocks.buildQueryEmbedding.mockClear();
+
+      const keywordOnly = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=idle&scope=experience,education,tags",
+        ) as any,
+      );
+      expect(keywordOnly.status).toBe(200);
+      expect(queryEmbeddingMocks.buildQueryEmbedding).not.toHaveBeenCalled();
+
+      const hybrid = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=idle&scope=tags,bookmarks",
+        ) as any,
+      );
+      expect(hybrid.status).toBe(200);
+      expect(queryEmbeddingMocks.buildQueryEmbedding).toHaveBeenCalledTimes(1);
+    });
+
     it("should successfully manage concurrent requests", async () => {
       const queries = ["test1", "test2", "test3"];
       const requests = queries.map((q) =>

@@ -85,6 +85,15 @@ function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
 }
 
 /**
+ * Scopes whose searcher takes no QueryEmbeddingContext: they have no vector
+ * column and rank on MiniSearch or a PostgreSQL aggregate alone. A scope absent
+ * from this set is assumed to consume the query embedding, so a new hybrid
+ * scope needs no edit here and the unsafe direction is a wasted call, never a
+ * missing vector.
+ */
+const KEYWORD_ONLY_SCOPES: ReadonlySet<SearchScope> = new Set(["experience", "education", "tags"]);
+
+/**
  * Parse and validate scope parameter.
  * Returns null to search all scopes, or a Set of specific scopes to search.
  */
@@ -163,6 +172,10 @@ export async function GET(request: NextRequest) {
     const scopeParam = request.nextUrl.searchParams.get("scope");
     const scopes = parseScopes(scopeParam);
     const shouldSearch = (scope: SearchScope): boolean => scopes === null || scopes.has(scope);
+    // A request scoped entirely to keyword-only domains must not wait on the
+    // embedding round trip for a vector no searcher reads.
+    const needsEmbedding =
+      scopes === null || Array.from(scopes).some((scope) => !KEYWORD_ONLY_SCOPES.has(scope));
 
     // Early exit if the sanitized query is empty
     if (query.length === 0) {
@@ -188,7 +201,9 @@ export async function GET(request: NextRequest) {
     const results = await coalesceSearchRequest<SearchResult[]>(cacheKey, async () => {
       // Embed the query once; every searcher reuses the vector instead of racing
       // nine embedding calls against the per-call timeout.
-      const context = { precomputed: await buildQueryEmbedding(query, "[search/all]") };
+      const context = needsEmbedding
+        ? { precomputed: await buildQueryEmbedding(query, "[search/all]") }
+        : {};
       // Only run searches for requested scopes (or all if no scope specified)
       // Each search is wrapped with a timeout to prevent slow sources from blocking
       // Note: "posts" is an alias for "blog" (handled identically to scoped route)
