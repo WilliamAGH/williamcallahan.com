@@ -78,9 +78,9 @@ async function run() {
           ${inv.location ?? null}, ${inv.website ?? null}, ${inv.aventure_url ?? null},
           ${inv.logoOnlyDomain ?? null}, ${inv.logo ?? null},
           ${inv.multiple}, ${inv.holding_return},
-          ${inv.accelerator ? JSON.stringify(inv.accelerator) : null}::jsonb,
-          ${inv.details ? JSON.stringify(inv.details) : null}::jsonb,
-          ${inv.metrics ? JSON.stringify(inv.metrics) : null}::jsonb
+          ${inv.accelerator ? sql.json(inv.accelerator) : null},
+          ${inv.details ? sql.json(inv.details) : null},
+          ${inv.metrics ? sql.json(inv.metrics) : null}
         )
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name, slug = EXCLUDED.slug,

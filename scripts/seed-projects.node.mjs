@@ -75,10 +75,10 @@ async function run() {
           ${id}, ${proj.name}, ${slug}, ${proj.description},
           ${proj.shortSummary}, ${proj.url},
           ${proj.githubUrl ?? null}, ${proj.imageKey},
-          ${proj.tags ? JSON.stringify(proj.tags) : null}::jsonb,
-          ${proj.techStack ? JSON.stringify(proj.techStack) : null}::jsonb,
+          ${proj.tags ? sql.json(proj.tags) : null},
+          ${proj.techStack ? sql.json(proj.techStack) : null},
           ${proj.note ?? null}, ${proj.cvFeatured ?? false},
-          ${proj.registryLinks ? JSON.stringify(proj.registryLinks) : null}::jsonb
+          ${proj.registryLinks ? sql.json(proj.registryLinks) : null}
         )
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name, slug = EXCLUDED.slug,

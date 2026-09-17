@@ -12,16 +12,6 @@ import { db } from "@/lib/db/connection";
 import { TAG_URL, tagToSlug } from "@/lib/utils/tag-utils";
 import type { AggregatedTag } from "@/types/schemas/search";
 
-/**
- * The blog-post and project seed scripts stored tags as a JSON *string* holding
- * an array (`"[\"a\"]"`); decode that shape as well as a real array until the
- * seeds store arrays and the rows are re-seeded.
- */
-const JSON_ARRAY = (column: string) =>
-  sql.raw(
-    `CASE WHEN jsonb_typeof(${column}) = 'string' THEN (${column} #>> '{}')::jsonb ELSE ${column} END`,
-  );
-
 /** Every tag and book genre with its usage count, most used first. */
 export async function listTagCounts(): Promise<AggregatedTag[]> {
   const rows = await db.execute<{
@@ -36,11 +26,11 @@ export async function listTagCounts(): Promise<AggregatedTag[]> {
       FROM bookmarks, jsonb_array_elements(tags) AS t
       WHERE jsonb_typeof(tags) = 'array'
       UNION ALL
-      SELECT lower(t), 'blog' FROM blog_posts, jsonb_array_elements_text(${JSON_ARRAY("tags")}) AS t
-      WHERE draft = false AND tags IS NOT NULL
+      SELECT lower(t), 'blog' FROM blog_posts, jsonb_array_elements_text(tags) AS t
+      WHERE draft = false AND jsonb_typeof(tags) = 'array'
       UNION ALL
-      SELECT lower(t), 'projects' FROM projects, jsonb_array_elements_text(${JSON_ARRAY("tags")}) AS t
-      WHERE tags IS NOT NULL
+      SELECT lower(t), 'projects' FROM projects, jsonb_array_elements_text(tags) AS t
+      WHERE jsonb_typeof(tags) = 'array'
       UNION ALL
       SELECT lower(t), 'books' FROM books, jsonb_array_elements_text(genres) AS t
       WHERE jsonb_typeof(genres) = 'array'
