@@ -68,7 +68,7 @@ console.log(
 // Import required modules
 import { randomInt } from "node:crypto";
 import cron from "node-cron";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { DATA_UPDATER_FLAGS } from "@/lib/constants/cli-flags";
 
 // Verify modules loaded
@@ -93,12 +93,19 @@ console.log("[Scheduler] Starting update-data scheduler (PT)...");
 // Graceful shutdown state. The container runs this file as PID 1 (scheduler/Dockerfile),
 // so SIGTERM arrives here directly. Jitter timers and spawned update children are the
 // two things node-cron does not own, so they are tracked explicitly.
+//
+// The children are held by identity rather than counted: a failed spawn emits both
+// "error" and "close", and Node does not guarantee which of them arrives, so neither
+// handler can own the release alone. Set.delete is idempotent, which makes size exact
+// however many of the two fire. A counter decremented in both handlers goes negative
+// on a launch failure, and a later successful job then carries it back to zero while
+// its child still runs -- so the next SIGTERM reads "drained" and exits mid-write.
 const pendingJitterTimers = new Set<NodeJS.Timeout>();
-let activeUpdateCount = 0;
+const activeUpdateProcesses = new Set<ChildProcess>();
 let shuttingDown = false;
 
 const exitWhenDrained = (): void => {
-  if (activeUpdateCount > 0) return;
+  if (activeUpdateProcesses.size > 0) return;
   console.log("[Scheduler] In-flight work drained; exiting");
   process.exit(0);
 };
@@ -112,11 +119,11 @@ const shutdown = (signal: NodeJS.Signals): void => {
   for (const timer of pendingJitterTimers) clearTimeout(timer);
   pendingJitterTimers.clear();
 
-  if (activeUpdateCount > 0) {
+  if (activeUpdateProcesses.size > 0) {
     // No app-level deadline here: the orchestrator's stop grace period already bounds
     // the wait, and a data update that outlives it is SIGKILLed with its open
     // transaction aborted by Postgres. A second timeout would duplicate that knob.
-    console.log(`[Scheduler] Waiting on ${activeUpdateCount} in-flight update(s)`);
+    console.log(`[Scheduler] Waiting on ${activeUpdateProcesses.size} in-flight update(s)`);
     return;
   }
   exitWhenDrained();
@@ -247,10 +254,10 @@ const scheduleCronJob = (
         stdio: "inherit",
         detached: false,
       });
-      activeUpdateCount++;
+      activeUpdateProcesses.add(updateProcess);
 
       updateProcess.on("error", (err) => {
-        activeUpdateCount--;
+        activeUpdateProcesses.delete(updateProcess);
         console.error(
           `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Failed to start process:`,
           err,
@@ -259,7 +266,7 @@ const scheduleCronJob = (
       });
 
       updateProcess.on("close", (code) => {
-        activeUpdateCount--;
+        activeUpdateProcesses.delete(updateProcess);
         runningJobs.delete(name);
 
         if (shuttingDown) {
