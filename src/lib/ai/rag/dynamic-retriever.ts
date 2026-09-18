@@ -26,6 +26,7 @@ import { searchTags } from "@/lib/search/searchers/tag-search";
 import { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
 import { searchThoughts } from "@/lib/search/searchers/thoughts-search";
 import type { QueryEmbeddingContext } from "@/types/search";
+import { KEYWORD_ONLY_SCOPES } from "@/types/schemas/search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import logger from "@/lib/utils/logger";
@@ -141,9 +142,12 @@ export async function retrieveRelevantContent(
   // every scope failed instantly and the keyword-only fallback that
   // buildQueryEmbedding had already returned never got to run.
   const embeddingTimeoutMs = Math.floor(timeoutMs / 2);
-  const precomputed = sanitizedQuery
-    ? await buildQueryEmbedding(sanitizedQuery, "[RAG]", undefined, embeddingTimeoutMs)
-    : undefined;
+  // A retrieval whose every scope ranks without a vector must not wait on one.
+  const needsEmbedding = scopes.some((scope) => !KEYWORD_ONLY_SCOPES.has(scope));
+  const precomputed =
+    sanitizedQuery && needsEmbedding
+      ? await buildQueryEmbedding(sanitizedQuery, "[RAG]", undefined, embeddingTimeoutMs)
+      : undefined;
   const embeddingContext: QueryEmbeddingContext = { precomputed };
   const scopeTimeoutMs = Math.max(0, deadline - Date.now());
 
