@@ -50,15 +50,15 @@ a runtime retry, or a polyfill in application code.
 
 ### Migration Rules
 
-| Area                | Required behavior                                                                                                                                                                  |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dynamic APIs        | Treat `params`, `searchParams`, `cookies()`, and `headers()` as asynchronous. Await them in Server Components; use React's supported promise APIs in Client Components.            |
-| Cache Components    | Keep `cacheComponents: true` in `next.config.ts`. Use `'use cache'` for cacheable work and stable `cacheLife`/`cacheTag` APIs inside valid cache scopes.                           |
-| Route config        | Do not export `runtime`, `dynamicParams`, `dynamic`, `fetchCache`, `revalidate`, or `experimental_ppr` from an App Router segment while Cache Components are enabled.              |
-| Removed experiments | Do not reintroduce `experimental.ppr` or `experimental.dynamicIO`; PPR is configured through `cacheComponents`.                                                                    |
-| Proxy naming        | Use `skipProxyUrlNormalize`, never `skipMiddlewareUrlNormalize`. Next 16 uses `src/proxy.ts`, not `middleware.ts`.                                                                 |
-| Images              | Use `next/image`; `next/legacy/image` is prohibited.                                                                                                                               |
-| Tooling             | Turbopack is the Next 16 default. Do not add redundant flags or revive a Webpack configuration without an approved, measured reason.                                               |
+| Area                | Required behavior                                                                                                                                                                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dynamic APIs        | Treat `params`, `searchParams`, `cookies()`, and `headers()` as asynchronous. Await them in Server Components; use React's supported promise APIs in Client Components.                                                                              |
+| Cache Components    | Keep `cacheComponents: true` in `next.config.ts`. Use `'use cache'` for cacheable work and stable `cacheLife`/`cacheTag` APIs inside valid cache scopes.                                                                                             |
+| Route config        | Do not export `runtime`, `dynamicParams`, `dynamic`, `fetchCache`, `revalidate`, or `experimental_ppr` from an App Router segment while Cache Components are enabled.                                                                                |
+| Removed experiments | Do not reintroduce `experimental.ppr` or `experimental.dynamicIO`; PPR is configured through `cacheComponents`.                                                                                                                                      |
+| Proxy naming        | Use `skipProxyUrlNormalize`, never `skipMiddlewareUrlNormalize`. Next 16 uses `src/proxy.ts`, not `middleware.ts`.                                                                                                                                   |
+| Images              | Use `next/image`; `next/legacy/image` is prohibited.                                                                                                                                                                                                 |
+| Tooling             | Turbopack is the Next 16 default. Do not add redundant flags or revive a Webpack configuration without an approved, measured reason.                                                                                                                 |
 | Deployment identity | Production assets must carry one release-scoped `?dpl=` value; the Git-free runner reads `.next/RELEASE_ID`, written by the image build. Never fall back to `.next/BUILD_ID`. See [Web Release Identity](../ops/deployment.md#web-release-identity). |
 
 Installed-source evidence: `node_modules/next/dist/server/config.js:330-331` rejects
