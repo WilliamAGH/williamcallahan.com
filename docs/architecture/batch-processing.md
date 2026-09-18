@@ -271,8 +271,8 @@ curl http://localhost:3000/api/bookmarks/refresh
 ### Starting the Scheduler
 
 ```bash
-# Production deployment
-pnpm run scheduler
+# Production deployment (see docs/ops/deployment.md)
+node --import tsx scheduler/scheduler.ts
 
 # Development
 NODE_ENV=development pnpm run scheduler
