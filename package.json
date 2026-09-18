@@ -98,6 +98,7 @@
     "embeddings:migrate-to-unified": "node scripts/migrate-embeddings-to-unified.node.mjs",
     "seed:investments": "node scripts/seed-investments.node.mjs",
     "seed:projects": "node scripts/seed-projects.node.mjs",
+    "search:parity": "node scripts/compare-bookmark-search.node.mjs",
     "seed:books": "node scripts/seed-books.node.mjs",
     "seed:blog-posts": "node scripts/seed-blog-posts.node.mjs",
     "bookmarks:metadata:dev": "DEPLOYMENT_ENV=development bun run update-data -- --bookmarks --metadata-only",

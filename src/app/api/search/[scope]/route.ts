@@ -23,6 +23,7 @@ import {
 } from "@/lib/search/api-guards";
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { SearchScopeValidator, validateSearchQuery } from "@/lib/validators/search";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { type SearchResult } from "@/types/schemas/search";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, connection, type NextRequest } from "next/server";
@@ -149,47 +150,10 @@ export async function GET(
         case "tags":
           return searchTags(query);
         case "analysis":
-          return searchAiAnalysis(query);
-        case "all": {
-          const [
-            posts,
-            bookmarks,
-            projects,
-            investments,
-            experience,
-            education,
-            books,
-            thoughts,
-            tags,
-            analysis,
-          ] = await Promise.all([
-            searchBlogPostsServerSide(query),
-            searchBookmarks(query),
-            searchProjects(query),
-            searchInvestments(query),
-            searchExperience(query),
-            searchEducation(query),
-            searchBooks(query),
-            searchThoughts(query),
-            searchTags(query),
-            searchAiAnalysis(query),
-          ]);
-
-          const combined = [
-            ...posts,
-            ...bookmarks,
-            ...projects,
-            ...investments,
-            ...experience,
-            ...education,
-            ...books,
-            ...thoughts,
-            ...tags,
-            ...analysis,
-          ];
-
-          return combined.toSorted((a, b) => b.score - a.score).slice(0, 50);
-        }
+          // Three parent searches share one query embedding.
+          return searchAiAnalysis(query, {
+            precomputed: await buildQueryEmbedding(query, "[search/analysis]"),
+          });
         default:
           return [];
       }

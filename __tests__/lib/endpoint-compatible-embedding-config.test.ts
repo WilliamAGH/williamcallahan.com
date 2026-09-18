@@ -1,4 +1,7 @@
-import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
+import {
+  embedTextsWithEndpointCompatibleModel,
+  resolveEndpointCompatibleEmbeddingTimeoutMs,
+} from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import {
   endpointCompatibleEmbeddingsRequestSchema,
@@ -138,6 +141,18 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
     expect(embeddings[0]?.[0]).toBeCloseTo(Math.SQRT1_2);
     expect(embeddings[0]?.[1]).toBeCloseTo(Math.SQRT1_2);
     expect(embeddings[1]).toEqual([0, 2]);
+  });
+
+  it("grows the request deadline with payload size so large batches are not aborted", () => {
+    // A 16-row bookmark batch reaches ~500 000 chars, which the endpoint serves
+    // at ~3 400 chars/s (~150 s). A fixed 30 s deadline aborted every such batch.
+    const smallBatch = ["short query"];
+    const largeBatch = Array.from({ length: 16 }, () => "a".repeat(31_250));
+
+    expect(resolveEndpointCompatibleEmbeddingTimeoutMs(smallBatch)).toBe(30_000);
+    expect(resolveEndpointCompatibleEmbeddingTimeoutMs(largeBatch)).toBeGreaterThan(150_000);
+    // An explicit caller bound still wins, so interactive search stays short.
+    expect(resolveEndpointCompatibleEmbeddingTimeoutMs(largeBatch, 1_500)).toBe(1_500);
   });
 
   it("retries a transient endpoint timeout only when a retry policy is supplied", async () => {

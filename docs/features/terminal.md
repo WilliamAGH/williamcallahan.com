@@ -63,6 +63,7 @@ Window Controls -> TerminalHeader -> GlobalWindowRegistry
 5. **Window States**: GlobalWindowRegistry coordinates minimize/maximize/close actions
 6. **Navigation / Apps**: Commands can trigger navigation to different pages. `ai`, `chat`, and `ai-chat` enter the in-terminal AI chat experience. Prefix usage (`ai <message>`) performs a one-shot reply without entering modal chat. Chat-mode messages queue client-side (capped) and dispatch sequentially via `use-ai-chat-queue.client.tsx`.
 7. **API Integration**: Search commands communicate with /api/search endpoints
+8. **Bookmark Focus**: A site-wide search sends `focus=bookmarks` to `/api/search/all` when the reader is on `/bookmarks` (or a `/bookmarks/...` page), or when the input contains the `--bookmarks` flag (`-b` is the short form, and either flag is stripped from the query before it is sent). The focused domain then keeps up to 50 bookmark hits while every other domain keeps its 24. A focus the `scope` parameter excludes is ignored, so it never spends the focused budget on a domain that did not run. The merged list sorts every content row before every `[Tags] > …` row and by score within each group, so tag rows fill only the slots content left empty. The `bookmarks <query>` section command is unchanged and still searches bookmarks only.
 
 ### CV Page Rendering Exception
 

@@ -5,7 +5,6 @@
 
 import type { SearchResult } from "@/types/schemas/search";
 import type { QueryEmbeddingContext } from "@/types/search";
-import { PAGE_METADATA } from "@/data/metadata";
 import { hybridSearchThoughts } from "@/lib/db/queries/hybrid-search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
@@ -17,24 +16,6 @@ const trimContent = (content: string): string =>
     .replace(/```[\s\S]*?```/g, "")
     .replace(/\s+/g, " ")
     .trim();
-
-function getThoughtsPageResult(): SearchResult {
-  const pageTitle =
-    typeof PAGE_METADATA.thoughts.title === "string" ? PAGE_METADATA.thoughts.title : "Thoughts";
-  const pageDescription =
-    typeof PAGE_METADATA.thoughts.description === "string"
-      ? PAGE_METADATA.thoughts.description
-      : undefined;
-
-  return {
-    id: "thoughts-page",
-    type: "page",
-    title: pageTitle,
-    description: pageDescription,
-    url: "/thoughts",
-    score: 0.05,
-  };
-}
 
 export async function searchThoughts(
   query: string,
@@ -52,7 +33,7 @@ export async function searchThoughts(
     limit: SEARCH_LIMIT,
   });
 
-  const results: SearchResult[] = rows.map((row) => ({
+  return rows.map((row) => ({
     id: row.id,
     type: "page",
     title: row.title,
@@ -60,9 +41,4 @@ export async function searchThoughts(
     url: `/thoughts/${row.slug}`,
     score: row.score,
   }));
-
-  if (results.length === 0) {
-    return [getThoughtsPageResult()];
-  }
-  return results;
 }

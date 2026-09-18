@@ -13,6 +13,7 @@ import { PAGE_METADATA } from "@/data/metadata";
 import { projects } from "@/data/projects";
 import { getBookmarksIndex, getCachedBooksData } from "@/lib/search/loaders/dynamic-content";
 import { aggregateTags } from "@/lib/search/tag-aggregator";
+import { TAG_URL } from "@/lib/utils/tag-utils";
 import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { listAnalysisItemIds } from "@/lib/ai-analysis/reader.server";
@@ -57,9 +58,10 @@ const buildTagsRows = (tags: AggregatedTag[]): string[] =>
   tags
     .toSorted((a, b) => b.count - a.count || a.name.localeCompare(b.name))
     .map((tag) =>
+      // No slug here: url is the addressable form, and for blog tags the two
+      // disagree by design (the route resolves on kebabCase, tag.slug does not).
       formatLine({
         name: tag.name,
-        slug: tag.slug,
         contentType: tag.contentType,
         count: tag.count,
         url: tag.url,
@@ -107,7 +109,7 @@ async function buildTagsSection(args: {
         items: args.blogPosts,
         getTags: (post) => post.tags,
         contentType: "blog",
-        urlPattern: (slug) => `/blog/tags/${slug}`,
+        urlPattern: TAG_URL.blog,
       }),
     );
   }
@@ -117,7 +119,7 @@ async function buildTagsSection(args: {
       items: projects,
       getTags: (project) => project.tags,
       contentType: "projects",
-      urlPattern: (slug) => `/projects?tag=${slug}`,
+      urlPattern: TAG_URL.projects,
     }),
   );
 
@@ -127,7 +129,7 @@ async function buildTagsSection(args: {
         items: args.bookmarks,
         getTags: (bookmark) => bookmark.tags.split("\n").filter(Boolean),
         contentType: "bookmarks",
-        urlPattern: (slug) => `/bookmarks/tags/${slug}`,
+        urlPattern: TAG_URL.bookmarks,
       }),
     );
   }
@@ -138,7 +140,7 @@ async function buildTagsSection(args: {
         items: args.books,
         getTags: (book) => book.genres,
         contentType: "books",
-        urlPattern: (slug) => `/books?genre=${slug}`,
+        urlPattern: TAG_URL.books,
       }),
     );
   }

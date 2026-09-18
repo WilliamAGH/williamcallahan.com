@@ -161,25 +161,36 @@ describe("Terminal Commands", () => {
       });
     });
 
-    it("should handle blog search API failure", async () => {
+    it("surfaces a blog search API failure instead of reporting no results", async () => {
       mockFetch.mockRejectedValueOnce(new Error("API Error"));
 
       const result = await handleCommand("blog test query");
 
       expect(result.results?.[0]).toMatchObject({
         type: "text",
-        output: expect.stringContaining('No results found in Blog for "test query"'),
+        output: "Error searching blog: API Error",
       });
     });
 
-    it("should handle blog search with non-200 response", async () => {
+    it("surfaces a non-200 blog search response", async () => {
       mockFetch.mockResolvedValueOnce(new Response(null, { status: 500 }));
 
       const result = await handleCommand("blog test query");
 
       expect(result.results?.[0]).toMatchObject({
         type: "text",
-        output: expect.stringContaining('No results found in Blog for "test query"'),
+        output: "Error searching blog: Search API returned 500",
+      });
+    });
+
+    it("tells the user to wait when the search API rate limit is hit", async () => {
+      mockFetch.mockResolvedValueOnce(new Response(null, { status: 429 }));
+
+      const result = await handleCommand("blog test query");
+
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("Too many searches in the last minute"),
       });
     });
 
@@ -241,6 +252,62 @@ describe("Terminal Commands", () => {
       });
     });
 
+    it("focuses bookmarks for site-wide searches made from a bookmarks page", async () => {
+      window.history.replaceState({}, "", "/bookmarks/some-slug");
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      try {
+        await handleCommand("unknown command");
+      } finally {
+        window.history.replaceState({}, "", "/");
+      }
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command&focus=bookmarks",
+        expect.objectContaining({ signal: undefined }),
+      );
+    });
+
+    it("focuses bookmarks when the --bookmarks flag is used off the bookmarks page", async () => {
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      await handleCommand("unknown --bookmarks command");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command&focus=bookmarks",
+        expect.objectContaining({ signal: undefined }),
+      );
+    });
+
+    it("refuses a bookmarks flag with no search terms instead of sending an empty query", async () => {
+      const result = await handleCommand("-b");
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(result.results?.[0]).toMatchObject({
+        type: "text",
+        output: expect.stringContaining("needs search terms"),
+      });
+    });
+
+    it("strips the bookmarks flag from a section search instead of sending it as text", async () => {
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      await handleCommand("bookmarks postgres -b");
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/search/bookmarks?q=postgres", expect.anything());
+    });
+
+    it("accepts -b as the short form of the bookmarks flag", async () => {
+      mockFetch.mockResolvedValueOnce(createJsonResponse([]));
+
+      await handleCommand("unknown command -b");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command&focus=bookmarks",
+        expect.objectContaining({ signal: undefined }),
+      );
+    });
+
     it("should show not recognized message when no results found", async () => {
       mockFetch.mockResolvedValueOnce(createJsonResponse([]));
 
@@ -257,25 +324,25 @@ describe("Terminal Commands", () => {
       expect(result.selectionItems).toBeUndefined();
     });
 
-    it("should handle site-wide search API failure", async () => {
+    it("surfaces a site-wide search API failure instead of 'Command not recognized'", async () => {
       mockFetch.mockRejectedValueOnce(new Error("API Error"));
 
       const result = await handleCommand("unknown command");
 
       expect(result.results?.[0]).toMatchObject({
         type: "text",
-        output: expect.stringContaining("Command not recognized"),
+        output: "Error during site-wide search: API Error",
       });
     });
 
-    it("should handle unknown errors in site-wide search", async () => {
+    it("surfaces unknown errors in site-wide search", async () => {
       mockFetch.mockRejectedValueOnce("Not an Error object");
 
       const result = await handleCommand("unknown command");
 
       expect(result.results?.[0]).toMatchObject({
         type: "text",
-        output: expect.stringContaining("Command not recognized"),
+        output: expect.stringContaining("Error during site-wide search:"),
       });
     });
   });
@@ -305,7 +372,7 @@ describe("Terminal Commands", () => {
       );
     });
 
-    it("should handle aborted requests gracefully", async () => {
+    it("propagates an abort so the terminal can discard the superseded command", async () => {
       const controller = new AbortController();
       const abortError = new DOMException("Aborted", "AbortError");
 
@@ -313,12 +380,29 @@ describe("Terminal Commands", () => {
 
       controller.abort();
 
-      const result = await handleCommand("blog test", controller.signal);
+      await expect(handleCommand("blog test", controller.signal)).rejects.toBe(abortError);
+    });
 
-      expect(result.results?.[0]).toMatchObject({
-        type: "text",
-        output: expect.stringContaining('No results found in Blog for "test"'),
-      });
+    it("propagates an abort carrying a string reason, the shape the terminal sends", async () => {
+      // use-terminal.client.tsx aborts with "superseded" / "clear_exit" /
+      // "unmount", and fetch() rejects with signal.reason verbatim, so the
+      // rejection is a plain string rather than a DOMException. Returning an
+      // error result here would print a search failure into a cleared terminal.
+      for (const reason of ["superseded", "clear_exit", "unmount"]) {
+        const controller = new AbortController();
+        mockFetch.mockRejectedValueOnce(reason);
+        controller.abort(reason);
+
+        await expect(handleCommand("blog test", controller.signal)).rejects.toBe(reason);
+      }
+    });
+
+    it("propagates a string-reason abort from the site-wide search path too", async () => {
+      const controller = new AbortController();
+      mockFetch.mockRejectedValueOnce("superseded");
+      controller.abort("superseded");
+
+      await expect(handleCommand("unknown command", controller.signal)).rejects.toBe("superseded");
     });
 
     it("should propagate AbortSignal through all search paths", async () => {

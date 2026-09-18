@@ -17,7 +17,7 @@ const SEARCH_LIMIT = 50;
 
 /**
  * Search blog posts via hybrid PostgreSQL search.
- * Results sorted by hybrid score desc, then recency as tiebreaker.
+ * Rows arrive in reciprocal-rank order from SQL; that order is returned as-is.
  */
 export async function searchBlogPostsServerSide(
   query: string,
@@ -33,23 +33,12 @@ export async function searchBlogPostsServerSide(
     limit: SEARCH_LIMIT,
   });
 
-  return rows
-    .map((r) => ({
-      id: r.id,
-      type: "blog-post" as const,
-      title: r.title,
-      description: r.excerpt ?? undefined,
-      url: `/blog/${r.slug}`,
-      score: r.score,
-      publishedAt: r.publishedAt,
-    }))
-    .toSorted((a, b) => {
-      const scoreDiff = b.score - a.score;
-      const SCORE_EPSILON = 0.01;
-      if (Math.abs(scoreDiff) > SCORE_EPSILON) return scoreDiff;
-      const aDate = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-      const bDate = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-      return bDate - aDate;
-    })
-    .map(({ publishedAt: _publishedAt, ...rest }) => rest);
+  return rows.map((r) => ({
+    id: r.id,
+    type: "blog-post" as const,
+    title: r.title,
+    description: r.excerpt ?? undefined,
+    url: `/blog/${r.slug}`,
+    score: r.score,
+  }));
 }

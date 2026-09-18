@@ -13,7 +13,8 @@ import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings
 import {
   FTS_WEIGHT,
   TRIGRAM_WEIGHT,
-  VECTOR_WEIGHT,
+  RRF_K,
+  RRF_RANKER_COUNT,
   KEYWORD_CANDIDATE_LIMIT,
   SEMANTIC_CANDIDATE_LIMIT,
   DEFAULT_LIMIT,
@@ -51,34 +52,33 @@ export async function hybridSearchInvestments(options: {
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
-          ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(name, ${trimmed}) AS trgm_score,
-          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-            + similarity(name, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
+          row_number() OVER (ORDER BY
+            ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+              + word_similarity(${trimmed}, name) * ${TRIGRAM_WEIGHT} DESC, id DESC) AS keyword_rank
         FROM investments
-        WHERE search_vector @@ ${tsQuery} OR name % ${trimmed}
-        ORDER BY keyword_score DESC, id DESC
+        WHERE search_vector @@ ${tsQuery} OR ${trimmed} <% name
+        ORDER BY keyword_rank
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
         SELECT entity_id AS id,
-          1.0 - (qwen_4b_fp16_embedding <=> ${castVec}) AS vec_score
+          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id) AS semantic_rank
         FROM embeddings
         WHERE domain = 'investment' AND qwen_4b_fp16_embedding IS NOT NULL
-        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}
+        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id
         LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
       ),
       combined AS (
         SELECT COALESCE(k.id, s.id) AS id,
-          COALESCE(k.fts_score, 0) * ${FTS_WEIGHT}
-            + COALESCE(k.trgm_score, 0) * ${TRIGRAM_WEIGHT}
-            + COALESCE(s.vec_score, 0) * ${VECTOR_WEIGHT} AS score
+          k.keyword_rank,
+          COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
+            + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k FULL OUTER JOIN semantic_results s ON k.id = s.id
       )
       SELECT i.id, i.name, i.slug, i.description, i.category, i.stage,
              i.status, i.operating_status, i.location, c.score AS hybrid_score
       FROM combined c JOIN investments i ON i.id = c.id
-      ORDER BY c.score DESC LIMIT ${limit}
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id LIMIT ${limit}
     `);
 
     return rows.map((r) => ({
@@ -109,11 +109,12 @@ export async function hybridSearchInvestments(options: {
     keyword_score: number;
   }>(sql`
     SELECT id, name, slug, description, category, stage, status, operating_status, location,
-      ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-        + similarity(name, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
+      ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
+        ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+          + word_similarity(${trimmed}, name) * ${TRIGRAM_WEIGHT} DESC, id DESC)) AS keyword_score
     FROM investments
-    WHERE search_vector @@ ${tsQuery} OR name % ${trimmed}
-    ORDER BY keyword_score DESC, id DESC LIMIT ${limit}
+    WHERE search_vector @@ ${tsQuery} OR ${trimmed} <% name
+    ORDER BY keyword_score DESC LIMIT ${limit}
   `);
 
   return rows.map((r) => ({
@@ -160,34 +161,33 @@ export async function hybridSearchProjects(options: {
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
-          ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(name, ${trimmed}) AS trgm_score,
-          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-            + similarity(name, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
+          row_number() OVER (ORDER BY
+            ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+              + word_similarity(${trimmed}, name) * ${TRIGRAM_WEIGHT} DESC, id DESC) AS keyword_rank
         FROM projects
-        WHERE search_vector @@ ${tsQuery} OR name % ${trimmed}
-        ORDER BY keyword_score DESC, id DESC
+        WHERE search_vector @@ ${tsQuery} OR ${trimmed} <% name
+        ORDER BY keyword_rank
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
         SELECT entity_id AS id,
-          1.0 - (qwen_4b_fp16_embedding <=> ${castVec}) AS vec_score
+          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id) AS semantic_rank
         FROM embeddings
         WHERE domain = 'project' AND qwen_4b_fp16_embedding IS NOT NULL
-        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}
+        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id
         LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
       ),
       combined AS (
         SELECT COALESCE(k.id, s.id) AS id,
-          COALESCE(k.fts_score, 0) * ${FTS_WEIGHT}
-            + COALESCE(k.trgm_score, 0) * ${TRIGRAM_WEIGHT}
-            + COALESCE(s.vec_score, 0) * ${VECTOR_WEIGHT} AS score
+          k.keyword_rank,
+          COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
+            + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k FULL OUTER JOIN semantic_results s ON k.id = s.id
       )
       SELECT p.id, p.name, p.slug, p.description, p.short_summary, p.url,
              p.image_key, p.tags, c.score AS hybrid_score
       FROM combined c JOIN projects p ON p.id = c.id
-      ORDER BY c.score DESC LIMIT ${limit}
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id LIMIT ${limit}
     `);
 
     return rows.map((r) => ({
@@ -215,11 +215,12 @@ export async function hybridSearchProjects(options: {
     keyword_score: number;
   }>(sql`
     SELECT id, name, slug, description, short_summary, url, image_key, tags,
-      ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-        + similarity(name, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
+      ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
+        ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+          + word_similarity(${trimmed}, name) * ${TRIGRAM_WEIGHT} DESC, id DESC)) AS keyword_score
     FROM projects
-    WHERE search_vector @@ ${tsQuery} OR name % ${trimmed}
-    ORDER BY keyword_score DESC, id DESC LIMIT ${limit}
+    WHERE search_vector @@ ${tsQuery} OR ${trimmed} <% name
+    ORDER BY keyword_score DESC LIMIT ${limit}
   `);
 
   return rows.map((r) => ({

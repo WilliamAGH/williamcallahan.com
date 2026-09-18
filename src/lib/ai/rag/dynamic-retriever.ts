@@ -26,6 +26,7 @@ import { searchTags } from "@/lib/search/searchers/tag-search";
 import { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
 import { searchThoughts } from "@/lib/search/searchers/thoughts-search";
 import type { QueryEmbeddingContext } from "@/types/search";
+import { KEYWORD_ONLY_SCOPES } from "@/types/schemas/search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
 import logger from "@/lib/utils/logger";
@@ -127,13 +128,28 @@ export async function retrieveRelevantContent(
     logger.info("[RAG] No scope keywords detected; using fallback scopes", { scopes, query });
   }
 
+  // One deadline for the whole retrieval. The embedding is awaited before any
+  // scope starts, so the scopes get what is left of the budget rather than a
+  // fresh copy of it; giving each phase the full timeoutMs would cost twice the
+  // advertised latency when the embedding endpoint stalls.
+  const deadline = Date.now() + timeoutMs;
+
   // Embed once per retrieval so concurrent scope searchers share the vector
   // instead of each hitting the embedding endpoint in parallel.
   const sanitizedQuery = sanitizeSearchQuery(query);
-  const precomputed = sanitizedQuery
-    ? await buildQueryEmbedding(sanitizedQuery, "[RAG]")
-    : undefined;
+  // The embedding may spend at most half the deadline. Handing it the whole
+  // budget starved the scopes: a slow endpoint left scopeTimeoutMs at 0, so
+  // every scope failed instantly and the keyword-only fallback that
+  // buildQueryEmbedding had already returned never got to run.
+  const embeddingTimeoutMs = Math.floor(timeoutMs / 2);
+  // A retrieval whose every scope ranks without a vector must not wait on one.
+  const needsEmbedding = scopes.some((scope) => !KEYWORD_ONLY_SCOPES.has(scope));
+  const precomputed =
+    sanitizedQuery && needsEmbedding
+      ? await buildQueryEmbedding(sanitizedQuery, "[RAG]", undefined, embeddingTimeoutMs)
+      : undefined;
   const embeddingContext: QueryEmbeddingContext = { precomputed };
+  const scopeTimeoutMs = Math.max(0, deadline - Date.now());
 
   // Track failed scopes for caller awareness
   const failedScopes: string[] = [];
@@ -148,7 +164,11 @@ export async function retrieveRelevantContent(
     }
 
     try {
-      const results = await withScopeTimeout(searcher(query, embeddingContext), timeoutMs, scope);
+      const results = await withScopeTimeout(
+        searcher(query, embeddingContext),
+        scopeTimeoutMs,
+        scope,
+      );
       return results.slice(0, Math.ceil(maxResults / scopes.length)).map(
         (r): DynamicResult => ({
           scope,

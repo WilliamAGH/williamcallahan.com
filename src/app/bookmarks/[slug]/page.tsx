@@ -225,21 +225,12 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     { category: "BookmarkPage" },
   );
 
-  let cachedAnalysis: Awaited<ReturnType<typeof getCachedAnalysis<BookmarkAiAnalysisResponse>>> =
-    null;
-  try {
-    cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
-      "bookmarks",
-      foundBookmark.id,
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    envLogger.log(
-      "Failed to load cached bookmark analysis",
-      { slug, bookmarkId: foundBookmark.id, error: message },
-      { category: "BookmarkPage" },
-    );
-  }
+  // A failed read must fail the page: rendering with a null analysis would make the
+  // client regenerate and overwrite the persisted row.
+  const cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
+    "bookmarks",
+    foundBookmark.id,
+  );
 
   if (cachedAnalysis) {
     envLogger.log(

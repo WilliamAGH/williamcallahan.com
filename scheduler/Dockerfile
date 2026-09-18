@@ -118,4 +118,8 @@ HEALTHCHECK --interval=60s --timeout=5s --start-period=15m --retries=3 \
   CMD node -e 'const fs=require("node:fs");const timestamp=Number(fs.readFileSync(process.env.SCHEDULER_HEARTBEAT_FILE,"utf8"));const age=Date.now()-timestamp;if(!Number.isFinite(age)||age>120000)process.exit(1)'
 
 ENTRYPOINT ["/app/scheduler/entrypoint.sh"]
-CMD ["node", "--run", "scheduler"]
+# Load the scheduler through tsx in-process rather than via `node --run scheduler`
+# or the `tsx` CLI: both fork a child, leaving a signal-deaf parent as PID 1 whose
+# SIGTERM the kernel discards. `--import tsx` keeps one process, so the scheduler
+# itself receives SIGTERM. Mirrors the `scheduler` script in package.json.
+CMD ["node", "--import", "tsx", "scheduler/scheduler.ts"]

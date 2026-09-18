@@ -27,10 +27,11 @@ export function withNoStoreHeaders(additional?: Record<string, string>): Headers
 
 /**
  * Search API rate limiting configuration.
- * 10 searches per minute per IP address.
+ * 30 searches per minute per IP address: each terminal Enter is one request, and
+ * a limit of 10 tripped during ordinary use (the 429 then read as "no results").
  */
 export const SEARCH_RATE_LIMIT = {
-  maxRequests: 10,
+  maxRequests: 30,
   windowMs: 60000, // 1 minute
 } as const;
 

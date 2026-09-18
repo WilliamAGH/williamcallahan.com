@@ -17,6 +17,7 @@ import {
 } from "../loaders/static-content";
 import type { QueryEmbeddingContext } from "@/types/search";
 import { sanitizeSearchQuery } from "@/lib/validators/search";
+import { MAX_RECIPROCAL_RANK_SCORE } from "@/lib/db/queries/hybrid-search-config";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import {
   hybridSearchInvestments,
@@ -69,9 +70,6 @@ export const searchExperience = createCachedSearchFunction({
     url: `/experience#${exp.id}`,
     score,
   }),
-  hybridRerank: {
-    getRerankText: (exp) => [exp.company, exp.role, exp.period].join("\n"),
-  },
 });
 
 /**
@@ -91,9 +89,6 @@ export const searchEducation = createCachedSearchFunction({
     url: item.path,
     score,
   }),
-  hybridRerank: {
-    getRerankText: (item) => [item.label, item.description].join("\n"),
-  },
 });
 
 /**
@@ -123,7 +118,9 @@ export async function searchProjects(
     score: r.score,
   }));
 
-  // If the query is exactly "projects", add navigation result at top
+  // If the query is exactly "projects", add navigation result at top. It scores
+  // at the ceiling of the shared reciprocal-rank scale rather than a literal 1,
+  // which sorted it above every other domain in the site-wide result list.
   const lower = sanitizedQuery.toLowerCase();
   if (lower === "projects" || lower === "project") {
     results.unshift({
@@ -132,7 +129,7 @@ export async function searchProjects(
       title: "Projects",
       description: "Explore all projects",
       url: "/projects",
-      score: 1,
+      score: MAX_RECIPROCAL_RANK_SCORE,
     });
   }
 

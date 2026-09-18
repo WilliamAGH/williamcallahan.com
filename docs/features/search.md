@@ -4,9 +4,11 @@
 
 ## Overview
 
-The search functionality provides site-wide and section-specific search capabilities with BM25/fuzzy matching, hybrid vector reranking, caching, and security features. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, education, projects, books, thoughts, tags, and AI analysis.
+The search functionality provides site-wide and section-specific search capabilities with PostgreSQL hybrid retrieval (full-text + word-level trigram + pgvector), BM25 for the two static domains, caching, and rate limiting. It's primarily accessed through the terminal interface and enables users to find content across blog posts, bookmarks, investments, experience, education, projects, books, thoughts, tags, and AI analysis.
 
-> **Note on Hybrid Retrieval:** Search uses domain-specific hybrid paths. Bookmark SQL returns ranked IDs and hydrates full records through the typed Drizzle projection; thoughts use PostgreSQL hybrid retrieval directly. Other domains run BM25/keyword retrieval with embedding reranking.
+> **Note on Hybrid Retrieval:** Blog posts, bookmarks, books, investments, projects, and thoughts run in PostgreSQL: keyword candidates (`ts_rank_cd` + `word_similarity`) and semantic candidates (pgvector cosine) are ranked separately and merged with Reciprocal Rank Fusion (`1 / (RRF_K + rank)` per list, owner: `lib/db/queries/hybrid-search-config.ts`). Experience, education, tags, and AI analysis rank in TypeScript and are mapped onto the same scale by `scoreByRank()`, which multiplies the reciprocal rank by `RRF_RANKER_COUNT` because those domains run one ranker where a hybrid domain runs two. Without that factor a hybrid row present in both lists at rank 50 (`2/110`) outranks an exact single-ranker match at rank 1 (`1/61`), so the site-wide sort buries it. The keyword-only fallback scales the same way: with no query embedding no semantic ranker runs, so its rank fills both slots.
+
+> **Query embedding:** the query is embedded once per request in the API route (`buildQueryEmbedding`) and passed as `QueryEmbeddingContext.precomputed` to the searchers that accept one. Experience, education, and tags take no context, so a request scoped only to those skips the call entirely (`KEYWORD_ONLY_SCOPES` in `app/api/search/all/route.ts`); the scoped route embeds only for `analysis`. If the single call fails, every domain runs keyword-only; searchers never embed the query themselves when a context is present.
 
 ## Forbidden Patterns
 
@@ -53,13 +55,13 @@ export async function GET() {
 
 3. **Generic Search**: `searchContent<T>` function used by all search implementations.
 
-4. **Caching**: Next.js Cache Components with search tags/lifetimes (~15-minute profiles for server search reads); lazy loading in terminal.
+4. **Caching**: Next.js Cache Components with search tags/lifetimes (~15-minute profiles for server search reads). The terminal no longer preloads search; it fetches per command.
 
-5. **Search Quality**: Hybrid retrieval blends keyword relevance and semantic similarity. MiniSearch remains the BM25/fuzzy keyword candidate stage for non-PostgreSQL domains.
+5. **Search Quality**: Reciprocal Rank Fusion merges keyword and semantic candidate lists inside PostgreSQL; MiniSearch (all terms required, prefix + fuzzy) remains the BM25 stage for experience and education. Tag counts come from one PostgreSQL aggregate (`lib/db/queries/tag-counts.ts`) instead of loading every bookmark, post, and book per query.
 
 6. **Index Parity**: S3-loaded indexes hydrate with the same MiniSearch options (boost, fuzzy, idField, extractField) used during build to keep relevance scoring consistent with fresh indexes.
 
-7. **Security**: Query validation (Unicode-aware), ReDoS prevention, 100-char limit, and shared rate limiting via `applySearchGuards()` across search routes.
+7. **Security**: Query validation (Unicode-aware, 100-char limit, whitespace and edge-punctuation normalization) and shared rate limiting via `applySearchGuards()` across search routes. Punctuation inside the query is kept: PostgreSQL indexes tokens such as `next.js` whole, and no consumer compiles the query into a regular expression. A 429 is shown to the terminal user as a rate-limit message.
 
 ## Key Files & Responsibilities
 
@@ -70,16 +72,15 @@ export async function GET() {
 - **`lib/search/searchers/dynamic-searchers.ts`**: Dynamic-domain searchers
   - `searchBookmarks()`, `searchBooks()`
 - **`lib/search/searchers/thoughts-search.ts`**: PostgreSQL-backed hybrid thoughts search
-- **`lib/search/search-content.ts`**: Generic content scoring/reranking utilities
+- **`lib/search/search-content.ts`**: MiniSearch scoring plus `scoreByRank()` (shared reciprocal-rank scale)
 - **`lib/search/search-factory.ts`**: Shared cached-search factory used by searchers
 
 - **`lib/blog/server-search.ts`**: Blog-specific search
   - `searchBlogPostsServerSide()`: Searches blog posts with caching
 
 - **`lib/validators/search.ts`**: Query validation
-  - `validateSearchQuery()`: Validates and sanitizes input
+  - `validateSearchQuery()`: Validates and normalizes input (length cap, whitespace, edge punctuation, lowercase)
   - `sanitizeSearchQuery()`: Simple sanitization helper
-  - Prevents ReDoS attacks and dangerous patterns, preserves Unicode letter queries
 
 ### API Endpoints
 
@@ -111,13 +112,8 @@ export async function GET() {
 ### Integration Points
 
 - **`components/ui/terminal/commands.client.ts`**: Terminal integration
-  - Uses consolidated API endpoint
-  - Implements lazy loading with `preloadSearch()`
-  - No longer imports server modules
-
-- **`components/ui/terminal/command-input.client.tsx`**: Input handling
-  - Triggers search preloading after 2 characters
-  - Uses `requestIdleCallback` for performance
+  - Uses consolidated API endpoint; never imports server modules
+  - Non-2xx responses and network failures surface as terminal error lines; aborts propagate so a superseded command is discarded
 
 ### Type Definitions
 
@@ -137,26 +133,18 @@ See [search.mmd](./search.mmd) for detailed architecture diagrams including:
 ### Simplified Flow
 
 ```
-User Input -> Terminal -> Preload Search -> API Request -> Validation
-                                              |
-                                        Cache Check
-                                         /        \
-                                    Cached    Not Cached
-                                      |           |
-                                   Return    Search Function
-                                              |
-                                         MiniSearch
-                                         /        \
-                                   Success    Fallback
-                                      |           |
-                                   Fuzzy     Substring
-                                   Search     Search
-                                      \         /
-                                       Results
-                                          |
-                                    Cache Store
-                                          |
-                                      Response
+User Input -> Terminal -> API Request -> Validation -> Embed query once
+                                                            |
+                                          +-----------------+-----------------+
+                                          |                                   |
+                              PostgreSQL hybrid domains            TypeScript domains
+                        (blog, bookmarks, books, investments,   (experience, education,
+                         projects, thoughts)                     tags, AI analysis)
+                        keyword rank + semantic rank -> RRF      rank -> scoreByRank()
+                                          |                                   |
+                                          +-----------------+-----------------+
+                                                            |
+                                              sort by score (one scale) -> Response
 ```
 
 ## Search Algorithm
@@ -175,13 +163,16 @@ function searchContent<T>(
 
 ### Features
 
-1. **Query Sanitization**: Removes dangerous regex patterns
-2. **MiniSearch Integration**:
-   - Fuzzy matching (10% edit distance)
+1. **Query Normalization**: Whitespace collapse, edge-punctuation trim, lowercase; inner punctuation kept
+2. **MiniSearch Integration** (experience, education):
+   - Fuzzy matching (20% edit distance)
    - Prefix matching for autocomplete
-   - Multi-word AND search
+   - Multi-word AND search (`combineWith: "AND"`)
 3. **Fallback Strategy**: Substring search if MiniSearch fails
 4. **Exact Match Priority**: Optional exact field matching
+5. **Rank scale**: PostgreSQL domains sum one reciprocal rank per ranker (`1 / (RRF_K + rank)` each, ceiling `2/61`); single-ranker domains and the keyword-only fallback return `RRF_RANKER_COUNT / (RRF_K + rank)` so both shapes share that ceiling. A hybrid row surfaced by only one of two live rankers stays at `1 / (RRF_K + rank)` — the other ranker saw it and passed.
+6. **Tags rank after content**: `/api/search/all` sorts every content row before every `[Tags] > …` row, then by score within each group; tag rows only fill slots content left empty. A tag can share the top RRF ceiling with a bookmark that matched both rankers, and the reader asked for the bookmark.
+7. **Bookmark keyword fields**: `bookmarks.search_vector` (owner: `lib/db/schema/bookmarks.ts`) weights title A, description and tag names B, summary C, note and `scraped_content_text` D — tags and page text carry evidence that appears nowhere else on a bookmark
 
 ## Performance Optimizations
 
@@ -192,12 +183,11 @@ function searchContent<T>(
 - **Key Format**: `search:{dataType}:{normalizedQuery}`
 - **Tagged Invalidation**: Search cache profiles are invalidated by domain tag/path updates
 
-### Lazy Loading
+### Request shape
 
-1. **Preload Trigger**: After 2 characters typed
-2. **Background Loading**: Uses `requestIdleCallback`
-3. **One-time Load**: Functions cached after first use
-4. **API-based**: No server modules in client bundle
+1. One query embedding per API request, shared by every domain
+2. Tag counts: one PostgreSQL `GROUP BY` (about 40 ms), no index or catalog loads
+3. API-based: no server modules in the client bundle
 
 ### Index Management
 
@@ -210,9 +200,8 @@ function searchContent<T>(
 ### Query Validation
 
 - **Length Limit**: 100 characters maximum
-- **Special Characters**: Sanitized to prevent ReDoS
 - **Empty Queries**: Rejected with error message
-- **Pattern Removal**: Strips regex metacharacters
+- **Edge Punctuation**: Stripped at both ends; inner punctuation (`next.js`, `node.js`) kept for token matching
 
 ### API Security
 
@@ -236,6 +225,41 @@ function searchContent<T>(
 2. **Cache Tests**: Hit/miss behavior, storage
 3. **Search Tests**: Exact, partial, multi-word
 4. **Integration Tests**: API endpoint behavior
+
+### Upstream Parity Gate
+
+`scripts/compare-bookmark-search.node.mjs` measures the site's bookmark search
+against the upstream Karakeep search it mirrors. For each of 25 fixed queries
+(derived from real Karakeep titles and tag names) it calls
+`{BOOKMARKS_API_URL}/bookmarks/search` and `/api/search/all?scope=bookmarks`
+(a single-scope request gets the full 50-result budget), restricts the upstream
+answer to ids present in the site's `bookmarks` table, and reports how much of
+upstream's top 10 in-scope hits the site returns. Two rules gate it (exit 1 on
+failure): mean inclusion across all reference hits must be at least 0.90, and,
+per query, at least half of the reference hits whose title, description, or tag
+names match the query must be present. Upstream hits that match only in page
+text or only in Karakeep's embedding space count toward the mean but cannot fail
+a single query alone ("descript" stems like "description", so upstream's top 10
+is mostly pages whose body says "description"). The site must also return at
+least as many results as the reference set. This is the gate's definition of
+"equal or greater accuracy": everything upstream ranks in its top 10 for a
+query that our stored fields can justify is present in our answer, and the
+overall inclusion of upstream's top 10 stays above 0.90; ordering between the
+two engines is reported per query but not gated. Run it with `bun run
+search:parity` against a warm local server.
+
+```bash
+set -a; source .env; set +a
+bun run dev &                                    # warm http://localhost:3000 once
+node scripts/compare-bookmark-search.node.mjs    # add --verbose to list every miss
+```
+
+`SITE_SEARCH_BASE` (default `http://localhost:3000`) points the gate at another
+origin. Run it under Node, never bun — it opens a PostgreSQL connection (CLAUDE.md
+[RT1]). Inclusion is bounded by two data conditions the gate cannot fix on its
+own: bookmarks with no row in `embeddings` are unreachable by the semantic layer,
+and bookmarks Karakeep holds outside the mirrored list are reported separately as
+out of scope.
 
 ## Future Enhancements
 

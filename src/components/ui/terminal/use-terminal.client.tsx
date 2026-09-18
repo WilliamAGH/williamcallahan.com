@@ -15,20 +15,13 @@ import { handleCommand } from "./commands.client";
 import { useTerminalContext } from "./terminal-context.client";
 import { isSectionKey, sections } from "./sections";
 import { useAiChatQueue } from "./use-ai-chat-queue.client";
-
-const ABORT_REASON_USER_CANCEL = "user_cancel";
-const ABORT_REASON_SUPERSEDED = "superseded";
-const ABORT_REASON_CLEAR_EXIT = "clear_exit";
-const ABORT_REASON_UNMOUNT = "unmount";
-
-function isExpectedAbortReason(reason: unknown): boolean {
-  return (
-    reason === ABORT_REASON_USER_CANCEL ||
-    reason === ABORT_REASON_SUPERSEDED ||
-    reason === ABORT_REASON_CLEAR_EXIT ||
-    reason === ABORT_REASON_UNMOUNT
-  );
-}
+import {
+  ABORT_REASON_CLEAR_EXIT,
+  ABORT_REASON_SUPERSEDED,
+  ABORT_REASON_UNMOUNT,
+  ABORT_REASON_USER_CANCEL,
+  isTerminalChatAbortReason,
+} from "@/types/ui/terminal";
 
 export function useTerminal() {
   // Get only history functions from TerminalContext
@@ -273,9 +266,9 @@ export function useTerminal() {
       }
     } catch (error: unknown) {
       // Handle abort specifically
-      if (error instanceof DOMException && error.name === "AbortError") {
+      if (controller.signal.aborted) {
         const reason: unknown = controller.signal.reason;
-        if (!isExpectedAbortReason(reason)) {
+        if (!isTerminalChatAbortReason(reason)) {
           addToHistory({
             type: "error",
             id: crypto.randomUUID(),

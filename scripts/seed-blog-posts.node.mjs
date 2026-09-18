@@ -2,14 +2,15 @@
 /**
  * Seed blog_posts from validated MDX frontmatter.
  *
- * This script runs under Node.js; `tsx` registers the repository TypeScript
- * resolver only for the canonical database mutation import.
+ * This script runs under Node.js; withDatabase registers the repository
+ * TypeScript resolver only for the canonical database mutation import.
  */
 
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
 import { blogPostInputSchema } from "../src/types/schemas/blog-frontmatter.ts";
+import { withDatabase } from "./lib/with-database.node.mjs";
 
 const PREFIX = "[seed-blog-posts]";
 
@@ -28,22 +29,10 @@ async function readBlogPostInputs(postsDirectory, fileNames) {
 }
 
 async function upsertValidatedBlogPosts(posts) {
-  const { register } = await import("tsx/esm/api");
-  const unregister = register({ tsconfig: "./tsconfig.json" });
-  let closeDatabaseConnection;
-
-  try {
-    const database = await import("../src/lib/db/connection.ts");
-    closeDatabaseConnection = database.closeDatabaseConnection;
+  return withDatabase(async () => {
     const { upsertBlogPosts } = await import("../src/lib/db/mutations/blog-posts.ts");
-    return await upsertBlogPosts(posts);
-  } finally {
-    try {
-      if (closeDatabaseConnection !== undefined) await closeDatabaseConnection();
-    } finally {
-      await unregister();
-    }
-  }
+    return upsertBlogPosts(posts);
+  });
 }
 
 async function run() {

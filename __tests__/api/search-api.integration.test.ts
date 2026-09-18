@@ -9,6 +9,14 @@ import { GET } from "@/app/api/search/all/route";
 import { GET as getRelatedContent } from "@/app/api/related-content/route";
 import { GET as getRelatedContentDebug } from "@/app/api/related-content/debug/route";
 
+const queryEmbeddingMocks = vi.hoisted(() => ({
+  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/db/queries/query-embedding", () => ({
+  buildQueryEmbedding: queryEmbeddingMocks.buildQueryEmbedding,
+}));
+
 const relatedContentMocks = vi.hoisted(() => ({
   findSimilarByEntity: vi.fn().mockResolvedValue([]),
   sourceEmbeddingExists: vi.fn().mockResolvedValue(true),
@@ -212,6 +220,95 @@ describe("Search API: GET /api/search/all", () => {
       }
     });
 
+    it("gives a single-scope request the whole result budget instead of the per-category slice", async () => {
+      const { searchBookmarks } = await import("@/lib/search/searchers/dynamic-searchers");
+      const thirty = Array.from({ length: 30 }, (_, index) => ({
+        id: `bm-${index}`,
+        type: "bookmark" as const,
+        title: `Bookmark ${index}`,
+        url: `/bookmarks/bm-${index}`,
+        score: 1 / (60 + index + 1),
+      }));
+      vi.mocked(searchBookmarks).mockResolvedValueOnce(thirty).mockResolvedValueOnce(thirty);
+
+      const scoped = await GET(
+        new MockNextRequest("http://localhost:3000/api/search/all?q=budget&scope=bookmarks") as any,
+      );
+      const scopedData = await scoped.json();
+      expect(scopedData.results).toHaveLength(30);
+
+      const mixed = await GET(
+        new MockNextRequest("http://localhost:3000/api/search/all?q=budget") as any,
+      );
+      const mixedData = await mixed.json();
+      const bookmarkRows = mixedData.results.filter((r: { type: string }) => r.type === "bookmark");
+      expect(bookmarkRows).toHaveLength(24);
+    });
+
+    it("ranks every content row above tag rows even when the tags score higher", async () => {
+      const { searchTags } = await import("@/lib/search/searchers/tag-search");
+      const tags = Array.from({ length: 5 }, (_, index) => ({
+        id: `tag:bookmarks:search-${index}`,
+        type: "tag" as const,
+        title: `[Bookmarks] > [Tags] > Search ${index}`,
+        url: `/bookmarks/tags/search-${index}`,
+        score: 1, // above every mocked content row
+      }));
+      vi.mocked(searchTags).mockResolvedValueOnce(tags);
+
+      const response = await GET(
+        new MockNextRequest("http://localhost:3000/api/search/all?q=search") as any,
+      );
+      const data = await response.json();
+      const types: string[] = data.results.map((r: { type: string }) => r.type);
+
+      const firstTag = types.indexOf("tag");
+      const lastContent = types.length - 1 - [...types].toReversed().findIndex((t) => t !== "tag");
+      expect(firstTag).toBeGreaterThan(lastContent);
+      expect(types.filter((t) => t === "tag")).toHaveLength(5);
+    });
+
+    it("keeps the focused domain's full budget alongside the other domains", async () => {
+      const { searchBookmarks } = await import("@/lib/search/searchers/dynamic-searchers");
+      const { searchBlogPostsServerSide } = await import("@/lib/blog/server-search");
+      const sixty = Array.from({ length: 60 }, (_, index) => ({
+        id: `bm-${index}`,
+        type: "bookmark" as const,
+        title: `Bookmark ${index}`,
+        url: `/bookmarks/bm-${index}`,
+        score: 1 / (60 + index + 1),
+      }));
+      // Thirty posts that all outscore bookmarks ranked 25-50 must not evict them.
+      const thirtyPosts = Array.from({ length: 30 }, (_, index) => ({
+        id: `post-${index}`,
+        type: "blog-post" as const,
+        title: `Post ${index}`,
+        url: `/blog/post-${index}`,
+        score: 1 / (60 + index + 1) + 0.001,
+      }));
+      vi.mocked(searchBookmarks).mockResolvedValueOnce(sixty);
+      vi.mocked(searchBlogPostsServerSide).mockResolvedValueOnce(thirtyPosts);
+
+      const response = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=focused&focus=bookmarks",
+        ) as any,
+      );
+      const data = await response.json();
+
+      const bookmarkRows = data.results.filter((r: { type: string }) => r.type === "bookmark");
+      const otherRows = data.results.filter((r: { type: string }) => r.type !== "bookmark");
+      expect(bookmarkRows).toHaveLength(50);
+      expect(otherRows).toHaveLength(24);
+      expect(
+        otherRows.filter((r: { type: string }) => r.type === "blog-post").length,
+      ).toBeGreaterThan(15);
+      expect(data.results.length).toBe(74);
+
+      const scores = data.results.map((r: { score: number }) => r.score);
+      expect(scores).toEqual([...scores].toSorted((a: number, b: number) => b - a));
+    });
+
     /**
      * @description Should handle queries with special characters
      */
@@ -246,6 +343,50 @@ describe("Search API: GET /api/search/all", () => {
     /**
      * @description Should handle concurrent requests without failing
      */
+    it("ignores a focus the scope filter excludes", async () => {
+      // scope=blog never runs the bookmark searcher, so honoring focus=bookmarks
+      // spent the focused budget on nothing and dropped blog from the
+      // single-scope budget of 50 back to the shared per-category cap of 24.
+      const { searchBlogPostsServerSide } = await import("@/lib/blog/server-search");
+      const thirty = Array.from({ length: 30 }, (_, index) => ({
+        id: `post-${index}`,
+        type: "blog-post" as const,
+        title: `Post ${index}`,
+        url: `/blog/post-${index}`,
+        score: 1 / (60 + index + 1),
+      }));
+      vi.mocked(searchBlogPostsServerSide).mockResolvedValueOnce(thirty);
+
+      const response = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=budget&scope=blog&focus=bookmarks",
+        ) as any,
+      );
+      const data = await response.json();
+
+      expect(data.results).toHaveLength(30);
+    });
+
+    it("skips the query embedding when no requested scope reads a vector", async () => {
+      queryEmbeddingMocks.buildQueryEmbedding.mockClear();
+
+      const keywordOnly = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=idle&scope=experience,education,tags",
+        ) as any,
+      );
+      expect(keywordOnly.status).toBe(200);
+      expect(queryEmbeddingMocks.buildQueryEmbedding).not.toHaveBeenCalled();
+
+      const hybrid = await GET(
+        new MockNextRequest(
+          "http://localhost:3000/api/search/all?q=idle&scope=tags,bookmarks",
+        ) as any,
+      );
+      expect(hybrid.status).toBe(200);
+      expect(queryEmbeddingMocks.buildQueryEmbedding).toHaveBeenCalledTimes(1);
+    });
+
     it("should successfully manage concurrent requests", async () => {
       const queries = ["test1", "test2", "test3"];
       const requests = queries.map((q) =>

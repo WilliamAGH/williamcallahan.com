@@ -13,7 +13,8 @@ import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings
 import {
   FTS_WEIGHT,
   TRIGRAM_WEIGHT,
-  VECTOR_WEIGHT,
+  RRF_K,
+  RRF_RANKER_COUNT,
   KEYWORD_CANDIDATE_LIMIT,
   SEMANTIC_CANDIDATE_LIMIT,
   DEFAULT_LIMIT,
@@ -48,34 +49,33 @@ export async function hybridSearchBooks(options: {
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
-          ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(title, ${trimmed}) AS trgm_score,
-          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-            + similarity(title, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
+          row_number() OVER (ORDER BY
+            ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+              + word_similarity(${trimmed}, title) * ${TRIGRAM_WEIGHT} DESC, id DESC) AS keyword_rank
         FROM books
-        WHERE search_vector @@ ${tsQuery} OR title % ${trimmed}
-        ORDER BY keyword_score DESC, id DESC
+        WHERE search_vector @@ ${tsQuery} OR ${trimmed} <% title
+        ORDER BY keyword_rank
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
         SELECT entity_id AS id,
-          1.0 - (qwen_4b_fp16_embedding <=> ${castVec}) AS vec_score
+          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id) AS semantic_rank
         FROM embeddings
         WHERE domain = 'book' AND qwen_4b_fp16_embedding IS NOT NULL
-        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}
+        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id
         LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
       ),
       combined AS (
         SELECT COALESCE(k.id, s.id) AS id,
-          COALESCE(k.fts_score, 0) * ${FTS_WEIGHT}
-            + COALESCE(k.trgm_score, 0) * ${TRIGRAM_WEIGHT}
-            + COALESCE(s.vec_score, 0) * ${VECTOR_WEIGHT} AS score
+          k.keyword_rank,
+          COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
+            + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k FULL OUTER JOIN semantic_results s ON k.id = s.id
       )
       SELECT b.id, b.title, b.slug, b.authors, b.description, b.cover_url,
              c.score AS hybrid_score
       FROM combined c JOIN books b ON b.id = c.id
-      ORDER BY c.score DESC LIMIT ${limit}
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id LIMIT ${limit}
     `);
 
     return rows.map((r) => ({
@@ -99,11 +99,12 @@ export async function hybridSearchBooks(options: {
     keyword_score: number;
   }>(sql`
     SELECT id, title, slug, authors, description, cover_url,
-      ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-        + similarity(title, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
+      ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
+        ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+          + word_similarity(${trimmed}, title) * ${TRIGRAM_WEIGHT} DESC, id DESC)) AS keyword_score
     FROM books
-    WHERE search_vector @@ ${tsQuery} OR title % ${trimmed}
-    ORDER BY keyword_score DESC, id DESC LIMIT ${limit}
+    WHERE search_vector @@ ${tsQuery} OR ${trimmed} <% title
+    ORDER BY keyword_score DESC LIMIT ${limit}
   `);
 
   return rows.map((r) => ({
@@ -146,36 +147,35 @@ export async function hybridSearchBlogPosts(options: {
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
-          ts_rank_cd(search_vector, ${tsQuery}) AS fts_score,
-          similarity(title, ${trimmed}) AS trgm_score,
-          ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-            + similarity(title, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
+          row_number() OVER (ORDER BY
+            ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+              + word_similarity(${trimmed}, title) * ${TRIGRAM_WEIGHT} DESC, id DESC) AS keyword_rank
         FROM blog_posts
         WHERE draft = false
-          AND (search_vector @@ ${tsQuery} OR title % ${trimmed})
-        ORDER BY keyword_score DESC, id DESC
+          AND (search_vector @@ ${tsQuery} OR ${trimmed} <% title)
+        ORDER BY keyword_rank
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
         SELECT entity_id AS id,
-          1.0 - (qwen_4b_fp16_embedding <=> ${castVec}) AS vec_score
+          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id) AS semantic_rank
         FROM embeddings
         WHERE domain = 'blog' AND qwen_4b_fp16_embedding IS NOT NULL
-        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}
+        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id
         LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
       ),
       combined AS (
         SELECT COALESCE(k.id, s.id) AS id,
-          COALESCE(k.fts_score, 0) * ${FTS_WEIGHT}
-            + COALESCE(k.trgm_score, 0) * ${TRIGRAM_WEIGHT}
-            + COALESCE(s.vec_score, 0) * ${VECTOR_WEIGHT} AS score
+          k.keyword_rank,
+          COALESCE(1.0 / (${RRF_K} + k.keyword_rank), 0)
+            + COALESCE(1.0 / (${RRF_K} + s.semantic_rank), 0) AS score
         FROM keyword_results k FULL OUTER JOIN semantic_results s ON k.id = s.id
       )
       SELECT bp.id, bp.title, bp.slug, bp.excerpt, bp.author_name, bp.tags,
              bp.published_at, c.score AS hybrid_score
       FROM combined c JOIN blog_posts bp ON bp.id = c.id
       WHERE bp.draft = false
-      ORDER BY c.score DESC LIMIT ${limit}
+      ORDER BY c.score DESC, c.keyword_rank NULLS LAST, c.id LIMIT ${limit}
     `);
 
     return rows.map((r) => ({
@@ -201,12 +201,13 @@ export async function hybridSearchBlogPosts(options: {
     keyword_score: number;
   }>(sql`
     SELECT id, title, slug, excerpt, author_name, tags, published_at,
-      ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
-        + similarity(title, ${trimmed}) * ${TRIGRAM_WEIGHT} AS keyword_score
+      ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
+        ts_rank_cd(search_vector, ${tsQuery}) * ${FTS_WEIGHT}
+          + word_similarity(${trimmed}, title) * ${TRIGRAM_WEIGHT} DESC, id DESC)) AS keyword_score
     FROM blog_posts
     WHERE draft = false
-      AND (search_vector @@ ${tsQuery} OR title % ${trimmed})
-    ORDER BY keyword_score DESC, id DESC LIMIT ${limit}
+      AND (search_vector @@ ${tsQuery} OR ${trimmed} <% title)
+    ORDER BY keyword_score DESC LIMIT ${limit}
   `);
 
   return rows.map((r) => ({

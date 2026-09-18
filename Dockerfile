@@ -322,5 +322,10 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
 # Entrypoint gates startup on database readiness, then serves traffic only.
 # Background data work runs in the scheduler container (scheduler/Dockerfile).
 ENTRYPOINT ["/app/entrypoint.sh"]
-# Run the package.json start script via Node.js (node --run reads package.json scripts natively)
-CMD ["node", "--run", "start"]
+# Invoke the Next.js server binary directly, never through `node --run start`:
+# `node --run` forks the script and installs no signal handlers, so as PID 1 it
+# would have SIGTERM discarded by the kernel and the Next server would never see
+# it. Running the binary itself makes Next PID 1, which activates its graceful
+# shutdown (node_modules/next/dist/server/lib/start-server.js). Mirrors the
+# `start` script in package.json.
+CMD ["node", "./node_modules/next/dist/bin/next", "start"]

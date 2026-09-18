@@ -324,7 +324,9 @@ File/Path Functionality Description
     - [x] `books.ts` `books` - Books dataset read queries (latest pointer, snapshot, combined)
     - [x] `ai-analysis.ts` `ai-analysis` - AI analysis latest/versions/listing read queries
     - [x] `opengraph.ts` `seo` - OpenGraph metadata/override read queries with Zod validation
-    - [x] `hybrid-search.ts` `search` - Three-layer hybrid search: FTS + trigram + pgvector cosine
+    - [x] `hybrid-search.ts` `search` - Hybrid search (bookmarks, thoughts): FTS + word trigram + pgvector, merged by reciprocal rank fusion
+    - [x] `hybrid-search-config.ts` `search` - Shared RRF constant, keyword weights, and candidate limits for every hybrid query
+    - [x] `tag-counts.ts` `search` - Tag/genre usage counts per content type from one PostgreSQL aggregate
     - [x] `thoughts.ts` `thoughts` - Thought read queries (all/by-slug/by-id/categories/list-items)
     - [x] `image-manifests.ts` `image-handling` - Image manifest read queries by type
     - [x] `search-index-artifacts.ts` `search` - Search index artifact reads from PostgreSQL
@@ -451,7 +453,6 @@ File/Path Functionality Description
 - [x] `logo.ts` `image-handling` - Types for logos
 - [x] `middleware.ts` `middleware` - Types for proxy helper contracts
 - [x] `navigation.ts` `navigation` - Types for navigation components
-- [x] `node-cron.d.ts` `batch-fetch-update` - Type definitions for node-cron
 - [x] `project.ts` `projects` - Types for projects
 - [x] `project-ai-analysis.ts` `projects` - Types for project AI analysis (state, props, context)
 - [x] `s3.ts` `s3-object-storage` - Types for S3 operations
@@ -547,6 +548,7 @@ File/Path Functionality Description
 - [x] `drizzle/0020_bookmark-categories.sql` `data-access` - Legacy migration that introduced `bookmark_categories` (removed by 0021 tag taxonomy migration)
 - [x] `drizzle/0021_bookmark-tags-taxonomy.sql` `data-access` - Migration creating `bookmarks_tags` + `bookmarks_tags_links` and dropping `bookmark_categories`
 - [x] `drizzle/0024_embedding-failures.sql` `data-access` - Migration adding durable per-embedding upstream failure checkpoints and retry timestamps
+- [x] `drizzle/0025_bookmark-search-vector-tags-and-content.sql` `search` - Migration rebuilding the `bookmarks.search_vector` generated column so tag names (weight B) and `scraped_content_text` (weight D) are indexed, and recreating its GIN index
   - [x] `instrumentation-client.ts` `log-error-debug-handling` - Client-side instrumentation setup
 - [x] `instrumentation.ts` `log-error-debug-handling` - Runtime instrumentation dispatch and request-error header redaction
 - [x] `src/proxy.ts` `middleware` - Next.js Proxy entrypoint; owns route protection and final no-store delivery for same-origin analytics assets
@@ -664,14 +666,15 @@ File/Path Functionality Description
 - [x] `blog-render-smoke.ts` `blog` - Shared deployed-HTML validator for the canonical blog render canaries; rejects missing article content and the MDX fallback
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
-- [x] `backfill-bookmark-embeddings.ts` `bookmarks` - CLI backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings`
-- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for PostgreSQL bookmark embeddings (`qwen_4b_fp16_embedding`) using endpoint-compatible `/v1/embeddings` with resilient postgres-js connectivity; supports `--force` to regenerate all embeddings
+- [x] `lib/with-database.node.mjs` `db` - Shared Node-script bootstrap: registers `tsx/esm/api`, runs a task against the TypeScript database owners, closes the shared connection; used by every seed, backfill, and gate script
+- [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for bookmark rows of the unified `embeddings` table; runs through `withDatabase` and delegates to the canonical `backfillBookmarkEmbeddings` owner so batching, embedding-text contract, and `embedding_failures` checkpointing are not restated
 - [x] `ingest-bookmark-tag-aliases.node.mjs` `bookmarks` - Node runtime LLM-driven tag alias ingestion using bookmark tag context + embedding-nearest related bookmarks; writes to `bookmarks_tags` + `bookmarks_tags_links`
 - [x] `backfill-scraped-content.node.mjs` `bookmarks` - Node runtime backfill for `scraped_content_text` column from Karakeep `content.htmlContent` via HTML-to-plain-text conversion
 - [x] `backfill-computed-fields.node.mjs` `bookmarks` - Node runtime backfill for `word_count` and `reading_time` derived from `scraped_content_text` (whitespace split, 200 WPM)
 - [x] `backfill-og-metadata.node.mjs` `bookmarks` - Node runtime backfill for `og_title`, `og_description`, `og_image` by fetching bookmark URLs and parsing `<meta property="og:*">` tags
 - [x] `backfill-logo-data.node.mjs` `bookmarks` - Node runtime backfill for `logo_data` JSONB from PostgreSQL `image_manifests` logo payloads
 - [x] `backfill-og-etags.node.mjs` `bookmarks` - Node runtime backfill for `og_image_etag` via HEAD requests to bookmark `og_image` URLs; also refreshes `og_image_last_fetched_at`
+- [x] `compare-bookmark-search.node.mjs` `search` - Node runtime parity gate comparing `/api/search/all?scope=bookmarks` against upstream Karakeep search over 25 fixed queries; exits non-zero when inclusion of upstream's in-scope hits drops below the thresholds documented in `docs/features/search.md`
 - [x] `backfill-domain-embeddings.node.mjs` `data-access` - Node runtime backfill for Qwen3-Embedding-4B embeddings across `ai_analysis_latest`, `opengraph_metadata`, and `thoughts` tables
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
 - [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `scheduler/data-updater.ts`
@@ -838,6 +841,12 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] **utils/**
       - [x] `domain-utils.test.ts` `bookmarks` - Domain utility tests
       - [x] `svg-transform-fix.test.ts` `image-handling` - SVG transform fix tests
+  - [x] **smoke/**
+    - [x] `bookmarks-api.smoke.test.ts` `bookmarks` - Bookmarks API contract smoke tests
+    - [x] `container-shutdown.smoke.test.ts` `deployment` - Proves the scheduler exits cleanly on SIGTERM and that neither container CMD reintroduces a `node --run` PID 1
+    - [x] `page-routes.smoke.test.ts` `app-layout` - Page route smoke tests
+    - [x] `update-data.smoke.test.ts` `batch-fetch-update` - Data updater CLI smoke tests
+    - [x] `update-s3.smoke.test.ts` `batch-fetch-update` - Scheduler/data-updater flag consistency and scheduler entrypoint bootstrap ordering
   - [x] **scripts/**
     - [x] `blog-render-smoke.test.ts` `blog` - Outcome tests for the shared production blog-render HTML validator
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)

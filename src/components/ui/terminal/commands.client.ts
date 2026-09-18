@@ -7,135 +7,55 @@
 "use client";
 
 import type { CommandResult, SelectionEntry } from "@/types/terminal";
-import { searchResultsSchema, type SearchResult } from "@/types/schemas/search";
+import { searchResultsSchema } from "@/types/schemas/search";
 import { transformSearchResultToTerminalResult } from "@/lib/utils/search-helpers";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
 import { isSectionKey, sections, terminalNavigationHelp } from "./sections";
 
-// Factory function to create searchByScopeImpl
-function createSearchByScopeImpl() {
-  return async (scope: string, query: string, signal?: AbortSignal): Promise<SelectionEntry[]> => {
-    try {
-      const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, {
-        signal,
-      });
-      if (!response.ok) {
-        console.error(`Search API returned ${response.status} for scope ${scope}`);
-        // Return empty array instead of throwing to prevent terminal from breaking
-        return [];
-      }
-      const searchApiResponse: unknown = await response.json();
-
-      // Handle the different response format from scoped search API
-      // The API returns { results: SearchResult[], meta: {...} }
-      let searchResults: SearchResult[];
-      if (
-        searchApiResponse &&
-        typeof searchApiResponse === "object" &&
-        "results" in searchApiResponse
-      ) {
-        // Type guard for scoped search response
-        const typedData = searchApiResponse as { results: unknown; meta?: unknown };
-        // Parse the results array from the response object
-        searchResults = searchResultsSchema.parse(typedData.results);
-      } else {
-        // Fallback: try parsing the data directly as an array
-        searchResults = searchResultsSchema.parse(searchApiResponse);
-      }
-
-      return searchResults.map(transformSearchResultToTerminalResult);
-    } catch (error: unknown) {
-      console.error(
-        `Search API call failed for scope ${scope}:`,
-        error instanceof Error ? error.message : "Unknown error",
-      );
-      // Return empty array instead of throwing
-      return [];
-    }
-  };
-}
-
-// Lazy-loaded search function - only loads when first search is performed
-let searchByScopeImpl:
-  | ((scope: string, query: string, signal?: AbortSignal) => Promise<SelectionEntry[]>)
-  | null = null;
-
-// Helper function to call the consolidated search API with lazy loading
-async function searchByScope(
-  scope: string,
-  query: string,
-  signal?: AbortSignal,
-): Promise<SelectionEntry[]> {
-  // Lazy load the implementation on first use
-  if (!searchByScopeImpl) {
-    searchByScopeImpl = createSearchByScopeImpl();
+async function fetchSearchResults(path: string, signal?: AbortSignal): Promise<SelectionEntry[]> {
+  const response = await fetch(path, { signal });
+  if (!response.ok) {
+    throw new Error(
+      response.status === 429
+        ? "Too many searches in the last minute. Wait a moment and try again."
+        : `Search API returned ${response.status}`,
+    );
   }
-
-  return searchByScopeImpl(scope, query, signal);
+  const body: unknown = await response.json();
+  // Routes return { results, meta }; a bare array is accepted for older callers/tests.
+  const raw = body && typeof body === "object" && "results" in body ? body.results : body;
+  return searchResultsSchema.parse(raw).map(transformSearchResultToTerminalResult);
 }
 
-// Factory function to create performSiteWideSearchImpl
-function createPerformSiteWideSearchImpl() {
-  return async (query: string, signal?: AbortSignal): Promise<SelectionEntry[]> => {
-    try {
-      const response = await fetch(`/api/search/all?q=${encodeURIComponent(query)}`, { signal });
-      if (!response.ok) {
-        console.error(`Site-wide search API returned ${response.status}`);
-        // Return empty array instead of throwing to prevent terminal from breaking
-        return [];
-      }
-      const searchApiResponse: unknown = await response.json();
+const searchByScope = (scope: string, query: string, signal?: AbortSignal) =>
+  fetchSearchResults(`/api/search/${scope}?q=${encodeURIComponent(query)}`, signal);
 
-      // The site-wide search API may return either an array or
-      // an object of shape { results: SearchResult[] }. Handle both.
-      const rawArray = Array.isArray(searchApiResponse)
-        ? searchApiResponse
-        : ((searchApiResponse as { results?: unknown[] })?.results ?? []);
+const performSiteWideSearch = (query: string, focus: string | null, signal?: AbortSignal) =>
+  fetchSearchResults(
+    `/api/search/all?q=${encodeURIComponent(query)}${focus ? `&focus=${focus}` : ""}`,
+    signal,
+  );
 
-      const searchResults: SearchResult[] = searchResultsSchema.parse(rawArray);
-      return searchResults.map(transformSearchResultToTerminalResult);
-    } catch (error: unknown) {
-      console.error(
-        "Search API call failed for site-wide search:",
-        error instanceof Error ? error.message : "Unknown error",
-      );
-      // Return empty array instead of throwing
-      return [];
-    }
-  };
+const BOOKMARK_FOCUS_FLAGS = new Set(["--bookmarks", "-b"]);
+
+/**
+ * Splits a site-wide search input into the query and the focused scope.
+ * Bookmarks are focused by an explicit flag anywhere in the input, or implicitly
+ * while the reader is on a bookmarks page.
+ */
+function resolveSiteWideSearch(terms: string[]): { query: string; focus: string | null } {
+  const query = terms.filter((term) => !BOOKMARK_FOCUS_FLAGS.has(term));
+  const flagged = query.length !== terms.length;
+  const onBookmarksPage = /^\/bookmarks(\/|$)/.test(window.location.pathname);
+  return { query: query.join(" "), focus: flagged || onBookmarksPage ? "bookmarks" : null };
 }
 
-// Lazy-loaded site-wide search function
-let performSiteWideSearchImpl:
-  | ((query: string, signal?: AbortSignal) => Promise<SelectionEntry[]>)
-  | null = null;
-
-// Helper function to perform site-wide search with lazy loading
-async function performSiteWideSearch(
-  query: string,
-  signal?: AbortSignal,
-): Promise<SelectionEntry[]> {
-  // Lazy load the implementation on first use
-  if (!performSiteWideSearchImpl) {
-    performSiteWideSearchImpl = createPerformSiteWideSearchImpl();
-  }
-
-  return performSiteWideSearchImpl(query, signal);
-}
-
-// Preload search functionality when user starts typing
-export function preloadSearch() {
-  // This function can be called when the user starts typing to preload search
-  // It doesn't actually execute search, just ensures the functions are ready
-  // Simply set the implementation references to trigger lazy loading
-  if (!searchByScopeImpl) {
-    searchByScopeImpl = createSearchByScopeImpl();
-  }
-
-  if (!performSiteWideSearchImpl) {
-    performSiteWideSearchImpl = createPerformSiteWideSearchImpl();
-  }
-}
+// fetch() rejects with signal.reason verbatim, and every terminal abort passes a
+// string reason (use-terminal.client.tsx), so the thrown value is not a
+// DOMException. The signal is the reliable witness; the DOMException arm still
+// covers an abort() called with no reason.
+const isAbortError = (error: unknown, signal?: AbortSignal): boolean =>
+  signal?.aborted === true || (error instanceof DOMException && error.name === "AbortError");
 
 const HELP_MESSAGE = `
 Available commands:
@@ -148,6 +68,7 @@ Navigate:
 
 Search:
   <section> <query>  Search within a section
+  <query> --bookmarks  Site-wide search keeping up to 50 bookmark hits (-b also works)
   ai <message>       One-shot AI reply (no modal)
 
   e.g.  investments AI       blog claude
@@ -158,6 +79,7 @@ Quick jumps:
   ${terminalNavigationHelp.quickJumps}
 
 Or just type anything to search the entire site.
+On /bookmarks, site-wide searches focus bookmarks without the flag.
 `.trim();
 
 /**
@@ -250,9 +172,22 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
     };
   }
 
-  const [command, ...args] = trimmedInput.split(" ");
-
-  // Note: searchModule is no longer needed as we use the API directly
+  // The bookmarks flag is meaningful on every path: strip it before dispatch.
+  const { query: flaglessInput, focus } = resolveSiteWideSearch(trimmedInput.split(" "));
+  if (flaglessInput.length === 0) {
+    return {
+      results: [
+        {
+          type: "text",
+          id: crypto.randomUUID(),
+          input: "",
+          output: "The bookmarks flag needs search terms, e.g. `--bookmarks postgres`.",
+          timestamp: Date.now(),
+        },
+      ],
+    };
+  }
+  const [command, ...args] = flaglessInput.split(" ");
 
   // 1. First check for direct commands that take precedence
 
@@ -468,6 +403,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
         selectionItems: results,
       };
     } catch (error: unknown) {
+      if (isAbortError(error, signal)) throw error;
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred while searching.";
       console.error(`Error searching in section ${command}:`, errorMessage);
@@ -487,7 +423,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
 
   // 4. If not a direct command or section command, perform site-wide search
   // IMPORTANT: This now takes precedence over "command not recognized" to fix the multi-word search issue
-  const searchTerms = [command, ...args].join(" ");
+  const searchTerms = flaglessInput;
 
   try {
     // Log search info for debugging (safe logging - no object dumps)
@@ -495,8 +431,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
       console.log(`[Terminal Search] Performing site-wide search for: "${searchTerms}"`);
     }
 
-    // Lazy-loaded site-wide search
-    const allResults = await performSiteWideSearch(searchTerms, signal);
+    const allResults = await performSiteWideSearch(searchTerms, focus, signal);
 
     // Log results for debugging (safe logging - only counts and basic info)
     if (process.env.NODE_ENV === "development") {
@@ -541,11 +476,11 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
       selectionItems: allResults,
     };
   } catch (error: unknown) {
+    if (isAbortError(error, signal)) throw error;
     console.error(
       "Site-wide search API call failed:",
       error instanceof Error ? error.message : "Unknown error",
     );
-    // Type check for error before accessing message
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred during the search.";
     return {

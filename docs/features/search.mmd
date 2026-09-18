@@ -10,17 +10,9 @@ graph TB
     
     subgraph "Client Side"
         A[User Input] --> B[Terminal Command Input]
-        B --> C{Length >= 2?}
-        C -->|Yes| D[Preload Search]
-        C -->|No| B
         B --> E[Submit Command]
     end
     
-    subgraph "Lazy Loading"
-        D --> F[requestIdleCallback]
-        F --> G[Initialize Search Functions]
-        G --> H[Cache Functions]
-    end
     
     subgraph "API Layer"
         E --> I[/api/search/scope or /api/search/all]
@@ -81,7 +73,7 @@ graph TB
     classDef search fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
     classDef data fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     
-    class A,B,C,D,E client
+    class A,B,E client
     class I,IA,J,K,L,M api
     class N,O,P,Q,Z cache
     class R,S,T,U,V,W,X,Y search
@@ -108,14 +100,6 @@ sequenceDiagram
     %% User starts typing
     User->>Terminal: Type search query
     Terminal->>CommandInput: onChange event
-    
-    %% Lazy loading trigger
-    alt Query length >= 2
-        CommandInput->>CommandInput: Check hasPreloaded
-        CommandInput->>Commands: preloadSearch()
-        Commands-->>Commands: Initialize search functions
-        Commands-->>Commands: Cache implementations
-    end
     
     %% User submits search
     User->>Terminal: Press Enter
@@ -172,8 +156,7 @@ sequenceDiagram
     Terminal->>User: Display results
     
     %% Notes
-    note over CommandInput: Preloading happens once per session
     note over Cache: 15-minute TTL for results
-    note over MiniSearch: 10% fuzzy threshold, prefix matching
-    note over Search: Sanitization removes regex chars
+    note over MiniSearch: 20% fuzzy threshold, prefix matching, all terms required
+    note over Search: Validation keeps inner punctuation; every domain scores by reciprocal rank
 ```

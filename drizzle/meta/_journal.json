@@ -169,6 +169,20 @@
       "when": 1784132703909,
       "tag": "0024_embedding-failures",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789603200000,
+      "tag": "0025_bookmark-search-vector-tags-and-content",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789689600000,
+      "tag": "0026_bookmark-search-vector-string-tags",
+      "breakpoints": true
     }
   ]
 }

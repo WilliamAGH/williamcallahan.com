@@ -77,7 +77,7 @@ describe("Search API Guards", () => {
 
   describe("SEARCH_RATE_LIMIT", () => {
     it("has correct configuration", () => {
-      expect(SEARCH_RATE_LIMIT.maxRequests).toBe(10);
+      expect(SEARCH_RATE_LIMIT.maxRequests).toBe(30);
       expect(SEARCH_RATE_LIMIT.windowMs).toBe(60000);
     });
   });
@@ -102,7 +102,7 @@ describe("Search API Guards", () => {
       expect(result).not.toBeNull();
       expect(result?.status).toBe(429);
       expect(result?.headers.get("Retry-After")).toBe("60");
-      expect(result?.headers.get("X-RateLimit-Limit")).toBe("10");
+      expect(result?.headers.get("X-RateLimit-Limit")).toBe("30");
       expect(result?.headers.get("X-RateLimit-Window")).toBe("60s");
       const payload = await result?.json();
       expect(payload).toMatchObject({

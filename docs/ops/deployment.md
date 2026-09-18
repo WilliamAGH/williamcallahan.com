@@ -9,6 +9,27 @@ Production runs as **two containers built from this repository**:
 
 Both entrypoints share the DATABASE_URL rewrite + readiness gate via `scripts/entrypoint-db-gate.sh`.
 
+## Graceful Shutdown
+
+Each `CMD` invokes the real long-running program so that `exec "$@"` leaves it as PID 1:
+`node ./node_modules/next/dist/bin/next start` for web, `node --import tsx
+scheduler/scheduler.ts` for the scheduler. Neither may be wrapped in `node --run <script>`
+or the `tsx` CLI. Both fork the script and register no signal handler of their own, and
+Linux discards a signal sent to a PID 1 whose disposition is still the default — so SIGTERM
+would be dropped and the container would idle until SIGKILL.
+
+With the server as PID 1, Next.js installs its own SIGTERM handler
+(`node_modules/next/dist/server/lib/start-server.js`, active because `NEXT_MANUAL_SIG_HANDLE`
+is unset): it stops accepting connections, drains in-flight requests, and exits 143. An idle
+server releases its socket in about 10 ms, well inside Docker's 10-second default stop grace
+period.
+
+`scheduler/scheduler.ts` installs the equivalent handler: it stops the node-cron tasks,
+cancels pending jitter timers, and waits for an in-flight `update-data` child before exiting.
+`scheduler/entrypoint.sh` traps SIGTERM for the pre-`exec` bootstrap window, which the
+15-minute healthcheck start period bounds, and runs each long step in the background so bash
+can act on the trap instead of deferring it.
+
 ## Node Runtime
 
 `package.json` is the canonical Node runtime manifest: `engines.node` declares the

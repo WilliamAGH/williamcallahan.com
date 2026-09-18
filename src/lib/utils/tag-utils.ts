@@ -16,8 +16,10 @@ const COMBINING_DIACRITICAL_END = 0x036f;
 const MIN_SINGULARIZE_LENGTH = 3;
 
 import type { BookmarkTag } from "@/types/schemas/bookmark";
+import type { AggregatedTag } from "@/types/schemas/search";
 import { normalizeString } from "@/lib/utils";
 import { sanitizeControlChars } from "@/lib/utils/sanitize";
+import { kebabCase } from "@/lib/utils/formatters";
 
 /**
  * Format tag for display: Title Case unless mixed-case proper nouns
@@ -145,6 +147,27 @@ export function tagToSlug(tag: string): string {
     .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
     .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
 }
+
+/**
+ * Route for a tag or genre listing, keyed by the content type that owns it.
+ *
+ * Each entry slugs the raw tag the way its own route resolves one. The blog
+ * route generates and matches params with kebabCase
+ * (src/app/blog/tags/[tagSlug]/page.tsx); the bookmarks route resolves with
+ * tagToSlug (src/app/bookmarks/tags/[...slug]/page.tsx). Using the other
+ * function 404s: "agents.md" is served at /blog/tags/agents-md, never at
+ * /blog/tags/agentsdotmd.
+ *
+ * projects and books take a query parameter rather than a route segment, and
+ * their pages are not verified to consume it; those two entries preserve the
+ * pre-existing tagToSlug form rather than asserting it is correct.
+ */
+export const TAG_URL: Record<AggregatedTag["contentType"], (tag: string) => string> = {
+  blog: (tag) => `/blog/tags/${kebabCase(tag)}`,
+  bookmarks: (tag) => `/bookmarks/tags/${tagToSlug(tag)}`,
+  projects: (tag) => `/projects?tag=${tagToSlug(tag)}`,
+  books: (tag) => `/books?genre=${tagToSlug(tag)}`,
+};
 
 /**
  * Convert slug back to a displayable tag format

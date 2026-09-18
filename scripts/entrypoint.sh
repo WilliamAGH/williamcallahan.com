@@ -18,6 +18,8 @@ echo "✅ [Entrypoint] Cache directory /app/cache/s3_data ensured."
 
 echo "🚀 [Entrypoint] Starting main application..."
 
-# Execute the command passed to the entrypoint (CMD in Dockerfile),
-# e.g. ["node", "--run", "start"]. Runs as non-root user 'nextjs' (UID 1001).
+# Hand PID 1 to the command passed to the entrypoint (CMD in Dockerfile),
+# ["node", "./node_modules/next/dist/bin/next", "start"]. Running the Next binary
+# itself, rather than `node --run start`, is what lets Next's own SIGTERM handler
+# drain in-flight requests on shutdown. Runs as non-root user 'nextjs' (UID 1001).
 exec "$@"

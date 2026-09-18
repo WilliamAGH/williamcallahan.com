@@ -9,6 +9,9 @@
  * - scope: Comma-separated list of sources to search (optional)
  *   Valid scopes: blog, investments, experience, education, bookmarks, projects, books, thoughts, tags, analysis
  *   Example: ?q=react&scope=blog,projects
+ * - focus: A single scope that keeps its full searcher budget while every other
+ *   source stays capped; unlike scope it never removes a source from the search.
+ *   Example: ?q=react&focus=bookmarks
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
@@ -30,7 +33,13 @@ import {
 import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { validateSearchQuery } from "@/lib/validators/search";
-import { VALID_SCOPES, type SearchResult, type SearchScope } from "@/types/schemas/search";
+import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+import {
+  KEYWORD_ONLY_SCOPES,
+  VALID_SCOPES,
+  type SearchResult,
+  type SearchScope,
+} from "@/types/schemas/search";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -162,6 +171,21 @@ export async function GET(request: NextRequest) {
     const scopeParam = request.nextUrl.searchParams.get("scope");
     const scopes = parseScopes(scopeParam);
     const shouldSearch = (scope: SearchScope): boolean => scopes === null || scopes.has(scope);
+    // "posts" is an alias for "blog", so either scope runs the blog searcher.
+    const runsScope = (scope: SearchScope): boolean =>
+      scope === "blog" ? shouldSearch("blog") || shouldSearch("posts") : shouldSearch(scope);
+    // A request scoped entirely to keyword-only domains must not wait on the
+    // embedding round trip for a vector no searcher reads.
+    const needsEmbedding =
+      scopes === null || Array.from(scopes).some((scope) => !KEYWORD_ONLY_SCOPES.has(scope));
+
+    // Optional focus parameter: one scope keeps its full budget, the rest stay capped
+    const focusScopes = parseScopes(request.nextUrl.searchParams.get("focus"));
+    const [requestedFocus = null] = focusScopes?.size === 1 ? [...focusScopes] : [];
+    const focusScope = requestedFocus === "posts" ? "blog" : requestedFocus;
+    // A focus the scope filter excludes never runs, so honoring it would only
+    // spend the focused budget on nothing and shrink the domains that did run.
+    const focus = focusScope && runsScope(focusScope) ? focusScope : null;
 
     // Early exit if the sanitized query is empty
     if (query.length === 0) {
@@ -181,19 +205,24 @@ export async function GET(request: NextRequest) {
 
     // Build cache key including scope for proper coalescing
     const scopeKey = scopes ? Array.from(scopes).toSorted().join(",") : "all";
-    const cacheKey = `${scopeKey}:${query}`;
+    const cacheKey = `${scopeKey}:${focus ?? "none"}:${query}`;
 
     // Perform site-wide search with request coalescing
     const results = await coalesceSearchRequest<SearchResult[]>(cacheKey, async () => {
+      // Embed the query once; every searcher reuses the vector instead of racing
+      // nine embedding calls against the per-call timeout.
+      const context = needsEmbedding
+        ? { precomputed: await buildQueryEmbedding(query, "[search/all]") }
+        : {};
       // Only run searches for requested scopes (or all if no scope specified)
       // Each search is wrapped with a timeout to prevent slow sources from blocking
       // Note: "posts" is an alias for "blog" (handled identically to scoped route)
       const settled = await Promise.allSettled([
-        shouldSearch("blog") || shouldSearch("posts")
-          ? withTimeout(searchBlogPostsServerSide(query), SOURCE_TIMEOUT_MS, "blog")
+        runsScope("blog")
+          ? withTimeout(searchBlogPostsServerSide(query, context), SOURCE_TIMEOUT_MS, "blog")
           : Promise.resolve([]),
         shouldSearch("investments")
-          ? withTimeout(searchInvestments(query), SOURCE_TIMEOUT_MS, "investments")
+          ? withTimeout(searchInvestments(query, context), SOURCE_TIMEOUT_MS, "investments")
           : Promise.resolve([]),
         shouldSearch("experience")
           ? withTimeout(searchExperience(query), SOURCE_TIMEOUT_MS, "experience")
@@ -202,22 +231,22 @@ export async function GET(request: NextRequest) {
           ? withTimeout(searchEducation(query), SOURCE_TIMEOUT_MS, "education")
           : Promise.resolve([]),
         shouldSearch("bookmarks")
-          ? withTimeout(searchBookmarks(query), SOURCE_TIMEOUT_MS, "bookmarks")
+          ? withTimeout(searchBookmarks(query, context), SOURCE_TIMEOUT_MS, "bookmarks")
           : Promise.resolve([]),
         shouldSearch("projects")
-          ? withTimeout(searchProjects(query), SOURCE_TIMEOUT_MS, "projects")
+          ? withTimeout(searchProjects(query, context), SOURCE_TIMEOUT_MS, "projects")
           : Promise.resolve([]),
         shouldSearch("books")
-          ? withTimeout(searchBooks(query), SOURCE_TIMEOUT_MS, "books")
+          ? withTimeout(searchBooks(query, context), SOURCE_TIMEOUT_MS, "books")
           : Promise.resolve([]),
         shouldSearch("thoughts")
-          ? withTimeout(searchThoughts(query), SOURCE_TIMEOUT_MS, "thoughts")
+          ? withTimeout(searchThoughts(query, context), SOURCE_TIMEOUT_MS, "thoughts")
           : Promise.resolve([]),
         shouldSearch("tags")
           ? withTimeout(searchTags(query), SOURCE_TIMEOUT_MS, "tags")
           : Promise.resolve([]),
         shouldSearch("analysis")
-          ? withTimeout(searchAiAnalysis(query), SOURCE_TIMEOUT_MS, "analysis")
+          ? withTimeout(searchAiAnalysis(query, context), SOURCE_TIMEOUT_MS, "analysis")
           : Promise.resolve([]),
       ]);
 
@@ -277,25 +306,44 @@ export async function GET(request: NextRequest) {
       // No additional prefix needed for these
 
       // Limit results per category to prevent memory explosion
-      const MAX_RESULTS_PER_CATEGORY = 24;
       const MAX_TOTAL_RESULTS = 50;
-
-      // Combine all results with limits
-      const combined = [
-        ...prefixedBlogResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedInvestmentResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedExperienceResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedEducationResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedBookmarkResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedProjectResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedBookResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...prefixedThoughtResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...tagResults.slice(0, MAX_RESULTS_PER_CATEGORY),
-        ...analysisResults.slice(0, MAX_RESULTS_PER_CATEGORY),
+      const DEFAULT_RESULTS_PER_CATEGORY = 24;
+      // The per-category cap keeps one domain from crowding out the others in a
+      // mixed list; a single-scope request has nothing to share the budget with.
+      const MAX_RESULTS_PER_CATEGORY =
+        scopes?.size === 1 ? MAX_TOTAL_RESULTS : DEFAULT_RESULTS_PER_CATEGORY;
+      // Tag rows are navigation, not content: a bookmark or post that matches the
+      // query outranks every "[Tags] > ..." row regardless of score, and tags only
+      // fill slots that content left empty.
+      const navigational = (result: SearchResult): number => (result.type === "tag" ? 1 : 0);
+      const byRelevance = (a: SearchResult, b: SearchResult) =>
+        navigational(a) - navigational(b) || b.score - a.score;
+      const byScope: Array<[SearchScope, SearchResult[]]> = [
+        ["blog", prefixedBlogResults],
+        ["investments", prefixedInvestmentResults],
+        ["experience", prefixedExperienceResults],
+        ["education", prefixedEducationResults],
+        ["bookmarks", prefixedBookmarkResults],
+        ["projects", prefixedProjectResults],
+        ["books", prefixedBookResults],
+        ["thoughts", prefixedThoughtResults],
+        ["tags", tagResults],
+        ["analysis", analysisResults],
       ];
 
-      // Sort by relevance score (highest first) then limit total results
-      return combined.toSorted((a, b) => b.score - a.score).slice(0, MAX_TOTAL_RESULTS);
+      // A focused domain keeps its whole searcher budget (up to MAX_TOTAL_RESULTS);
+      // every other domain is capped per category and then competes for the
+      // remaining slots, so the focused hits are never evicted by the merge.
+      const focused = byScope
+        .filter(([scope]) => scope === focus)
+        .flatMap(([, rows]) => rows.slice(0, MAX_TOTAL_RESULTS));
+      const others = byScope
+        .filter(([scope]) => scope !== focus)
+        .flatMap(([, rows]) => rows.slice(0, MAX_RESULTS_PER_CATEGORY))
+        .toSorted(byRelevance)
+        .slice(0, focus ? DEFAULT_RESULTS_PER_CATEGORY : MAX_TOTAL_RESULTS);
+
+      return [...focused, ...others].toSorted(byRelevance);
     });
 
     return NextResponse.json(

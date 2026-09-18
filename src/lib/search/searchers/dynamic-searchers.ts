@@ -16,6 +16,7 @@ import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { getBooksIndex } from "@/lib/search/loaders/dynamic-content";
 import { envLogger } from "@/lib/utils/env-logger";
+import { scoreByRank } from "@/lib/search/search-content";
 
 const SEARCH_LIMIT = 50;
 
@@ -48,7 +49,7 @@ export async function searchBookmarks(
 
 async function searchBooksIndex(query: string): Promise<SearchResult[]> {
   const index = await getBooksIndex();
-  return index
+  const results = index
     .search(query, { prefix: true, fuzzy: 0.2 })
     .slice(0, SEARCH_LIMIT)
     .map((result) => ({
@@ -59,6 +60,7 @@ async function searchBooksIndex(query: string): Promise<SearchResult[]> {
       url: `/books/${generateBookSlug(result.title, result.id, result.authors)}`,
       score: result.score,
     }));
+  return scoreByRank(results);
 }
 
 /**

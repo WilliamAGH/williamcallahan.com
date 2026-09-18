@@ -75,6 +75,7 @@ export function invalidateDomainData() {
 - Present analysis rows use `cacheLife("max")` so cached AI content does not expire by time.
 - Missing analysis reads use a one-second cache profile so absence does not become durable content.
 - Successful analysis writes expire root, domain, entity, and version tags immediately.
+- A failed persisted-analysis read fails the detail page render; it never degrades to a null analysis, because the client treats null as "never generated" and would regenerate and overwrite the durable row.
 
 ### Tag Granularity
 

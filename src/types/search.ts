@@ -28,7 +28,7 @@ export type ScoredResult<T> = { item: T; score: number };
  * their own and queueing behind the inference server.
  */
 export interface QueryEmbeddingContext {
-  /** Precomputed query vector; when present, searchers skip the network call. */
+  /** Query vector embedded once per request; undefined means keyword-only for every domain. */
   precomputed?: number[];
 }
 
@@ -76,17 +76,6 @@ export interface SearchFunctionConfig<TDoc, TResult extends SearchResultShape> {
   getItemId?: (item: TDoc) => string;
   /** Function to transform a matched document into a search result */
   transformResult: (item: TDoc, score: number) => TResult;
-  /** Optional hybrid rerank configuration (BM25 candidate set + vector rerank) */
-  hybridRerank?: {
-    /** Text projected from each document and embedded for reranking */
-    getRerankText: (item: TDoc) => string;
-    /** Max candidates to rerank with vectors */
-    candidateLimit?: number;
-    /** Keyword score blend weight (default 0.55) */
-    keywordWeight?: number;
-    /** Vector similarity blend weight (default 0.45) */
-    vectorWeight?: number;
-  };
 }
 
 /**
@@ -103,7 +92,8 @@ export interface TagSource<T> {
   /** Content type for the aggregated tags */
   contentType: AggregatedTagShape["contentType"];
   /** URL pattern generator for tag pages */
-  urlPattern: (slug: string) => string;
+  /** Builds the listing URL from the raw tag; the entry owns its own slugging. */
+  urlPattern: (tag: string) => string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

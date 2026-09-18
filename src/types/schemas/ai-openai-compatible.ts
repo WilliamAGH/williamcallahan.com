@@ -12,7 +12,7 @@ export type AiUpstreamApiMode = z.infer<typeof aiUpstreamApiModeSchema>;
  *
  *   production-a — live AI chat turns (user-blocking)
  *   production-b — reserved for future live/user-blocking workloads
- *   production-z — live render embeddings (search queries, hybrid rerank)
+ *   production-z — live render embeddings (search queries)
  *   default      — unclassified; avoid setting this explicitly
  *   batch        — background jobs and backfills (not user-facing)
  */
