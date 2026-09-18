@@ -48,6 +48,21 @@ export const validScopesSchema = z.enum([
 
 export const VALID_SCOPES = validScopesSchema.options;
 
+/**
+ * Scopes whose searcher takes no QueryEmbeddingContext: they have no vector
+ * column and rank on MiniSearch or a PostgreSQL aggregate alone.
+ *
+ * A scope absent from this set is assumed to consume the query embedding, so a
+ * new hybrid scope needs no edit here and a stale entry costs a wasted call
+ * rather than a missing vector. Both the site-wide route and the RAG retriever
+ * bind this rather than restating it.
+ */
+export const KEYWORD_ONLY_SCOPES: ReadonlySet<SearchScope> = new Set([
+  "experience",
+  "education",
+  "tags",
+]);
+
 /** Extended search scope including "all" for cross-index searches */
 export const searchScopeSchema = z.enum([
   "all",

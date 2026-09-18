@@ -177,6 +177,23 @@ describe("RAG Dynamic Retriever", () => {
       expect(status).toBe("success");
       expect(results.length).toBeGreaterThan(0);
     });
+
+    it("skips the embedding when every detected scope ranks without a vector", async () => {
+      // "Which topics?" matches only the tags pattern, and searchTags takes no
+      // QueryEmbeddingContext, so awaiting an embedding here spends part of the
+      // deadline and the inference quota on a vector nothing reads.
+      const { status } = await retrieveRelevantContent("Which topics?");
+
+      expect(status).toBe("success");
+      expect(buildQueryEmbedding).not.toHaveBeenCalled();
+    });
+
+    it("still embeds once when a detected scope consumes the vector", async () => {
+      const { status } = await retrieveRelevantContent("Which topics and bookmarks?");
+
+      expect(status).toBe("success");
+      expect(buildQueryEmbedding).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("scope detection", () => {

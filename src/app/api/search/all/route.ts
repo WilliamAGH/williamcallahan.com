@@ -34,7 +34,12 @@ import { coalesceSearchRequest } from "@/lib/utils/search-helpers";
 import { preventCaching } from "@/lib/utils/api-utils";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
-import { VALID_SCOPES, type SearchResult, type SearchScope } from "@/types/schemas/search";
+import {
+  KEYWORD_ONLY_SCOPES,
+  VALID_SCOPES,
+  type SearchResult,
+  type SearchScope,
+} from "@/types/schemas/search";
 import { NextResponse, connection, type NextRequest } from "next/server";
 
 // CRITICAL: Check build phase AT RUNTIME using dynamic property access.
@@ -86,15 +91,6 @@ async function withTimeout<T>(
 function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
   return result.status === "fulfilled" ? result.value : [];
 }
-
-/**
- * Scopes whose searcher takes no QueryEmbeddingContext: they have no vector
- * column and rank on MiniSearch or a PostgreSQL aggregate alone. A scope absent
- * from this set is assumed to consume the query embedding, so a new hybrid
- * scope needs no edit here and the unsafe direction is a wasted call, never a
- * missing vector.
- */
-const KEYWORD_ONLY_SCOPES: ReadonlySet<SearchScope> = new Set(["experience", "education", "tags"]);
 
 /**
  * Parse and validate scope parameter.
