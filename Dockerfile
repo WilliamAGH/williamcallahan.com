@@ -212,6 +212,7 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
       && export NEXT_DEPLOYMENT_ID="${release_id}" \
       && echo "Building Next.js deployment ${release_id}" \
       && bun run build \
+      && printf %s "${release_id}" > /app/.next/RELEASE_ID \
       && (find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true)'
 
 # ---------- Runtime stage ----------
