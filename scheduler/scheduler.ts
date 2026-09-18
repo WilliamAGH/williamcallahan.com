@@ -39,7 +39,7 @@ console.log(
 // - Logos: Weekly on Sunday at 1 AM PT (refreshes company logos)
 //
 // How it works:
-// 1. The scheduler starts via 'node --run scheduler' (typically from entrypoint.sh)
+// 1. The scheduler starts via 'node --import tsx scheduler/scheduler.ts' (from entrypoint.sh)
 // 2. It registers cron patterns for each task type
 // 3. It remains running indefinitely, waiting for scheduled times to trigger
 // 4. When triggered, it executes the update-data script with appropriate arguments
@@ -67,7 +67,7 @@ console.log(
 
 // Import required modules
 import { randomInt } from "node:crypto";
-import rawCron from "node-cron";
+import cron from "node-cron";
 import { spawn } from "node:child_process";
 import { DATA_UPDATER_FLAGS } from "@/lib/constants/cli-flags";
 
@@ -89,8 +89,41 @@ console.log(
 // Ensure Node Cron interprets times in PT
 process.env.TZ = "America/Los_Angeles";
 console.log("[Scheduler] Starting update-data scheduler (PT)...");
-// Typed wrapper around node-cron to avoid any-typed calls
-const cron = rawCron as { schedule: (expression: string, task: () => void) => void };
+
+// Graceful shutdown state. The container runs this file as PID 1 (scheduler/Dockerfile),
+// so SIGTERM arrives here directly. Jitter timers and spawned update children are the
+// two things node-cron does not own, so they are tracked explicitly.
+const pendingJitterTimers = new Set<NodeJS.Timeout>();
+let activeUpdateCount = 0;
+let shuttingDown = false;
+
+const exitWhenDrained = (): void => {
+  if (activeUpdateCount > 0) return;
+  console.log("[Scheduler] In-flight work drained; exiting");
+  process.exit(0);
+};
+
+const shutdown = (signal: NodeJS.Signals): void => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[Scheduler] ${signal} received: stopping cron tasks, draining in-flight work`);
+
+  for (const task of cron.getTasks().values()) void task.stop();
+  for (const timer of pendingJitterTimers) clearTimeout(timer);
+  pendingJitterTimers.clear();
+
+  if (activeUpdateCount > 0) {
+    // No app-level deadline here: the orchestrator's stop grace period already bounds
+    // the wait, and a data update that outlives it is SIGKILLed with its open
+    // transaction aborted by Postgres. A second timeout would duplicate that knob.
+    console.log(`[Scheduler] Waiting on ${activeUpdateCount} in-flight update(s)`);
+    return;
+  }
+  exitWhenDrained();
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 // Cron expressions (minute hour day month weekday)
 // Staggered timing to prevent resource contention
@@ -193,7 +226,12 @@ const scheduleCronJob = (
     const jitter = randomInt(DEFAULT_JITTER_MS);
     console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Jitter: ${jitter}ms`);
 
-    setTimeout(() => {
+    const jitterTimer = setTimeout(() => {
+      pendingJitterTimers.delete(jitterTimer);
+      if (shuttingDown) {
+        console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Shutting down, skipping`);
+        return;
+      }
       if (runningJobs.has(name)) {
         console.warn(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Already running, skipping`);
         return;
@@ -209,16 +247,28 @@ const scheduleCronJob = (
         stdio: "inherit",
         detached: false,
       });
+      activeUpdateCount++;
 
       updateProcess.on("error", (err) => {
+        activeUpdateCount--;
         console.error(
           `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Failed to start process:`,
           err,
         );
+        if (shuttingDown) exitWhenDrained();
       });
 
       updateProcess.on("close", (code) => {
+        activeUpdateCount--;
         runningJobs.delete(name);
+
+        if (shuttingDown) {
+          console.log(
+            `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Finished during shutdown (code ${code}); skipping follow-ups`,
+          );
+          exitWhenDrained();
+          return;
+        }
 
         if (code !== 0) {
           console.error(
@@ -256,6 +306,7 @@ const scheduleCronJob = (
         }
       });
     }, jitter);
+    pendingJitterTimers.add(jitterTimer);
   });
 };
 

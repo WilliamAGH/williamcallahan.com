@@ -45,13 +45,10 @@ try {
 // Test 4: Can we create a simple cron job?
 try {
   const cron = await import("node-cron");
-  const testJob = cron.schedule(
-    "*/10 * * * * *",
-    () => {
-      console.log("[TEST] Cron job triggered at", new Date().toISOString());
-    },
-    { scheduled: false },
-  );
+  // createTask registers without starting; schedule() would start it immediately.
+  const testJob = cron.createTask("*/10 * * * * *", () => {
+    console.log("[TEST] Cron job triggered at", new Date().toISOString());
+  });
 
   console.log("[TEST] ✅ Test cron job created successfully");
   console.log("[TEST] Starting test job for 15 seconds...");

@@ -312,7 +312,7 @@ describe("Scheduler and data-updater flag consistency", () => {
 
     expect(syntaxCheck.status).toBe(0);
     expect(gateSyntaxCheck.status).toBe(0);
-    expect(entrypoint).toMatch(/if node --run update-data; then/);
+    expect(entrypoint).toMatch(/if run_bootstrap_step node --run update-data; then/);
     expect(migrationCheckIndex).toBeGreaterThan(-1);
     expect(bootstrapIndex).toBeGreaterThan(-1);
     expect(revalidationIndex).toBeGreaterThan(-1);

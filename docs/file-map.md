@@ -453,7 +453,6 @@ File/Path Functionality Description
 - [x] `logo.ts` `image-handling` - Types for logos
 - [x] `middleware.ts` `middleware` - Types for proxy helper contracts
 - [x] `navigation.ts` `navigation` - Types for navigation components
-- [x] `node-cron.d.ts` `batch-fetch-update` - Type definitions for node-cron
 - [x] `project.ts` `projects` - Types for projects
 - [x] `project-ai-analysis.ts` `projects` - Types for project AI analysis (state, props, context)
 - [x] `s3.ts` `s3-object-storage` - Types for S3 operations
@@ -842,6 +841,12 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] **utils/**
       - [x] `domain-utils.test.ts` `bookmarks` - Domain utility tests
       - [x] `svg-transform-fix.test.ts` `image-handling` - SVG transform fix tests
+  - [x] **smoke/**
+    - [x] `bookmarks-api.smoke.test.ts` `bookmarks` - Bookmarks API contract smoke tests
+    - [x] `container-shutdown.smoke.test.ts` `deployment` - Proves the scheduler exits cleanly on SIGTERM and that neither container CMD reintroduces a `node --run` PID 1
+    - [x] `page-routes.smoke.test.ts` `app-layout` - Page route smoke tests
+    - [x] `update-data.smoke.test.ts` `batch-fetch-update` - Data updater CLI smoke tests
+    - [x] `update-s3.smoke.test.ts` `batch-fetch-update` - Scheduler/data-updater flag consistency and scheduler entrypoint bootstrap ordering
   - [x] **scripts/**
     - [x] `blog-render-smoke.test.ts` `blog` - Outcome tests for the shared production blog-render HTML validator
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
