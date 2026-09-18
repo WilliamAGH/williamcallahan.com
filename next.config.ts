@@ -43,18 +43,22 @@ function resolveProductionReleaseId(phase: string): string | null {
     );
   }
 
+  // The container carries no .git, so a production server always lands here.
+  // `.next/RELEASE_ID` is written by the image build (Dockerfile) from the same
+  // commit the image was built at. Do NOT fall back to `.next/BUILD_ID`: that is
+  // whatever id Next generated for the build, unrelated to the release, and
+  // returning it silently mislabels `?dpl=`, NEXT_PUBLIC_GIT_HASH and
+  // SENTRY_RELEASE with a value that matches no commit.
   try {
-    const buildId = readFileSync(".next/BUILD_ID", "utf8").trim();
-    const releaseId = requireUrlSafeReleaseId(buildId, "existing .next/BUILD_ID");
-    console.warn("[next.config] Reusing the existing .next/BUILD_ID for production startup.");
-    return releaseId;
-  } catch (buildIdError: unknown) {
+    const releaseFile = readFileSync(".next/RELEASE_ID", "utf8").trim();
+    return requireUrlSafeReleaseId(releaseFile, "build-time .next/RELEASE_ID");
+  } catch (releaseIdError: unknown) {
     const gitMessage = gitError instanceof Error ? gitError.message : String(gitError);
-    const buildIdMessage =
-      buildIdError instanceof Error ? buildIdError.message : String(buildIdError);
+    const releaseIdMessage =
+      releaseIdError instanceof Error ? releaseIdError.message : String(releaseIdError);
     throw new Error(
-      `[next.config] Production requires NEXT_DEPLOYMENT_ID, local git HEAD, or an existing .next/BUILD_ID. Git failed: ${gitMessage}. BUILD_ID failed: ${buildIdMessage}.`,
-      { cause: buildIdError },
+      `[next.config] Production requires NEXT_DEPLOYMENT_ID, local git HEAD, or a build-time .next/RELEASE_ID. Git failed: ${gitMessage}. RELEASE_ID failed: ${releaseIdMessage}.`,
+      { cause: releaseIdError },
     );
   }
 }

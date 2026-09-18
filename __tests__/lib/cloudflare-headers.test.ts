@@ -195,6 +195,12 @@ describe("Cloudflare header enforcement", () => {
         pathname: "/**",
       });
     });
+    const missingFile = (filePath: string): never => {
+      throw Object.assign(new Error(`ENOENT: no such file or directory, open '${filePath}'`), {
+        code: "ENOENT",
+      });
+    };
+
     it("uses a URL-safe production deployment ID as the release identity", async () => {
       vi.stubEnv("NODE_ENV", "production");
       vi.stubEnv("NEXT_DEPLOYMENT_ID", "release_2026-07-13");
@@ -220,10 +226,32 @@ describe("Cloudflare header enforcement", () => {
       await expect(nextConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
       expect(process.env.NEXT_DEPLOYMENT_ID).toBe(expectedReleaseId);
       vi.doMock("node:child_process", () => ({ execFileSync: () => execFileSync("git-missing") }));
-      vi.doMock("node:fs", () => ({ readFileSync: () => `${expectedReleaseId}\n` }));
+      // Path-aware on purpose: a mock that answers for any path would stay green if
+      // the runtime were pointed back at .next/BUILD_ID.
+      vi.doMock("node:fs", () => ({
+        readFileSync: (filePath: unknown) =>
+          String(filePath).endsWith(".next/RELEASE_ID")
+            ? `${expectedReleaseId}\n`
+            : missingFile(String(filePath)),
+      }));
       clearDeploymentId();
       const runtimeConfig = await loadNextConfig(PHASE_PRODUCTION_SERVER);
       await expect(runtimeConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
+    });
+
+    it("fails closed when the image carries only .next/BUILD_ID", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "production");
+      vi.doMock("node:child_process", () => ({ execFileSync: () => execFileSync("git-missing") }));
+      vi.doMock("node:fs", () => ({
+        readFileSync: (filePath: unknown) =>
+          String(filePath).endsWith(".next/BUILD_ID")
+            ? "build-TfctsWXpff2fKS\n"
+            : missingFile(String(filePath)),
+      }));
+      await expect(loadNextConfig(PHASE_PRODUCTION_SERVER)).rejects.toThrow(
+        "Production requires NEXT_DEPLOYMENT_ID, local git HEAD, or a build-time .next/RELEASE_ID",
+      );
     });
     it("keeps production builds fail-closed without an explicit or Git identity", async () => {
       clearDeploymentId();
