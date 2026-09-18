@@ -157,11 +157,12 @@ export async function hybridSearchBlogPosts(options: {
         LIMIT ${KEYWORD_CANDIDATE_LIMIT}
       ),
       semantic_results AS (
-        SELECT entity_id AS id,
-          row_number() OVER (ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id) AS semantic_rank
-        FROM embeddings
-        WHERE domain = 'blog' AND qwen_4b_fp16_embedding IS NOT NULL
-        ORDER BY qwen_4b_fp16_embedding <=> ${castVec}, entity_id
+        SELECT e.entity_id AS id,
+          row_number() OVER (ORDER BY e.qwen_4b_fp16_embedding <=> ${castVec}, e.entity_id) AS semantic_rank
+        FROM embeddings e
+        JOIN blog_posts published ON published.id = e.entity_id AND published.draft = false
+        WHERE e.domain = 'blog' AND e.qwen_4b_fp16_embedding IS NOT NULL
+        ORDER BY e.qwen_4b_fp16_embedding <=> ${castVec}, e.entity_id
         LIMIT ${SEMANTIC_CANDIDATE_LIMIT}
       ),
       combined AS (

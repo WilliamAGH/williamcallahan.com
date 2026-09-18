@@ -310,8 +310,11 @@ export async function GET(request: NextRequest) {
       const DEFAULT_RESULTS_PER_CATEGORY = 24;
       // The per-category cap keeps one domain from crowding out the others in a
       // mixed list; a single-scope request has nothing to share the budget with.
+      // "posts" aliases "blog", so collapse it before counting how many domains run.
+      const searcherScopes =
+        scopes && new Set([...scopes].map((scope) => (scope === "posts" ? "blog" : scope)));
       const MAX_RESULTS_PER_CATEGORY =
-        scopes?.size === 1 ? MAX_TOTAL_RESULTS : DEFAULT_RESULTS_PER_CATEGORY;
+        searcherScopes?.size === 1 ? MAX_TOTAL_RESULTS : DEFAULT_RESULTS_PER_CATEGORY;
       // Tag rows are navigation, not content: a bookmark or post that matches the
       // query outranks every "[Tags] > ..." row regardless of score, and tags only
       // fill slots that content left empty.

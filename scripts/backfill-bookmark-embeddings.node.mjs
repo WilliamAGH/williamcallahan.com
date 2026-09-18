@@ -62,7 +62,10 @@ if (dryRun && maxRows === undefined) {
   );
 }
 
-const bookmarkIds = readFlagValue("--bookmark-ids")?.split(",").filter(Boolean);
+const bookmarkIds = readFlagValue("--bookmark-ids")
+  ?.split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
 
 const result = await runBackfill({
   dryRun,

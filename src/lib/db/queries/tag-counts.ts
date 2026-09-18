@@ -12,31 +12,38 @@ import { db } from "@/lib/db/connection";
 import { TAG_URL, tagToSlug } from "@/lib/utils/tag-utils";
 import type { AggregatedTag } from "@/types/schemas/search";
 
-/** Every tag and book genre with its usage count, most used first. */
+/**
+ * Every tag and book genre with its usage count, most used first.
+ *
+ * Grouping is case-insensitive, but the returned name keeps the most common
+ * stored casing: formatTagDisplay preserves mixed-case proper nouns (iPhone),
+ * and the blog tag route matches kebabCase over the stored tag, so a
+ * lowercased name would render "Iphone" and link a slug the route never serves.
+ */
 export async function listTagCounts(): Promise<AggregatedTag[]> {
   const rows = await db.execute<{
     name: string;
     content_type: AggregatedTag["contentType"];
     count: number;
   }>(sql`
-    SELECT name, content_type, count(*)::int AS count
+    SELECT mode() WITHIN GROUP (ORDER BY name) AS name, content_type, count(*)::int AS count
     FROM (
-      SELECT lower(CASE WHEN jsonb_typeof(t) = 'string' THEN t #>> '{}' ELSE t ->> 'name' END) AS name,
+      SELECT CASE WHEN jsonb_typeof(t) = 'string' THEN t #>> '{}' ELSE t ->> 'name' END AS name,
              'bookmarks' AS content_type
       FROM bookmarks, jsonb_array_elements(tags) AS t
       WHERE jsonb_typeof(tags) = 'array'
       UNION ALL
-      SELECT lower(t), 'blog' FROM blog_posts, jsonb_array_elements_text(tags) AS t
+      SELECT t, 'blog' FROM blog_posts, jsonb_array_elements_text(tags) AS t
       WHERE draft = false AND jsonb_typeof(tags) = 'array'
       UNION ALL
-      SELECT lower(t), 'projects' FROM projects, jsonb_array_elements_text(tags) AS t
+      SELECT t, 'projects' FROM projects, jsonb_array_elements_text(tags) AS t
       WHERE jsonb_typeof(tags) = 'array'
       UNION ALL
-      SELECT lower(t), 'books' FROM books, jsonb_array_elements_text(genres) AS t
+      SELECT t, 'books' FROM books, jsonb_array_elements_text(genres) AS t
       WHERE jsonb_typeof(genres) = 'array'
     ) tagged
     WHERE name IS NOT NULL AND name <> ''
-    GROUP BY name, content_type
+    GROUP BY lower(name), content_type
     ORDER BY count DESC, name
   `);
 
