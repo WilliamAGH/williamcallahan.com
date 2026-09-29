@@ -117,7 +117,7 @@ git add src/lib/db/connection.ts drizzle.config.ts
 git commit -m "feat(db): add Drizzle connection and drizzle-kit config"
 ```
 
-**ENV Note [CC0i]:** `DATABASE_URL` is a new required env var. Add to `.env-example` with placeholder. Value: `postgres://postgres:<password>@167.234.219.57:5438/postgres?sslmode=require`. Get explicit user approval before committing code that depends on it.
+**ENV Note [CC0i]:** `DATABASE_URL` is a new required env var. Add to `.env-example` with placeholder. Value: `postgres://postgres:<password>@167.234.219.57:5438/postgres?sslmode=require`.
 
 ---
 

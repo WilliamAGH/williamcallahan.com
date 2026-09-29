@@ -3,7 +3,7 @@
  * @module lib/services/image/logo-persistence
  * @description
  * Functions for persisting logos to S3 with validation and inversion.
- * Extracted from unified-image-service for SRP compliance per [MO1d].
+ * Extracted from unified-image-service for SRP compliance per [CC0k].
  */
 
 import { getDeterministicTimestamp } from "@/lib/utils/deterministic-timestamp";

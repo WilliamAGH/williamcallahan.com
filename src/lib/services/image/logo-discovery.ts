@@ -3,7 +3,7 @@
  * @module lib/services/image/logo-discovery
  * @description
  * Functions for discovering existing logos in S3 (hashed and legacy formats).
- * Extracted from unified-image-service for SRP compliance per [MO1d].
+ * Extracted from unified-image-service for SRP compliance per [CC0k].
  */
 
 import { checkIfS3ObjectExists, listS3Objects, deleteFromS3 } from "@/lib/s3/objects";

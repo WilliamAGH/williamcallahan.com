@@ -6,11 +6,11 @@ description: "Evergreen contract for change decisions (new file vs edit), reposi
 
 # Code Change Policy Contract
 
-See `AGENTS.md` ([CC1d], [MO1d], [LC1c], [LC1d]) and global [CC0], [LC0], [SS0].
+See `AGENTS.md` ([LC1c], [LC1d]) and global [CC0], [LC0], [SS0].
 
 ## Non-negotiables (applies to every change)
 
-- **SRP only**: each new component/hook/utility has one reason to change ([MO1d]).
+- **SRP only**: each new component/hook/utility has one reason to change ([CC0k]).
 - **New concept → new file**; otherwise edit the existing owner ([CC0d]).
 - **Files >500 LOC** get `cleanup` reduction before feature edits ([LC0a]).
 - **Strict Boundaries**: Server Components fetch data; Client Components handle interactivity.
@@ -22,7 +22,7 @@ Use this as a hard rule, not a suggestion.
 
 | Situation                                                  | MUST do                                                          | MUST NOT do                                             |
 | ---------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------- |
-| New user-facing behavior (new page, new component variant) | Add a new, narrowly scoped component/file ([CC0d])               | “Just add a prop” to a giant component ([MO1d])         |
+| New user-facing behavior (new page, new component variant) | Add a new, narrowly scoped component/file ([CC0d])               | “Just add a prop” to a giant component ([CC0k])         |
 | Bug fix (existing behavior wrong)                          | Edit the smallest correct owner; add tests to lock behavior      | Create a parallel/shadow implementation                 |
 | Logic change in stable code                                | Edit the owning module in place ([CC0d])                         | Add flags, shims, or “compat” paths to hide uncertainty |
 | Touching a large/overloaded file                           | Reduce it with `cleanup` before the feature edit ([LC0a])        | Grow the file or move code into a sibling ([LC0a])      |
@@ -32,7 +32,7 @@ Use this as a hard rule, not a suggestion.
 
 Adding to an existing component/hook is allowed only when all are true:
 
-- It is the **same responsibility** as the existing purpose ([MO1d]).
+- It is the **same responsibility** as the existing purpose ([CC0k]).
 - The inputs belong together (avoid prop drilling/data clumps).
 - The change does not violate Server/Client boundaries.
 

@@ -14,18 +14,6 @@ Core standards:
 
 ---
 
-## Foundational
-
-### [CC1] Clean Code & DDD (extends [CC0])
-
-- [CC1d] Clean Architecture: dependencies point inward; domain logic must not import from UI/framework layers; contract: `docs/standards/code-change.md`
-
-### [MO1] Modularity & SRP (extends [CC0])
-
-- [MO1d] Strict SRP: each unit serves one actor; separate logic that changes for different reasons
-
----
-
 ## Blocking
 
 ### [GT1] Git Safety (extends [GT0])
@@ -109,7 +97,7 @@ Core standards:
 
 ### [APP] Reference Contracts
 
-- **Code Change Policy**: `docs/standards/code-change.md` ([CC1], [LC1], [MO1])
+- **Code Change Policy**: `docs/standards/code-change.md` ([CC0k], [LC1])
 - **Framework Evidence**: `docs/standards/nextjs-framework.md` ([FW1])
 - **Type Policy**: `docs/standards/type-policy.md` ([TS1])
 - **Testing Protocols**: `docs/standards/testing.md` ([TST1], [VR1j])

@@ -178,7 +178,7 @@ export class UnifiedImageService {
     return requestPromise;
   }
 
-  /** Execute the actual logo fetch logic (separated for SRP per [MO1d]) */
+  /** Execute the actual logo fetch logic (separated for SRP per [CC0k]) */
   private async executeLogoFetch(
     domain: string,
     options: ImageServiceOptions,
