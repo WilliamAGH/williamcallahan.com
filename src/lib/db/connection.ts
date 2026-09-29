@@ -218,7 +218,9 @@ const createClient = (): Sql<Record<string, unknown>> => {
 
   return postgres(databaseUrl, {
     max: resolveOptionalPositiveInt("DATABASE_POOL_MAX", DEFAULT_DATABASE_POOL_MAX),
-    idle_timeout: resolveOptionalPositiveInt("DATABASE_IDLE_TIMEOUT_SECONDS", 20),
+    // No idle_timeout: the database sits across the tailnet, so each fresh connect risks
+    // a path renegotiation. postgres.js keeps idle sockets open with a 60s TCP keepalive
+    // and recycles them via max_lifetime (30-60 min).
     connect_timeout: resolveOptionalPositiveInt("DATABASE_CONNECT_TIMEOUT_SECONDS", 10),
     ssl: "require",
     connection: {
