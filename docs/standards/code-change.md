@@ -20,13 +20,13 @@ See `AGENTS.md` ([CC1d], [MO1d], [LC1c], [LC1d]) and global [CC0], [LC0], [SS0].
 
 Use this as a hard rule, not a suggestion.
 
-| Situation                                                  | MUST do                                                             | MUST NOT do                                             |
-| ---------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- |
-| New user-facing behavior (new page, new component variant) | Add a new, narrowly scoped component/file ([CC0d])                  | “Just add a prop” to a giant component ([MO1d])         |
-| Bug fix (existing behavior wrong)                          | Edit the smallest correct owner; add tests to lock behavior         | Create a parallel/shadow implementation                 |
-| Logic change in stable code                                | Edit the owning module in place ([CC0d])                            | Add flags, shims, or “compat” paths to hide uncertainty |
-| Touching a large/overloaded file                           | Reduce it with `cleanup` before the feature edit ([LC0a])           | Grow the file or move code into a sibling ([LC0a])      |
-| Reuse needed across features                               | Add a domain-specific hook or service with intent-revealing name    | Add `*Utils/*Helper/*Common` grab bags                  |
+| Situation                                                  | MUST do                                                          | MUST NOT do                                             |
+| ---------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------- |
+| New user-facing behavior (new page, new component variant) | Add a new, narrowly scoped component/file ([CC0d])               | “Just add a prop” to a giant component ([MO1d])         |
+| Bug fix (existing behavior wrong)                          | Edit the smallest correct owner; add tests to lock behavior      | Create a parallel/shadow implementation                 |
+| Logic change in stable code                                | Edit the owning module in place ([CC0d])                         | Add flags, shims, or “compat” paths to hide uncertainty |
+| Touching a large/overloaded file                           | Reduce it with `cleanup` before the feature edit ([LC0a])        | Grow the file or move code into a sibling ([LC0a])      |
+| Reuse needed across features                               | Add a domain-specific hook or service with intent-revealing name | Add `*Utils/*Helper/*Common` grab bags                  |
 
 ### When adding a prop/method is allowed
 
