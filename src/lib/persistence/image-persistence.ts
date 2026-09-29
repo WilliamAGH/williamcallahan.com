@@ -182,7 +182,7 @@ export async function persistImageAndGetS3UrlWithStatus(
           return { s3Url: null, wasNewlyPersisted: false };
         }
       } catch (err) {
-        // Network error during HEAD validation – log and return null per [RC1a]
+        // Network error during HEAD validation – log and return null
         console.warn(
           `[OpenGraph S3] HEAD validation network error for ${imageUrl}: ${err instanceof Error ? err.message : String(err)}`,
         );

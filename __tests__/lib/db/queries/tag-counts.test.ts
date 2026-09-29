@@ -31,7 +31,7 @@ describe("listTagCounts", () => {
 
     const tags = await listTagCounts();
 
-    // Bind the canonical owner rather than restating the routes here ([SS1c]).
+    // Bind the canonical owner rather than restating the routes here ([SS0a]).
     expect(tags.map((tag) => tag.url)).toEqual([
       TAG_URL.blog("react"),
       TAG_URL.bookmarks("ai"),

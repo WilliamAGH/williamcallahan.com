@@ -109,7 +109,7 @@ export async function persistBinaryToS3(
 export async function getS3Override(url: string): Promise<OgResult | null> {
   const urlHash = hashUrl(normalizeUrl(url));
 
-  // Delegate to PostgreSQL; let real DB errors propagate per [RC1a]
+  // Delegate to PostgreSQL; let real DB errors propagate per [RC0b]
   const override = await readOgOverride(urlHash);
   if (override) {
     debug(`[DataAccess/OpenGraph] Found DB override for ${url}`);

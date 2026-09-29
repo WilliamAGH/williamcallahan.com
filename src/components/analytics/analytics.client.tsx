@@ -138,7 +138,7 @@ export function safeTrack(name: string, data: Record<string, unknown> = {}): voi
   try {
     globalThis.umami?.track?.(eventName, data);
   } catch (error: unknown) {
-    // [RC1] Always log tracking failures so production issues are visible
+    // [RC0b] Always log tracking failures so production issues are visible
     console.warn("[analytics] Failed to track event:", { name: eventName, error });
   }
 }

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Remove the dead heuristic similarity engine and its supporting infrastructure, prune orphaned types from `related-content.ts` to comply with [LC1a], and update documentation to reflect the pgvector-only architecture.
+**Goal:** Remove the dead heuristic similarity engine and its supporting infrastructure, prune orphaned types from `related-content.ts` to comply with [LC0a], and update documentation to reflect the pgvector-only architecture.
 
 **Architecture:** The heuristic engine (`content-similarity/`) loaded ALL content into memory, computed tag/text/domain/recency similarity scores in JavaScript, and ranked candidates client-side. This has been replaced by pgvector ANN search (`findSimilarByEntity`) → blended scoring (`applyBlendedScoring`) → batch hydration (`hydrateRelatedContent`). The engine's modules are now dead code except for one pure utility (`limitByTypeAndTotal`) and the debug route.
 
@@ -11,11 +11,11 @@
 **Clean Code Rules Applied:**
 
 - [BLK10] Dead code → delete
-- [CC1b] DRY → single source of truth
-- [CC1c] YAGNI → no speculative code
+- [SS0a] DRY → single source of truth
+- [CC0c] YAGNI → no speculative code
 - [YK4] Version control remembers → delete unused
-- [LC1a] All files ≤ 500 lines
-- [UP1] Comprehensive update protocol → map all usages before changes
+- [LC0a] All files ≤ 500 lines
+- [CC0f] Comprehensive update protocol → map all usages before changes
 - [DOC1c] Update architecture docs when changing files
 
 ---
@@ -39,7 +39,7 @@
 | `content-similarity/keyword-extractor.ts` | 524   | index.ts + aggregator.ts only (internal)                                                 | Dead (after engine delete)      |
 | `content-similarity/index.ts`             | 292   | debug route (calculateSimilarity, DEFAULT_WEIGHTS); route + server (limitByTypeAndTotal) | Partially dead                  |
 
-## Type Liveness Analysis (`src/types/related-content.ts` — 428 lines, violates [LC1a])
+## Type Liveness Analysis (`src/types/related-content.ts` — 428 lines, violates [LC0a])
 
 | Type                          | Used By                                                                                                  | Status                                                                       |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -311,7 +311,7 @@ keyword-extractor.ts, index.ts. All similarity is now pgvector-based."
 
 ---
 
-## Phase C: Prune Dead Types (fix [LC1a] violation)
+## Phase C: Prune Dead Types (fix [LC0a] violation)
 
 ### Task 4: Remove dead types from `related-content.ts`
 
@@ -496,4 +496,4 @@ No commit — this is verification only. Report pass/fail for each check.
 | B         | 3           | 5 modules + 1 test | ~1,872           | Delete entire heuristic engine                   |
 | C         | 4           | 0 (type pruning)   | ~208             | `related-content.ts` under 500 lines             |
 | D         | 5-6         | 0                  | 0                | Docs updated; full verification green            |
-| **Total** | **6 tasks** | **6 files**        | **~2,080 lines** | **pgvector-only architecture, [LC1a] compliant** |
+| **Total** | **6 tasks** | **6 files**        | **~2,080 lines** | **pgvector-only architecture, [LC0a] compliant** |

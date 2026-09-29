@@ -6,13 +6,13 @@ description: "Evergreen contract for change decisions (new file vs edit), reposi
 
 # Code Change Policy Contract
 
-See `AGENTS.md` ([LOC1a-d], [MO1a-g], [FS1a-k], [ND1a-c]).
+See `AGENTS.md` ([CC1d], [MO1d], [LC1c], [LC1d]) and global [CC0], [LC0], [SS0].
 
 ## Non-negotiables (applies to every change)
 
 - **SRP only**: each new component/hook/utility has one reason to change ([MO1d]).
-- **New feature → new file**; do not grow monoliths ([MO1b]).
-- **Avoid edits to files >500 LOC**; prefer splitting or creating new files—legacy exceptions allowed with a documented warning per [LOC1c].
+- **New concept → new file**; otherwise edit the existing owner ([CC0d]).
+- **Files >500 LOC** get `cleanup` reduction before feature edits ([LC0a]).
 - **Strict Boundaries**: Server Components fetch data; Client Components handle interactivity.
 - **No DTOs**: Zod schemas define the API contracts; types are derived via `z.infer`.
 
@@ -22,10 +22,10 @@ Use this as a hard rule, not a suggestion.
 
 | Situation                                                  | MUST do                                                             | MUST NOT do                                             |
 | ---------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- |
-| New user-facing behavior (new page, new component variant) | Add a new, narrowly scoped component/file ([MO1b])                  | “Just add a prop” to a giant component ([MO1a], [MO1d]) |
+| New user-facing behavior (new page, new component variant) | Add a new, narrowly scoped component/file ([CC0d])                  | “Just add a prop” to a giant component ([MO1d])         |
 | Bug fix (existing behavior wrong)                          | Edit the smallest correct owner; add tests to lock behavior         | Create a parallel/shadow implementation                 |
-| Logic change in stable code                                | Extract/replace via composition; keep stable code stable ([MO1g])   | Add flags, shims, or “compat” paths to hide uncertainty |
-| Touching a large/overloaded file                           | Extract at least one seam (new hook/sub-component) ([FS1g], [MO1b]) | Grow the file further ([MO1a])                          |
+| Logic change in stable code                                | Edit the owning module in place ([CC0d])                            | Add flags, shims, or “compat” paths to hide uncertainty |
+| Touching a large/overloaded file                           | Reduce it with `cleanup` before the feature edit ([LC0a])           | Grow the file or move code into a sibling ([LC0a])      |
 | Reuse needed across features                               | Add a domain-specific hook or service with intent-revealing name    | Add `*Utils/*Helper/*Common` grab bags                  |
 
 ### When adding a prop/method is allowed
@@ -40,11 +40,11 @@ If any bullet fails, create a new component/hook.
 
 ## Create-new-file checklist (before you write code)
 
-1. **Search/reuse first**: confirm a pattern doesn’t already exist ([FS1a]).
+1. **Search/reuse first**: confirm a pattern doesn’t already exist ([CC0d]).
 2. **Pick the correct layer** (app → feature → ui → lib).
 3. **Pick the correct directory** (feature-first, colocation).
-4. **Name by role** (ban generic names; suffix declares meaning like `*Card`, `*List`, `*Form`) ([ND1a]).
-5. **Keep the file small** (stay comfortably under 500 LOC; split by concept early) ([LOC1a]).
+4. **Name by role** (ban generic names; suffix declares meaning like `*Card`, `*List`, `*Form`) ([CC0g]).
+5. **Keep the file small** (stay comfortably under 500 LOC; split by concept early) ([LC0a]).
 6. **Verify** with repo-standard commands (`bun run lint`, `bun run type-check`).
 
 ## Repository structure and naming (placement is part of the contract)
@@ -75,5 +75,5 @@ A file contains either:
 
 ## Verification gates (do not skip)
 
-- LOC enforcement: `bun run check:file-size` reports violations ([LOC1c]).
-- Validation: `bun run validate` ([VR1a]).
+- LOC enforcement: `bun run check:file-size` reports violations ([LC1c]).
+- Validation: `bun run validate` ([VR1c]).

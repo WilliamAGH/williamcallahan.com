@@ -91,7 +91,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         );
       }
 
-      // Discover ranking is a required feature - propagate errors explicitly [RC1]
+      // Discover ranking is a required feature - propagate errors explicitly [RC0b]
       const { items: rankedBookmarks, totalCount: rankedTotal } = await getDiscoveryRankedBookmarks(
         page,
         limit,

@@ -12,7 +12,7 @@
 
 ## Pre-Flight Checklist
 
-- [ ] Read `docs/standards/code-change.md` before any edit [FS1a]
+- [ ] Read `docs/standards/code-change.md` before any edit [CC0d]
 - [ ] Confirm `bun run validate` passes on current `dev` branch before starting
 - [ ] Confirm PG 18 instance is accessible: `psql "postgres://...@167.234.219.57:5438/postgres?sslmode=require" -c "SELECT 1;"`
 - [ ] Extensions verified: vector 0.8.2, pg_trgm 1.6, unaccent 1.1, btree_gin 1.3, fuzzystrmatch 1.2, pg_stat_statements 1.12
@@ -117,7 +117,7 @@ git add src/lib/db/connection.ts drizzle.config.ts
 git commit -m "feat(db): add Drizzle connection and drizzle-kit config"
 ```
 
-**ENV Note [ENV1a]:** `DATABASE_URL` is a new required env var. Add to `.env-example` with placeholder. Value: `postgres://postgres:<password>@167.234.219.57:5438/postgres?sslmode=require`. Get explicit user approval before committing code that depends on it.
+**ENV Note [CC0i]:** `DATABASE_URL` is a new required env var. Add to `.env-example` with placeholder. Value: `postgres://postgres:<password>@167.234.219.57:5438/postgres?sslmode=require`. Get explicit user approval before committing code that depends on it.
 
 ---
 
@@ -1141,7 +1141,7 @@ bun run validate
 - [ ] `bun run type-check` passes [VR1d]
 - [ ] `bun run test` passes [VR1b]
 - [ ] `bun run build` succeeds [VR1a]
-- [ ] `bun run check:file-size` — no new files > 500 lines [LC1a]
+- [ ] `bun run check:file-size` — no new files > 500 lines [LC0a]
 - [ ] Bookmark runtime has no S3 dataset/index/slug/shard dependencies
 - [ ] Search index artifacts are read/written from PostgreSQL
 - [ ] GitHub activity runtime uses PostgreSQL for persisted state

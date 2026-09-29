@@ -31,7 +31,7 @@ async function getCspHashes(): Promise<{ scriptSrc: string[]; styleSrc: string[]
     const hashes = await import("../../../generated/csp-hashes.json");
     return hashes.default;
   } catch (error) {
-    // [RC1] Logged fallback: CSP still works via 'unsafe-inline', hashes are an enhancement
+    // Logged fallback: CSP still works via 'unsafe-inline', hashes are an enhancement
     console.warn("[CSP] Using fallback (no hashes). Expected on first build:", error);
     return CSP_HASHES_FALLBACK;
   }

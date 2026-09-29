@@ -1,7 +1,7 @@
 /**
  * Tests for Static Content Loaders
  *
- * Per [TST1d]: the static indexes are built from data that ships with the
+ * Per [TV0c]: the static indexes are built from data that ships with the
  * deploy, so each one must load once per process rather than on every search.
  *
  * @module __tests__/lib/search/loaders/static-content

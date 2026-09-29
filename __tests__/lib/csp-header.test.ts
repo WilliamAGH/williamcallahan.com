@@ -5,7 +5,7 @@
  * guarantee is the emitted Content-Security-Policy header built by `buildCspHeader()`. This suite asserts
  * on that output so CI fails if the served header drops the directives the blog MDX renderer requires —
  * the exact divergence (config keeps it, header drops it) that caused the 2026-06-29 /blog outage.
- * See [TST1f]: test observable output, not internal directive lists.
+ * See [TV0c]: test observable output, not internal directive lists.
  */
 
 import { buildCspHeader } from "@/lib/middleware/csp-header";
@@ -33,7 +33,7 @@ describe("buildCspHeader (emitted CSP header)", () => {
     const header = await buildCspHeader();
     const scriptSrc = getDirective(header, "script-src");
 
-    // Bind to the canonical owner ([SS1]): every source in CSP_DIRECTIVES.scriptSrc must appear in the
+    // Bind to the canonical owner ([SS0a]): every source in CSP_DIRECTIVES.scriptSrc must appear in the
     // served header. A regression that filters the list in the header builder (the original outage shape)
     // would drop one and fail here, and sources added to the canonical list are covered automatically.
     for (const source of CSP_DIRECTIVES.scriptSrc) {

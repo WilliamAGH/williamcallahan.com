@@ -5,118 +5,45 @@ alwaysApply: true
 
 Core standards:
 
-- Edit existing, never append (see [FS1a]); read `docs/standards/code-change.md` before any edit
-- Clean Code + DDD strictly enforced (see [CC1])
-- Rules live here; `docs/` expands rules with HOW/WHY and canonical contracts (<= 500 LOC each); see [ORG], [DOC1]
+- Global rules own every `[XX0]` family; this file only extends them with repository-specific `1` ids and never restates or loosens them
+- Read `docs/standards/code-change.md` before any edit
 
 # williamcallahan.com Agent Rules
 
 > **Next.js 16**: Middleware is `src/proxy.ts` (not `middleware.ts`). This file handles Clerk auth and request logging; CSP header construction is in `src/lib/middleware/csp-header.ts`.
 
-Structure: [ORG]; docs architecture: [DOC1]
-
 ---
 
 ## Foundational
 
-### [ZT1] Epistemic Humility & Verification
+### [CC1] Clean Code & DDD (extends [CC0])
 
-- [ZT1a] Training data is FALSE until verified (no "world knowledge"); verify all libraries via `package.json` versions, `node_modules/` sources, or `context7`; do not rely on memory, blog posts, or assumed version features
-- [ZT1b] Source of truth order: repo code/docs -> `package.json` versions -> `node_modules/` sources -> MCP/live docs (capture the URL/reference)
-- [ZT1c] No unsupported claims: cite `file:line` or doc path; if you cannot, stop and investigate before proceeding
-- [ZT1d] Zero-tolerance halt: if a violation is present (or would be introduced), stop, alert with specifics, and wait for instruction
-- [ZT1e] **Investigation Sequence** (mandatory for any problem): (1) read existing codebase first (`file:line`); (2) read `docs/*.md` directly; (3) inspect dependency source in `node_modules` or via `context7`; (4) form hypothesis and test; (5) confirm against docs/dependency code; (6) write code/docs citing all references — skip no steps
-- [ZT1f] No empty confirmations ("You're right", "Absolutely") before investigation; verify then cite evidence
-
-### [CC1] Clean Code & DDD
-
-- [CC1a] KISS: simplest solution that works; achieve by removing, not adding; use platform/framework defaults unless deviation is proven necessary
-- [CC1b] DRY: remove duplication; single sources of truth; extract shared logic; if code is repeated, refactor to one source
-- [CC1c] YAGNI: no speculative code; no dead code; solve today's problem only; new abstractions must earn reuse by removing real duplication
 - [CC1d] Clean Architecture: dependencies point inward; domain logic must not import from UI/framework layers; contract: `docs/standards/code-change.md`
-- [CC1e] Tracer bullet: build one tiny end-to-end slice through all layers first; validate it works; then expand — never build horizontal layers in isolation
 
-### [SS1] Single Semantic Owner (Blocking)
+### [MO1] Modularity & SRP (extends [CC0])
 
-- [SS1a] One semantic owner only: for any governed concept, exactly one file/module may define its field inventory, names, allowed keys, dependency graph, or behavior selection
-- [SS1b] No mirror owners anywhere: tests, fixtures, docs, examples, generators, hooks, components, route helpers, and schemas are NOT exempt; they must bind/import/project the canonical owner instead of restating it
-- [SS1c] Projection rule: every non-canonical location may only project the canonical owner with identical governed names; renaming governed fields in projections is prohibited
-- [SS1d] No alias surfaces: plural/singular variants, compatibility aliases, label-as-identifier flows, alternate display-name identifiers, and convenience transport names for a governed concept are prohibited
-- [SS1e] Canonical-key parity: catalog-backed request/query/schema fields MUST use the exact canonical key name; transport aliases and convenience plurals are prohibited
-- [SS1f] Stop-work trigger: if an implementation requires listing the same governed fields/keys/rules in a second place, stop and redesign before editing
-- [SS1g] No positional-null constructor sludge: constructor/factory calls with repeated placeholder nulls or low-legibility optional argument trains are prohibited; use named factories/builders, parameter objects, or bind/import the canonical owner
-- [SS1h] If a file "knows the whole list" of a governed concept and it is not the canonical owner, the design is presumed wrong and must be reduced or removed
-
-### [MO1] Modularity & SRP
-
-- [MO1a] No monoliths: avoid multi-concern files and catch-all modules
-- [MO1b] New work starts in new files (New feature -> New file); deliver one vertical slice end-to-end before adding the next; when touching a monolith (Bug fix -> Edit existing), extract at least one seam
-- [MO1c] If safe extraction impossible, halt and ask
 - [MO1d] Strict SRP: each unit serves one actor; separate logic that changes for different reasons
-- [MO1e] Boundary rule: cross-module interaction happens only through explicit, typed contracts; don't mix web/use-case/domain/persistence concerns in one unit
-- [MO1f] Extension (OCP): Add functionality via new classes/composition; do not modify stable code to add features; contract: `docs/standards/code-change.md`
-- [MO1g] One canonical type per domain concept: never overload files with unrelated types/schemas/interfaces; split by domain concept, not by convenience
 
 ---
 
 ## Blocking
 
-### [GT1] Git Safety (Blocking)
+### [GT1] Git Safety (extends [GT0])
 
-> **ABSOLUTE RULE**: ALL existing code is intentional user work. NEVER question this premise.
+- [GT1c] **Worktree at Inception**: Start each task in a dedicated worktree on a task branch unless the user declines; review and read-only tasks are exempt and stay on the current branch.
+- [GT1i] **Repository-Local Writes Only**: The working branch is `dev`; task commits merge into local `dev` ([GT0e]). NEVER commit or push from an unrelated clone, checkout, or directory copy of the repo.
 
-- [GT1a] **Code is Intentional**: ALL uncommitted changes AND UNTRACKED FILES are presumed intentional user work. NEVER revert, discard, delete, or reset them—even if they break the build. Fix the errors or ask; never delete.
-- [GT1b] **BANNED COMMANDS**: NEVER run: `git reset`, `git checkout .`, `git checkout <file>`, `git stash`, `git restore`, `git clean`, `git revert`, `git commit --amend`, `git rebase`, `git push --force`, `git push --force-with-lease`. This ban is ABSOLUTE.
-- [GT1c] **Worktree at Inception**: Start each task in a dedicated worktree on a task branch unless the user declines; review and read-only tasks are exempt and stay on the current branch. Never create branches beyond the task branch.
-- [GT1d] **Permission Required**: Git writes (commits, pushes) require explicit user permission. Read-only git commands (`status`, `log`, `diff`) are always allowed.
-- [GT1e] **Hook & Commit Integrity**: Never skip hooks (`--no-verify`, `HUSKY=0`); never delete `.git/index.lock`; no AI attribution; one logical change per commit; describe change + purpose.
-- [GT1f] If an unexpected file is staged or modified by hooks, pause and show the diff; do not attempt to "fix" it unprompted.
-- [GT1g] **No Panic About Working State**: Do not comment on or halt for unrelated uncommitted changes. Keep working on the requested task and do not bring up the git working state unless the user explicitly asks.
-- [GT1h] **No Halts For Unrelated Changes**: Never stop or pause work because you noticed unexpected or unrelated file changes; continue the task unless the user explicitly asks you to investigate.
-- [GT1i] **Repository-Local Writes Only**: All git writes run from this working tree or the task's dedicated worktree; task commits land in the worktree and merge (non-force) into local `dev` at task conclusion, then the worktree is removed. NEVER commit or push from an unrelated clone, checkout, or directory copy of the repo.
+### [LC1] Line Count Ceiling (extends [LC0])
 
-### [LC1] Line Count Ceiling (Blocking)
-
-- [LC1a] All written, non-generated source files in this repository MUST be <= 500 lines (`wc -l`)
-- [LC1b] SRP Enforcer: This 500-line "stick" forces modularity (DDD/SRP); > 500 lines = too many responsibilities (see [MO1d])
-- [LC1c] **Enforcement**: `bun run check:file-size` reports violations; `bun run validate:with-size` includes the check. Legacy files may exceed; new code MUST comply.
+- [LC1c] **Enforcement**: `bun run check:file-size` reports violations; `bun run validate:with-size` includes the check.
 - [LC1d] Exempt files: generated content (lockfiles, builds, artifacts)
 
-### [RC1] Root Cause Resolution (Blocking)
+### [TS1] Type Safety & Validation (extends [SS0])
 
-- [RC1a] No silent fallback/degradation paths: no `?? defaultValue` or `|| fallback` that masks errors; fail explicitly or log the fallback
-- [RC1b] No error swallowing: no empty catch blocks, no catch-and-ignore, no silent `try/catch` that hides failures
-- [RC1c] Investigate -> understand -> fix; no workarounds/shims/compat layers (fix at source or halt)
-- [RC1d] One real implementation: no shadow implementations behind flags to "hedge"; contract: `docs/standards/code-change.md`
-- [RC1e] BANNED slop indirection: no `*Adapter`, `*Transformer`, `*Normalizer`, `*Bridge`, `*Converter`, `*Mapper`, `*Compatibility`, `*Transition` modules that exist solely to reshape data between equivalent types; fix the type mismatch at source
-
-### [TS1] Type Safety & Validation (Blocking)
-
-- [TS1a] Type safety is absolute: no implicit `any`, no `any`, no unguarded `unknown`
-- [TS1b] Never use `@ts-ignore`, `eslint-disable`, or similar suppression to bypass correctness; fix the root cause
-- [TS1c] All external/IO data must be validated at the boundary (Zod schemas)
+- [TS1a] No implicit `any` and no unguarded `unknown`
+- [TS1c] All external/IO data must be validated at the boundary with Zod schemas
 - [TS1d] Never use type assertions without runtime checks; handle `null`/`undefined` explicitly
 - [TS1e] Zod schemas define types; use `z.infer<>` and do not duplicate schema-backed types manually; schemas in `types/schemas/`; import via `import { z } from "zod/v4";`
-- [TS1f] `bun run validate` must pass with 0 errors and 0 warnings before considering work complete
-
----
-
-## Code Quality
-
-### [FS1] File & Edit Discipline
-
-- [FS1a] Edit existing over append: search for the right location first; do not create new files unless necessary for the task goal
-- [FS1b] Before creating any file: search exhaustively -> analyze existing solutions -> confirm no extension path -> request explicit permission
-- [FS1c] Read the entire target file before editing; integrate changes with existing structure (don't blindly append)
-- [FS1d] No shims, barrels, or re-exports: no compatibility shims, no `index.ts` re-export barrels, no wrapper modules; import from source module directly
-- [FS1e] Efficiency mandate: nearly all edits should result in the same or fewer lines by removing duplication/redundant logic; contract: `docs/standards/code-change.md`
-
-### [UP1] Comprehensive Update Protocol
-
-- [UP1a] Any API/type/function change requires mapping _all_ usages first (imports, call sites, type references, tests, docs)
-- [UP1b] During the change, track and update every usage systematically; missing one usage is a correctness failure
-- [UP1c] After the change, audit for leftovers (search for old names/patterns) and run the verification loops
-- [UP1d] Final rule: an update is not complete until every usage has been updated and verified
 
 ---
 
@@ -137,30 +64,12 @@ Structure: [ORG]; docs architecture: [DOC1]
 - [DEP1c] If the deployed bundle does not match local, treat it as a Cloudflare cache issue first (purge or wait TTL)
 - [DEP1d] Do not proceed with deeper debugging until you confirm the deployed bundle is actually updated
 
-### [PL1] Polyfills & Global Patching
-
-- [PL1a] Do not introduce polyfill dependencies or global patching packages (e.g., `core-js`, `@babel/polyfill`, `node-fetch`) without explicit approval
-- [PL1b] Use native runtime APIs; if compatibility is required, use ponyfills (import-only) or feature detection—not global mutation
-- [PL1c] If you think a polyfill is required, stop and discuss alternatives before making changes
-
-### [BP1] Boilerplate Prohibition
-
-- [BP1a] Do not paste tutorial/boilerplate/template code. Code must follow this repo's existing patterns and be purpose-driven.
-- [BP1b] Forbidden: placeholder implementations (`// TODO: implement`), generic tutorial-y function names (`handleSubmit`, `processData`), placeholder text ("Lorem ipsum")
-- [BP1c] If boilerplate/example code is detected, stop and surface the exact `file:line` and required replacement action
-
 ### [RT1] Runtime Isolation: Database Scripts (Blocking)
 
 - [RT1a] **NEVER use bun to execute scripts that connect to PostgreSQL.** Bun's TLS implementation uses signature algorithms that the PostgreSQL server rejects (`could not accept SSL connection: no suitable signature algorithm`). This causes `CONNECT_TIMEOUT` failures that are NOT configuration issues — they are bun runtime limitations.
 - [RT1b] All database migration, backfill, and enrichment scripts MUST use `#!/usr/bin/env node` (NOT `#!/usr/bin/env bun`). Use the `*.node.mjs` file extension to signal Node execution.
 - [RT1c] The `postgres` npm package works correctly under Node.js with `ssl: "require"`. Do not attempt to "fix" bun's SSL by adding custom certificates, disabling SSL, or patching TLS options.
 - [RT1d] `bun run <script-name>` as a package.json task runner is fine (it just spawns the process). The prohibition is on bun as the **script runtime** for database-connecting code.
-
-### [ENV1] Environment Variable Policy
-
-- [ENV1a] Never introduce new required environment variables (including `NEXT_PUBLIC_*`) without explicit, repeated, affirmative consent
-- [ENV1b] No silent changes to `.env`, `.env-example`, CI/CD secrets, or runtime configs
-- [ENV1c] Approval workflow: document rationale and exact variable names; wait for a direct "yes" before committing code that depends on them
 
 ### [IMG1] Image Optimization (Blocking)
 
@@ -177,62 +86,32 @@ Structure: [ORG]; docs architecture: [DOC1]
 
 - [VR1a] Build via `bun run build` (or `bun run build:only` as appropriate)
 - [VR1b] Test via `bun run test` (or `test:watch`, `test:coverage`, `test:ci`, `test:smoke`); NEVER run `bun test` directly (bypasses Vitest config)
-- [VR1c] Lint/validate via `bun run validate` (canonical gate; run before and after non-trivial changes; must be clean; no bypass)
+- [VR1c] `bun run validate` (0 errors, 0 warnings) is the commit gate; the lefthook pre-push hook runs `bun run verify`, which covers it, so never run it between edits or repeat it ([TV0b])
 - [VR1d] Typecheck via `bun run type-check` (and `bun run type-check:tests` when relevant)
 - [VR1e] Format via `bun run format` and `bun run format:check`
 - [VR1f] Deployment readiness: use `bun run deploy:verify` and/or `bun run deploy:smoke-test`
-- [VR1g] Validate each slice: run `bun run validate` for every completed end-to-end slice ([CC1e]); independent slices may proceed in parallel, dependent slices stay serial — validation still gates each slice
-- [VR1h] Contract cleanup handoff must name the canonical owner, list each duplicate owner removed, prove that tests/fixtures now bind or import the canonical owner, and explicitly call out any remaining duplicate owner as a blocker
-- [VR1i] Watch every push's Actions run to a terminal verdict — one watcher per SHA, polls >= 60s; fix failures, commit, and push until green
-- [VR1j] Cheapest-lane ladder: answer each question on the cheapest lane that can answer it, climbing only when the lane below cannot — editor diagnostics or `bun run type-check` -> `bun run lint:checks` -> a scratch probe run with `bun` from a file kept outside the repo ([CP1a]) -> the running `bun run dev` server -> a committed test at the observable boundary ([TST1f]); only the last rung persists, and rungs below it are never committed
+- [VR1j] [TV0a] rungs here: editor diagnostics or `bun run type-check` -> `bun run lint:checks` -> `bun <scratchpad-file>.ts` -> the running `bun run dev` server -> a committed boundary test
 
 ### [TST1] Testing Protocols
 
 - [TST1a] Never run `bun test` directly. Always use `bun run test*` scripts so Vitest loads `config/vitest/`.
 - [TST1b] Direct `bun test` bypasses the project config and causes missing `vi.mock`, module resolution failures—treat this as a violation
 - [TST1c] Do not "fix" test issues by adding polyfills/downgrading Vitest; fix the setup/configuration correctly
-- [TST1d] Test coverage is mandatory: new functionality and significant modifications require a test at an observable boundary before task completion; when no boundary is reachable, ship no test and state that honest zero in the handoff — a manufactured assertion is worse than none
-- [TST1e] Discovery-first: before writing tests, locate existing test files (`__tests__/`, `*.test.ts`) and follow established patterns
-- [TST1f] Assert only at an observable boundary — rendered output, response body, returned value, computed style; never internal method calls, implementation details, or the source text of the artifact under test; refactor-resilient tests are required
-- [TST1g] `bun run verify` is the complete local browser-free gate. Browser verification is explicit via `bun run verify:browser` in GitHub CI; macOS Codex sessions must not run Playwright or another local browser process from any repo/worktree/tmp/scratch/private path.
-- [TST1h] Tautological tests are banned: never read the source, CSS, JSON, or config file whose behavior the test claims to prove and assert on that file's text (for example, asserting `src/app/globals.css` contains a dark-mode media query instead of asserting the computed style or rendered output). Sole carve-out: gates where the file's text is itself the governed surface, such as a generated manifest checked against its inputs. Deciding question before writing any test: would it fail under a plausible regression implemented with different text?
-- [TST1i] Probes are not tests: agent self-checks — including asserting the inverse of a mistake you just made — are ephemeral probes; run them, read the output, delete them before committing. Committed tests pin durable behavioral contracts only
-
-### [CP1] Task Completion Protocol
-
-- [CP1a] One completion protocol: verify the fix with concrete commands and checks; remove temporary files you created (temp files go in `/tmp`, never committed); commit in the task worktree; merge (non-force) into local `dev`; push; watch CI to a terminal verdict ([VR1i]); then run the [DEP1b] deployed-bundle verification
-- [CP1b] Terminal states are DONE or `BLOCKED: <exact user decision>` — report one of them, nothing else
-- [CP1c] GitHub issues are filed only for material defects or features (behavior, correctness, security, performance, data quality, or a governed contract); pedantic/nitpick/style-only findings are fixed in place or dropped, never filed; fixes and issue scope follow the minimalism bar — reuse before new code and simplify before completing — per the `ponytail` and `ce-simplify-code` skills
-
-### [LG1] Language Consistency
-
-- [LG1a] All code, comments, docs, and commit messages must use American English spelling
-- [LG1b] If British spelling is detected, correct it immediately
+- [TST1g] `bun run verify` is the complete local browser-free gate. Browser verification is explicit via `bun run verify:browser` in GitHub CI ([BR0b]).
 
 ---
 
 ## Meta
 
-### [ORG] Document Organization
+### [DOC1] Documentation Architecture (extends [DOC0])
 
-- [ORG1] Purpose: `AGENTS.md` is the enforcement surface and index; keep every critical rule referenceable by short hashes; `docs/agents/` must not exist
-- [ORG2] Structure: succinct hashed rules ordered by priority (Foundational -> Blocking -> Code Quality -> Domain-Specific -> Process & Tooling -> Meta); supporting `docs/` explain HOW/WHY (<= 500 LOC each)
-- [ORG3] Usage: cite hashes when giving guidance; add new hashes in logical order without renumbering
-- [ORG4] One Hash, One Rule: each `[XX#x]` bullet is a single, succinct rule statement
-- [ORG5] Directive language: rules use imperative/prohibitive phrasing ("do X", "no Y", "never Z"); avoid discretionary hedges ("prefer", "consider", "try to", "ideally", "when possible")
-
-### [DOC1] Documentation Architecture
-
-- [DOC1a] No doc barrels: do not create docs whose primary purpose is listing other docs. Every doc must be substantive.
-- [DOC1b] Prerequisite reading: when a workflow requires a doc to be read first, the rule MUST name the exact doc path
 - [DOC1c] When you create/delete/move/significantly change files, update: `docs/architecture/README.md`, `docs/file-map.md`, and the relevant `docs/features/[domain].md` or `docs/architecture/[domain].md`
-- [DOC1d] Verify changes do not violate documented architecture/patterns; fix stale docs immediately
 
 ### [APP] Reference Contracts
 
-- **Code Change Policy**: `docs/standards/code-change.md` ([LC1], [MO1], [FS1])
+- **Code Change Policy**: `docs/standards/code-change.md` ([CC1], [LC1], [MO1])
 - **Framework Evidence**: `docs/standards/nextjs-framework.md` ([FW1])
 - **Type Policy**: `docs/standards/type-policy.md` ([TS1])
-- **Testing Protocols**: `docs/standards/testing.md` ([TST1])
+- **Testing Protocols**: `docs/standards/testing.md` ([TST1], [VR1j])
 - **Deployment**: `docs/ops/verification.md` ([DEP1])
 - **Image Optimization Contract**: `docs/architecture/image-handling.md#image-optimization-decision-matrix` ([IMG1])

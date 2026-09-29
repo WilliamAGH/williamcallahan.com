@@ -112,7 +112,7 @@ function withScopeTimeout<T>(promise: Promise<T>, ms: number, scope: string): Pr
  *
  * @param query - The user's query text
  * @param options - Optional settings for max results and timeout
- * @returns Result object with search results and status metadata (per [RC1]: no silent degradation)
+ * @returns Result object with search results and status metadata (per [RC0b]: no silent degradation)
  */
 export async function retrieveRelevantContent(
   query: string,
