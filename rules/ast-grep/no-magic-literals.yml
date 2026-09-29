@@ -16,7 +16,7 @@
 id: no-magic-literals
 language: tsx
 severity: warning
-message: "Magic literal. Fix: if (x > 5) → const MAX = 5; if (x > MAX) | Docs: back-end/docs/api-contracts/universal-type-name-contracts.md#constants"
+message: "Magic literal. Fix: if (x > 5) → const MAX = 5; if (x > MAX)"
 
 rule:
   any:
