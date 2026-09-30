@@ -41,10 +41,6 @@ const SM_BREAKPOINT = 640;
 /** Tailwind xl breakpoint for responsive control sizing */
 const XL_BREAKPOINT = 1280;
 
-/** Regex capture group indices for SVG transform parsing */
-const TRANSFORM_NAME_GROUP = 1;
-const TRANSFORM_VALUE_GROUP = 2;
-
 /**
  * Extract language from className (e.g., "language-typescript" -> "typescript")
  * @param className - The CSS class string to parse
@@ -121,7 +117,6 @@ export const CodeBlock = ({
   // 64 => 16rem (256px), 72 => 18rem (288px), 80 => 20rem (320px)
 
   const language = extractLanguage(className);
-  const codeElementRef = useRef<HTMLElement | null>(null);
   const collapsibleRegionId = useId();
 
   // Add state for interactive behavior
@@ -193,26 +188,6 @@ export const CodeBlock = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMaximized, handleMaximize]); // Dependencies
-
-  // Effect for SVG transform fixes
-  useEffect(() => {
-    if (codeElementRef.current) {
-      // Ensure any SVG elements in code blocks have proper transforms
-      const svgs = codeElementRef.current.querySelectorAll("svg");
-      for (const svg of svgs) {
-        const transform = svg.getAttribute("transform");
-        if (transform && !transform.includes("(") && !transform.includes(")")) {
-          const match = transform.match(/^(\w+)(.+)$/);
-          if (match) {
-            svg.setAttribute(
-              "transform",
-              `${match[TRANSFORM_NAME_GROUP]}(${match[TRANSFORM_VALUE_GROUP]})`,
-            );
-          }
-        }
-      }
-    }
-  });
 
   // Extract the text content
   const content = Array.isArray(children)
@@ -383,9 +358,7 @@ export const CodeBlock = ({
               {isValidElement(children) ? (
                 children
               ) : (
-                <code ref={codeElementRef} className={className}>
-                  {displayContent}
-                </code>
+                <code className={className}>{displayContent}</code>
               )}
             </pre>
             {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
