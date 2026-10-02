@@ -2,7 +2,7 @@
  * Tests for Dynamic Content Loaders
  *
  * Verifies bookmark index building with fallback slug generation.
- * Per [TST1d]: Test coverage for behavioral changes in buildBookmarksIndex().
+ * Per [TV0c]: Test coverage for behavioral changes in buildBookmarksIndex().
  *
  * @module __tests__/lib/search/loaders/dynamic-content
  */

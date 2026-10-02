@@ -342,5 +342,3 @@ Replace dual-Image LQIP with Next.js native placeholder="blur",
 remove mounted state gate for SSR card rendering, and enable
 Next.js image optimization for /api/assets proxy URLs.
 ```
-
-Wait for user confirmation before committing.

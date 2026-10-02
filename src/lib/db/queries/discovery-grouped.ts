@@ -264,7 +264,7 @@ export async function getDiscoveryGroupedBookmarks(
   }
 
   // Parallelize initial metadata and data fetches to eliminate waterfall
-  // Signals are required for the Discover feed - failure propagates to the caller [RC1]
+  // Signals are required for the Discover feed - failure propagates to the caller [RC0b]
   const [engagementMap, taxonomyMaps, bookmarkRows] = await Promise.all([
     loadEngagementMap(),
     loadCanonicalTagMaps(),
@@ -314,7 +314,7 @@ export async function getDiscoveryGroupedBookmarks(
     offset + sectionsPerPage,
   );
 
-  // applySectionBlend is now a mandatory part of the pipeline - no catch block [RC1]
+  // applySectionBlend is now a mandatory part of the pipeline - no catch block [RC0b]
   const pagedSections = await applySectionBlend(pagedSectionsRaw);
 
   const hasNextSectionPage = offset + sectionsPerPage < totalSections;

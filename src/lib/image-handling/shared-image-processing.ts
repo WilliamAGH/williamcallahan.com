@@ -71,7 +71,7 @@ export async function processImageBuffer(
     // Process SVG with transform fixes
     const svgResult = await processSvgWithTransformFixes(buffer, logContext);
     if (svgResult.error) {
-      // [RC1a] Always log degradation - never mask errors with debug-only logging
+      // Always log degradation - never mask errors with debug-only logging
       console.warn(`[${logContext}] SVG transform processing failed: ${svgResult.error}`);
     }
     return {
@@ -103,7 +103,7 @@ export async function processImageBuffer(
       // Process SVG with transform fixes
       const svgResult = await processSvgWithTransformFixes(buffer, logContext);
       if (svgResult.error) {
-        // [RC1a] Always log degradation - never mask errors with debug-only logging
+        // Always log degradation - never mask errors with debug-only logging
         console.warn(`[${logContext}] SVG transform processing failed: ${svgResult.error}`);
       }
       return { processedBuffer: svgResult.buffer, isSvg: true, contentType: "image/svg+xml" };
@@ -127,7 +127,7 @@ export async function processImageBuffer(
       // Process SVG with transform fixes
       const svgResult = await processSvgWithTransformFixes(buffer, logContext);
       if (svgResult.error) {
-        // [RC1a] Always log degradation - never mask errors with debug-only logging
+        // Always log degradation - never mask errors with debug-only logging
         console.warn(`[${logContext}] SVG transform processing failed: ${svgResult.error}`);
       }
       return {

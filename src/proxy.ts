@@ -231,7 +231,7 @@ async function createProxy(): Promise<ProxyFunction> {
     const result = await clerkHandler(...args);
     if (result instanceof NextResponse) return result;
     if (result instanceof Response) return new NextResponse(result.body, result);
-    // Void result is never expected — surface as a hard failure ([RC1])
+    // Void result is never expected — surface as a hard failure ([RC0b])
     throw new Error("[Proxy] clerkMiddleware returned void; potential auth bypass");
   }) as ProxyFunction;
 }

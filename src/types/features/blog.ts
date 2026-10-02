@@ -189,7 +189,7 @@ export interface MDXContentProps {
 
 /**
  * Error thrown when a blog image cannot be resolved to an optimized CDN URL.
- * Per [RC1a], failures must throw rather than silently degrade.
+ * Per [RC0b], failures must throw rather than silently degrade.
  *
  * This surfaces at build time when sync-blog-cover-images.ts hasn't been run,
  * ensuring missing mappings are caught before production deployment.

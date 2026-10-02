@@ -31,7 +31,7 @@ component/unit-test workaround for an async page, layout, or Server Action flow.
 
 ## Observable Boundaries, Probes, and the Cheapest Lane
 
-### Assert at a boundary, or assert nothing ([TST1d], [TST1f])
+### Assert at a boundary, or assert nothing ([TV0c])
 
 A test earns its place only by asserting something a user or a caller can observe:
 
@@ -49,7 +49,7 @@ only at the Cloudflare edge, or only in an async server path Vitest cannot rende
 no test and say so in the handoff. An honest zero is a real result. A manufactured
 assertion is worse than none: it buys a green check and sells the next regression.
 
-### Tautological tests are banned ([TST1h])
+### Tautological tests are banned ([TV0c])
 
 A test that reads the file whose behavior it claims to prove, then asserts on that
 file's text, proves only that the file still contains the string it contains. Asserting
@@ -68,7 +68,7 @@ qualifies: it reads `data/blog/cover-image-map.json` because that manifest is th
 shipped contract, and it compares the manifest against MDX frontmatter rather than
 against itself.
 
-### Probes are not tests ([TST1i])
+### Probes are not tests ([TV0c])
 
 An agent checking its own work is running a probe, not writing a test. Probes include
 any assertion aimed at the inverse of a mistake just made — proof that this edit landed,
@@ -76,14 +76,14 @@ not proof that a contract holds. Run the probe, read the output, delete it befor
 committing. Only durable behavioral contracts get committed test files; a repository of
 probes is a repository of noise that future changes must keep green for no reason.
 
-### The cheapest-lane ladder ([VR1j])
+### The cheapest-lane ladder ([VR1j], [TV0a])
 
 Climb only when the rung below cannot answer the question:
 
 1. **Types** — editor diagnostics, or `bun run type-check` / `bun run type-check:tests`.
 2. **Lint** — `bun run lint:checks` (ast-grep rules via `bun run lint:ast-grep`).
 3. **Scratch probe** — a throwaway `.ts` file kept _outside_ the repo (the session
-   scratchpad or `/tmp`, per [CP1a]) and executed with `bun /tmp/probe.ts`. Bun runs
+   scratchpad, per [PX0h]) and executed with `bun <scratchpad>/probe.ts`. Bun runs
    TypeScript directly; import repo modules by absolute path, because the `@/` alias
    resolves through `tsconfig.json` and is unavailable from outside the repo.
 4. **Running app** — `bun run dev`, then exercise the real route.

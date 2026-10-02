@@ -39,7 +39,7 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         try {
           encoded = encoder.encode(formatSseEvent({ event, data }));
         } catch (serializationError) {
-          // Serialization failure (e.g. circular ref) — treat as terminal ([RC1])
+          // Serialization failure (e.g. circular ref) — treat as terminal ([RC0b])
           console.error(
             "[SSE] Failed to serialize event, closing stream:",
             event,
@@ -52,7 +52,7 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           controller.enqueue(encoded);
           return true;
         } catch (enqueueError) {
-          // Terminal: controller is broken, prevent further sends ([RC1])
+          // Terminal: controller is broken, prevent further sends ([RC0b])
           controllerClosed = true;
           const isClientDisconnect =
             enqueueError instanceof TypeError ||
@@ -79,7 +79,7 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
           if (isAlreadyClosed) {
             console.debug("[SSE] Stream already closed (race with abort handler)");
           } else {
-            // Unexpected close failure is a controller state bug ([RC1])
+            // Unexpected close failure is a controller state bug ([RC0b])
             console.error("[SSE] Unexpected stream close failure:", closeError);
           }
         }
@@ -181,7 +181,7 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
             })
           ) {
             // Controller is closed or broken — client will not receive
-            // this error. Log at error level for monitoring ([RC1]).
+            // this error. Log at error level for monitoring ([RC0b]).
             console.error("[SSE] Failed to deliver error event to client:", {
               error: responseError.message,
               status: responseError.status,

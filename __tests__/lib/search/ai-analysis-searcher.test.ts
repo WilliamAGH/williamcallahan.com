@@ -1,7 +1,7 @@
 /**
  * searchAiAnalysis blends parent relevance with analysis match quality.
  *
- * Per [TST1d]: both terms have to reach the blend on one scale. parent.score is
+ * Per [TV0c]: both terms have to reach the blend on one scale. parent.score is
  * a reciprocal-rank value capped at MAX_RECIPROCAL_RANK_SCORE (about 0.033),
  * while scoreAnalysisMatch adds up to 1.0 per matched text. Blending them raw
  * weighted the parent at under one percent and made the 0.4 weight decorative.

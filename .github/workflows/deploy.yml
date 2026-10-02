@@ -1,0 +1,214 @@
+name: Deploy
+
+# Publishes one linux/amd64 + linux/arm64 image per deployable and deploys it to
+# Dokploy by digest. dev deploys the web app to the development environment;
+# main deploys web and scheduler to production. docs/ops/deployment.md
+# "Multi-platform image pipeline" explains the design.
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A deploy in flight always finishes; a newer push waits and then ships the head.
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: registry.haiku.host
+
+jobs:
+  build:
+    name: Build ${{ matrix.image }} (${{ matrix.platform }})
+    # Native runner per platform: a Next.js build under QEMU is too slow.
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 60
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    # id-token lets the production web leg authenticate to Infisical over OIDC.
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: ${{ fromJSON(github.ref_name == 'main' && '["web","scheduler"]' || '["web"]') }}
+        platform: [linux/amd64, linux/arm64]
+    env:
+      IMAGE: registry.haiku.host/williamcallahan/williamcallahan-com-${{ matrix.image }}
+      DOCKERFILE: ${{ matrix.image == 'web' && 'Dockerfile' || 'scheduler/Dockerfile' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Production build secrets are Dokploy references to Infisical project
+      # williamcallahan-com/prod. The OIDC identity, bound to this repository's
+      # production environment, reads them with no stored credential.
+      - name: Load Infisical production secrets
+        if: matrix.image == 'web' && github.ref_name == 'main'
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
+        with:
+          method: oidc
+          identity-id: 5816c153-bc1f-4b51-a879-995bffba176b
+          domain: https://infisical.haiku.host
+          project-slug: williamcallahan-com-zo0a
+          env-slug: prod
+
+      # The web build reads the build arguments and BuildKit secrets stored on the
+      # Dokploy application it deploys to, the same values Dokploy's native
+      # build used. BASE_REGISTRY is skipped: the Dockerfile default is the CI
+      # base registry. An infisical-wc-prod reference resolves from the step
+      # above; any other vault reference fails the build.
+      - name: Read build configuration from Dokploy
+        id: build_config
+        if: matrix.image == 'web'
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
+        run: |
+          application="$(curl -fsS --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" \
+            "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}")"
+          secret_dir="${RUNNER_TEMP}/build-secrets"
+          mkdir -p "${secret_dir}"
+          build_args=""
+          secret_files=""
+          config_lines="$(jq -er '("buildArgs", "buildSecrets") as $kind | (.[$kind] // "") | split("\n")[] | "\($kind)\t\(.)"' <<<"${application}")"
+          while IFS=$'\t' read -r kind line; do
+            [[ -z "${line}" || "${line}" == \#* ]] && continue
+            key="${line%%=*}"
+            value="${line#*=}"
+            [[ "${key}" == BASE_REGISTRY ]] && continue
+            if [[ "${value}" =~ ^\$\{\{vault\.infisical-wc-prod\.([A-Za-z0-9_]+)\}\}$ ]]; then
+              vault_key="${BASH_REMATCH[1]}"
+              if [[ -z "${!vault_key+set}" ]]; then
+                echo "::error::${kind} ${key} references ${vault_key}, which Infisical did not provide"
+                exit 1
+              fi
+              value="${!vault_key}"
+            elif [[ "${value}" =~ ^\$\{\{vault\. ]]; then
+              echo "::error::${kind} ${key} is a Dokploy vault reference that CI cannot resolve"
+              exit 1
+            fi
+            echo "::add-mask::${value}"
+            if [[ "${kind}" == buildSecrets ]]; then
+              printf '%s' "${value}" > "${secret_dir}/${key}"
+              secret_files+="${key}=${secret_dir}/${key}"$'\n'
+            else
+              build_args+="${key}=${value}"$'\n'
+            fi
+          done <<<"${config_lines}"
+          {
+            echo "build_args<<BUILD_ARGS_EOF"
+            printf '%s' "${build_args}"
+            echo "BUILD_ARGS_EOF"
+            echo "secret_files<<SECRET_FILES_EOF"
+            printf '%s' "${secret_files}"
+            echo "SECRET_FILES_EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - uses: docker/setup-buildx-action@v4
+
+      # dockerhub.haiku.host serves the Dockerfile syntax and base images.
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - uses: docker/login-action@v4
+        with:
+          registry: dockerhub.haiku.host
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Name the platform
+        run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "${GITHUB_ENV}"
+        env:
+          PLATFORM: ${{ matrix.platform }}
+
+      # A path context keeps .git, which the web Dockerfile reads for the release id.
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          platforms: ${{ matrix.platform }}
+          build-args: ${{ steps.build_config.outputs.build_args }}
+          secret-files: ${{ steps.build_config.outputs.secret_files }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,scope=${{ matrix.image }}-${{ env.PLATFORM_PAIR }},mode=max
+
+      - name: Record the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish_and_deploy:
+    name: Publish and deploy ${{ matrix.image }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+      url: ${{ github.ref_name == 'main' && 'https://williamcallahan.com' || 'https://dev.williamcallahan.com' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(github.ref_name == 'main' && '["web","scheduler"]' || '["web"]') }}
+    env:
+      IMAGE: registry.haiku.host/williamcallahan/williamcallahan-com-${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.image }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Publish the multi-platform index
+        id: index
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          tag="${IMAGE}:${GITHUB_REF_NAME}-${GITHUB_SHA}"
+          sources=()
+          for platform_digest in *; do sources+=("${IMAGE}@sha256:${platform_digest}"); done
+          docker buildx imagetools create -t "${tag}" -t "${IMAGE}:${GITHUB_REF_NAME}" "${sources[@]}"
+          docker buildx imagetools inspect "${tag}"
+          digest="$(docker buildx imagetools inspect "${tag}" --format '{{json .Manifest}}' | jq -er '.digest')"
+          echo "image_ref=${IMAGE}:${GITHUB_REF_NAME}-${GITHUB_SHA}@${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Deploy the digest to Dokploy
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ matrix.image == 'web' && vars.DOKPLOY_APPLICATION_ID || vars.DOKPLOY_SCHEDULER_APPLICATION_ID }}
+          IMAGE_REF: ${{ steps.index.outputs.image_ref }}
+          SITE_URL: ${{ matrix.image == 'web' && (github.ref_name == 'main' && 'https://williamcallahan.com' || 'https://dev.williamcallahan.com') || '' }}
+        run: |
+          # The web image's release id is the short HEAD hash (Dockerfile builder stage).
+          bash scripts/dokploy-deploy-image.sh "${IMAGE_REF}" "${SITE_URL}" "$(git rev-parse --short HEAD)"

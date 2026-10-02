@@ -110,7 +110,7 @@ export async function getDiscoveryRankedBookmarks(
 
   const recencyDays = options.recencyDays;
 
-  // Engagement signals are required for discover ranking — propagate errors [RC1a]
+  // Engagement signals are required for discover ranking — propagate errors [RC0b]
   const engagementRows = await db
     .select({
       contentId: contentEngagement.contentId,

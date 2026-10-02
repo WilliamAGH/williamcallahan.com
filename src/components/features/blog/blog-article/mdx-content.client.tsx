@@ -230,7 +230,7 @@ const PreRenderer = (props: ComponentProps<"pre">) => {
 
 /**
  * Resolves a blog image path to its optimized source URL.
- * Throws BlogImageResolutionError if optimization fails ([RC1a] - no silent fallbacks).
+ * Throws BlogImageResolutionError if optimization fails ([RC0b] - no silent fallbacks).
  *
  * Resolution paths:
  * - Data URLs → passed through unchanged (already embedded)
@@ -309,7 +309,7 @@ const MdxImage = ({
     widthClass = "w-full sm:w-5/6 md:w-2/3 lg:w-1/2";
   }
 
-  // Resolve the image source to an optimized URL (throws on failure per [RC1a])
+  // Resolve the image source to an optimized URL (throws on failure per [RC0b])
   const resolvedSrc = resolveBlogImageSrc(src);
   const isDataUrl = src.startsWith("data:");
 

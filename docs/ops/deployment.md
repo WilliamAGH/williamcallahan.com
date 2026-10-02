@@ -113,6 +113,26 @@ docker buildx build --target node --build-arg BASE_REGISTRY=dockerhub.haiku.host
 docker run --rm williamcallahan-scheduler-node-runtime-check:24.18.0 node --version
 ```
 
+## Multi-platform image pipeline
+
+`.github/workflows/deploy.yml` publishes one `linux/amd64` + `linux/arm64` image index per
+deployable to `registry.haiku.host/williamcallahan/williamcallahan-com-{web,scheduler}` and
+deploys it to Dokploy by digest. Dokploy's native Dockerfile build emits a single-platform
+image, so ARM64 hosts need this publisher.
+
+- Each platform builds natively (`ubuntu-24.04`, `ubuntu-24.04-arm`) and pushes by digest;
+  `publish_and_deploy` joins the digests with `docker buildx imagetools create` and tags
+  `<branch>-<sha>` plus `<branch>`.
+- A push to `dev` deploys the web image to the GitHub `development` environment; a push to
+  `main` deploys web and scheduler to `production`. `DOKPLOY_APPLICATION_ID` (and, in
+  production, `DOKPLOY_SCHEDULER_APPLICATION_ID`) are GitHub environment variables.
+- The web build reads `buildArgs` and `buildSecrets` from the Dokploy application it deploys
+  to, so Dokploy stays their owner. CI cannot resolve `${{vault.*}}` references and fails on
+  them; production builds need an Infisical access path before `main` can use this pipeline.
+- `scripts/dokploy-deploy-image.sh` switches the application to `sourceType: docker` with the
+  exact `<tag>@<digest>` reference, deploys it, waits for the deployment row, then waits until
+  consecutive uncached requests all advertise `dpl=<short sha>`.
+
 ## Production Control Plane (Dokploy)
 
 Dokploy project `BMXTsKla8_lsB6n63EqFT`, production environment

@@ -3,7 +3,7 @@
  * @module lib/services/image/image-fetcher
  * @description
  * Functions for fetching images from URLs and processing them for S3 storage.
- * Extracted from unified-image-service for SRP compliance per [MO1d].
+ * Extracted from unified-image-service for SRP compliance per [CC0k].
  */
 
 import { getS3Client } from "@/lib/s3/client";

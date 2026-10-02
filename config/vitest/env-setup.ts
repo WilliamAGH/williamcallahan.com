@@ -48,7 +48,7 @@ if (!("markResourceTiming" in globalThis.performance)) {
 }
 
 // Note: Node.js 18+ provides TextEncoder, ReadableStream, fetch, etc. natively.
-// We do not polyfill them here to strictly follow [PL1] Anti-Polyfill mandate.
+// We do not polyfill them here to strictly follow [CC0b] no-polyfill rule.
 
 // Add required environment variables for tests
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/williamcallahan_test";

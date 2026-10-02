@@ -51,7 +51,7 @@ describe("Container graceful shutdown", () => {
   });
 
   // The Dockerfile CMD is the governed surface here and cannot be exercised without
-  // building the images, so assert it directly ([TST1h] generated-surface carve-out).
+  // building the images, so assert it directly.
   it("keeps the real program as PID 1 in both images", async () => {
     const [web, scheduler] = await Promise.all([
       readFile("Dockerfile", "utf8"),

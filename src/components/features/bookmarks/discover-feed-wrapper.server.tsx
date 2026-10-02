@@ -12,7 +12,7 @@ export async function DiscoverFeedWrapper({
   recencyDays,
 }: DiscoverFeedWrapperProps) {
   // Errors propagate to the nearest error boundary (src/app/bookmarks/error.tsx)
-  // which provides a retry button. No synthetic empty feed — [RC1a].
+  // which provides a retry button. No synthetic empty feed — [RC0b].
   const discoverData = await getDiscoveryGroupedBookmarks({
     sectionPage,
     sectionsPerPage,
