@@ -21,13 +21,14 @@ dokploy_get() {
   curl -fsS --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" "${api}/$1"
 }
 dokploy_post() {
-  curl -fsS --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" \
+  curl -sS --fail-with-body --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" \
     -H 'content-type: application/json' -X POST --data "$2" "${api}/$1"
 }
 
 application="$(dokploy_get "application.one?applicationId=${DOKPLOY_APPLICATION_ID}")"
 current_image="$(jq -r '.dockerImage // ""' <<<"${application}")"
 current_source="$(jq -r '.sourceType' <<<"${application}")"
+current_auto_deploy="$(jq -r '.autoDeploy' <<<"${application}")"
 echo "Dokploy application: sourceType=${current_source} dockerImage=${current_image:-<none>}"
 
 # For an image source Dokploy authenticates Swarm pulls with application-level
@@ -38,11 +39,12 @@ if ! jq -e '.registryId != null and .username == null and .password == null and 
   exit 1
 fi
 
-# The first run converts a native Git build to an image source; later runs only
-# swap the digest. expectedDockerImage rejects a concurrent writer.
-if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" ]]; then
+# The first run converts a native Git build to an image source and turns off the
+# Git push trigger, which would otherwise queue a second deployment per push;
+# later runs only swap the digest. expectedDockerImage rejects a concurrent writer.
+if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" || "${current_auto_deploy}" != "false" ]]; then
   update_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg expected "${current_image}" \
-    '{applicationId: $id, sourceType: "docker", dockerImage: $image}
+    '{applicationId: $id, sourceType: "docker", dockerImage: $image, autoDeploy: false}
      + (if $expected == "" then {} else {expectedDockerImage: $expected} end)')"
   dokploy_post application.update "${update_body}" >/dev/null
 fi
