@@ -21,13 +21,20 @@ dokploy_get() {
   curl -fsS --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" "${api}/$1"
 }
 dokploy_post() {
-  curl -sS --fail-with-body --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" \
-    -H 'content-type: application/json' -X POST --data "$2" "${api}/$1"
+  local response
+  if ! response="$(curl -sS --fail-with-body --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" \
+    -H 'content-type: application/json' -X POST --data "$2" "${api}/$1")"; then
+    # Only the error message: a full response body can echo application configuration.
+    echo "::error::Dokploy $1 failed: $(jq -r '.message // "no message"' <<<"${response}" 2>/dev/null || echo unparsable)" >&2
+    return 1
+  fi
+  printf '%s' "${response}"
 }
 
 application="$(dokploy_get "application.one?applicationId=${DOKPLOY_APPLICATION_ID}")"
 current_image="$(jq -r '.dockerImage // ""' <<<"${application}")"
 current_source="$(jq -r '.sourceType' <<<"${application}")"
+labels_swarm="$(jq -c '.labelsSwarm // {}' <<<"${application}")"
 current_auto_deploy="$(jq -r '.autoDeploy' <<<"${application}")"
 echo "Dokploy application: sourceType=${current_source} dockerImage=${current_image:-<none>}"
 
@@ -43,14 +50,17 @@ fi
 # Git push trigger, which would otherwise queue a second deployment per push;
 # later runs only swap the digest. expectedDockerImage rejects a concurrent writer.
 if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" || "${current_auto_deploy}" != "false" ]]; then
+  # Dokploy requires the expected image and labels together, with replacements.
   update_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg expected "${current_image}" \
+    --argjson labels "${labels_swarm}" \
     '{applicationId: $id, sourceType: "docker", dockerImage: $image, autoDeploy: false}
-     + (if $expected == "" then {} else {expectedDockerImage: $expected} end)')"
+     + (if $expected == "" then {} else {expectedDockerImage: $expected, expectedLabelsSwarm: $labels, labelsSwarm: $labels} end)')"
   dokploy_post application.update "${update_body}" >/dev/null
 fi
 
 deploy_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg key "${digest_hex}" \
-  '{applicationId: $id, expectedDockerImage: $image, idempotencyKey: $key}')"
+  --argjson labels "${labels_swarm}" \
+  '{applicationId: $id, expectedDockerImage: $image, expectedLabelsSwarm: $labels, idempotencyKey: $key}')"
 deployment_id="$(dokploy_post application.deploy "${deploy_body}" | jq -er '.deploymentId')"
 echo "Dokploy deployment ${deployment_id} submitted"
 
