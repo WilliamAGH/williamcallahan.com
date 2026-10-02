@@ -27,6 +27,10 @@ jobs:
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 60
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    # id-token lets the production web leg authenticate to Infisical over OIDC.
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: true
       matrix:
@@ -40,11 +44,24 @@ jobs:
         with:
           persist-credentials: false
 
+      # Production build secrets are Dokploy references to Infisical project
+      # williamcallahan-com/prod. The OIDC identity, bound to this repository's
+      # production environment, reads them with no stored credential.
+      - name: Load Infisical production secrets
+        if: matrix.image == 'web' && github.ref_name == 'main'
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
+        with:
+          method: oidc
+          identity-id: 5816c153-bc1f-4b51-a879-995bffba176b
+          domain: https://infisical.haiku.host
+          project-slug: williamcallahan-com-zo0a
+          env-slug: prod
+
       # The web build reads the build arguments and BuildKit secrets stored on the
       # Dokploy application it deploys to, the same values Dokploy's native
       # build used. BASE_REGISTRY is skipped: the Dockerfile default is the CI
-      # base registry. A vault reference fails the build because CI cannot
-      # resolve it.
+      # base registry. An infisical-wc-prod reference resolves from the step
+      # above; any other vault reference fails the build.
       - name: Read build configuration from Dokploy
         id: build_config
         if: matrix.image == 'web'
@@ -65,7 +82,14 @@ jobs:
             key="${line%%=*}"
             value="${line#*=}"
             [[ "${key}" == BASE_REGISTRY ]] && continue
-            if [[ "${value}" =~ ^\$\{\{vault\. ]]; then
+            if [[ "${value}" =~ ^\$\{\{vault\.infisical-wc-prod\.([A-Za-z0-9_]+)\}\}$ ]]; then
+              vault_key="${BASH_REMATCH[1]}"
+              if [[ -z "${!vault_key+set}" ]]; then
+                echo "::error::${kind} ${key} references ${vault_key}, which Infisical did not provide"
+                exit 1
+              fi
+              value="${!vault_key}"
+            elif [[ "${value}" =~ ^\$\{\{vault\. ]]; then
               echo "::error::${kind} ${key} is a Dokploy vault reference that CI cannot resolve"
               exit 1
             fi
