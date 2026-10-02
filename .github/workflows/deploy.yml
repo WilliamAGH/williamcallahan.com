@@ -59,6 +59,7 @@ jobs:
           mkdir -p "${secret_dir}"
           build_args=""
           secret_files=""
+          config_lines="$(jq -er '("buildArgs", "buildSecrets") as $kind | (.[$kind] // "") | split("\n")[] | "\($kind)\t\(.)"' <<<"${application}")"
           while IFS=$'\t' read -r kind line; do
             [[ -z "${line}" || "${line}" == \#* ]] && continue
             key="${line%%=*}"
@@ -75,7 +76,7 @@ jobs:
             else
               build_args+="${key}=${value}"$'\n'
             fi
-          done < <(jq -r '("buildArgs", "buildSecrets") as $kind | (.[$kind] // "") | split("\n")[] | "\($kind)\t\(.)"' <<<"${application}")
+          done <<<"${config_lines}"
           {
             echo "build_args<<BUILD_ARGS_EOF"
             printf '%s' "${build_args}"

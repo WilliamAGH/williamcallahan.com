@@ -47,7 +47,7 @@ echo "Dokploy deployment ${deployment_id} submitted"
 deadline=$((SECONDS + 600))
 while true; do
   status="$(dokploy_get "deployment.all?applicationId=${DOKPLOY_APPLICATION_ID}" |
-    jq -r --arg id "${deployment_id}" '.[] | select(.deploymentId == $id) | .status')"
+    jq -r --arg id "${deployment_id}" '.[] | select(.deploymentId == $id) | .status')" || status="unreadable"
   case "${status}" in
     done) break ;;
     error)
@@ -81,6 +81,7 @@ while ((streak < required_streak)); do
   else
     streak=0
   fi
+  ((streak >= required_streak)) && break
   if ((SECONDS >= deadline)); then
     echo "::error::${site_url} still serves '${served}', expected dpl=${expected_release_id}" >&2
     exit 1
