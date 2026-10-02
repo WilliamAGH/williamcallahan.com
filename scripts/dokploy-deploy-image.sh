@@ -99,7 +99,17 @@ while ((streak < required_streak)); do
   served="$(curl -fsS --connect-timeout 10 --max-time 30 -H 'cache-control: no-cache' \
     "${site_url%/}/?release-probe=${expected_release_id}-${SECONDS}" |
     grep -oE 'dpl=[A-Za-z0-9_-]+' | sort -u | tr '\n' ' ' || true)"
-  if [[ "${served}" == "dpl=${expected_release_id} " ]]; then
+  # The RSC flight payload can split a chunk URL at a flush boundary, leaving a
+  # truncated `dpl=` token; only a token that is not a prefix of the expected
+  # release marks an old replica.
+  converged=false
+  if [[ " ${served}" == *" dpl=${expected_release_id} "* ]]; then
+    converged=true
+    for token in ${served}; do
+      [[ "${expected_release_id}" == "${token#dpl=}"* ]] || converged=false
+    done
+  fi
+  if [[ "${converged}" == true ]]; then
     streak=$((streak + 1))
   else
     streak=0
