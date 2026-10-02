@@ -35,6 +35,9 @@ application="$(dokploy_get "application.one?applicationId=${DOKPLOY_APPLICATION_
 current_image="$(jq -r '.dockerImage // ""' <<<"${application}")"
 current_source="$(jq -r '.sourceType' <<<"${application}")"
 labels_swarm="$(jq -c '.labelsSwarm // {}' <<<"${application}")"
+# Dokploy resolves ${DOKPLOY_SOURCE_REVISION} only for Git sources and refuses it on an image deploy.
+target_labels="$(jq -c --arg sha "${GITHUB_SHA:?}" \
+  'with_entries(if .value == "${DOKPLOY_SOURCE_REVISION}" then .value = $sha else . end)' <<<"${labels_swarm}")"
 current_auto_deploy="$(jq -r '.autoDeploy' <<<"${application}")"
 echo "Dokploy application: sourceType=${current_source} dockerImage=${current_image:-<none>}"
 
@@ -52,14 +55,14 @@ fi
 if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" || "${current_auto_deploy}" != "false" ]]; then
   # Dokploy requires the expected image and labels together, with replacements.
   update_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg expected "${current_image}" \
-    --argjson labels "${labels_swarm}" \
-    '{applicationId: $id, sourceType: "docker", dockerImage: $image, autoDeploy: false}
-     + (if $expected == "" then {} else {expectedDockerImage: $expected, expectedLabelsSwarm: $labels, labelsSwarm: $labels} end)')"
+    --argjson labels "${labels_swarm}" --argjson target "${target_labels}" \
+    '{applicationId: $id, sourceType: "docker", dockerImage: $image, autoDeploy: false, labelsSwarm: $target}
+     + (if $expected == "" then {} else {expectedDockerImage: $expected, expectedLabelsSwarm: $labels} end)')"
   dokploy_post application.update "${update_body}" >/dev/null
 fi
 
 deploy_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg key "${digest_hex}" \
-  --argjson labels "${labels_swarm}" \
+  --argjson labels "${target_labels}" \
   '{applicationId: $id, expectedDockerImage: $image, expectedLabelsSwarm: $labels, idempotencyKey: $key}')"
 deployment_id="$(dokploy_post application.deploy "${deploy_body}" | jq -er '.deploymentId')"
 echo "Dokploy deployment ${deployment_id} submitted"
