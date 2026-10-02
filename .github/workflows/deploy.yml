@@ -101,6 +101,15 @@ jobs:
               build_args+="${key}=${value}"$'\n'
             fi
           done <<<"${config_lines}"
+          # INTERNAL_DATABASE_HOST is the tailnet route the production runtime uses;
+          # a GitHub-hosted runner is off the tailnet, so the build reaches the same
+          # database through the public listener named in DATABASE_URL.
+          if [[ -f "${secret_dir}/INTERNAL_DATABASE_HOST" && -f "${secret_dir}/DATABASE_URL" ]]; then
+            node -e 'const u = new URL(require("fs").readFileSync(process.argv[1], "utf8").trim());
+              require("fs").writeFileSync(process.argv[2], u.hostname);
+              require("fs").writeFileSync(process.argv[3], u.port || "5432");' \
+              "${secret_dir}/DATABASE_URL" "${secret_dir}/INTERNAL_DATABASE_HOST" "${secret_dir}/INTERNAL_DATABASE_PORT"
+          fi
           {
             echo "build_args<<BUILD_ARGS_EOF"
             printf '%s' "${build_args}"
