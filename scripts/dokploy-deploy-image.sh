@@ -30,6 +30,14 @@ current_image="$(jq -r '.dockerImage // ""' <<<"${application}")"
 current_source="$(jq -r '.sourceType' <<<"${application}")"
 echo "Dokploy application: sourceType=${current_source} dockerImage=${current_image:-<none>}"
 
+# For an image source Dokploy authenticates Swarm pulls with application-level
+# username/password/registryUrl when set and only otherwise with registryId.
+# Every node must pull through the attached registry record.
+if ! jq -e '.registryId != null and .username == null and .password == null and .registryUrl == null' <<<"${application}" >/dev/null; then
+  echo "::error::Dokploy application must pull through registryId with no application-level registry credentials" >&2
+  exit 1
+fi
+
 # The first run converts a native Git build to an image source; later runs only
 # swap the digest. expectedDockerImage rejects a concurrent writer.
 if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" ]]; then
