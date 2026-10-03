@@ -174,7 +174,7 @@ Our pipeline now recognizes this explicitly:
 - `fetchContributorStats` performs a configurable retry loop (env vars `GITHUB_STATS_PENDING_MAX_ATTEMPTS`, `GITHUB_STATS_PENDING_DELAY_MS`).
   - If the endpoint keeps returning 202 after the configured attempts it throws `GitHubContributorStatsPendingError`.
 - The repo-processing batch marks the repository status as `pending_202_from_api` (instead of `fetch_error`).
-  - This allows the refresh job to reuse any existing PostgreSQL repository-weekly record and keep partial data flowing.
+  - This allows the refresh job to reuse any existing PostgreSQL repository-weekly record and keep partial data flowing. When every incomplete repo is pending 202 with no failures, the refresh instead preserves the prior activity/summary/aggregate and surfaces to the scheduler as a successful no-op (no Sentry report).
 - `detectAndRepairCsvFiles` treats 202 as informational and defers repair until the next run.
 
 This guarantees that a temporary 202 cannot derail the entire refresh while still ensuring that new data is picked up automatically on subsequent cycles.
