@@ -40,23 +40,17 @@ import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { Book } from "@/types/schemas/book";
 import type { BookPageProps } from "@/types/features/books";
 
-async function getBookBySlug(
-  slug: string,
-  options?: { includeBlurPlaceholders?: boolean },
-): Promise<{ book: Book | null; isFallback: boolean }> {
-  const includeBlurPlaceholders = options?.includeBlurPlaceholders ?? false;
+async function getBookBySlug(slug: string): Promise<{ book: Book | null; isFallback: boolean }> {
   const directId = extractBookIdFromSlug(slug);
 
   if (directId) {
-    const byIdResult = await fetchBookByIdWithFallback(directId, {
-      includeBlurPlaceholder: includeBlurPlaceholders,
-    });
+    const byIdResult = await fetchBookByIdWithFallback(directId);
     if (byIdResult.book) {
       return { book: byIdResult.book, isFallback: byIdResult.isFallback };
     }
   }
 
-  const result = await fetchBooksWithFallback({ includeBlurPlaceholders });
+  const result = await fetchBooksWithFallback();
   const book = findBookBySlug(slug, result.books);
   return { book, isFallback: result.isFallback };
 }
@@ -77,7 +71,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { "book-slug": slug } = await Promise.resolve(params);
   const path = `/books/${slug}`;
-  const { book } = await getBookBySlug(slug, { includeBlurPlaceholders: false });
+  const { book } = await getBookBySlug(slug);
 
   if (!book) {
     return {
@@ -141,7 +135,7 @@ export async function generateMetadata({
 
 export default async function BookPage({ params }: BookPageProps) {
   const { "book-slug": slug } = await Promise.resolve(params);
-  const { book, isFallback } = await getBookBySlug(slug, { includeBlurPlaceholders: true });
+  const { book, isFallback } = await getBookBySlug(slug);
 
   if (!book) {
     return notFound();
