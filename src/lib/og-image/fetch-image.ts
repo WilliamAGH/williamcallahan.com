@@ -52,12 +52,19 @@ export async function openPixelBoundedImage(buffer: Buffer) {
   return image;
 }
 
+/** The box an image renders into; layouts draw every fetched image with `objectFit: "cover"`. */
+export interface OgImageBox {
+  width: number;
+  height: number;
+}
+
 /**
- * Fetch an image URL and convert it to a base64 PNG data URL.
+ * Fetch an image URL and convert it to a base64 PNG data URL cropped to its render box.
+ * Encoding the full-resolution source can push Satori's SVG past librsvg's 10 MB XML parse limit.
  * Returns null when an upstream image is unavailable and throws ImagePixelLimitError when the
  * decoded image crosses the bounded client-input ceiling.
  */
-export async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+export async function fetchImageAsDataUrl(url: string, box: OgImageBox): Promise<string | null> {
   try {
     const absoluteUrl = ensureAbsoluteUrl(url);
     const response = await fetch(absoluteUrl, {
@@ -105,7 +112,10 @@ export async function fetchImageAsDataUrl(url: string): Promise<string | null> {
 
     const buffer = Buffer.concat(chunks);
     const image = await openPixelBoundedImage(buffer);
-    const pngBuffer = await image.png().toBuffer();
+    const pngBuffer = await image
+      .resize({ width: box.width, height: box.height, fit: "cover", withoutEnlargement: true })
+      .png()
+      .toBuffer();
     const base64 = pngBuffer.toString("base64");
     return `data:image/png;base64,${base64}`;
   } catch (error) {

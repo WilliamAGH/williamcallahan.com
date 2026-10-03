@@ -6,6 +6,7 @@
  * URL resolution with the canonical server base, and redirect safety.
  */
 
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchImageAsDataUrl,
@@ -19,6 +20,8 @@ import { openGraphUrlSchema } from "@/types/schemas/url";
 vi.mock("@/lib/utils/get-base-url", () => ({
   getBaseUrl: vi.fn(() => "https://williamcallahan.com"),
 }));
+
+const COVER_BOX = { width: 420, height: 500 };
 
 beforeEach(() => {
   vi.mocked(getBaseUrl).mockReturnValue("https://williamcallahan.com");
@@ -126,13 +129,30 @@ describe("fetchImageAsDataUrl", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(fetchImageAsDataUrl("https://example.com/cover.png")).resolves.toMatch(
+    await expect(fetchImageAsDataUrl("https://example.com/cover.png", COVER_BOX)).resolves.toMatch(
       /^data:image\/png;base64,/,
     );
     expect(fetchMock).toHaveBeenCalledWith(
       "https://example.com/cover.png",
       expect.objectContaining({ redirect: "error" }),
     );
+  });
+
+  it("encodes a high-resolution photo at its render box, not its source size", async () => {
+    const noise = Buffer.alloc(2400 * 1800 * 3);
+    for (let index = 0; index < noise.length; index++) noise[index] = Math.random() * 256;
+    const photo = await sharp(noise, { raw: { width: 2400, height: 1800, channels: 3 } })
+      .jpeg({ quality: 60 })
+      .toBuffer();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(photo, { headers: { "content-type": "image/jpeg" } })),
+    );
+
+    const dataUrl = await fetchImageAsDataUrl("https://example.com/photo.jpg", COVER_BOX);
+    const encoded = Buffer.from(dataUrl?.split(",")[1] ?? "", "base64");
+
+    await expect(sharp(encoded).metadata()).resolves.toMatchObject(COVER_BOX);
   });
 
   it("preserves the typed pixel-limit rejection across the fetch boundary", async () => {
@@ -148,9 +168,9 @@ describe("fetchImageAsDataUrl", () => {
       ),
     );
 
-    await expect(fetchImageAsDataUrl("https://example.com/large.svg")).rejects.toBeInstanceOf(
-      ImagePixelLimitError,
-    );
+    await expect(
+      fetchImageAsDataUrl("https://example.com/large.svg", COVER_BOX),
+    ).rejects.toBeInstanceOf(ImagePixelLimitError);
   });
 });
 

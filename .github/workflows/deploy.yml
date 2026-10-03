@@ -170,7 +170,8 @@ jobs:
     name: Publish and deploy ${{ matrix.image }}
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Dokploy completion budget (25m) plus the web release-convergence probe (15m).
+    timeout-minutes: 45
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || 'development' }}
       url: ${{ github.ref_name == 'main' && 'https://williamcallahan.com' || 'https://dev.williamcallahan.com' }}

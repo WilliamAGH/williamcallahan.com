@@ -67,7 +67,11 @@ deploy_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_
 deployment_id="$(dokploy_post application.deploy "${deploy_body}" | jq -er '.deploymentId')"
 echo "Dokploy deployment ${deployment_id} submitted"
 
-deadline=$((SECONDS + 600))
+# Dokploy reports `done` only after Swarm's start-first update converges. The
+# scheduler's new task turns healthy only after its entrypoint bootstrap (the
+# 15-minute HEALTHCHECK start period in scheduler/Dockerfile), followed by the
+# 180-second update monitor; those deploys finish at about 16 minutes.
+deadline=$((SECONDS + 1500))
 while true; do
   status="$(dokploy_get "deployment.all?applicationId=${DOKPLOY_APPLICATION_ID}" |
     jq -r --arg id "${deployment_id}" '.[] | select(.deploymentId == $id) | .status')" || status="unreadable"
@@ -79,7 +83,7 @@ while true; do
       ;;
   esac
   if ((SECONDS >= deadline)); then
-    echo "::error::Dokploy deployment ${deployment_id} did not finish in 10 minutes (status=${status:-missing})" >&2
+    echo "::error::Dokploy deployment ${deployment_id} did not finish in 25 minutes (status=${status:-missing})" >&2
     exit 1
   fi
   sleep 5
