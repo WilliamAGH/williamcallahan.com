@@ -32,25 +32,6 @@ export type ProjectCardClientProps = ProjectCardProps & {
   onClick?: (project: Project) => void;
 };
 
-// Type extension
-export type ProjectCardServerProps = ProjectCardProps & {
-  serverConfig?: {
-    optimizeImages?: boolean;
-    lazyLoad?: boolean;
-  };
-};
-
-// Use base component props
-export type ProjectsListProps = import("../ui").BaseComponentProps & {
-  projects: Project[];
-  columns?: number;
-};
-
-// Type extension with partial pagination
-export type ProjectsListServerProps = ProjectsListProps & {
-  pagination?: Partial<import("../component-types").PaginationProps>;
-};
-
 // Use generic WindowProps
 export type ProjectsWindowProps = import("../component-types").WindowProps<{ projects: Project[] }>;
 
