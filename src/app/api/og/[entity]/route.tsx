@@ -45,6 +45,12 @@ import { renderTextLayout } from "@/lib/og-image/layouts/text-layout";
  * @see docs/standards/nextjs-framework.md for framework runtime guarantees
  */
 
+const COVER_BOX = { width: OG_LAYOUT.coverImageWidth, height: OG_LAYOUT.coverImageHeight };
+const SCREENSHOT_BOX = {
+  width: OG_LAYOUT.screenshotImageWidth,
+  height: OG_LAYOUT.screenshotImageHeight,
+};
+
 function decodePayload(
   payload: string,
 ): { success: true; params: Record<string, string> } | { success: false; message: string } {
@@ -88,25 +94,29 @@ async function renderEntity(
   switch (entity) {
     case "books": {
       const parsed = ogBookParamsSchema.parse(params);
-      const coverDataUrl = parsed.coverUrl ? await fetchImageAsDataUrl(parsed.coverUrl) : null;
+      const coverDataUrl = parsed.coverUrl
+        ? await fetchImageAsDataUrl(parsed.coverUrl, COVER_BOX)
+        : null;
       return renderBookLayout({ ...parsed, coverDataUrl });
     }
     case "bookmarks": {
       const parsed = ogBookmarkParamsSchema.parse(params);
       const screenshotDataUrl = parsed.screenshotUrl
-        ? await fetchImageAsDataUrl(parsed.screenshotUrl)
+        ? await fetchImageAsDataUrl(parsed.screenshotUrl, SCREENSHOT_BOX)
         : null;
       return renderBookmarkLayout({ ...parsed, screenshotDataUrl });
     }
     case "blog": {
       const parsed = ogBlogParamsSchema.parse(params);
-      const coverDataUrl = parsed.coverUrl ? await fetchImageAsDataUrl(parsed.coverUrl) : null;
+      const coverDataUrl = parsed.coverUrl
+        ? await fetchImageAsDataUrl(parsed.coverUrl, COVER_BOX)
+        : null;
       return renderBlogLayout({ ...parsed, coverDataUrl });
     }
     case "projects": {
       const parsed = ogProjectParamsSchema.parse(params);
       const screenshotDataUrl = parsed.screenshotUrl
-        ? await fetchImageAsDataUrl(parsed.screenshotUrl)
+        ? await fetchImageAsDataUrl(parsed.screenshotUrl, SCREENSHOT_BOX)
         : null;
       return renderProjectLayout({ ...parsed, screenshotDataUrl });
     }

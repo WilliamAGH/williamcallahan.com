@@ -312,7 +312,7 @@ Page generateMetadata() -> buildOgImageUrl(entity, params)
 ### Modules
 
 - **`lib/og-image/security.ts`**: SSRF protection (host blocking, protocol restriction)
-- **`lib/og-image/fetch-image.ts`**: Image fetch with size/pixel/timeout limits, sharp PNG conversion
+- **`lib/og-image/fetch-image.ts`**: Image fetch with size/pixel/timeout limits, sharp PNG conversion cropped to the layout render box (keeps the Satori SVG under librsvg's 10 MB XML limit)
 - **`lib/og-image/design-tokens.ts`**: Shared colors, typography, and layout dimensions
 - **`lib/og-image/build-og-url.ts`**: Type-safe URL builder for page metadata
 - **`lib/og-image/layouts/`**: Per-entity JSX renderers (book, bookmark, blog, project, text)
