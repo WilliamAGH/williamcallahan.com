@@ -92,7 +92,6 @@ The SelectionView component implements a modal navigation system similar to term
 
 ### Performance Optimizations
 
-- **Lazy Loading**: Search module loads on-demand to keep initial bundle small
 - **Event Listener Management**: Keyboard listeners are properly scoped and cleaned up
 - **Memoization**: Heavy computations cached to prevent unnecessary recalculations
 - **Efficient DOM Updates**: Minimal re-renders through careful state management
