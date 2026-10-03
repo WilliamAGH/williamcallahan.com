@@ -3,9 +3,6 @@
  */
 
 import type { Accelerator } from "./schemas/accelerator";
-import type { Logo } from "./logo";
-
-import type { JSX } from "react";
 
 /**
  * Financial metrics for an investment
@@ -76,15 +73,6 @@ export interface Investment {
   }[];
   /** Additional metadata for the investment */
   // metadata?: InvestmentMetadata;
-}
-
-/**
- * Props for the ThemeWrapper client component.
- */
-export interface ThemeWrapperProps {
-  investment: Investment;
-  logoData: Logo;
-  renderedMetrics: JSX.Element;
 }
 
 /** Investment URL validation result with detailed checks */
