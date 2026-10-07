@@ -10,7 +10,6 @@ import { getMonotonicTime } from "@/lib/utils";
 
 class AsyncOperationsMonitor {
   private operations: Map<string, MonitoredAsyncOperation> = new Map();
-  private timeouts: Map<string, NodeJS.Timeout> = new Map();
   private readonly maxOperations = 1000; // Prevent unbounded growth
   private cleanupInterval: NodeJS.Timeout | null = null;
   private sequenceCounter = 0;
@@ -57,7 +56,6 @@ class AsyncOperationsMonitor {
       const duration = operation.endTime - operation.startTime;
       console.log(`[AsyncMonitor] Operation "${operation.name}" completed in ${duration}ms`);
     }
-    this.clearTimeout(id);
   }
 
   /**
@@ -81,7 +79,6 @@ class AsyncOperationsMonitor {
         );
       }
     }
-    this.clearTimeout(id);
   }
 
   /**
@@ -93,17 +90,6 @@ class AsyncOperationsMonitor {
     this.sequenceCounter = (this.sequenceCounter + 1) % Number.MAX_SAFE_INTEGER;
     const counterSegment = this.sequenceCounter.toString(36);
     return `op-${timestamp}-${counterSegment}`;
-  }
-
-  /**
-   * Clear a timeout
-   */
-  private clearTimeout(id: string): void {
-    const timeout = this.timeouts.get(id);
-    if (timeout) {
-      clearTimeout(timeout);
-      this.timeouts.delete(id);
-    }
   }
 
   /**
@@ -222,32 +208,8 @@ class AsyncOperationsMonitor {
       this.cleanupInterval = null;
     }
 
-    // Clear all timeouts
-    for (const timeout of this.timeouts.values()) {
-      clearTimeout(timeout);
-    }
-    this.timeouts.clear();
-
     // Clear all operations
     this.operations.clear();
-  }
-
-  /**
-   * Get health status (alias for getSummary for compatibility)
-   */
-  getHealthStatus(): {
-    activeOperations: number;
-    completedOperations: number;
-    failedOperations: number;
-    totalOperations: number;
-  } {
-    const summary = this.getSummary();
-    return {
-      activeOperations: summary.pending,
-      completedOperations: summary.completed,
-      failedOperations: summary.failed + summary.timeout,
-      totalOperations: summary.total,
-    };
   }
 }
 
@@ -311,39 +273,6 @@ export async function monitoredAsync<T>(
     }
     throw error;
   }
-}
-
-/**
- * Create a non-blocking async operation that won't prevent server startup
- */
-export function nonBlockingAsync<T>(
-  id: string,
-  name: string,
-  operation: () => Promise<T>,
-  options: {
-    timeoutMs?: number;
-    metadata?: Record<string, unknown>;
-    onError?: (error: Error) => void;
-  } = {},
-): void {
-  // Use setImmediate to ensure this doesn't block the event loop
-  setImmediate(() => {
-    // Handle the promise without making the callback async
-    monitoredAsync(id, name, operation, {
-      timeoutMs: options.timeoutMs,
-      metadata: options.metadata,
-    }).catch((error) => {
-      const err = error instanceof Error ? error : new Error(String(error));
-      if (options.onError) {
-        options.onError(err);
-      } else {
-        const isPrerenderAbort = err.message.includes("During prerendering, fetch() rejects");
-        if (!isPrerenderAbort) {
-          console.error(`[AsyncMonitor] Non-blocking operation "${name}" failed:`, err);
-        }
-      }
-    });
-  });
 }
 
 // Periodically clean up completed operations to prevent memory leak.
