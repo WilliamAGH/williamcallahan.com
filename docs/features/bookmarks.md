@@ -344,7 +344,7 @@ Background population belongs to the scheduler container. The web entrypoint onl
 
 ```bash
 # Force data update
-bun run update-data -- --bookmarks --force
+pnpm run update-data -- --bookmarks --force
 
 # Check status
 curl http://localhost:3000/api/bookmarks/diagnostics

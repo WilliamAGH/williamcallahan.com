@@ -14,12 +14,12 @@
 }}%%
 graph TD
     subgraph "Development Workflow"
-        A[Code Change] --> B{bun run validate};
+        A[Code Change] --> B{pnpm run validate};
         B -- Fails --> C{Analyze Error};
         B -- Passes --> D[✅ Commit Ready];
     end
 
-    subgraph "Validation Pipeline (bun run validate)"
+    subgraph "Validation Pipeline (pnpm run validate)"
         Validate_Pipe[Start] --> Tool1[Biome Check];
         Tool1 --> Tool2[ESLint Type-Aware Linting];
         Tool2 --> Tool3[TypeScript Compiler (tsc --noEmit)];

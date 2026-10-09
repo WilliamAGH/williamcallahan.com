@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 import type { SmokeTestEndpointOptions, TestResult } from "@/types/scripts";
 import { BLOG_RENDER_CANARIES } from "@/config/blog-render-canaries";
 import { bookmarkDiagnosticsResponseSchema, healthResponseSchema } from "@/types/schemas/api";
@@ -329,7 +329,7 @@ if (import.meta.main) {
   const options = parseSmokeTestArguments(process.argv.slice(2));
   if (options === undefined) {
     console.error(
-      "Usage: bun scripts/smoke-test-production.ts <base-url> [auth-token] [--expected-release-id=<id>]",
+      "Usage: tsx scripts/smoke-test-production.ts <base-url> [auth-token] [--expected-release-id=<id>]",
     );
     process.exit(1);
   }

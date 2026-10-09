@@ -254,7 +254,7 @@ function resolveBlogImageSrc(src: string): string {
     }
     throw new BlogImageResolutionError(
       src,
-      `Missing CDN mapping. Run: bun scripts/sync-blog-cover-images.ts`,
+      `Missing CDN mapping. Run: tsx scripts/sync-blog-cover-images.ts`,
     );
   }
 

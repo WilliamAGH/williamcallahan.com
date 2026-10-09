@@ -2,6 +2,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { PHASE_PRODUCTION_SERVER } from "next/constants";
 import type { RemotePattern } from "next/dist/shared/lib/image-config";
 import packageJson from "./package.json" with { type: "json" };
@@ -179,6 +180,17 @@ function createNextConfig(releaseId: string | null) {
         headers: PUBLIC_ASSET_CACHE_HEADERS,
       }));
     },
+    // `next build --webpack`: Turbopack runs webpack loaders (Sentry's, @svgr) only on files inside the
+    // project, and pnpm's global virtual store sits outside it.
+    webpack: (webpackConfig, { nextRuntime }) => {
+      webpackConfig.module.rules.push({ test: /\.svg$/i, use: ["@svgr/webpack"] });
+      if (nextRuntime === "edge" || nextRuntime === undefined) {
+        webpackConfig.resolve.alias["@opentelemetry/api"] = path.resolve(
+          "src/lib/edge-polyfills/opentelemetry.ts",
+        );
+      }
+      return webpackConfig;
+    },
     turbopack: {
       rules: { "*.svg": { loaders: ["@svgr/webpack"], as: "*.js" } },
       resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],
@@ -213,7 +225,13 @@ function createNextConfig(releaseId: string | null) {
     reactStrictMode: true,
     productionBrowserSourceMaps: false,
     cacheComponents: true,
-    serverExternalPackages: ["@chroma-core/default-embed", "chromadb"],
+    serverExternalPackages: [
+      "@chroma-core/default-embed",
+      "chromadb",
+      "image-js",
+      "epub2",
+      "systeminformation",
+    ],
     experimental: {
       taint: true,
       serverMinification: process.env.NODE_ENV === "production",
@@ -286,6 +304,9 @@ function createSentryWebpackPluginOptions(releaseId: string | null) {
     authToken: process.env.SENTRY_AUTH_TOKEN,
     useRunAfterProductionCompileHook: false,
     applicationKey: "williamcallahan-com",
+    // The webpack build would wrap every server component in a Sentry scope whose UUID
+    // breaks cacheComponents prerendering; Turbopack builds never wrapped them.
+    autoInstrumentAppDirectory: false,
     ...(releaseId ? { release: { name: releaseId, deploy: { env: process.env.NODE_ENV } } } : {}),
     dryRun: process.env.NODE_ENV === "development",
     ...(process.env.NODE_ENV === "development"

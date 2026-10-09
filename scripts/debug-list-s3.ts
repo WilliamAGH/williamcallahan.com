@@ -3,10 +3,10 @@
  *
  * Usage:
  *   # List root of bucket
- *   DRY_RUN=false bun run debug:list-s3
+ *   DRY_RUN=false pnpm run debug:list-s3
  *
  *   # List a specific prefix
- *   DRY_RUN=false bun run debug:list-s3 images/other/blog-posts/
+ *   DRY_RUN=false pnpm run debug:list-s3 images/other/blog-posts/
  */
 
 import "dotenv/config";

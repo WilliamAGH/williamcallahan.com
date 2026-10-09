@@ -28,7 +28,7 @@ async function testIdempotency() {
     const existingMapping = await loadSlugMapping();
     if (!existingMapping) {
       console.error("❌ No existing slug mapping found!");
-      console.log("   Run 'bun run data-updater --bookmarks' first");
+      console.log("   Run 'pnpm run update-data -- --bookmarks' first");
       process.exit(1);
     }
     console.log(`✅ Loaded mapping with ${existingMapping.count} entries`);

@@ -7,7 +7,7 @@
  * fields (findMyBookUrl, amazonUrl, etc.) merged during generation.
  *
  * To add enrichment for a book, set the optional URL/text fields.
- * Run `bun scripts/generate-books.ts` to regenerate the S3 dataset.
+ * Run `tsx scripts/generate-books.ts` to regenerate the S3 dataset.
  */
 
 import type { BookRegistryEntry } from "@/types/schemas/book";

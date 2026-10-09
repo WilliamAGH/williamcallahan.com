@@ -4,10 +4,10 @@
 
 ## Core Mandate
 
-This project enforces **100% strict TypeScript type safety** with zero exceptions. All code must pass `bun run validate` with zero errors and warnings.
+This project enforces **100% strict TypeScript type safety** with zero exceptions. All code must pass `pnpm run validate` with zero errors and warnings.
 
 ```bash
-bun run validate  # Golden rule - runs Biome, ESLint, and tsc
+pnpm run validate  # Golden rule - runs Biome, ESLint, and tsc
 ```
 
 ## Forbidden Practices

@@ -26,7 +26,7 @@ done
 After the rollout has converged, run the existing production smoke command:
 
 ```bash
-bun run deploy:smoke-test -- <base-url> [auth-token] [--expected-release-id=<id>]
+pnpm run deploy:smoke-test -- <base-url> [auth-token] [--expected-release-id=<id>]
 ```
 
 `scripts/smoke-test-production.ts` imports the two canonical entries from
@@ -121,8 +121,8 @@ For a Cache Rules change, preview the declarative
 reviewing the diff:
 
 ```bash
-bun run deploy:cf-cache-rules:dry-run
-bun run deploy:cf-cache-rules
+pnpm run deploy:cf-cache-rules:dry-run
+pnpm run deploy:cf-cache-rules
 ```
 
 The commands require `CF_ZONE_ID` and the preferred `CF_API_TOKEN`; the global-key fallback
@@ -160,7 +160,7 @@ and only updates when the dependency version changes.
 2. Check the latest registry version:
    - `npm_config_cache=/tmp/npm-cache npm view baseline-browser-mapping version`
 3. If newer, update the override version in `package.json`, then run:
-   - `bun install`
+   - `pnpm install`
 
 ### Current suppression
 

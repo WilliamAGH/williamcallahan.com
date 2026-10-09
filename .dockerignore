@@ -1,0 +1,3 @@
+# The build installs dependencies itself; host installs link into machine-local stores.
+node_modules
+.worktrees

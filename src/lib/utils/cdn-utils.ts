@@ -128,7 +128,7 @@ export function getBlogPostImageCdnUrl(src: string): string | undefined {
   if (!s3Key) {
     if (!warnedMissingBlogCoverEntries.has(baseName)) {
       console.warn(
-        `[cdn-utils] Missing blog cover manifest entry for "${src}". Run "bun scripts/sync-blog-cover-images.ts".`,
+        `[cdn-utils] Missing blog cover manifest entry for "${src}". Run "tsx scripts/sync-blog-cover-images.ts".`,
       );
       warnedMissingBlogCoverEntries.add(baseName);
     }
