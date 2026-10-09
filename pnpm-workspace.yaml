@@ -27,5 +27,9 @@ overrides:
 # entries whose declarations import them.
 packageExtensions:
   "@eslint/config-helpers": { peerDependencies: { eslint: "*" } }
+  "@react-pdf/renderer": { peerDependencies: { "@types/react": "*" } }
   "@testing-library/jest-dom": { peerDependencies: { vitest: "*" } }
+  lucide-react: { peerDependencies: { "@types/react": "*" } }
+  next: { peerDependencies: { "@types/react": "*", "@types/react-dom": "*" } }
+  next-themes: { peerDependencies: { "@types/react": "*", "@types/react-dom": "*" } }
   eslint-plugin-oxlint: { peerDependencies: { eslint: "*" } }
