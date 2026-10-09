@@ -24,15 +24,15 @@ jobs:
         with:
           node-version-file: package.json
           package-manager-cache: false
-      - uses: oven-sh/setup-bun@v2
+      - run: corepack enable
       - name: Install ripgrep
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends ripgrep=14.1.0-1
           rg --version
-      - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
-      - run: bun run verify:browser
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run verify:browser
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v7

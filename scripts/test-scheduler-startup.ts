@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 
 /**
  * Minimal test to verify scheduler can start
@@ -10,7 +10,6 @@ export const schedulerStartupScriptModule = true as const; // Mark module for to
 console.log("[TEST] Starting scheduler startup test...");
 console.log("[TEST] Current directory:", process.cwd());
 console.log("[TEST] Node version:", process.version);
-console.log("[TEST] Bun version:", process.versions.bun || "N/A");
 
 // Test 1: Can we load the environment loader?
 try {

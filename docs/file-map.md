@@ -469,7 +469,6 @@ File/Path Functionality Description
   - [x] `og-image.ts` `opengraph` - Zod schemas for OG image entity types, per-entity params, and layout props
   - [x] `related-content.ts` `search` - Zod schemas for related content debug params and content types
 - [ ] **global/**
-  - [x] `bun-test-globals.d.ts` `testing-config` - Global type definitions for Bun tests
   - [x] `matchers.d.ts` `testing-config` - Custom matcher type definitions
   - [x] `window.d.ts` `state-theme-window-providers` - Augmentations for the global `Window` object
 - [x] **seo/**
@@ -540,8 +539,9 @@ File/Path Functionality Description
 - [x] `.cursorrules` `config` - Cursor AI configuration
 - [x] `.env-example` `config` - Example environment variables
 - [x] `.gitignore` `config` - Git ignore file
-- [x] `.github/workflows/verification.yml` `testing-config` - GitHub PR-to-main verification gate; installs Chromium, runs `bun run verify:browser`, and uploads failed Playwright artifacts
-- [x] `bun.lock` `deps` - Bun lockfile
+- [x] `.github/workflows/verification.yml` `testing-config` - GitHub PR-to-main verification gate; installs Chromium, runs `pnpm run verify:browser`, and uploads failed Playwright artifacts
+- [x] `pnpm-lock.yaml` `deps` - pnpm lockfile
+- [x] `pnpm-workspace.yaml` `deps` - pnpm settings: allowed install scripts, overrides, package extensions
 - [x] `components.json` `config` - ShadCN UI component configuration
 - [x] `Dockerfile` `deployment` - Web image build with one release identity for Next build IDs and `dpl` asset cache keys
 - [x] `drizzle/0002_bookmark-scraped-content-text.sql` `data-access` - Migration adding `bookmarks.scraped_content_text` for normalized crawled content
@@ -657,7 +657,6 @@ File/Path Functionality Description
 
 ## Scripts Directory
 
-- [x] `bun-test-wrapper.sh` `testing-config` - Wrapper for running Bun tests
 - [x] `check-duplicate-types.ts` `linting-formatting` - Deterministic build-time check for globally unique type/interface/enum names
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
@@ -679,9 +678,6 @@ File/Path Functionality Description
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
 - [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `scheduler/data-updater.ts`
 - [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
-- [x] `run-bun-tests.sh` `testing-config` - Script to run Bun tests
-- [x] `run-tests.sh` `testing-config` - Script to run all tests
-- [x] `setup-test-alias.sh` `testing-config` - Script to set up test aliases
 - [x] `smoke-test-production.ts` `deployment` - Production route, blog-render, release-identity, and Cloudflare cache smoke checks
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
@@ -852,7 +848,6 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
     - [x] `update-data.smoke.test.ts` `batch-fetch-update` - Data updater smoke tests
   - [x] **setup/**
-    - [x] `bun-setup.ts` `testing-config` - Bun test environment setup
 - [x] `tsconfig.json` `testing-config` - TypeScript config for Vitest tests
 
 ## Mocks Directory

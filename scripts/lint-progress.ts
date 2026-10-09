@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 
 /**
  * Lint Progress Tracker
@@ -34,7 +34,7 @@ function extractStdout(error: unknown): string {
 function runLintCheck(): string {
   try {
     // Run ESLint and capture output
-    const output = execSync("bun run lint:es 2>&1", {
+    const output = execSync("pnpm run lint:es 2>&1", {
       encoding: "utf-8",
       stdio: "pipe",
     }).toString();
@@ -178,8 +178,8 @@ function formatOutput(current: LintStats, previous?: LintStats): void {
     console.log("\n🎉 Congratulations! All linting issues have been resolved!");
   } else {
     console.log(`\n💡 Tips for fixing issues:`);
-    console.log(`   • Run 'bun run lint:es' to see all issues`);
-    console.log(`   • Run 'bun run lint:errors' to see only errors`);
+    console.log(`   • Run 'pnpm run lint:es' to see all issues`);
+    console.log(`   • Run 'pnpm run lint:errors' to see only errors`);
     console.log(`   • Most warnings are safe to fix gradually`);
     console.log(`   • Focus on errors first, then warnings`);
   }

@@ -120,7 +120,7 @@ async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedConte
       } else if (r.coverImage.startsWith("/")) {
         // Local path without manifest entry — data integrity gap, not a runtime fallback
         console.warn(
-          `[content-hydration] Blog cover "${r.coverImage}" missing from CDN manifest for post ${r.id}. Run "bun scripts/sync-blog-cover-images.ts".`,
+          `[content-hydration] Blog cover "${r.coverImage}" missing from CDN manifest for post ${r.id}. Run "tsx scripts/sync-blog-cover-images.ts".`,
         );
         imageUrl = r.coverImage;
       } else {

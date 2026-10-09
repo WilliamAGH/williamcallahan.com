@@ -10,10 +10,10 @@ A personal website monorepo featuring a terminal-inspired UI, semantic search, a
 
 ```bash
 # Install dependencies
-bun install
+pnpm install
 
 # Start development server
-bun dev
+pnpm dev
 ```
 
 ### Docker Deployment

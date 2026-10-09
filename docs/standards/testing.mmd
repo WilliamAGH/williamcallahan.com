@@ -1,8 +1,7 @@
 graph TD
     subgraph "I. Test Runner"
         direction LR
-        A1(bun run test) --> A2(✅ Vitest Runner)
-        A3(bun test) --> A4(❌ Bypasses Vitest Config)
+        A1(pnpm run test) --> A2(✅ Vitest Runner)
     end
 
     subgraph "II. Config"
@@ -25,7 +24,7 @@ graph TD
     end
 
     subgraph "V. CI/CD"
-        E1[bun run validate]
+        E1[pnpm run validate]
         E2[Test Results]
         E3[Coverage Reports]
     end

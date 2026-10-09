@@ -9,8 +9,8 @@
  */
 
 // Debug mode is opt-in via either an environment variable or a CLI flag
-//  • `DEBUG=true bun …`
-//  • `bun dev --debug`
+//  • `DEBUG=true pnpm …`
+//  • `pnpm dev --debug`
 const runtimeProcess =
   typeof globalThis === "object" && "process" in globalThis ? globalThis.process : undefined;
 const hasDebugFlag =

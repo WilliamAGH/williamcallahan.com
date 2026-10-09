@@ -50,7 +50,7 @@ Components:
 
 - Health: No specific endpoints, relies on UnifiedImageService health
 - Tests: None found for education domain specifically
-- Ops: `bun run validate` for type checking
+- Ops: `pnpm run validate` for type checking
 
 ## Related Documentation
 

@@ -199,10 +199,6 @@ describe("LogoImage Conditional Rendering", () => {
     beforeEach(() => {
       // Don't use fake timers for this test - fetch is called synchronously on error
       // and waitFor needs real timers to work properly
-      if (typeof global.fetch !== "function") {
-        // @ts-expect-error - fetch mock
-        global.fetch = () => Promise.resolve({ ok: true } as Response);
-      }
       fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({ ok: true } as Response);
     });
 

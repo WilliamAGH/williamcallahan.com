@@ -136,7 +136,7 @@ graph TD
 
 ## Runtime Isolation [RT1]
 
-All database migration, backfill, and enrichment scripts MUST run under **Node.js** (not bun). Bun's TLS implementation fails SSL negotiation with PostgreSQL (`could not accept SSL connection: no suitable signature algorithm`). These scripts use `#!/usr/bin/env node` and the `*.node.mjs` extension. See `CLAUDE.md [RT1]` for the full policy.
+All database migration, backfill, and enrichment scripts MUST run under **Node.js**. Bun's TLS implementation fails SSL negotiation with PostgreSQL (`could not accept SSL connection: no suitable signature algorithm`). These scripts use `#!/usr/bin/env node` and the `*.node.mjs` extension. See `CLAUDE.md [RT1]` for the full policy.
 
 ## Security and Type Safety
 
