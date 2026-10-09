@@ -69,7 +69,7 @@ RUN mkdir -p generated/bookmarks
 #    project's postinstall step so the CSP hashes file exists for tooling that imports it.
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     --mount=type=cache,id=corepack-${TARGETARCH},target=/root/.cache/node/corepack \
-    pnpm install --frozen-lockfile --ignore-scripts \
+    pnpm_config_virtual_store_type=project pnpm install --frozen-lockfile --ignore-scripts \
     && pnpm exec tsx scripts/init-csp-hashes.ts
 
 # ---------- Build stage (production build) ----------

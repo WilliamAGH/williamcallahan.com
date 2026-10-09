@@ -6,7 +6,7 @@
  * PostgreSQL-backed diagnostics for bookmark data integrity.
  *
  * Usage:
- *   pnpm run scripts/bookmark-diagnostics.ts [command]
+ *   tsx scripts/bookmark-diagnostics.ts [command]
  *
  * Commands:
  *   counts     - Check bookmark counts and pagination (default)

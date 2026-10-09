@@ -22,7 +22,7 @@
  * pnpm run validate-opengraph
  *
  * # Via package.json script (recommended)
- * pnpm run scripts/validate-opengraph-clear-cache.ts
+ * tsx scripts/validate-opengraph-clear-cache.ts
  * ```
  *
  * **Important Notes:**

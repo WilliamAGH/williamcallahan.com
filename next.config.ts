@@ -2,12 +2,24 @@ import { withSentryConfig } from "@sentry/nextjs";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { PHASE_PRODUCTION_SERVER } from "next/constants";
 import type { RemotePattern } from "next/dist/shared/lib/image-config";
 import packageJson from "./package.json" with { type: "json" };
 import { parseS3Endpoint } from "./src/types/schemas/s3-config";
 
 const VALID_DEPLOYMENT_ID = /^[A-Za-z0-9_-]+$/;
+
+// pnpm's global virtual store sits outside the project; Turbopack follows a node_modules
+// symlink out of the project only into a configured root (aventure-enrich apps/web/next.config.mjs).
+const pnpmVirtualStoreDir = path.resolve(
+  "node_modules",
+  (JSON.parse(readFileSync("node_modules/.modules.yaml", "utf8")) as { virtualStoreDir: string })
+    .virtualStoreDir,
+);
+const pnpmVirtualStoreIsExternal = path
+  .relative(process.cwd(), pnpmVirtualStoreDir)
+  .startsWith("..");
 
 function requireUrlSafeReleaseId(value: string, source: string): string {
   if (!VALID_DEPLOYMENT_ID.test(value)) {
@@ -215,6 +227,9 @@ function createNextConfig(releaseId: string | null) {
     cacheComponents: true,
     serverExternalPackages: ["@chroma-core/default-embed", "chromadb"],
     experimental: {
+      ...(pnpmVirtualStoreIsExternal
+        ? { turbopackAdditionalRoots: { pnpmVirtualStore: { path: pnpmVirtualStoreDir } } }
+        : {}),
       taint: true,
       serverMinification: process.env.NODE_ENV === "production",
       proxyClientMaxBodySize: "100mb",
