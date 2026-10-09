@@ -73,40 +73,38 @@ vi.mock("../../../../src/lib/context/global-window-registry-context.client", () 
   // Functions defined above
   return {
     GlobalWindowRegistryProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    useWindowRegistry: vi.fn(
-      (): Partial<GlobalWindowRegistryContextType> => ({
-        windows: {
-          "main-terminal": {
-            id: "main-terminal",
-            state: mockWindowState,
-            icon: MockIcon,
-            title: "Terminal",
-          },
+    useWindowRegistry: vi.fn((): Partial<GlobalWindowRegistryContextType> => ({
+      windows: {
+        "main-terminal": {
+          id: "main-terminal",
+          state: mockWindowState,
+          icon: MockIcon,
+          title: "Terminal",
         },
-        registerWindow: vi.fn(),
-        unregisterWindow: vi.fn(),
-        setWindowState: vi.fn((id: string, state: WindowStateValue) => {
-          if (id === "main-terminal") setMockState(state);
-        }),
-        minimizeWindow: vi.fn((id: string) => {
-          if (id === "main-terminal") minimizeMock();
-        }),
-        maximizeWindow: vi.fn((id: string) => {
-          if (id === "main-terminal") maximizeMock();
-        }),
-        closeWindow: vi.fn((id: string) => {
-          if (id === "main-terminal") closeMock();
-        }),
-        restoreWindow: vi.fn((id: string) => {
-          if (id === "main-terminal") restoreMock();
-        }),
-        getWindowState: vi.fn((id: string) =>
-          id === "main-terminal"
-            ? { id: "main-terminal", state: mockWindowState, icon: MockIcon, title: "Terminal" }
-            : undefined,
-        ),
+      },
+      registerWindow: vi.fn(),
+      unregisterWindow: vi.fn(),
+      setWindowState: vi.fn((id: string, state: WindowStateValue) => {
+        if (id === "main-terminal") setMockState(state);
       }),
-    ),
+      minimizeWindow: vi.fn((id: string) => {
+        if (id === "main-terminal") minimizeMock();
+      }),
+      maximizeWindow: vi.fn((id: string) => {
+        if (id === "main-terminal") maximizeMock();
+      }),
+      closeWindow: vi.fn((id: string) => {
+        if (id === "main-terminal") closeMock();
+      }),
+      restoreWindow: vi.fn((id: string) => {
+        if (id === "main-terminal") restoreMock();
+      }),
+      getWindowState: vi.fn((id: string) =>
+        id === "main-terminal"
+          ? { id: "main-terminal", state: mockWindowState, icon: MockIcon, title: "Terminal" }
+          : undefined,
+      ),
+    })),
     useRegisteredWindowState: vi.fn(), // Mock the hook used by the component
   };
 });

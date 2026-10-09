@@ -1,7 +1,6 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "paths": {
       "@/data/*": ["../data/*"],
       "@/config/*": ["../config/*"],
@@ -28,8 +27,7 @@
     "strictNullChecks": false,
     "noUncheckedIndexedAccess": false,
     "strict": true,
-    "skipLibCheck": true,
-    "ignoreDeprecations": "5.0"
+    "skipLibCheck": true
   },
   "include": [
     "../next-env.d.ts",

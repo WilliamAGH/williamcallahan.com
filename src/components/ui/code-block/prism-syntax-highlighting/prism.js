@@ -62,7 +62,7 @@ var _self =
             }
           },
           getLanguage: function (e) {
-            for (; e; ) {
+            for (; e;) {
               var t = n.exec(e.className);
               if (t) return t[1].toLowerCase();
               e = e.parentElement;
@@ -89,7 +89,7 @@ var _self =
             }
           },
           isActive: function (e, n, t) {
-            for (var r = "no-" + n; e; ) {
+            for (var r = "no-" + n; e;) {
               var a = e.classList;
               if (a.contains(n)) return !0;
               if (a.contains(r)) return !1;
@@ -153,7 +153,7 @@ var _self =
           (a.hooks.run("before-highlightall", r),
             (r.elements = Array.prototype.slice.apply(r.container.querySelectorAll(r.selector))),
             a.hooks.run("before-all-elements-highlight", r));
-          for (var i, l = 0; (i = r.elements[l++]); ) a.highlightElement(i, !0 === n, r.callback);
+          for (var i, l = 0; (i = r.elements[l++]);) a.highlightElement(i, !0 === n, r.callback);
         },
         highlightElement: function (n, t, r) {
           var i = a.util.getLanguage(n),
@@ -212,7 +212,7 @@ var _self =
             u(a, a.head, e),
             o(e, a, n, a.head, 0),
             (function (e) {
-              for (var n = [], t = e.head.next; t !== e.tail; ) (n.push(t.value), (t = t.next));
+              for (var n = [], t = e.head.next; t !== e.tail;) (n.push(t.value), (t = t.next));
               return n;
             })(a)
           );
@@ -225,7 +225,7 @@ var _self =
           },
           run: function (e, n) {
             var t = a.hooks.all[e];
-            if (t && t.length) for (var r, i = 0; (r = t[i++]); ) r(n);
+            if (t && t.length) for (var r, i = 0; (r = t[i++]);) r(n);
           },
         },
         Token: i,
@@ -273,7 +273,7 @@ var _self =
                   var L = E.index,
                     O = E.index + E[0].length,
                     C = A;
-                  for (C += w.value.length; L >= C; ) C += (w = w.next).value.length;
+                  for (C += w.value.length; L >= C;) C += (w = w.next).value.length;
                   if (((A = C -= w.value.length), w.value instanceof i)) continue;
                   for (var j = w; j !== n.tail && (C < O || "string" == typeof j.value); j = j.next)
                     (S++, (C += j.value.length));
