@@ -164,6 +164,25 @@ export const baggageEntryMetadataFromString = (str: string) => ({
   toString: () => str,
 });
 
+// OpenTelemetry instrumentations bundled for the webpack client/edge builds import this.
+const noopInstrument = {
+  add: () => {},
+  record: () => {},
+  addCallback: () => {},
+  removeCallback: () => {},
+};
+export const createNoopMeter = () => ({
+  createCounter: () => noopInstrument,
+  createUpDownCounter: () => noopInstrument,
+  createHistogram: () => noopInstrument,
+  createGauge: () => noopInstrument,
+  createObservableCounter: () => noopInstrument,
+  createObservableUpDownCounter: () => noopInstrument,
+  createObservableGauge: () => noopInstrument,
+  addBatchObservableCallback: () => {},
+  removeBatchObservableCallback: () => {},
+});
+
 // DiagLogLevel enum that Sentry expects
 export const DiagLogLevel = {
   NONE: 0,
