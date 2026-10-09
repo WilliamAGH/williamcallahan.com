@@ -46,6 +46,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # native binary, so its cache id carries the target architecture.
 FROM node AS base
 RUN corepack enable
+# The image ships node_modules, so every pnpm call in it uses a project-local virtual store; a
+# `pnpm run` that saw the workspace's `global` setting would relink into the absent cache mount.
+ENV pnpm_config_virtual_store_type=project
 
 # ---------- Dependencies stage ----------
 FROM base AS deps
@@ -69,7 +72,7 @@ RUN mkdir -p generated/bookmarks
 #    project's postinstall step so the CSP hashes file exists for tooling that imports it.
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     --mount=type=cache,id=corepack-${TARGETARCH},target=/root/.cache/node/corepack \
-    pnpm_config_virtual_store_type=project pnpm install --frozen-lockfile --ignore-scripts \
+    pnpm install --frozen-lockfile --ignore-scripts \
     && pnpm exec tsx scripts/init-csp-hashes.ts
 
 # ---------- Build stage (production build) ----------
