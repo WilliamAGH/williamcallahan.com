@@ -10,17 +10,6 @@ import { parseS3Endpoint } from "./src/types/schemas/s3-config";
 
 const VALID_DEPLOYMENT_ID = /^[A-Za-z0-9_-]+$/;
 
-// pnpm's global virtual store sits outside the project; Turbopack follows a node_modules
-// symlink out of the project only into a configured root (aventure-enrich apps/web/next.config.mjs).
-const pnpmVirtualStoreDir = path.resolve(
-  "node_modules",
-  (JSON.parse(readFileSync("node_modules/.modules.yaml", "utf8")) as { virtualStoreDir: string })
-    .virtualStoreDir,
-);
-const pnpmVirtualStoreIsExternal = path
-  .relative(process.cwd(), pnpmVirtualStoreDir)
-  .startsWith("..");
-
 function requireUrlSafeReleaseId(value: string, source: string): string {
   if (!VALID_DEPLOYMENT_ID.test(value)) {
     throw new Error(
@@ -191,6 +180,17 @@ function createNextConfig(releaseId: string | null) {
         headers: PUBLIC_ASSET_CACHE_HEADERS,
       }));
     },
+    // `next build --webpack`: Turbopack runs webpack loaders (Sentry's, @svgr) only on files inside the
+    // project, and pnpm's global virtual store sits outside it.
+    webpack: (webpackConfig, { nextRuntime }) => {
+      webpackConfig.module.rules.push({ test: /\.svg$/i, use: ["@svgr/webpack"] });
+      if (nextRuntime === "edge" || nextRuntime === undefined) {
+        webpackConfig.resolve.alias["@opentelemetry/api"] = path.resolve(
+          "src/lib/edge-polyfills/opentelemetry.ts",
+        );
+      }
+      return webpackConfig;
+    },
     turbopack: {
       rules: { "*.svg": { loaders: ["@svgr/webpack"], as: "*.js" } },
       resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],
@@ -225,11 +225,14 @@ function createNextConfig(releaseId: string | null) {
     reactStrictMode: true,
     productionBrowserSourceMaps: false,
     cacheComponents: true,
-    serverExternalPackages: ["@chroma-core/default-embed", "chromadb"],
+    serverExternalPackages: [
+      "@chroma-core/default-embed",
+      "chromadb",
+      "image-js",
+      "epub2",
+      "systeminformation",
+    ],
     experimental: {
-      ...(pnpmVirtualStoreIsExternal
-        ? { turbopackAdditionalRoots: { pnpmVirtualStore: { path: pnpmVirtualStoreDir } } }
-        : {}),
       taint: true,
       serverMinification: process.env.NODE_ENV === "production",
       proxyClientMaxBodySize: "100mb",
@@ -301,6 +304,9 @@ function createSentryWebpackPluginOptions(releaseId: string | null) {
     authToken: process.env.SENTRY_AUTH_TOKEN,
     useRunAfterProductionCompileHook: false,
     applicationKey: "williamcallahan-com",
+    // The webpack build would wrap every server component in a Sentry scope whose UUID
+    // breaks cacheComponents prerendering; Turbopack builds never wrapped them.
+    autoInstrumentAppDirectory: false,
     ...(releaseId ? { release: { name: releaseId, deploy: { env: process.env.NODE_ENV } } } : {}),
     dryRun: process.env.NODE_ENV === "development",
     ...(process.env.NODE_ENV === "development"
