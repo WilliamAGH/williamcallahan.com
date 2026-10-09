@@ -44,6 +44,8 @@ ARG TARGETARCH
 
 WORKDIR /app
 ENV HUSKY=0
+# The image ships node_modules; a global virtual store would leave links into the absent cache mount.
+ENV pnpm_config_virtual_store_type=project
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # The postinstall step (init-csp-hashes) reads these
