@@ -25,8 +25,8 @@ export async function validateAdvertisedJavaScript(
     responses.map(async (response) => ({ html: await response.text(), status: response.status })),
   );
   const samplePaths = samples.map((sample) =>
-    [...sample.html.matchAll(/src=["'](\/_next\/static\/[^"']+\.js[^"']*)["']/g)].flatMap((match) =>
-      match[1] === undefined ? [] : [match[1]],
+    [...sample.html.matchAll(/src=["'](\/_next\/static\/[^"']+\.js[^"']*)["']/g)].flatMap(
+      (match) => (match[1] === undefined ? [] : [match[1]]),
     ),
   );
   const scripts = [...new Set(samplePaths.flat())].map((path) => new URL(path, baseUrl));
