@@ -245,17 +245,17 @@ least as many results as the reference set. This is the gate's definition of
 "equal or greater accuracy": everything upstream ranks in its top 10 for a
 query that our stored fields can justify is present in our answer, and the
 overall inclusion of upstream's top 10 stays above 0.90; ordering between the
-two engines is reported per query but not gated. Run it with `bun run
+two engines is reported per query but not gated. Run it with `pnpm run
 search:parity` against a warm local server.
 
 ```bash
 set -a; source .env; set +a
-bun run dev &                                    # warm http://localhost:3000 once
+pnpm run dev &                                    # warm http://localhost:3000 once
 node scripts/compare-bookmark-search.node.mjs    # add --verbose to list every miss
 ```
 
 `SITE_SEARCH_BASE` (default `http://localhost:3000`) points the gate at another
-origin. Run it under Node, never bun — it opens a PostgreSQL connection (CLAUDE.md
+origin. Run it under Node — it opens a PostgreSQL connection (CLAUDE.md
 [RT1]). Inclusion is bounded by two data conditions the gate cannot fix on its
 own: bookmarks with no row in `embeddings` are unreachable by the semantic layer,
 and bookmarks Karakeep holds outside the mirrored list are reported separately as

@@ -161,7 +161,7 @@ echo "[ACL-Fix] Command preview: aws --endpoint-url ${S3_SERVER_URL:-default} --
 
 # ------------------------------- Debug mode ---------------------------------
 # Enable verbose xtrace output when either:
-#   1. DEBUG env-var is set (e.g. `DEBUG=1 bun run fix:s3-acl-public`)
+#   1. DEBUG env-var is set (e.g. `DEBUG=1 pnpm run fix:s3-acl-public`)
 #   2. --debug flag is supplied as the first CLI argument
 
 if [[ -n "${DEBUG:-}" ]]; then

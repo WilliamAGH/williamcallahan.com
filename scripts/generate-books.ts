@@ -1,9 +1,9 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 /**
  * Generate Consolidated Books Dataset (CLI Entry Point)
  *
  * Thin wrapper around the core generation library.
- * Run with: bun scripts/generate-books.ts
+ * Run with: tsx scripts/generate-books.ts
  *
  * Storage model:
  *   books_latest     → pointer to current versioned snapshot

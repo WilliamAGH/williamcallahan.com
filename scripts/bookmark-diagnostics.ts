@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 
 /**
  * Consolidated Bookmark Diagnostics Tool
@@ -6,7 +6,7 @@
  * PostgreSQL-backed diagnostics for bookmark data integrity.
  *
  * Usage:
- *   bun run scripts/bookmark-diagnostics.ts [command]
+ *   pnpm run scripts/bookmark-diagnostics.ts [command]
  *
  * Commands:
  *   counts     - Check bookmark counts and pagination (default)

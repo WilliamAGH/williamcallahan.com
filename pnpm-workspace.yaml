@@ -1,0 +1,30 @@
+packages:
+  - .
+
+# pnpm >= 11 reads project settings only from this file; the `pnpm` field of package.json is
+# never read, and an install fails when a dependency's install script is not listed here.
+allowBuilds:
+  "@ast-grep/cli": true
+  "@clerk/shared": true
+  "@sentry/cli": true
+  "@swc/core": true
+  esbuild: true
+  lefthook: true
+  sharp: true
+  unrs-resolver: true
+
+overrides:
+  ansi-styles: 4.3.0
+  baseline-browser-mapping: 2.9.19
+  import-in-the-middle: 1.14.4
+
+# Under the global virtual store each package's type declarations resolve from its store entry,
+# which never reaches this project's @types packages or eslint. Declaring them as peers links the
+# project's copies into each entry.
+packageExtensions:
+  "@eslint/config-helpers": { peerDependencies: { eslint: "*" } }
+  "@react-pdf/renderer": { peerDependencies: { "@types/react": "*" } }
+  "@testing-library/jest-dom": { peerDependencies: { vitest: "*" } }
+  lucide-react: { peerDependencies: { "@types/react": "*" } }
+  next: { peerDependencies: { "@types/react": "*", "@types/react-dom": "*" } }
+  next-themes: { peerDependencies: { "@types/react": "*", "@types/react-dom": "*" } }

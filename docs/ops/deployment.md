@@ -44,7 +44,7 @@ unsupported architectures. Do not replace that stage with a floating NodeSource
 
 Production Dokploy builds resolve `infisical-wc-prod` vault references into BuildKit
 secrets. The web Dockerfile mounts public build configuration as canonical files under
-`/run/secrets/build`, then promotes only present values before `bun run build`. This
+`/run/secrets/build`, then promotes only present values before `pnpm run build`. This
 preserves ordinary `--build-arg` values when the corresponding optional secret is absent.
 
 ## Web Release Identity
@@ -70,7 +70,7 @@ identity. Do not replace this identity with a fixed package-version value or con
 Cloudflare cache key that ignores the `dpl` query.
 
 After deployment, run
-`bun run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/RELEASE_ID)"`
+`pnpm run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/RELEASE_ID)"`
 from the deployed web image or pass its recorded release ID explicitly. The smoke test fails unless
 `/investments` advertises one shared nonempty deployment ID and every advertised script
 loads successfully through the public Cloudflare URL. It verifies JavaScript only; it does
@@ -83,8 +83,8 @@ not inspect CSS assets.
 the same configuration:
 
 ```bash
-bun run deploy:cf-cache-rules:dry-run
-bun run deploy:cf-cache-rules
+pnpm run deploy:cf-cache-rules:dry-run
+pnpm run deploy:cf-cache-rules
 ```
 
 Both commands load `.env` when present and require `CF_ZONE_ID` plus the recommended scoped
@@ -181,8 +181,8 @@ failed task according to the Dokploy service policy.
 Local build + one-shot data prefetch:
 
 ```bash
-bun run docker:build:scheduler
-bun run docker:prefetch
+pnpm run docker:build:scheduler
+pnpm run docker:prefetch
 ```
 
 ## Quick Start

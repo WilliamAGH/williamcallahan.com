@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 
 /**
  * Deterministic build-time check for globally unique type/interface/enum names.
@@ -13,10 +13,9 @@
  *   1 – duplicates detected (prints details to stderr)
  */
 
-import { Glob } from "bun";
-import { readFile } from "node:fs/promises";
+import { glob, readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { relative } from "node:path";
+import { join } from "node:path";
 import { z } from "zod/v4";
 
 const ROOT = process.cwd();
@@ -31,11 +30,8 @@ const DECLARATION_RE =
 
 async function collectDeclarations(): Promise<Map<string, Array<{ file: string; line: number }>>> {
   const declarations = new Map<string, Array<{ file: string; line: number }>>();
-  const glob = new Glob("src/types/**/*.ts");
-
-  for await (const absolutePath of glob.scan({ cwd: ROOT, absolute: true })) {
-    const relPath = relative(ROOT, absolutePath);
-    const content = await readFile(absolutePath, "utf-8");
+  for await (const relPath of glob("src/types/**/*.ts", { cwd: ROOT })) {
+    const content = await readFile(join(ROOT, relPath), "utf-8");
     const lines = content.split("\n");
 
     for (let i = 0; i < lines.length; i++) {

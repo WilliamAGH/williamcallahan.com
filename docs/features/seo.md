@@ -138,15 +138,15 @@ The OpenGraph validation system ensures all social media metadata meets platform
 
 ```bash
 # Run OpenGraph validation tests
-bun run test __tests__/lib/seo/og-validation.test.ts
+pnpm run test __tests__/lib/seo/og-validation.test.ts
 
 # Manual cache clearing after metadata updates
-bun run scripts/validate-opengraph-clear-cache.ts
+pnpm run scripts/validate-opengraph-clear-cache.ts
 
 # Add to package.json for convenience
 {
   "scripts": {
-    "validate-opengraph": "bun run scripts/validate-opengraph-clear-cache.ts"
+    "validate-opengraph": "pnpm run scripts/validate-opengraph-clear-cache.ts"
   }
 }
 ```
@@ -467,14 +467,14 @@ graph TD
 
 ```bash
 # Test sitemap generation
-bun run build
+pnpm run build
 curl http://localhost:3000/sitemap.xml
 
 # Test submission (dry run)
-NODE_ENV=development bun run submit-sitemap -- --debug
+NODE_ENV=development pnpm run submit-sitemap -- --debug
 
 # Force production submission (use with caution)
-FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com bun run submit-sitemap
+FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com pnpm run submit-sitemap
 ```
 
 ### Common Issues
@@ -598,13 +598,13 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 
 ```bash
 # Validate and clear social media caches
-bun run scripts/validate-opengraph-clear-cache.ts
+pnpm run scripts/validate-opengraph-clear-cache.ts
 
 # Refresh all bookmark OpenGraph images
-bun run scripts/refresh-opengraph-images.ts
+pnpm run scripts/refresh-opengraph-images.ts
 
 # Force sitemap resubmission
-FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com bun run submit-sitemap
+FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com pnpm run submit-sitemap
 ```
 
 ## Performance Characteristics
@@ -685,16 +685,16 @@ FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://willi
 
 ```bash
 # Validate OpenGraph metadata
-bun run test -- __tests__/lib/seo/og-validation.test.ts
+pnpm run test -- __tests__/lib/seo/og-validation.test.ts
 
 # Clear social media caches (Twitter/X)
-bun run scripts/validate-opengraph-clear-cache.ts
+pnpm run scripts/validate-opengraph-clear-cache.ts
 
 # Force sitemap resubmission
-FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com bun run submit-sitemap
+FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com pnpm run submit-sitemap
 
 # Refresh bookmark OpenGraph images
-bun run scripts/refresh-opengraph-images.ts
+pnpm run scripts/refresh-opengraph-images.ts
 
 # Check for missing SEO assets
 grep -n "TODO" data/metadata.ts

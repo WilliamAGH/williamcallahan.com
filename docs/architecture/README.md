@@ -6,7 +6,7 @@ This document serves as the master index for all architectural documentation in 
 
 ## CRITICAL: TypeScript, Next.js & React Guidance
 
-This project enforces **100% strict TypeScript type safety** and adherence to modern Next.js and React best practices. All code must pass `bun run validate` before any commit. This is non-negotiable.
+This project enforces **100% strict TypeScript type safety** and adherence to modern Next.js and React best practices. All code must pass `pnpm run validate` before any commit. This is non-negotiable.
 
 **Framework guardrails live in [`nextjs-framework.md`](../standards/nextjs-framework.md).** Read it before changing anything tied to Next.js 16, React 19, or Vitest 4.
 
@@ -49,8 +49,8 @@ Example schemas:
 - Blog runtime content comes from `data/blog/posts/*.mdx`, with frontmatter, slug syntax, and
   ingestion inputs owned by `src/types/schemas/blog-frontmatter.ts`.
 - `config/blog-render-canaries.ts` owns the two blog article render canaries. The
-  Chromium E2E test and production smoke helper import that one catalog; `bun run verify`
-  is the local browser-free gate and GitHub CI owns `bun run verify:browser`.
+  Chromium E2E test and production smoke helper import that one catalog; `pnpm run verify`
+  is the local browser-free gate and GitHub CI owns `pnpm run verify:browser`.
 - Production blog smoke validates server HTML, then focused production-browser dogfood
   verifies client rendering and declared article interactions; see `docs/ops/verification.md`.
 - Bookmark refresh pipelines preserve embedded slugs during metadata-only updates to avoid URL churn (see `bookmarks.md`).
@@ -76,7 +76,7 @@ Example schemas:
 - Terminal AI chat queues are handled by `src/components/ui/terminal/use-ai-chat-queue.client.tsx` to serialize requests and cap client-side pending messages (see `features/terminal.md`).
 - Image manifest warm-up is startup-critical in production: request-path logo lookups skip lazy S3 manifest fetches when warm-up fails to avoid cache-components prerender IO bailouts (see `image-handling.md`).
 - AI chat gateway contracts are SSE-only end-to-end (`/api/ai/chat/[feature]` plus `aiChat()` browser client), with shared feature identifiers/queue-key builders, native reasoning-delta forwarding, and marker-based Harmony channel-control sanitation centralized in `ai-shared-services` (see `architecture/ai-services.md`).
-- Endpoint-compatible embeddings (Qwen3-Embedding-4B, 2560-d `halfvec`) are stored in the unified `embeddings` table (primary key: domain + entity_id) with one HNSW cosine index. Terminal upstream batch failures are checkpointed in `embedding_failures` until their retry time, so bookmark persistence continues. Dedicated data-updater cycles process one canonical batch and drain due checkpoints across later cycles instead of blocking scheduler health on the full backlog. Backfill via `node scripts/backfill-bookmark-embeddings.node.mjs` (with `NEXT_PUBLIC_SITE_URL` unset) and `node scripts/backfill-domain-embeddings.node.mjs`. All database scripts MUST run under Node.js (not bun) per `AGENTS.md [RT1]`.
+- Endpoint-compatible embeddings (Qwen3-Embedding-4B, 2560-d `halfvec`) are stored in the unified `embeddings` table (primary key: domain + entity_id) with one HNSW cosine index. Terminal upstream batch failures are checkpointed in `embedding_failures` until their retry time, so bookmark persistence continues. Dedicated data-updater cycles process one canonical batch and drain due checkpoints across later cycles instead of blocking scheduler health on the full backlog. Backfill via `node scripts/backfill-bookmark-embeddings.node.mjs` (with `NEXT_PUBLIC_SITE_URL` unset) and `node scripts/backfill-domain-embeddings.node.mjs`. All database scripts MUST run under Node.js per `AGENTS.md [RT1]`.
 - Hybrid search (FTS + trigram + pgvector) is wired for both **bookmarks** and **thoughts** via `src/lib/db/queries/hybrid-search.ts`; the `/api/search/bookmarks` route uses hybrid scoring in production with FTS fallback; thoughts search (`src/lib/search/searchers/thoughts-search.ts`) always uses hybrid. Every domain returns reciprocal-rank scores (see `docs/features/search.md`), so the site-wide route sorts them on one scale; experience and education use MiniSearch.
 - Related content uses pgvector cosine ANN exclusively: `findSimilarByEmbedding()` (HNSW single-query) → `rankEmbeddingCandidates()` (0.70 cosine + 0.10 recency + 0.10 diversity + 0.10 quality) → `hydrateRelatedContent()` (batch domain hydration from 6 domain tables). The legacy heuristic engine (`content-similarity/`) has been removed.
 - AI analysis latest/history reads and writes are PostgreSQL-backed through `ai_analysis_latest` and `ai_analysis_versions`; S3 is not part of the runtime analysis cache path. Present analysis rows use a non-expiring Next.js cache profile, missing rows are cached briefly, and successful writes immediately expire the analysis tags.

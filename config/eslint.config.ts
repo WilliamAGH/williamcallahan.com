@@ -228,7 +228,7 @@ const config = defineConfig(
     rules: {},
   },
 
-  // Project-specific global type uniqueness is enforced by `bun scripts/check-duplicate-types.ts`
+  // Project-specific global type uniqueness is enforced by `tsx scripts/check-duplicate-types.ts`
   // (deterministic build-time check, not an ESLint rule — see scripts/check-duplicate-types.ts)
 
   // Disable overlapping ESLint rules with Oxlint to avoid duplicate diagnostics

@@ -23,7 +23,7 @@ Core standards:
 
 ### [LC1] Line Count Ceiling (extends [LC0])
 
-- [LC1c] **Enforcement**: `bun run check:file-size` reports violations; `bun run validate:with-size` includes the check.
+- [LC1c] **Enforcement**: `pnpm run check:file-size` reports violations; `pnpm run validate:with-size` includes the check.
 - [LC1d] Exempt files: generated content (lockfiles, builds, artifacts)
 
 ### [TS1] Type Safety & Validation (extends [SS0])
@@ -54,10 +54,8 @@ Core standards:
 
 ### [RT1] Runtime Isolation: Database Scripts (Blocking)
 
-- [RT1a] **NEVER use bun to execute scripts that connect to PostgreSQL.** Bun's TLS implementation uses signature algorithms that the PostgreSQL server rejects (`could not accept SSL connection: no suitable signature algorithm`). This causes `CONNECT_TIMEOUT` failures that are NOT configuration issues — they are bun runtime limitations.
-- [RT1b] All database migration, backfill, and enrichment scripts MUST use `#!/usr/bin/env node` (NOT `#!/usr/bin/env bun`). Use the `*.node.mjs` file extension to signal Node execution.
-- [RT1c] The `postgres` npm package works correctly under Node.js with `ssl: "require"`. Do not attempt to "fix" bun's SSL by adding custom certificates, disabling SSL, or patching TLS options.
-- [RT1d] `bun run <script-name>` as a package.json task runner is fine (it just spawns the process). The prohibition is on bun as the **script runtime** for database-connecting code.
+- [RT1a] Every script runs on Node 24.18.0: TypeScript through `tsx`, and scripts that connect to PostgreSQL as `*.node.mjs` files with `#!/usr/bin/env node`. Never reintroduce Bun as a runtime: its TLS signature algorithms fail the PostgreSQL handshake (`could not accept SSL connection: no suitable signature algorithm`).
+- [RT1c] The `postgres` npm package works under Node.js with `ssl: "require"`. Never add custom certificates, disable SSL, or patch TLS options to work around a client runtime.
 
 ### [IMG1] Image Optimization (Blocking)
 
@@ -72,20 +70,19 @@ Core standards:
 
 ### [VR1] Verification Commands
 
-- [VR1a] Build via `bun run build` (or `bun run build:only` as appropriate)
-- [VR1b] Test via `bun run test` (or `test:watch`, `test:coverage`, `test:ci`, `test:smoke`); NEVER run `bun test` directly (bypasses Vitest config)
-- [VR1c] `bun run validate` (0 errors, 0 warnings) is the commit gate; the lefthook pre-push hook runs `bun run verify`, which covers it, so never run it between edits or repeat it ([TV0b])
-- [VR1d] Typecheck via `bun run type-check` (and `bun run type-check:tests` when relevant)
-- [VR1e] Format via `bun run format` and `bun run format:check`
-- [VR1f] Deployment readiness: use `bun run deploy:verify` and/or `bun run deploy:smoke-test`
-- [VR1j] [TV0a] rungs here: editor diagnostics or `bun run type-check` -> `bun run lint:checks` -> `bun <scratchpad-file>.ts` -> the running `bun run dev` server -> a committed boundary test
+- [VR1a] Build via `pnpm run build` (or `pnpm run build:only` as appropriate)
+- [VR1b] Test via `pnpm run test` (or `test:watch`, `test:coverage`, `test:ci`, `test:smoke`)
+- [VR1c] `pnpm run validate` (0 errors, 0 warnings) is the commit gate; the lefthook pre-push hook runs `pnpm run verify`, which covers it, so never run it between edits or repeat it ([TV0b])
+- [VR1d] Typecheck via `pnpm run type-check` (and `pnpm run type-check:tests` when relevant)
+- [VR1e] Format via `pnpm run format` and `pnpm run format:check`
+- [VR1f] Deployment readiness: use `pnpm run deploy:verify` and/or `pnpm run deploy:smoke-test`
+- [VR1j] [TV0a] rungs here: editor diagnostics or `pnpm run type-check` -> `pnpm run lint:checks` -> `pnpm exec tsx <scratchpad-file>.ts` -> the running `pnpm run dev` server -> a committed boundary test
 
 ### [TST1] Testing Protocols
 
-- [TST1a] Never run `bun test` directly. Always use `bun run test*` scripts so Vitest loads `config/vitest/`.
-- [TST1b] Direct `bun test` bypasses the project config and causes missing `vi.mock`, module resolution failures—treat this as a violation
+- [TST1a] Run tests only through the `pnpm run test*` scripts so Vitest loads `config/vitest.config.ts` and `config/vitest/`.
 - [TST1c] Do not "fix" test issues by adding polyfills/downgrading Vitest; fix the setup/configuration correctly
-- [TST1g] `bun run verify` is the complete local browser-free gate. Browser verification is explicit via `bun run verify:browser` in GitHub CI ([BR0b]).
+- [TST1g] `pnpm run verify` is the complete local browser-free gate. Browser verification is explicit via `pnpm run verify:browser` in GitHub CI ([BR0b]).
 
 ---
 

@@ -22,7 +22,7 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 2. **Async Scheduler**: Uses async `spawn` (not `spawnSync`) with job tracking so recurring
    jobs run independently without blocking.
 
-3. **Scheduled Asset Refresh**: The scheduler refreshes logos through `scheduler/data-updater.ts`; `bun run prefetch` performs a one-shot refresh of bookmarks, GitHub activity, and logos.
+3. **Scheduled Asset Refresh**: The scheduler refreshes logos through `scheduler/data-updater.ts`; `pnpm run prefetch` performs a one-shot refresh of bookmarks, GitHub activity, and logos.
 
 4. **Centralized Data Fetching**: `src/lib/server/data-fetch-manager.ts` is the single orchestrator. Its CLI entry point is `scheduler/data-updater.ts`.
 
@@ -84,17 +84,17 @@ error results and are reported to Sentry.
 
 ```bash
 # Update all data
-bun run update-data
+pnpm run update-data
 
 # Update specific data types
-bun run update-data -- --bookmarks
-bun run update-data -- --github --logos
+pnpm run update-data -- --bookmarks
+pnpm run update-data -- --github --logos
 
 # One-shot refresh
-bun run prefetch
+pnpm run prefetch
 
 # Force refresh
-bun run update-data -- --force --bookmarks
+pnpm run update-data -- --force --bookmarks
 ```
 
 **Key Components:**
@@ -116,7 +116,7 @@ bun run update-data -- --force --bookmarks
 
 ### Manual and Scheduled Refreshes
 
-`bun run prefetch` runs a one-shot refresh for bookmarks, GitHub activity, and logos. During a Next.js production build, `scheduler/data-updater.ts` refuses writes unless explicitly passed `--allow-build-writes`; recurring updates belong to the scheduler or an explicit manual command.
+`pnpm run prefetch` runs a one-shot refresh for bookmarks, GitHub activity, and logos. During a Next.js production build, `scheduler/data-updater.ts` refuses writes unless explicitly passed `--allow-build-writes`; recurring updates belong to the scheduler or an explicit manual command.
 
 At scheduler-container startup, the entrypoint runs the no-flag data updater through Node.js before
 sitemap submission and cron registration. It logs a successful bootstrap or exits nonzero with an
@@ -234,7 +234,7 @@ curl -X POST http://localhost:3000/api/github-activity/refresh \
   -H "x-refresh-secret: $GITHUB_REFRESH_SECRET"
 
 # Logos (via update-data script)
-bun run update-data -- --logos
+pnpm run update-data -- --logos
 ```
 
 ### Status Check Endpoints
@@ -272,10 +272,10 @@ curl http://localhost:3000/api/bookmarks/refresh
 
 ```bash
 # Production deployment
-bun run scheduler
+pnpm run scheduler
 
 # Development
-NODE_ENV=development bun run scheduler
+NODE_ENV=development pnpm run scheduler
 ```
 
 ### Health Checks
@@ -305,7 +305,7 @@ check fails when that heartbeat is more than two minutes old. Monitor via:
 curl http://localhost:3000/api/bookmarks/refresh
 
 # Manual trigger for testing
-bun run update-data -- --bookmarks --verbose
+pnpm run update-data -- --bookmarks --verbose
 
 # Inspect the scheduler from its container
 scheduler/diagnose-scheduler.sh
