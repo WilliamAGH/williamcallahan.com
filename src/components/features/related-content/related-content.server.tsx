@@ -228,9 +228,8 @@ export async function RelatedContent({
   try {
     limited = await selectRelatedContent({ sourceType, sourceId, sourceSlug, options });
   } catch (error) {
+    // RC1a: error logged; an empty list is the documented contract (component renders nothing)
     console.error("Error fetching related content:", error);
-    // RC1a: error logged; null is the documented contract (component renders nothing)
-    return null;
   }
 
   if (limited.length === 0) return null;
