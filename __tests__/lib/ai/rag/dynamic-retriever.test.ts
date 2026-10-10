@@ -39,18 +39,16 @@ vi.mock("@/lib/db/queries/query-embedding", () => ({
 
 // Mock all search functions
 vi.mock("@/lib/search/searchers/static-searchers", () => ({
-  searchProjects: vi
-    .fn<typeof searchProjects>()
-    .mockResolvedValue([
-      {
-        id: "p1",
-        type: "project",
-        title: "aVenture.vc",
-        description: "Research platform",
-        url: "/projects",
-        score: 0.9,
-      },
-    ]),
+  searchProjects: vi.fn<typeof searchProjects>().mockResolvedValue([
+    {
+      id: "p1",
+      type: "project",
+      title: "aVenture.vc",
+      description: "Research platform",
+      url: "/projects",
+      score: 0.9,
+    },
+  ]),
   searchInvestments: vi.fn<typeof searchInvestments>().mockResolvedValue([
     {
       id: "i1",
@@ -61,18 +59,16 @@ vi.mock("@/lib/search/searchers/static-searchers", () => ({
       score: 0.85,
     },
   ]),
-  searchExperience: vi
-    .fn<typeof searchExperience>()
-    .mockResolvedValue([
-      {
-        id: "e1",
-        type: "project",
-        title: "Acme Corp",
-        description: "Senior Engineer",
-        url: "/experience#acme",
-        score: 0.8,
-      },
-    ]),
+  searchExperience: vi.fn<typeof searchExperience>().mockResolvedValue([
+    {
+      id: "e1",
+      type: "project",
+      title: "Acme Corp",
+      description: "Senior Engineer",
+      url: "/experience#acme",
+      score: 0.8,
+    },
+  ]),
   searchEducation: vi.fn<typeof searchEducation>().mockResolvedValue([
     {
       id: "ed1",
@@ -99,18 +95,16 @@ vi.mock("@/lib/blog/server-search", () => ({
 }));
 
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
-  searchBooks: vi
-    .fn<typeof searchBooks>()
-    .mockResolvedValue([
-      {
-        id: "bk1",
-        type: "book",
-        title: "Clean Code",
-        description: "Robert Martin",
-        url: "/books/clean-code",
-        score: 0.75,
-      },
-    ]),
+  searchBooks: vi.fn<typeof searchBooks>().mockResolvedValue([
+    {
+      id: "bk1",
+      type: "book",
+      title: "Clean Code",
+      description: "Robert Martin",
+      url: "/books/clean-code",
+      score: 0.75,
+    },
+  ]),
   searchBookmarks: vi.fn<typeof searchBookmarks>().mockResolvedValue([
     {
       id: "bm1",
