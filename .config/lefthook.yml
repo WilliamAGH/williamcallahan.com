@@ -1,9 +1,9 @@
 # lefthook.yml — Git hook configuration (replaces .husky/)
-# Pre-commit: lint + format staged files (parallel)
+# Pre-commit: lint-fix then format staged files (piped: both rewrite the same files)
 # Pre-push: production build + verification gate (sequential)
 
 pre-commit:
-  parallel: true
+  piped: true
   commands:
     oxlint:
       glob: "*.{js,jsx,ts,tsx}"
