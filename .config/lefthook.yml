@@ -7,7 +7,7 @@ pre-commit:
   commands:
     oxlint:
       glob: "*.{js,jsx,ts,tsx}"
-      run: pnpm exec oxlint -c config/oxlintrc.json --type-aware --fix {staged_files}
+      run: pnpm exec oxlint --type-aware --fix {staged_files}
       stage_fixed: true
     oxfmt:
       glob: "*.{js,jsx,ts,tsx}"

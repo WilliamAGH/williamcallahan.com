@@ -46,9 +46,9 @@
     "lint:css": "stylelint --config config/stylelint.config.js --fix 'app/**/*.css' 'styles/**/*.css'",
     "format": "oxfmt -c config/oxfmtrc.json --write . '!**/*.mdx'",
     "format:check": "oxfmt -c config/oxfmtrc.json --check . '!**/*.mdx'",
-    "lint:ox": "oxlint -c config/oxlintrc.json --type-aware .",
+    "lint:ox": "oxlint --type-aware .",
     "lint:ast-grep": "ast-grep scan -c config/sgconfig.yml && echo 'No ast-grep violations found'",
-    "lint:fix": "oxlint -c config/oxlintrc.json --fix . && eslint . --config config/eslint.config.ts --fix",
+    "lint:fix": "oxlint --fix . && eslint . --config config/eslint.config.ts --fix",
     "type-check": "node ./node_modules/next/dist/bin/next typegen && node node_modules/@typescript/native/bin/tsc --noEmit",
     "type-check:tests": "node node_modules/@typescript/native/bin/tsc --noEmit --project __tests__/tsconfig.json",
     "guard:runtime-json-s3-ops": "bash -c 'set -euo pipefail; if rg -n \"(getObject|putObject|deleteFromS3|listS3Objects|readBinaryS3|writeBinaryS3)\\\\(\\\\s*[\\\"\\x27]json/\" src --glob \"!src/lib/s3/**\"; then echo \"[Runtime JSON S3 Guard] Found forbidden json/* S3 object operations in src/. Use PostgreSQL-backed stores.\"; exit 1; fi'",
@@ -207,7 +207,7 @@
     "eslint-config-next": "16.0.1",
     "eslint-formatter-compact": "9.0.1",
     "eslint-plugin-mdx": "3.6.2",
-    "eslint-plugin-oxlint": "1.42.0",
+    "eslint-plugin-oxlint": "1.87.0",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "glob": "10.5.0",
@@ -218,7 +218,7 @@
     "lint-staged": "16.1.2",
     "node-mocks-http": "^1.17.2",
     "oxfmt": "^0.72.0",
-    "oxlint": "1.42.0",
+    "oxlint": "1.87.0",
     "oxlint-tsgolint": "^7.0.2003",
     "postcss": "^8.5.6",
     "postcss-preset-env": "10.2.4",
@@ -247,7 +247,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
-      "oxlint -c config/oxlintrc.json --type-aware"
+      "oxlint --type-aware"
     ]
   },
   "devEngines": {

@@ -53,7 +53,7 @@
   "oxc.enable": true,
   "oxc.lint.run": "onSave",
   "oxc.path.oxlint": "./node_modules/.bin/oxc_language_server",
-  "oxc.configPath": "./config/oxlintrc.json",
+  "oxc.configPath": "./.oxlintrc.json",
   "oxc.fmt.configPath": "./config/oxfmtrc.json",
   "oxc.exclude": ["**/*.mdx"],
   "typescript.disableAutomaticTypeAcquisition": true,

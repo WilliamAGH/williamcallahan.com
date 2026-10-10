@@ -507,7 +507,6 @@ File/Path Functionality Description
   - [x] **rules/** (empty — `no-duplicate-types` moved to `scripts/check-duplicate-types.ts`)
 - [x] `eslint.config.ts` `linting-formatting` - ESLint flat configuration
 - [x] `oxfmtrc.json` `linting-formatting` - Oxfmt (formatter) configuration
-- [x] `oxlintrc.json` `linting-formatting` - Oxlint (linter) configuration
 - [x] `playwright.config.ts` `testing-config` - Isolated Chromium E2E server, artifact, and browser configuration for async blog route rendering
 - [x] **oxlint/** `linting-formatting` - Oxlint JS plugins (experimental)
   - [x] **js-plugins/**
@@ -539,6 +538,7 @@ File/Path Functionality Description
 - [x] `.cursorrules` `config` - Cursor AI configuration
 - [x] `.env-example` `config` - Example environment variables
 - [x] `.gitignore` `config` - Git ignore file
+- [x] `.oxlintrc.json` `linting-formatting` - Oxlint (linter) configuration; lives at the root because Oxlint resolves `ignorePatterns` and override globs relative to the config file
 - [x] `.github/workflows/verification.yml` `testing-config` - GitHub PR-to-main verification gate; installs Chromium, runs `pnpm run verify:browser`, and uploads failed Playwright artifacts
 - [x] `pnpm-lock.yaml` `deps` - pnpm lockfile
 - [x] `pnpm-workspace.yaml` `deps` - pnpm settings: allowed install scripts, overrides, package extensions
