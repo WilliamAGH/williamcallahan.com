@@ -353,7 +353,10 @@ export const CodeBlock = ({
               isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden",
             )}
           >
-            <section aria-label={language ? `${language} code` : "Code block"}>
+            <section
+              aria-label={language ? `${language} code` : "Code block"}
+              className={cn(isMaximized && !embeddedInTabFrame && "h-full")}
+            >
               <pre
                 id={collapsibleRegionId}
                 className={cn(
