@@ -35,6 +35,15 @@ describe("CodeBlock", () => {
       expect(region).toContainElement(container.querySelector("pre"));
     });
 
+    it("names the region after an MDX fence language on the child code element", () => {
+      render(
+        <CodeBlock>
+          <code className="language-tsx">const y = 2;</code>
+        </CodeBlock>,
+      );
+      expect(screen.getByRole("region", { name: "Code: tsx" })).toHaveAttribute("tabindex", "0");
+    });
+
     it("renders window controls toolbar", () => {
       render(<CodeBlock>test code</CodeBlock>);
       expect(screen.getByTestId("close-button")).toBeInTheDocument();
