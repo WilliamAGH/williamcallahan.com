@@ -11,7 +11,7 @@
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { TerminalSquare } from "lucide-react"; // Import specific icon
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { CommandInput } from "./command-input.client";
 import { History } from "./history";
 import { SelectionView } from "./selection-view.client";
@@ -27,8 +27,6 @@ const TERMINAL_WINDOW_ID = "main-terminal";
 export function Terminal() {
   // Ref for the scrollable content area
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  // Track if terminal is focused
-  const [isTerminalFocused, setIsTerminalFocused] = useState(false);
   // Track pending focus request from ⌘K when terminal was closed/minimized
   const pendingFocusRef = useRef(false);
 
@@ -126,6 +124,7 @@ export function Terminal() {
         clearTimeout(timer);
       };
     }
+    return undefined;
   }, [isMaximized, inputRef]);
 
   // Add effect to register/unregister click outside handler
@@ -246,7 +245,7 @@ export function Terminal() {
 
   // Effect to handle tap/click outside terminal to dismiss search results (mobile-friendly)
   useEffect(() => {
-    if (!selection) return;
+    if (!selection) return undefined;
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const terminalContainer = scrollContainerRef.current?.closest(
@@ -267,7 +266,7 @@ export function Terminal() {
     };
   }, [selection, cancelSelection]);
 
-  // Effect to prevent page scrolling when terminal has focus or is being interacted with
+  // Effect to handle terminal focus and prevent page scrolling during interaction
   useEffect(() => {
     let terminalContainer: Element | null = null;
 
@@ -295,10 +294,8 @@ export function Terminal() {
 
       // If the terminal is focused or contains the active element, prevent arrow key scrolling
       const isTerminalActive =
-        terminalContainer &&
-        (terminalContainer.contains(document.activeElement) ||
-          document.activeElement === terminalContainer ||
-          isTerminalFocused);
+        terminalContainer?.contains(document.activeElement) ||
+        (e.target instanceof Node && terminalContainer?.contains(e.target));
 
       if (isTerminalActive) {
         if (isTextEntryFocused) {
@@ -325,7 +322,21 @@ export function Terminal() {
         // Allow typing spaces when input is focused; otherwise prevent page scroll
         if (e.key === " ") {
           e.preventDefault();
+          if (activeApp !== "ai-chat") {
+            focusInput();
+          }
         }
+      }
+    };
+
+    const handleContentClick = (event: MouseEvent) => {
+      if (
+        !selection &&
+        activeApp !== "ai-chat" &&
+        event.target instanceof Node &&
+        scrollContainerRef.current?.contains(event.target)
+      ) {
+        focusInput();
       }
     };
 
@@ -353,15 +364,17 @@ export function Terminal() {
     // Add listeners in capture phase with highest priority
     window.addEventListener("keydown", handleWindowKeyDown, { capture: true, passive: false });
     document.addEventListener("keydown", handleWindowKeyDown, { capture: true, passive: false });
+    document.addEventListener("click", handleContentClick);
     window.addEventListener("wheel", handleWheel, { capture: true, passive: false });
 
     return () => {
       clearTimeout(setupTimer);
       window.removeEventListener("keydown", handleWindowKeyDown, { capture: true });
       document.removeEventListener("keydown", handleWindowKeyDown, { capture: true });
+      document.removeEventListener("click", handleContentClick);
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
-  }, [isTerminalFocused]);
+  }, [activeApp, focusInput, selection]);
 
   // Effect for forwarding keyboard events to SelectionView when it's active
   useEffect(() => {
@@ -397,6 +410,7 @@ export function Terminal() {
         container.removeEventListener("keydown", handleContainerKeyDown, { capture: true });
       };
     }
+    return undefined;
   }, [selection]);
 
   // --- Conditional Rendering ---
@@ -454,13 +468,6 @@ export function Terminal() {
           isMaximized ? maximizedTerminalClasses : normalTerminalClasses,
         )}
         aria-label="Terminal"
-        onFocus={() => setIsTerminalFocused(true)}
-        onBlur={(e) => {
-          // Only blur if focus is leaving the terminal entirely
-          if (!e.currentTarget.contains(e.relatedTarget)) {
-            setIsTerminalFocused(false);
-          }
-        }}
       >
         {/* Header */}
         <div className="flex-shrink-0">
@@ -480,31 +487,6 @@ export function Terminal() {
             isMaximized ? maximizedScrollClasses : normalScrollClasses,
           )}
           ref={scrollContainerRef}
-          onClick={() => {
-            // Only focus command input in normal terminal mode
-            if (!selection && activeApp !== "ai-chat") {
-              focusInput();
-            }
-          }}
-          onKeyDown={(e) => {
-            const target = e.target;
-            const isTextEntry =
-              target instanceof HTMLInputElement ||
-              target instanceof HTMLTextAreaElement ||
-              (target instanceof HTMLElement && target.isContentEditable);
-
-            // Only prevent space key default behavior when not in a text field (prevents page scroll)
-            if (
-              e.key === " " &&
-              !isTextEntry &&
-              activeApp !== "ai-chat" &&
-              document.activeElement !== inputRef.current
-            ) {
-              e.preventDefault(); // Prevent default space scroll
-              focusInput();
-            }
-            // Don't handle Enter key here - let it propagate to the form
-          }}
           aria-label="Terminal content area"
         >
           <div className="whitespace-pre-wrap break-words select-text">

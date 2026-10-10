@@ -154,6 +154,7 @@ export function AiChatInput({
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
+    if (input.length < 0) return;
 
     // Reset to auto to measure true scrollHeight
     textarea.style.height = "auto";
@@ -268,7 +269,7 @@ export function AiChatInput({
   );
 
   return (
-    <div data-testid="ai-chat-input" onKeyDown={handleKeyDown}>
+    <section data-testid="ai-chat-input">
       {/* Thinking indicator while waiting for response */}
       {isSubmitting && <ThinkingIndicator queueMessage={queueMessage} />}
 
@@ -289,6 +290,7 @@ export function AiChatInput({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
             rows={1}
             className="bg-transparent w-full focus:outline-none text-gray-200 caret-gray-200
                 text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50
@@ -308,6 +310,6 @@ export function AiChatInput({
           />
         </div>
       </div>
-    </div>
+    </section>
   );
 }

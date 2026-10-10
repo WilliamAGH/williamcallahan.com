@@ -20,6 +20,8 @@
 import { useEffect, useRef, useState, useLayoutEffect } from "react";
 import type { SelectionViewProps } from "@/types/ui/terminal";
 
+const ITEMS_PER_PAGE = 24;
+
 function ensureRowVisible(row: HTMLElement, container: HTMLElement) {
   // Buffer zone: keep 3 items visible above/below the current item for smooth scrolling
   const BUFFER_ITEMS = 3;
@@ -66,7 +68,6 @@ export function SelectionView({
 }: SelectionViewProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [page, setPage] = useState(0);
-  const ITEMS_PER_PAGE = 24;
   const prevItemsRef = useRef(items);
 
   // Track whether user is using keyboard navigation
@@ -97,15 +98,14 @@ export function SelectionView({
   const visibleItems = validItems.slice(startIdx, endIdx);
   const hasMoreResults = endIdx < validItems.length;
 
-  // Keep the currently highlighted row within the scroll viewport. We use
-  // useLayoutEffect so the scroll happens before the browser paints the
-  // next frame, preventing a visible "jump".
+  // Keep the highlighted row in view after every render: changing pages can
+  // replace that row without changing its index.
   // DO NOT REMOVE THIS CODE!
   useLayoutEffect(() => {
     if (selectedRef.current && scrollContainerRef?.current) {
       ensureRowVisible(selectedRef.current, scrollContainerRef.current);
     }
-  }, [scrollContainerRef, selectedIndex]);
+  });
 
   // --- Keyboard navigation (element-scoped) ---
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -167,10 +167,10 @@ export function SelectionView({
     }
   };
 
-  // Auto-focus the listbox on mount so keyboard navigation works immediately
-  const listboxRef = useRef<HTMLDivElement>(null);
+  // Auto-focus the selection view on mount so keyboard navigation works immediately
+  const selectionViewRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    listboxRef.current?.focus();
+    selectionViewRef.current?.focus();
   }, []);
 
   // No longer exit keyboard mode on mouse move - too aggressive
@@ -203,9 +203,9 @@ export function SelectionView({
       className="mt-1 outline-none"
       data-testid="selection-view"
       onKeyDown={handleKeyDown}
-      ref={listboxRef}
-      role="listbox"
-      aria-label="Search results"
+      ref={selectionViewRef}
+      role="toolbar"
+      aria-label="Terminal search results"
       aria-activedescendant={
         selectedIndex >= 0 && visibleItems[selectedIndex]
           ? `option-${visibleItems[selectedIndex].id}`
@@ -236,36 +236,40 @@ export function SelectionView({
           ✕ Cancel
         </button>
       </div>
-      <div className="group" data-keyboard-mode={isKeyboardMode}>
+      <ul
+        className="group list-none m-0 p-0"
+        data-keyboard-mode={isKeyboardMode}
+        aria-label="Search results"
+      >
         {visibleItems.map((item, index) => (
-          <div key={item.id}>
+          <li key={item.id}>
             <button
               id={`option-${item.id}`}
               ref={index === selectedIndex ? selectedRef : undefined}
               type="button"
-              role="option"
-              aria-selected={index === selectedIndex}
+              aria-current={index === selectedIndex ? "true" : undefined}
+              data-selected={index === selectedIndex}
               /*
                * Styling rules:
                * 1. `block w-full text-left` → each result is forced onto its own line occupying full width.
                * 2. `truncate whitespace-nowrap overflow-hidden` → long labels are clipped with an ellipsis
                *    instead of wrapping to a second line, keeping the list compact and readable.
-               * 3. `aria-selected:*` → styles apply when this item is keyboard-selected
+               * 3. `data-selected:*` → styles apply when this item is keyboard-selected
                * 4. `group-data-[keyboard-mode=false]:*` → hover only applies when NOT in keyboard mode
                */
               className="
                 block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden
-                aria-selected:bg-blue-500/20 aria-selected:text-blue-300
-                group-data-[keyboard-mode=false]:aria-[selected=false]:hover:bg-gray-800
+                data-[selected=true]:bg-blue-500/20 data-[selected=true]:text-blue-300
+                group-data-[keyboard-mode=false]:data-[selected=false]:hover:bg-gray-800
               "
               onClick={() => handleItemClick(item)}
               onMouseEnter={() => handleItemMouseEnter(index)}
             >
               {item.label}
             </button>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
       <div className="flex justify-between mt-2 text-gray-500 text-xs">
         {page > 0 ? (
           <button

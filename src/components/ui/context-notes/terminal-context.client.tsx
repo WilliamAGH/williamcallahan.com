@@ -56,42 +56,37 @@ const CONTENT: Record<ContextType, ContextContent> = {
 
 function useTypingAnimation(text: string, isActive: boolean, onComplete?: () => void) {
   const [displayedText, setDisplayedText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onCompleteRef = useRef(onComplete);
+  const isTyping = isActive && displayedText.length < text.length;
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
   useEffect(() => {
-    if (!isActive) {
-      setDisplayedText("");
-      setIsTyping(false);
-      return;
+    if (!isTyping) {
+      return undefined;
     }
 
-    if (displayedText.length < text.length) {
-      setIsTyping(true);
-      timeoutRef.current = setTimeout(
-        () => {
-          setDisplayedText(text.slice(0, displayedText.length + 1));
-        },
-        20 + Math.random() * 15,
-      );
-    } else if (displayedText.length >= text.length && isTyping) {
-      setIsTyping(false);
-      onCompleteRef.current?.();
-    }
+    const timeout = setTimeout(
+      () => {
+        const nextText = text.slice(0, displayedText.length + 1);
+        setDisplayedText(nextText);
+        if (nextText.length === text.length) {
+          onCompleteRef.current?.();
+        }
+      },
+      20 + Math.random() * 15,
+    );
 
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [isActive, displayedText, text, isTyping]);
+    return () => clearTimeout(timeout);
+  }, [displayedText, text, isTyping]);
 
-  return { displayedText, isTyping };
+  return {
+    displayedText: isActive ? displayedText : "",
+    isTyping,
+    reset: () => setDisplayedText(""),
+  };
 }
 
 export function TerminalContext({ type, className }: TerminalContextProps) {
@@ -102,7 +97,11 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
     setPhase("what-done");
   }, []);
 
-  const { displayedText: whatText, isTyping: whatTyping } = useTypingAnimation(
+  const {
+    displayedText: whatText,
+    isTyping: whatTyping,
+    reset,
+  } = useTypingAnimation(
     content.what,
     phase === "what-typing" ||
       phase === "what-done" ||
@@ -130,6 +129,7 @@ export function TerminalContext({ type, className }: TerminalContextProps) {
   };
 
   const handleClose = () => {
+    reset();
     setPhase("idle");
   };
 

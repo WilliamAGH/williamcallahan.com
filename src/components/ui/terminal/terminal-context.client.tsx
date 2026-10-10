@@ -13,6 +13,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -50,21 +51,21 @@ const MAX_HISTORY_SIZE = 100; // Limit history to prevent unbounded growth
 
 function TerminalRouteHistoryReset({ onRouteChange }: { onRouteChange: () => void }) {
   const pathname = usePathname();
-  const [lastPath, setLastPath] = useState<string | null>(null);
+  const lastPath = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof pathname !== "string") {
       return;
     }
-    if (lastPath === null) {
-      setLastPath(pathname);
+    if (lastPath.current === null) {
+      lastPath.current = pathname;
       return;
     }
-    if (pathname !== lastPath) {
+    if (pathname !== lastPath.current) {
       onRouteChange();
-      setLastPath(pathname);
+      lastPath.current = pathname;
     }
-  }, [lastPath, onRouteChange, pathname]);
+  }, [onRouteChange, pathname]);
 
   return null;
 }
