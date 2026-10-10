@@ -222,6 +222,8 @@ function createNextConfig(releaseId: string | null) {
     // `null` delegates development build IDs to Next; production always has releaseId.
     generateBuildId: async () => releaseId,
     poweredByHeader: false,
+    // AGENTS.md is the repository's only agent rule source; Next 16.4 would append its own block on every dev run.
+    agentRules: false,
     reactStrictMode: true,
     productionBrowserSourceMaps: false,
     cacheComponents: true,
