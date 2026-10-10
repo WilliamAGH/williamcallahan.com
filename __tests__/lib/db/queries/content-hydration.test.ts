@@ -6,33 +6,51 @@
  * and that hydrateBlogPosts uses canonical CDN resolution.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { and, eq, inArray } from "drizzle-orm";
+import type { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
+import type {
+  buildCdnUrl,
+  getBlogPostImageCdnUrl,
+  getCdnConfigFromEnv,
+  isOurCdnUrl,
+} from "@/lib/utils/cdn-utils";
+import type { resolveImageUrl } from "@/lib/seo/url-utils";
+import type { resolveInvestmentLogo } from "@/lib/db/queries/investment-logo-resolver";
+
+type HydrationDbRow = Record<string, unknown>;
+type WhereStep = () => Promise<HydrationDbRow[]>;
+type FromStep = () => { where: WhereStep };
+type SelectStep = () => { from: FromStep };
 
 // Hoist mocks so factory closures can reference them before module initialization
 const { mockDbRows, mockSelectBestImage } = vi.hoisted(() => {
-  const mockDbRows: Record<string, unknown>[] = [];
-  const mockSelectBestImage = vi.fn();
-  return { mockDbRows, mockSelectBestImage };
+  const hoistedDbRows: HydrationDbRow[] = [];
+  return { mockDbRows: hoistedDbRows, mockSelectBestImage: vi.fn<typeof selectBestImage>() };
 });
 
 vi.mock("@/lib/db/connection", () => ({
   db: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => Promise.resolve(mockDbRows)),
+    select: vi.fn<SelectStep>(() => ({
+      from: vi.fn<FromStep>(() => ({
+        where: vi.fn<WhereStep>(() => Promise.resolve(mockDbRows)),
       })),
     })),
   },
 }));
 
 vi.mock("@/lib/utils/cdn-utils", () => ({
-  getCdnConfigFromEnv: vi.fn(() => ({
+  getCdnConfigFromEnv: vi.fn<typeof getCdnConfigFromEnv>(() => ({
     cdnBaseUrl: "https://s3-storage.callahan.cloud",
     s3BucketName: undefined,
     s3ServerUrl: undefined,
   })),
-  isOurCdnUrl: vi.fn((url: string) => url.startsWith("https://s3-storage.callahan.cloud")),
-  buildCdnUrl: vi.fn((key: string) => `https://s3-storage.callahan.cloud/${key}`),
-  getBlogPostImageCdnUrl: vi.fn(),
+  isOurCdnUrl: vi.fn<typeof isOurCdnUrl>((url: string) =>
+    url.startsWith("https://s3-storage.callahan.cloud"),
+  ),
+  buildCdnUrl: vi.fn<typeof buildCdnUrl>(
+    (key: string) => `https://s3-storage.callahan.cloud/${key}`,
+  ),
+  getBlogPostImageCdnUrl: vi.fn<typeof getBlogPostImageCdnUrl>(),
 }));
 
 vi.mock("@/lib/bookmarks/bookmark-helpers", async (importOriginal) => ({
@@ -41,11 +59,13 @@ vi.mock("@/lib/bookmarks/bookmark-helpers", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/seo/url-utils", () => ({
-  resolveImageUrl: vi.fn((url?: string) => url),
+  resolveImageUrl: vi.fn<typeof resolveImageUrl>((url?: string) => url),
 }));
 
 vi.mock("@/lib/db/queries/investment-logo-resolver", () => ({
-  resolveInvestmentLogo: vi.fn().mockResolvedValue("/images/placeholder.png"),
+  resolveInvestmentLogo: vi
+    .fn<typeof resolveInvestmentLogo>()
+    .mockResolvedValue("/images/placeholder.png"),
 }));
 
 // Schema mocks — Drizzle needs these for query building
@@ -81,9 +101,9 @@ vi.mock("@/lib/db/schema/projects", () => ({ projects: {} }));
 vi.mock("@/lib/db/schema/books-individual", () => ({ booksIndividual: {} }));
 vi.mock("@/lib/db/schema/thoughts", () => ({ thoughts: {} }));
 vi.mock("drizzle-orm", () => ({
-  inArray: vi.fn(),
-  eq: vi.fn(),
-  and: vi.fn(),
+  inArray: vi.fn<typeof inArray>(),
+  eq: vi.fn<typeof eq>(),
+  and: vi.fn<typeof and>(),
 }));
 
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";

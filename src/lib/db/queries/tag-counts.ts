@@ -17,7 +17,8 @@ export async function listTagCounts(): Promise<AggregatedTag[]> {
   const rows = await db.execute<{
     name: string;
     content_type: AggregatedTag["contentType"];
-    count: number;
+    // Driver may stringify the count.
+    count: number | string;
   }>(sql`
     SELECT name, content_type, count(*)::int AS count
     FROM (

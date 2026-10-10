@@ -2,17 +2,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getAllBookmarks } from "@/lib/db/queries/bookmarks";
 import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
+import type {
+  invalidateNextJsBookmarksCache,
+  invalidatePageCache,
+  invalidateTagCache,
+  safeCacheLife,
+  safeCacheTag,
+} from "@/lib/bookmarks/cache-management.server";
+import type {
+  refreshAndPersistBookmarks,
+  releaseRefreshLock,
+} from "@/lib/bookmarks/refresh-logic.server";
+import type { withCacheFallback } from "@/lib/cache";
+import type { envLogger } from "@/lib/utils/env-logger";
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getAllBookmarks: vi.fn(),
+  getAllBookmarks: vi.fn<typeof getAllBookmarks>(),
 }));
 
 vi.mock("@/lib/bookmarks/cache-management.server", () => ({
-  safeCacheLife: vi.fn(),
-  safeCacheTag: vi.fn(),
-  invalidateNextJsBookmarksCache: vi.fn(),
-  invalidatePageCache: vi.fn(),
-  invalidateTagCache: vi.fn(),
+  safeCacheLife: vi.fn<typeof safeCacheLife>(),
+  safeCacheTag: vi.fn<typeof safeCacheTag>(),
+  invalidateNextJsBookmarksCache: vi.fn<typeof invalidateNextJsBookmarksCache>(),
+  invalidatePageCache: vi.fn<typeof invalidatePageCache>(),
+  invalidateTagCache: vi.fn<typeof invalidateTagCache>(),
 }));
 
 vi.mock("@/lib/bookmarks/config", () => ({
@@ -22,17 +35,17 @@ vi.mock("@/lib/bookmarks/config", () => ({
 }));
 
 vi.mock("@/lib/bookmarks/refresh-logic.server", () => ({
-  refreshAndPersistBookmarks: vi.fn(),
-  releaseRefreshLock: vi.fn(),
+  refreshAndPersistBookmarks: vi.fn<typeof refreshAndPersistBookmarks>(),
+  releaseRefreshLock: vi.fn<typeof releaseRefreshLock>(),
 }));
 
 vi.mock("@/lib/cache", () => ({
   USE_NEXTJS_CACHE: false,
-  withCacheFallback: vi.fn(),
+  withCacheFallback: vi.fn<typeof withCacheFallback>(),
 }));
 
 vi.mock("@/lib/utils/env-logger", () => ({
-  envLogger: { log: vi.fn() },
+  envLogger: { log: vi.fn<typeof envLogger.log>() },
 }));
 
 const mockGetAllBookmarks = vi.mocked(getAllBookmarks);

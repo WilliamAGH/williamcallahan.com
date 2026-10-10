@@ -1,19 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
-import type { RawApiBookmark, UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { BookmarksIndex, RawApiBookmark, UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { getAllBookmarks, getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
 
-const mockGetBookmarksIndexFromDatabase = vi.fn();
-const mockGetAllBookmarks = vi.fn();
+const mockGetBookmarksIndexFromDatabase = vi.fn<typeof getBookmarksIndexFromDatabase>();
+const mockGetAllBookmarks = vi.fn<typeof getAllBookmarks>();
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getBookmarksIndexFromDatabase: (...args: unknown[]) => mockGetBookmarksIndexFromDatabase(...args),
-  getAllBookmarks: (...args: unknown[]) => mockGetAllBookmarks(...args),
+  getBookmarksIndexFromDatabase: (...args: Parameters<typeof getBookmarksIndexFromDatabase>) =>
+    mockGetBookmarksIndexFromDatabase(...args),
+  getAllBookmarks: (...args: Parameters<typeof getAllBookmarks>) => mockGetAllBookmarks(...args),
 }));
 
 import { validateChecksumAndGetCached } from "@/lib/bookmarks/refresh-helpers";
 
 const CREATED_AT = "2026-01-01T00:00:00.000Z";
 const MODIFIED_AT = "2026-02-01T00:00:00.000Z";
+
+function buildIndex(count: number, checksum: string): BookmarksIndex {
+  return {
+    count,
+    checksum,
+    totalPages: 0,
+    pageSize: 24,
+    lastModified: "2024-01-01T00:00:00.000Z",
+    lastFetchedAt: 0,
+    lastAttemptedAt: 0,
+  };
+}
 
 function buildRaw(id: string, modifiedAt = MODIFIED_AT): RawApiBookmark {
   return {
@@ -60,10 +74,9 @@ describe("validateChecksumAndGetCached", () => {
   it("returns the cached dataset when the raw checksum matches the persisted index checksum", async () => {
     const raw = [buildRaw("a"), buildRaw("b")];
     const cached = [buildCached("a"), buildCached("b")];
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      checksum: calculateBookmarksChecksum(cached),
-      count: cached.length,
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+      buildIndex(cached.length, calculateBookmarksChecksum(cached)),
+    );
     mockGetAllBookmarks.mockResolvedValue(cached);
 
     const result = await validateChecksumAndGetCached(raw, false);
@@ -74,10 +87,9 @@ describe("validateChecksumAndGetCached", () => {
   it("returns null cache when a bookmark's modifiedAt changed upstream", async () => {
     const raw = [buildRaw("a"), buildRaw("b", "2026-03-01T00:00:00.000Z")];
     const cached = [buildCached("a"), buildCached("b")];
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      checksum: calculateBookmarksChecksum(cached),
-      count: cached.length,
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+      buildIndex(cached.length, calculateBookmarksChecksum(cached)),
+    );
     mockGetAllBookmarks.mockResolvedValue(cached);
 
     const result = await validateChecksumAndGetCached(raw, false);
@@ -108,10 +120,9 @@ describe("validateChecksumAndGetCached", () => {
         ogImageExternal: "/api/assets/asset-1",
       }),
     ];
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      checksum: calculateBookmarksChecksum(cached),
-      count: cached.length,
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+      buildIndex(cached.length, calculateBookmarksChecksum(cached)),
+    );
     mockGetAllBookmarks.mockResolvedValue(cached);
 
     try {

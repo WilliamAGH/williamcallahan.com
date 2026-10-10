@@ -8,18 +8,19 @@ import { useRegisteredWindowState as useRegisteredWindowStateImported } from "..
 import { handleCommand as handleCommandImported } from "../../../../src/components/ui/terminal/commands.client";
 import { aiChat as aiChatImported } from "../../../../src/lib/ai/openai-compatible/browser-client";
 import type { CommandResult } from "../../../../src/types/terminal";
+import type { RegisteredWindowState } from "../../../../src/types/ui/window";
 
 vi.mock("../../../../src/components/ui/terminal/terminal-header", () => ({
   TerminalHeader: () => <div data-testid="mock-terminal-header" />,
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: vi.fn(() => ({ push: vi.fn() })),
-  usePathname: vi.fn(() => "/"),
+  useRouter: vi.fn<() => Pick<AppRouter, "push">>(() => ({ push: vi.fn<AppRouter["push"]>() })),
+  usePathname: vi.fn<(typeof import("next/navigation"))["usePathname"]>(() => "/"),
 }));
 
 vi.mock("../../../../src/lib/context/global-window-registry-context.client", () => ({
-  useRegisteredWindowState: vi.fn(),
+  useRegisteredWindowState: vi.fn<typeof useRegisteredWindowStateImported>(),
 }));
 
 vi.mock("../../../../src/components/ui/terminal/commands.client", async () => {
@@ -28,15 +29,17 @@ vi.mock("../../../../src/components/ui/terminal/commands.client", async () => {
   >("../../../../src/components/ui/terminal/commands.client");
   return {
     ...actual,
-    handleCommand: vi.fn(),
+    handleCommand: vi.fn<typeof handleCommandImported>(),
   };
 });
 
 vi.mock("../../../../src/lib/ai/openai-compatible/browser-client", () => ({
-  aiChat: vi.fn(),
+  aiChat: vi.fn<typeof aiChatImported>(),
 }));
 
 import { useRouter as useRouterImported } from "next/navigation";
+
+type AppRouter = ReturnType<typeof useRouterImported>;
 
 const mockUseRegisteredWindowState = useRegisteredWindowStateImported as Mock;
 const mockUseRouter = useRouterImported as Mock;
@@ -116,13 +119,13 @@ const renderTerminal = () => {
 describe("Concurrent Command Prevention", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseRouter.mockReturnValue({ push: vi.fn() });
+    mockUseRouter.mockReturnValue({ push: vi.fn<AppRouter["push"]>() });
     mockUseRegisteredWindowState.mockReturnValue({
       windowState: "normal",
-      close: vi.fn(),
-      minimize: vi.fn(),
-      maximize: vi.fn(),
-      restore: vi.fn(),
+      close: vi.fn<RegisteredWindowState["close"]>(),
+      minimize: vi.fn<RegisteredWindowState["minimize"]>(),
+      maximize: vi.fn<RegisteredWindowState["maximize"]>(),
+      restore: vi.fn<RegisteredWindowState["restore"]>(),
     });
   });
 
@@ -179,13 +182,13 @@ describe("Concurrent Command Prevention", () => {
 describe("AbortController Cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseRouter.mockReturnValue({ push: vi.fn() });
+    mockUseRouter.mockReturnValue({ push: vi.fn<AppRouter["push"]>() });
     mockUseRegisteredWindowState.mockReturnValue({
       windowState: "normal",
-      close: vi.fn(),
-      minimize: vi.fn(),
-      maximize: vi.fn(),
-      restore: vi.fn(),
+      close: vi.fn<RegisteredWindowState["close"]>(),
+      minimize: vi.fn<RegisteredWindowState["minimize"]>(),
+      maximize: vi.fn<RegisteredWindowState["maximize"]>(),
+      restore: vi.fn<RegisteredWindowState["restore"]>(),
     });
   });
 

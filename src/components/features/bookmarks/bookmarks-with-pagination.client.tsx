@@ -11,6 +11,7 @@ import { TagsList } from "./tags-list.client";
 import { BookmarkRefreshAlerts } from "./bookmark-refresh-alerts.client";
 import { BookmarkPaginationNav } from "./bookmark-pagination-nav.client";
 import { usePagination } from "@/hooks/use-pagination";
+import { useMount } from "@/components/ui/theme/use-mount";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
 import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
@@ -32,8 +33,10 @@ function getSectionLabel(bookmarks: UnifiedBookmark[]): string {
   return firstTag ?? "More";
 }
 
+const NO_INITIAL_BOOKMARKS: UnifiedBookmark[] = [];
+
 export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProps> = ({
-  initialBookmarks = [],
+  initialBookmarks = NO_INITIAL_BOOKMARKS,
   showFilterBar = true,
   enableInfiniteScroll = true,
   itemsPerPage = 24,
@@ -48,7 +51,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   feedMode = "discover",
   internalHrefs,
 }) => {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMount();
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   const router = useRouter();
   const pathname = usePathname();
@@ -108,9 +111,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   });
   const { trackImpression } = useEngagementTracker();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
   useEffect(() => {
     if (initialPage > 1) goToPage(initialPage);
   }, [initialPage, goToPage]);

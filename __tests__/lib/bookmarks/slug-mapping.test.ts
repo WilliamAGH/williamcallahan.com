@@ -12,7 +12,11 @@ import {
 } from "@/lib/bookmarks/slug-manager";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import type { BookmarkSlugMapping } from "@/types/schemas/bookmark";
-import { getBookmarkIdBySlug, getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
+import {
+  getBookmarkIdBySlug,
+  getSlugMappingRowsFromDatabase,
+  type getBookmarkBySlugFromDatabase,
+} from "@/lib/db/queries/bookmarks";
 
 const queryMocks = vi.hoisted(() => ({
   getBookmarkIdBySlug: vi.fn<(slug: string) => Promise<string | null>>(),
@@ -20,8 +24,8 @@ const queryMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getSlugMappingRowsFromDatabase: vi.fn(),
-  getBookmarkBySlugFromDatabase: vi.fn(),
+  getSlugMappingRowsFromDatabase: vi.fn<typeof getSlugMappingRowsFromDatabase>(),
+  getBookmarkBySlugFromDatabase: vi.fn<typeof getBookmarkBySlugFromDatabase>(),
   getBookmarkIdBySlug: queryMocks.getBookmarkIdBySlug,
   getBookmarkSelectById: async (id: string) =>
     (await queryMocks.getBookmarkSelectById(id)) ? { id } : null,

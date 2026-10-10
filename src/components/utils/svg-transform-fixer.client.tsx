@@ -39,7 +39,7 @@ export function SvgTransformFixer() {
   const mounted = useRef(false);
 
   useEffect(() => {
-    if (mounted.current) return;
+    if (mounted.current) return undefined;
     mounted.current = true;
 
     // Fix all SVGs in the document

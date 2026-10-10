@@ -126,6 +126,8 @@ async function renderEntity(
       return renderTextLayout(parsed);
     }
   }
+  const unhandledEntity: never = entity;
+  throw new Error(`Unhandled OG entity: ${String(unhandledEntity)}`);
 }
 
 export async function GET(

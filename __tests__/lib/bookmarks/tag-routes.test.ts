@@ -11,38 +11,38 @@ import {
   getTagBookmarksIndexFromDatabase,
 } from "@/lib/db/queries/bookmarks";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
+import type * as BookmarkQueries from "@/lib/db/queries/bookmarks";
+import type * as CacheManagement from "@/lib/bookmarks/cache-management.server";
+import type { envLogger } from "@/lib/utils/env-logger";
+import type { cacheContextGuards } from "@/lib/cache";
+
+type EnvLogger = typeof envLogger;
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getAllBookmarks: vi.fn(),
-  getBookmarkById: vi.fn(),
-  getBookmarksPage: vi.fn(),
-  getBookmarksPageByTag: vi.fn(),
-  getBookmarksCount: vi.fn(),
-  getBookmarksIndexFromDatabase: vi.fn(),
-  getTagBookmarksIndexFromDatabase: vi.fn(),
-  listTagSlugsFromDatabase: vi.fn(),
-  searchBookmarksFts: vi.fn(),
+  getAllBookmarks: vi.fn<typeof BookmarkQueries.getAllBookmarks>(),
+  getBookmarkById: vi.fn<typeof BookmarkQueries.getBookmarkById>(),
+  getBookmarksPage: vi.fn<typeof BookmarkQueries.getBookmarksPage>(),
+  getBookmarksPageByTag: vi.fn<typeof BookmarkQueries.getBookmarksPageByTag>(),
+  getBookmarksCount: vi.fn<typeof BookmarkQueries.getBookmarksCount>(),
+  getBookmarksIndexFromDatabase: vi.fn<typeof BookmarkQueries.getBookmarksIndexFromDatabase>(),
+  getTagBookmarksIndexFromDatabase:
+    vi.fn<typeof BookmarkQueries.getTagBookmarksIndexFromDatabase>(),
+  listTagSlugsFromDatabase: vi.fn<typeof BookmarkQueries.listTagSlugsFromDatabase>(),
+  searchBookmarksFts: vi.fn<typeof BookmarkQueries.searchBookmarksFts>(),
 }));
 
 vi.mock("@/lib/bookmarks/cache-management.server", () => ({
-  getFullDatasetCache: vi.fn().mockReturnValue(null),
-  setFullDatasetCache: vi.fn(),
-  safeCacheLife: vi.fn(),
-  safeCacheTag: vi.fn(),
-  getCachedBookmarkById: vi.fn(),
-  setCachedBookmarkById: vi.fn(),
-  invalidateBookmarkByIdCaches: vi.fn(),
-  invalidateNextJsBookmarksCache: vi.fn(),
-  invalidatePageCache: vi.fn(),
-  invalidateTagCache: vi.fn(),
-  invalidateBookmarkMemoryCache: vi.fn(),
-  clearFullDatasetCache: vi.fn(),
+  safeCacheLife: vi.fn<typeof CacheManagement.safeCacheLife>(),
+  safeCacheTag: vi.fn<typeof CacheManagement.safeCacheTag>(),
+  invalidateNextJsBookmarksCache: vi.fn<typeof CacheManagement.invalidateNextJsBookmarksCache>(),
+  invalidatePageCache: vi.fn<typeof CacheManagement.invalidatePageCache>(),
+  invalidateTagCache: vi.fn<typeof CacheManagement.invalidateTagCache>(),
 }));
 
 vi.mock("@/lib/utils/env-logger", () => ({
   envLogger: {
-    log: vi.fn(),
-    debug: vi.fn(),
+    log: vi.fn<EnvLogger["log"]>(),
+    debug: vi.fn<EnvLogger["debug"]>(),
   },
 }));
 
@@ -60,8 +60,8 @@ vi.mock("@/lib/cache", () => ({
     _fallbackFn: () => Promise<T>,
   ): Promise<T> => cachedFn(),
   cacheContextGuards: {
-    cacheLife: vi.fn(),
-    cacheTag: vi.fn(),
+    cacheLife: vi.fn<typeof cacheContextGuards.cacheLife>(),
+    cacheTag: vi.fn<typeof cacheContextGuards.cacheTag>(),
   },
 }));
 

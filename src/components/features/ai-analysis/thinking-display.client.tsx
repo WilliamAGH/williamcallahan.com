@@ -5,24 +5,19 @@ import { ChevronRight, ChevronDown } from "lucide-react";
 import type { ThinkingDisplayProps } from "@/types/ai-analysis";
 
 export function ThinkingDisplay({ text, tokenCount, isStreaming }: Readonly<ThinkingDisplayProps>) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const wasStreamingRef = useRef(false);
+  const [isExpanded, setIsExpanded] = useState(isStreaming);
+  const [previousStreaming, setPreviousStreaming] = useState(isStreaming);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-expand during streaming, auto-collapse when streaming ends
-  useEffect(() => {
-    if (isStreaming) {
-      setIsExpanded(true);
-      wasStreamingRef.current = true;
-    } else if (wasStreamingRef.current) {
-      setIsExpanded(false);
-      wasStreamingRef.current = false;
-    }
-  }, [isStreaming]);
+  if (previousStreaming !== isStreaming) {
+    setPreviousStreaming(isStreaming);
+    setIsExpanded(isStreaming);
+  }
 
   // Auto-scroll to bottom during streaming
   useEffect(() => {
-    if (isStreaming && isExpanded && scrollRef.current) {
+    if (isStreaming && isExpanded && text.length > 0 && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [isStreaming, isExpanded, text]);

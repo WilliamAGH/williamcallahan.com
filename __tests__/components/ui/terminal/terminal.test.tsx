@@ -7,6 +7,7 @@ import { TerminalProvider } from "../../../../src/components/ui/terminal/termina
 import { useRegisteredWindowState as useRegisteredWindowStateImported } from "../../../../src/lib/context/global-window-registry-context.client";
 import type {
   GlobalWindowRegistryContextType,
+  RegisteredWindowState,
   WindowStateValue,
 } from "../../../../src/types/ui/window";
 
@@ -46,8 +47,8 @@ vi.mock("../../../../src/components/ui/terminal/terminal-header", () => ({
 // Mock next/navigation using mock.module
 vi.mock("next/navigation", () => ({
   // Use mock.module
-  useRouter: vi.fn(() => ({ push: vi.fn() })), // Provide default mock implementation
-  usePathname: vi.fn(() => "/"),
+  useRouter: vi.fn<() => Pick<AppRouter, "push">>(() => ({ push: vi.fn<AppRouter["push"]>() })), // Provide default mock implementation
+  usePathname: vi.fn<typeof usePathnameImported>(() => "/"),
 }));
 
 // --- Mock GlobalWindowRegistryContext using mock.module ---
@@ -73,7 +74,7 @@ vi.mock("../../../../src/lib/context/global-window-registry-context.client", () 
   // Functions defined above
   return {
     GlobalWindowRegistryProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    useWindowRegistry: vi.fn((): Partial<GlobalWindowRegistryContextType> => ({
+    useWindowRegistry: vi.fn<() => Partial<GlobalWindowRegistryContextType>>(() => ({
       windows: {
         "main-terminal": {
           id: "main-terminal",
@@ -82,30 +83,32 @@ vi.mock("../../../../src/lib/context/global-window-registry-context.client", () 
           title: "Terminal",
         },
       },
-      registerWindow: vi.fn(),
-      unregisterWindow: vi.fn(),
-      setWindowState: vi.fn((id: string, state: WindowStateValue) => {
-        if (id === "main-terminal") setMockState(state);
-      }),
-      minimizeWindow: vi.fn((id: string) => {
+      registerWindow: vi.fn<GlobalWindowRegistryContextType["registerWindow"]>(),
+      unregisterWindow: vi.fn<GlobalWindowRegistryContextType["unregisterWindow"]>(),
+      setWindowState: vi.fn<GlobalWindowRegistryContextType["setWindowState"]>(
+        (id: string, state: WindowStateValue) => {
+          if (id === "main-terminal") setMockState(state);
+        },
+      ),
+      minimizeWindow: vi.fn<GlobalWindowRegistryContextType["minimizeWindow"]>((id: string) => {
         if (id === "main-terminal") minimizeMock();
       }),
-      maximizeWindow: vi.fn((id: string) => {
+      maximizeWindow: vi.fn<GlobalWindowRegistryContextType["maximizeWindow"]>((id: string) => {
         if (id === "main-terminal") maximizeMock();
       }),
-      closeWindow: vi.fn((id: string) => {
+      closeWindow: vi.fn<GlobalWindowRegistryContextType["closeWindow"]>((id: string) => {
         if (id === "main-terminal") closeMock();
       }),
-      restoreWindow: vi.fn((id: string) => {
+      restoreWindow: vi.fn<GlobalWindowRegistryContextType["restoreWindow"]>((id: string) => {
         if (id === "main-terminal") restoreMock();
       }),
-      getWindowState: vi.fn((id: string) =>
+      getWindowState: vi.fn<GlobalWindowRegistryContextType["getWindowState"]>((id: string) =>
         id === "main-terminal"
           ? { id: "main-terminal", state: mockWindowState, icon: MockIcon, title: "Terminal" }
           : undefined,
       ),
     })),
-    useRegisteredWindowState: vi.fn(), // Mock the hook used by the component
+    useRegisteredWindowState: vi.fn<typeof useRegisteredWindowStateImported>(), // Mock the hook used by the component
   };
 });
 // --- End Mock ---
@@ -118,12 +121,7 @@ import {
 const mockUseRegisteredWindowState = vi.mocked(useRegisteredWindowStateImported);
 const mockUsePathname = vi.mocked(usePathnameImported);
 const mockUseRouter = vi.mocked(useRouterImported);
-
-vi.mock("../../../../src/lib/search", () => ({
-  searchExperience: vi.fn().mockResolvedValue([]),
-  searchEducation: vi.fn().mockResolvedValue([]),
-  searchInvestments: vi.fn().mockResolvedValue([]),
-}));
+type AppRouter = ReturnType<typeof useRouterImported>;
 
 // Mock fetch globally *before* importing Terminal or CommandProcessor
 const mockFetch = vi.fn<typeof globalThis.fetch>();
@@ -148,7 +146,7 @@ const renderTerminal = () => {
 };
 
 describe("Terminal Component", () => {
-  let mockRouterPush = vi.fn();
+  let mockRouterPush = vi.fn<AppRouter["push"]>();
 
   beforeEach(() => {
     // Reset mocks before each test
@@ -157,14 +155,14 @@ describe("Terminal Component", () => {
     mockUsePathname.mockReturnValue("/");
 
     // Reset router mock and get push handle
-    mockRouterPush = vi.fn();
+    mockRouterPush = vi.fn<AppRouter["push"]>();
     mockUseRouter.mockReturnValue({
-      back: vi.fn(),
-      forward: vi.fn(),
-      refresh: vi.fn(),
+      back: vi.fn<AppRouter["back"]>(),
+      forward: vi.fn<AppRouter["forward"]>(),
+      refresh: vi.fn<AppRouter["refresh"]>(),
       push: mockRouterPush,
-      replace: vi.fn(),
-      prefetch: vi.fn(),
+      replace: vi.fn<AppRouter["replace"]>(),
+      prefetch: vi.fn<AppRouter["prefetch"]>(),
       bfcacheId: "test-bfcache-id",
     });
 
@@ -173,11 +171,11 @@ describe("Terminal Component", () => {
     mockUseRegisteredWindowState.mockImplementation(() => ({
       windowState: "normal",
       isRegistered: true,
-      minimize: vi.fn(minimizeMock),
-      maximize: vi.fn(maximizeMock),
-      close: vi.fn(closeMock),
-      restore: vi.fn(restoreMock),
-      setState: vi.fn(setMockState),
+      minimize: vi.fn<RegisteredWindowState["minimize"]>(minimizeMock),
+      maximize: vi.fn<RegisteredWindowState["maximize"]>(maximizeMock),
+      close: vi.fn<RegisteredWindowState["close"]>(closeMock),
+      restore: vi.fn<RegisteredWindowState["restore"]>(restoreMock),
+      setState: vi.fn<RegisteredWindowState["setState"]>(setMockState),
     }));
     // Reset the external state variable
     mockWindowState = "normal";
@@ -200,15 +198,6 @@ describe("Terminal Component", () => {
     });
   });
 
-  describe.todo("Rendering", () => {
-    // TODO: Fix focus assertion - currently fails in JSDOM
-    // it("renders with welcome message", () => {
-    //   renderTerminal();
-    //   expect(screen.getByText(/Welcome! Type "help" for available commands./i)).toBeInTheDocument();
-    //   expect(screen.getByRole("textbox")).toHaveFocus();
-    // });
-  });
-
   describe("Command Processing", () => {
     it("processes help command", async () => {
       renderTerminal();
@@ -221,9 +210,6 @@ describe("Terminal Component", () => {
         expect(screen.getByText(/Available commands/i)).toBeInTheDocument();
       });
     });
-
-    // TODO: Fix fetch mock timing issues causing these tests to fail
-    // it("handles invalid commands", async () => { ... });
   });
 
   describe("Navigation", () => {
@@ -258,7 +244,7 @@ describe("Terminal Component", () => {
       renderTerminal();
       const terminalContent = screen.getByText(/Welcome!/i).closest(".whitespace-pre-wrap");
       expect(terminalContent).toBeTruthy();
-      expect(String(terminalContent?.className || "")).toContain("break-words");
+      expect(terminalContent?.className ?? "").toContain("break-words");
     });
   });
 
@@ -268,11 +254,11 @@ describe("Terminal Component", () => {
       mockUseRegisteredWindowState.mockImplementation(() => ({
         windowState: "normal",
         isRegistered: true,
-        minimize: vi.fn(minimizeMock),
-        maximize: vi.fn(),
-        close: vi.fn(),
-        restore: vi.fn(),
-        setState: vi.fn(),
+        minimize: vi.fn<RegisteredWindowState["minimize"]>(minimizeMock),
+        maximize: vi.fn<RegisteredWindowState["maximize"]>(),
+        close: vi.fn<RegisteredWindowState["close"]>(),
+        restore: vi.fn<RegisteredWindowState["restore"]>(),
+        setState: vi.fn<RegisteredWindowState["setState"]>(),
       }));
 
       const { rerender } = renderTerminal();
@@ -282,11 +268,11 @@ describe("Terminal Component", () => {
       mockUseRegisteredWindowState.mockImplementationOnce(() => ({
         windowState: "minimized",
         isRegistered: true,
-        minimize: vi.fn(minimizeMock),
-        maximize: vi.fn(),
-        close: vi.fn(),
-        restore: vi.fn(),
-        setState: vi.fn(),
+        minimize: vi.fn<RegisteredWindowState["minimize"]>(minimizeMock),
+        maximize: vi.fn<RegisteredWindowState["maximize"]>(),
+        close: vi.fn<RegisteredWindowState["close"]>(),
+        restore: vi.fn<RegisteredWindowState["restore"]>(),
+        setState: vi.fn<RegisteredWindowState["setState"]>(),
       }));
 
       fireEvent.click(minimizeButton);
@@ -303,16 +289,16 @@ describe("Terminal Component", () => {
 
     it("maximizes and restores the terminal", () => {
       // Simple test - just verify the maximize button exists and can be clicked
-      const mockMaximize = vi.fn();
+      const mockMaximize = vi.fn<RegisteredWindowState["maximize"]>();
 
       mockUseRegisteredWindowState.mockImplementation(() => ({
         windowState: "normal",
         isRegistered: true,
-        minimize: vi.fn(),
+        minimize: vi.fn<RegisteredWindowState["minimize"]>(),
         maximize: mockMaximize,
-        close: vi.fn(),
-        restore: vi.fn(),
-        setState: vi.fn(),
+        close: vi.fn<RegisteredWindowState["close"]>(),
+        restore: vi.fn<RegisteredWindowState["restore"]>(),
+        setState: vi.fn<RegisteredWindowState["setState"]>(),
       }));
 
       renderTerminal();
@@ -331,11 +317,11 @@ describe("Terminal Component", () => {
       mockUseRegisteredWindowState.mockImplementation(() => ({
         windowState: "normal",
         isRegistered: true,
-        minimize: vi.fn(),
-        maximize: vi.fn(),
-        close: vi.fn(closeMock),
-        restore: vi.fn(),
-        setState: vi.fn(),
+        minimize: vi.fn<RegisteredWindowState["minimize"]>(),
+        maximize: vi.fn<RegisteredWindowState["maximize"]>(),
+        close: vi.fn<RegisteredWindowState["close"]>(closeMock),
+        restore: vi.fn<RegisteredWindowState["restore"]>(),
+        setState: vi.fn<RegisteredWindowState["setState"]>(),
       }));
 
       const { rerender } = renderTerminal();
@@ -345,11 +331,11 @@ describe("Terminal Component", () => {
       mockUseRegisteredWindowState.mockImplementationOnce(() => ({
         windowState: "closed",
         isRegistered: true,
-        minimize: vi.fn(),
-        maximize: vi.fn(),
-        close: vi.fn(closeMock),
-        restore: vi.fn(),
-        setState: vi.fn(),
+        minimize: vi.fn<RegisteredWindowState["minimize"]>(),
+        maximize: vi.fn<RegisteredWindowState["maximize"]>(),
+        close: vi.fn<RegisteredWindowState["close"]>(closeMock),
+        restore: vi.fn<RegisteredWindowState["restore"]>(),
+        setState: vi.fn<RegisteredWindowState["setState"]>(),
       }));
 
       fireEvent.click(closeButton);

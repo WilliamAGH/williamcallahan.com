@@ -8,20 +8,17 @@
 "use client";
 
 import Image, { type ImageProps } from "next/image";
-import { type JSX, useEffect, useState } from "react";
+import type { JSX } from "react";
+import { useMount } from "@/components/ui/theme/use-mount";
 
 export function Base64Image({
   className = "",
-  alt = "",
+  alt,
   width,
   height,
   ...props
 }: ImageProps): JSX.Element {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useMount();
 
   if (!isMounted) {
     // Server-side or initial render placeholder
@@ -31,8 +28,7 @@ export function Base64Image({
       <div
         className={`bg-gray-200 dark:bg-gray-700 animate-pulse ${className}`}
         style={{ aspectRatio, width: "100%", height: aspectRatio ? "auto" : "200px" }}
-        role="img"
-        aria-label={alt}
+        aria-hidden="true"
       />
     );
   }

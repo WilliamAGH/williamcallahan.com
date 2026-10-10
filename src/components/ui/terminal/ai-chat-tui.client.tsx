@@ -150,17 +150,18 @@ export function AiChatInput({
     textareaRef.current?.focus();
   }, []);
 
-  // Auto-resize textarea to fit content
+  // Auto-resize textarea to fit content after every render (keyed on the
+  // DOM node's current scrollHeight, not on `input` directly, so there is
+  // no stale-dependency risk from running this on every render).
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    if (input.length < 0) return;
 
     // Reset to auto to measure true scrollHeight
     textarea.style.height = "auto";
     // Cap at max-height (150px leaves room for history in terminal)
     textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
-  }, [input]);
+  });
 
   // Handle paste: show placeholder, store actual content for resolution on submit
   const handlePaste = useCallback(

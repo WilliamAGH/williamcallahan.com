@@ -22,20 +22,21 @@ import { findBlogPostFilePath, isValidBlogSlug } from "@/lib/blog/validation";
 import { cacheContextGuards } from "@/lib/cache";
 import { GET as getPostsApi } from "@/app/api/posts/route";
 import type { BlogPost } from "@/types/blog";
+import type { getAllMDXPostsCached, getMDXPost, getMDXPostCached } from "@/lib/blog/mdx";
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 
 vi.mock("@/lib/cache", () => ({
   USE_NEXTJS_CACHE: true,
   cacheContextGuards: {
-    cacheLife: vi.fn(),
-    cacheTag: vi.fn(),
-    revalidateTag: vi.fn(),
+    cacheLife: vi.fn<typeof cacheContextGuards.cacheLife>(),
+    cacheTag: vi.fn<typeof cacheContextGuards.cacheTag>(),
+    revalidateTag: vi.fn<typeof cacheContextGuards.revalidateTag>(),
   },
 }));
 
 vi.mock("@/lib/blog/validation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/blog/validation")>()),
-  findBlogPostFilePath: vi.fn(),
+  findBlogPostFilePath: vi.fn<typeof findBlogPostFilePath>(),
 }));
 
 // Mock MDX functionality using mock.module
@@ -73,12 +74,14 @@ const { mockMdxPosts } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/blog/mdx", () => ({
-  getAllMDXPostsCached: vi.fn().mockImplementation(() => Promise.resolve(mockMdxPosts)),
-  getMDXPost: vi.fn().mockImplementation((slug: string) => {
+  getAllMDXPostsCached: vi
+    .fn<typeof getAllMDXPostsCached>()
+    .mockImplementation(() => Promise.resolve(mockMdxPosts)),
+  getMDXPost: vi.fn<typeof getMDXPost>().mockImplementation((slug: string) => {
     const post = mockMdxPosts.find((p) => p.slug === slug);
     return Promise.resolve(post === undefined ? null : post);
   }),
-  getMDXPostCached: vi.fn().mockImplementation((slug: string) => {
+  getMDXPostCached: vi.fn<typeof getMDXPostCached>().mockImplementation((slug: string) => {
     const post = mockMdxPosts.find((p) => p.slug === slug);
     return Promise.resolve(post === undefined ? null : post);
   }),

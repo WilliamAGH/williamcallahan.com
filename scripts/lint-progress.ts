@@ -37,7 +37,7 @@ function runLintCheck(): string {
     const output = execSync("pnpm run lint:es 2>&1", {
       encoding: "utf-8",
       stdio: "pipe",
-    }).toString();
+    });
     return output;
   } catch (error: unknown) {
     // ESLint exits with non-zero when there are issues, but we still get the output

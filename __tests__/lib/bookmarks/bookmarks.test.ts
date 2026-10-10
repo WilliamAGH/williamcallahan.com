@@ -98,7 +98,9 @@ describe("Bookmarks Module (Simplified)", () => {
   beforeAll(() => {
     // Ensure fetch is defined on globalThis before tests run
     if (!globalThis.fetch) {
-      const fetchMock = Object.assign(vi.fn(), { preconnect: vi.fn() });
+      const fetchMock = Object.assign(vi.fn<typeof fetch>(), {
+        preconnect: vi.fn<(url: string | URL) => void>(),
+      });
       globalThis.fetch = fetchMock;
     }
   });

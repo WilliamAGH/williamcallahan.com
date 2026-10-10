@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import { vi } from "vitest";
 import { getLogoBatch } from "@/lib/data-access/logos-batch";
 import { checkIfS3ObjectExists } from "@/lib/s3/objects";
@@ -6,6 +7,10 @@ import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
 import { retryWithThrow } from "@/lib/utils/retry";
 import type { LogoSource } from "@/types/logo";
+import type { UnifiedImageService } from "@/lib/services/unified-image-service";
+import type { FailureTracker } from "@/lib/utils/failure-tracker";
+
+type DomainFailureTracker = FailureTracker<string>;
 
 // Mock dependencies
 vi.mock("@/lib/s3/objects");
@@ -13,8 +18,8 @@ vi.mock("@/lib/s3/binary");
 vi.mock("@/lib/utils/hash-utils");
 vi.mock("@/lib/utils/domain-utils");
 vi.mock("@/lib/services/unified-image-service", () => ({
-  getUnifiedImageService: vi.fn().mockReturnValue({
-    getLogo: vi.fn().mockResolvedValue({
+  getUnifiedImageService: vi.fn<() => Pick<UnifiedImageService, "getLogo">>().mockReturnValue({
+    getLogo: vi.fn<UnifiedImageService["getLogo"]>().mockResolvedValue({
       url: "https://example.com/logo.png",
       source: "google",
       contentType: "image/png",
@@ -24,13 +29,18 @@ vi.mock("@/lib/services/unified-image-service", () => ({
 
 // Mock the FailureTracker to prevent loading persisted data
 vi.mock("@/lib/utils/failure-tracker", () => ({
-  FailureTracker: vi.fn(function () {
+  FailureTracker: vi.fn<
+    () => Pick<
+      DomainFailureTracker,
+      "shouldSkip" | "recordFailure" | "removeFailure" | "load" | "save"
+    >
+  >(function () {
     return {
-      shouldSkip: vi.fn().mockResolvedValue(false),
-      recordFailure: vi.fn().mockResolvedValue(undefined),
-      removeFailure: vi.fn(),
-      load: vi.fn().mockResolvedValue(undefined),
-      save: vi.fn().mockResolvedValue(undefined),
+      shouldSkip: vi.fn<DomainFailureTracker["shouldSkip"]>().mockResolvedValue(false),
+      recordFailure: vi.fn<DomainFailureTracker["recordFailure"]>().mockResolvedValue(undefined),
+      removeFailure: vi.fn<DomainFailureTracker["removeFailure"]>(),
+      load: vi.fn<DomainFailureTracker["load"]>().mockResolvedValue(undefined),
+      save: vi.fn<DomainFailureTracker["save"]>().mockResolvedValue(undefined),
     };
   }),
 }));
@@ -70,23 +80,14 @@ describe("Logos Batch Performance Optimizations", () => {
     mockWriteBinaryS3.mockResolvedValue(undefined);
 
     // Mock fetch to prevent actual network requests
-    const mockBody = {
-      getReader: vi.fn(),
-      cancel: vi.fn(),
-      pipeTo: vi.fn(),
-      pipeThrough: vi.fn(),
-      tee: vi.fn(),
-    };
-
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      headers: new Headers({ "content-type": "image/png" }),
-      body: mockBody,
-    });
+    global.fetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(new ReadableStream<Uint8Array>(), {
+        headers: { "content-type": "image/png" },
+      }),
+    );
 
     // Mock Readable.fromWeb for Node.js stream conversion
-    const { Readable } = require("node:stream");
-    Readable.fromWeb = vi.fn().mockReturnValue(
+    vi.spyOn(Readable, "fromWeb").mockReturnValue(
       new Readable({
         read() {
           this.push(null); // Empty stream

@@ -5,6 +5,10 @@
 
 import { buildInventoryContext } from "@/lib/ai/rag/inventory-context";
 import type { BookmarkIndexEntry } from "@/types/schemas/search";
+import type { BlogPost } from "@/types/blog";
+import type { Book } from "@/types/schemas/book";
+import type { listAnalysisItemIds } from "@/lib/ai-analysis/reader.server";
+import type { getBookmarksIndex } from "@/lib/search/loaders/dynamic-content";
 
 vi.mock("@/data/investments", () => ({
   investments: [
@@ -94,14 +98,16 @@ vi.mock("@/data/metadata", () => ({
 }));
 
 vi.mock("@/lib/blog/mdx", () => ({
-  getAllMDXPostsForSearch: vi.fn().mockResolvedValue([
-    {
-      slug: "post-1",
-      title: "Post One",
-      publishedAt: "2024-01-01",
-      tags: ["ai"],
-    },
-  ]),
+  getAllMDXPostsForSearch: vi
+    .fn<() => Promise<Pick<BlogPost, "slug" | "title" | "publishedAt" | "tags">[]>>()
+    .mockResolvedValue([
+      {
+        slug: "post-1",
+        title: "Post One",
+        publishedAt: "2024-01-01",
+        tags: ["ai"],
+      },
+    ]),
 }));
 
 vi.mock("@/lib/search/loaders/dynamic-content", async () => {
@@ -112,31 +118,40 @@ vi.mock("@/lib/search/loaders/dynamic-content", async () => {
   });
 
   return {
-    getBookmarksIndex: vi.fn().mockResolvedValue({
-      index: emptyBookmarksIndex,
-      bookmarks: [
+    getBookmarksIndex: vi
+      .fn<
+        () => Promise<{
+          index: Awaited<ReturnType<typeof getBookmarksIndex>>["index"];
+          bookmarks: Pick<BookmarkIndexEntry, "id" | "slug" | "title" | "url" | "tags">[];
+        }>
+      >()
+      .mockResolvedValue({
+        index: emptyBookmarksIndex,
+        bookmarks: [
+          {
+            id: "bookmark-1",
+            slug: "bookmark-1",
+            title: "Bookmark One",
+            url: "https://example.com",
+            tags: "ai\nsearch",
+          },
+        ],
+      }),
+    getCachedBooksData: vi
+      .fn<() => Promise<Pick<Book, "id" | "title" | "authors" | "publishedYear">[]>>()
+      .mockResolvedValue([
         {
-          id: "bookmark-1",
-          slug: "bookmark-1",
-          title: "Bookmark One",
-          url: "https://example.com",
-          tags: "ai\nsearch",
+          id: "book-1",
+          title: "Book One",
+          authors: ["Author"],
+          publishedYear: "2020",
         },
-      ],
-    }),
-    getCachedBooksData: vi.fn().mockResolvedValue([
-      {
-        id: "book-1",
-        title: "Book One",
-        authors: ["Author"],
-        publishedYear: "2020",
-      },
-    ]),
+      ]),
   };
 });
 
 vi.mock("@/lib/ai-analysis/reader.server", () => ({
-  listAnalysisItemIds: vi.fn((domain: string) => {
+  listAnalysisItemIds: vi.fn<typeof listAnalysisItemIds>((domain) => {
     if (domain === "bookmarks") return Promise.resolve(["bookmark-1"]);
     if (domain === "books") return Promise.resolve(["book-1"]);
     return Promise.resolve(["project-1"]);

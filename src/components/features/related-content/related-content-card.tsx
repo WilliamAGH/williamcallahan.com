@@ -336,13 +336,13 @@ export function RelatedContentCard({
 
               {type === "investment" &&
                 metadata.stage &&
-                !normalizedTagSet.has(String(metadata.stage).toLowerCase()) && (
+                !normalizedTagSet.has(metadata.stage.toLowerCase()) && (
                   <span>{metadata.stage}</span>
                 )}
 
               {(type === "investment" || type === "project") &&
                 metadata.category &&
-                !normalizedTagSet.has(String(metadata.category).toLowerCase()) && (
+                !normalizedTagSet.has(metadata.category.toLowerCase()) && (
                   <span>{metadata.category}</span>
                 )}
             </div>

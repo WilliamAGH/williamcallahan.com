@@ -276,7 +276,7 @@ async function hydrateThoughts(entries: HydrationEntry[]): Promise<RelatedConten
   const scoreMap = new Map(entries.map((e) => [e.entityId, e.score]));
 
   return rows.map((r) => {
-    const createdAtMs = r.createdAt ? Number(r.createdAt) : null;
+    const createdAtMs = r.createdAt || null;
     const dateIso = createdAtMs ? new Date(createdAtMs).toISOString() : undefined;
     const metadata: RelatedContentMetadata = {
       tags: r.tags ?? [],

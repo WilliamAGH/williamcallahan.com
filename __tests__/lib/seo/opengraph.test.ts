@@ -12,6 +12,9 @@ import { fetchWithTimeout } from "@/lib/utils/http-client";
 import { getDomainType, validateOgUrl } from "@/lib/utils/opengraph-utils";
 import { openGraphUrlSchema } from "@/types/schemas/url";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
+import type { UnifiedImageService } from "@/lib/services/unified-image-service";
+import type { persistJinaHtmlInBackground } from "@/lib/persistence/jina-cache";
+import type { scheduleImagePersistence } from "@/lib/persistence/image-persistence";
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 
 // Snapshot and restore env to prevent cross-test pollution
@@ -251,13 +254,13 @@ describe("OpenGraph Metadata", () => {
           value: "https://blocked.example/article",
         });
 
-        const fetchWithTimeout = vi
+        const mockFetchWithTimeout = vi
           .fn<FetchWithTimeoutForTest>()
           .mockResolvedValueOnce(forbiddenResponse)
           .mockResolvedValueOnce(recoveredResponse);
 
         vi.doMock("@/lib/utils/http-client", () => ({
-          fetchWithTimeout,
+          fetchWithTimeout: mockFetchWithTimeout,
           getBrowserHeaders: () => ({
             Accept: "text/html",
             "User-Agent": "Browser UA",
@@ -266,15 +269,15 @@ describe("OpenGraph Metadata", () => {
         vi.doMock("@/lib/services/unified-image-service", () => ({
           getUnifiedImageService: () => ({
             hasDomainFailedTooManyTimes: () => false,
-            markDomainAsFailed: vi.fn(),
+            markDomainAsFailed: vi.fn<UnifiedImageService["markDomainAsFailed"]>(),
           }),
         }));
         vi.doMock("@/lib/persistence/jina-cache", () => ({
           getCachedJinaHtml: () => Promise.resolve(null),
-          persistJinaHtmlInBackground: vi.fn(),
+          persistJinaHtmlInBackground: vi.fn<typeof persistJinaHtmlInBackground>(),
         }));
         vi.doMock("@/lib/persistence/image-persistence", () => ({
-          scheduleImagePersistence: vi.fn(),
+          scheduleImagePersistence: vi.fn<typeof scheduleImagePersistence>(),
           persistImageAndGetS3Url: () => Promise.resolve(null),
         }));
         vi.doMock("@/lib/rate-limiter", () => ({
@@ -321,8 +324,8 @@ describe("OpenGraph Metadata", () => {
         if (!result || "networkFailure" in result) {
           throw new Error("Expected recovered OpenGraph metadata");
         }
-        const firstCall = fetchWithTimeout.mock.calls.at(0);
-        const secondCall = fetchWithTimeout.mock.calls.at(1);
+        const firstCall = mockFetchWithTimeout.mock.calls.at(0);
+        const secondCall = mockFetchWithTimeout.mock.calls.at(1);
         if (!firstCall || !secondCall) {
           throw new Error("Expected browser fetch followed by Googlebot fetch");
         }

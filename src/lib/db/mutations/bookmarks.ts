@@ -161,10 +161,10 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
   >();
 
   for (const bookmark of bookmarksData) {
-    const bookmarkTags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
+    const rawBookmarkTags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
     const seenSlugsForBookmark = new Set<string>();
 
-    for (const rawTag of bookmarkTags) {
+    for (const rawTag of rawBookmarkTags) {
       const tagMetadata = resolveTagMetadata(rawTag);
       if (!tagMetadata || seenSlugsForBookmark.has(tagMetadata.tagSlug)) {
         continue;

@@ -5,22 +5,23 @@ import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
 import { buildContentGraph } from "@/lib/content-graph/build";
 import type { MockedFunction } from "vitest";
+import type { initializeBookmarksDataAccess } from "@/lib/bookmarks/refresh-logic.server";
 import { bookmarksIndexSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 
 // Mock dependencies
 vi.mock("@/lib/data-access/investments");
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
 vi.mock("@/lib/bookmarks/service.server", () => ({
-  refreshBookmarks: vi.fn(),
+  refreshBookmarks: vi.fn<typeof refreshBookmarks>(),
 }));
 vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getBookmarksIndexFromDatabase: vi.fn(),
+  getBookmarksIndexFromDatabase: vi.fn<typeof getBookmarksIndexFromDatabase>(),
 }));
 vi.mock("@/lib/bookmarks/refresh-logic.server", () => ({
-  initializeBookmarksDataAccess: vi.fn(),
+  initializeBookmarksDataAccess: vi.fn<typeof initializeBookmarksDataAccess>(),
 }));
 vi.mock("@/lib/content-graph/build", () => ({
-  buildContentGraph: vi.fn(),
+  buildContentGraph: vi.fn<typeof buildContentGraph>(),
 }));
 vi.mock("@/data/experience", () => ({
   experiences: [

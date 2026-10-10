@@ -59,7 +59,9 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       type="button"
       data-testid="copy-button"
       data-content={content}
-      onClick={() => void handleCopy()}
+      onClick={() => {
+        void handleCopy();
+      }}
       className={cn(
         "absolute p-2 rounded-md backdrop-blur-sm",
         rightPosition,

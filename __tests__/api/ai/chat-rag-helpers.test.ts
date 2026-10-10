@@ -12,9 +12,10 @@ import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
+import type { envLogger } from "@/lib/utils/env-logger";
 
 vi.mock("@/lib/ai/rag", () => ({
-  buildContextForQuery: vi.fn().mockImplementation((query: string) =>
+  buildContextForQuery: vi.fn<typeof buildContextForQuery>().mockImplementation((query) =>
     Promise.resolve({
       contextText: query,
       tokenEstimate: 100,
@@ -25,13 +26,13 @@ vi.mock("@/lib/ai/rag", () => ({
   ),
 }));
 vi.mock("@/lib/rate-limiter", () => ({
-  isOperationAllowed: vi.fn().mockReturnValue(true),
+  isOperationAllowed: vi.fn<typeof isOperationAllowed>().mockReturnValue(true),
 }));
 vi.mock("@/lib/ai-analysis/writer.server", () => ({
-  persistAnalysis: vi.fn().mockResolvedValue(undefined),
+  persistAnalysis: vi.fn<typeof writeAnalysis>().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/db/connection", () => ({
-  resolveDatabaseAccessMode: vi.fn().mockReturnValue({
+  resolveDatabaseAccessMode: vi.fn<typeof resolveDatabaseAccessMode>().mockReturnValue({
     allowWrites: true,
     environment: "production",
     source: "NEXT_PUBLIC_SITE_URL",
@@ -39,7 +40,7 @@ vi.mock("@/lib/db/connection", () => ({
 }));
 vi.mock("@/lib/utils/env-logger", () => ({
   envLogger: {
-    log: vi.fn(),
+    log: vi.fn<typeof envLogger.log>(),
   },
 }));
 const mockedBuildContextForQuery = vi.mocked(buildContextForQuery);

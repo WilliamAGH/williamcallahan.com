@@ -85,9 +85,12 @@ export function useClientBookmarks(params: {
   );
 
   useEffect(() => {
-    if (!enabled || !mounted) return;
+    if (!enabled || !mounted) return undefined;
     const controller = new AbortController();
-    void fetchBookmarks(controller.signal);
+    async function loadBookmarks() {
+      await fetchBookmarks(controller.signal);
+    }
+    void loadBookmarks();
     return () => controller.abort();
   }, [enabled, mounted, fetchBookmarks]);
 

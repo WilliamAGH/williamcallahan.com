@@ -164,7 +164,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
 }
 
 export default async function TagPage({ params }: BookmarkTagPageContext) {
-  const { slug = [] } = await Promise.resolve(params);
+  const { slug } = await Promise.resolve(params);
 
   if (!slug || slug.length === 0) {
     redirect("/bookmarks");

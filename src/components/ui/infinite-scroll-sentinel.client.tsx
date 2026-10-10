@@ -15,7 +15,7 @@ export const InfiniteScrollSentinel: React.FC<InfiniteScrollSentinelProps> = ({
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!hasMore || loading) return;
+    if (!hasMore || loading) return undefined;
 
     const observer = new IntersectionObserver(
       (entries) => {

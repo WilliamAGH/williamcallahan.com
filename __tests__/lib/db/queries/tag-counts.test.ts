@@ -10,8 +10,18 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SQL } from "drizzle-orm";
+import type { AggregatedTag } from "@/types/schemas/search";
 
-const { mockExecute } = vi.hoisted(() => ({ mockExecute: vi.fn() }));
+interface TagCountRow {
+  name: string;
+  content_type: AggregatedTag["contentType"];
+  count: number | string;
+}
+
+const { mockExecute } = vi.hoisted(() => ({
+  mockExecute: vi.fn<(query: SQL) => Promise<TagCountRow[]>>(),
+}));
 vi.mock("@/lib/db/connection", () => ({ db: { execute: mockExecute } }));
 
 import { listTagCounts } from "@/lib/db/queries/tag-counts";

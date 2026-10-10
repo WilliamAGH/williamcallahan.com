@@ -6,6 +6,56 @@ import { getProperty } from "@/lib/utils/error-utils";
 import type { ErrorPageProps } from "@/types/api";
 import { useEffect, useState } from "react";
 
+const RELOAD_KEY = "chunk-error-reload-attempts";
+const MAX_RELOAD_ATTEMPTS = 3;
+const RELOAD_WINDOW_MS = 60000; // 1 minute window
+const RELOAD_DELAY_MS = 3000;
+
+interface ChunkReloadAttempts {
+  attempts: number[];
+  lastReset: number;
+}
+
+/** Reads reload attempts from session storage, resetting them outside the time window. Throws when storage is unavailable. */
+function readChunkReloadAttempts(): ChunkReloadAttempts {
+  const storedData = sessionStorage.getItem(RELOAD_KEY);
+  let reloadData: ChunkReloadAttempts = { attempts: [], lastReset: Date.now() };
+  if (storedData) {
+    const parsed: unknown = JSON.parse(storedData);
+    // Validate the structure
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "attempts" in parsed &&
+      "lastReset" in parsed &&
+      Array.isArray(parsed.attempts) &&
+      typeof parsed.lastReset === "number"
+    ) {
+      reloadData = parsed as ChunkReloadAttempts;
+    }
+  }
+
+  // Reset attempts if outside the time window
+  const now = Date.now();
+  if (now - reloadData.lastReset > RELOAD_WINDOW_MS) {
+    reloadData.attempts = [];
+    reloadData.lastReset = now;
+  }
+  return reloadData;
+}
+
+function isChunkReloadBudgetExhausted(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return readChunkReloadAttempts().attempts.length >= MAX_RELOAD_ATTEMPTS;
+  } catch {
+    // Storage failure: the effect logs it and reloads once
+    return false;
+  }
+}
+
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   // Log the error for debugging
   useEffect(() => console.error("Error in /bookmarks page:", error), [error]);
@@ -13,78 +63,37 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   // Handle ChunkLoadError specifically
   const isChunkLoadError =
     error.name === "ChunkLoadError" || error.message.includes("Loading chunk");
-  const [maxReloadReached, setMaxReloadReached] = useState(false);
+  // Chunk load errors only occur in the browser, so this read never diverges from SSR output
+  const [maxReloadReached] = useState(() => isChunkLoadError && isChunkReloadBudgetExhausted());
 
   // Auto-reload for chunk load errors with session-based protection
   useEffect(() => {
-    if (isChunkLoadError && typeof globalThis !== "undefined" && globalThis.location) {
-      const RELOAD_KEY = "chunk-error-reload-attempts";
-      const MAX_RELOAD_ATTEMPTS = 3;
-      const RELOAD_WINDOW_MS = 60000; // 1 minute window
-
-      try {
-        // Get reload attempts from session storage
-        const storedData = sessionStorage.getItem(RELOAD_KEY);
-
-        let reloadData: { attempts: number[]; lastReset: number };
-        if (storedData) {
-          const parsed: unknown = JSON.parse(storedData);
-          // Validate the structure
-          if (
-            parsed &&
-            typeof parsed === "object" &&
-            "attempts" in parsed &&
-            "lastReset" in parsed
-          ) {
-            if (Array.isArray(parsed.attempts) && typeof parsed.lastReset === "number") {
-              reloadData = parsed as { attempts: number[]; lastReset: number };
-            } else {
-              // Invalid structure, reset
-              reloadData = { attempts: [], lastReset: Date.now() };
-            }
-          } else {
-            // Invalid structure, reset
-            reloadData = { attempts: [], lastReset: Date.now() };
-          }
-        } else {
-          reloadData = { attempts: [], lastReset: Date.now() };
-        }
-
-        // Reset attempts if outside the time window
-        const now = Date.now();
-        if (now - reloadData.lastReset > RELOAD_WINDOW_MS) {
-          reloadData.attempts = [];
-          reloadData.lastReset = now;
-        }
-
-        // Check if we've exceeded max attempts
-        if (reloadData.attempts.length >= MAX_RELOAD_ATTEMPTS) {
-          console.warn(
-            `ChunkLoadError: Exceeded maximum reload attempts (${MAX_RELOAD_ATTEMPTS}) within ${RELOAD_WINDOW_MS}ms window`,
-          );
-          setMaxReloadReached(true);
-          return; // Don't reload anymore
-        }
-
-        // Add current attempt and save
-        reloadData.attempts.push(now);
-        sessionStorage.setItem(RELOAD_KEY, JSON.stringify(reloadData));
-
-        // Schedule reload
-        const timer = setTimeout(() => {
-          globalThis.location.reload();
-        }, 3000);
-        return () => clearTimeout(timer);
-      } catch (storageError) {
-        // If session storage fails, reload once but log the error
-        console.error("Failed to access session storage for reload protection:", storageError);
-        const timer = setTimeout(() => {
-          globalThis.location.reload();
-        }, 3000);
-        return () => clearTimeout(timer);
-      }
+    if (!isChunkLoadError) {
+      return undefined;
     }
-  }, [isChunkLoadError]);
+    if (maxReloadReached) {
+      console.warn(
+        `ChunkLoadError: Exceeded maximum reload attempts (${MAX_RELOAD_ATTEMPTS}) within ${RELOAD_WINDOW_MS}ms window`,
+      );
+      return undefined;
+    }
+
+    try {
+      const reloadData = readChunkReloadAttempts();
+      // Add current attempt and save
+      reloadData.attempts.push(Date.now());
+      sessionStorage.setItem(RELOAD_KEY, JSON.stringify(reloadData));
+    } catch (storageError) {
+      // If session storage fails, reload once but log the error
+      console.error("Failed to access session storage for reload protection:", storageError);
+    }
+
+    // Schedule reload
+    const timer = setTimeout(() => {
+      globalThis.location.reload();
+    }, RELOAD_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [isChunkLoadError, maxReloadReached]);
 
   let lastFetched = 0;
   try {

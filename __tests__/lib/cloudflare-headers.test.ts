@@ -349,7 +349,7 @@ describe("Cloudflare header enforcement", () => {
         fetchSpy.mockRestore();
       }
       expect(redirect).toBe("error");
-      const fetchAsset = vi.fn(async (url: string) => {
+      const fetchAsset = vi.fn<(url: string) => Promise<Response>>(async (url) => {
         return responseAt(url, "console.log('release')", "application/javascript; charset=utf-8");
       });
       await expect(

@@ -7,7 +7,7 @@ import path from "path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const loadCvPdfDocument = async () => {
-  const registerMock = vi.fn();
+  const registerMock = vi.fn<(typeof import("@react-pdf/renderer"))["Font"]["register"]>();
 
   // Reset modules to ensure clean import
   vi.resetModules();
@@ -24,7 +24,7 @@ const loadCvPdfDocument = async () => {
   vi.doMock("node:fs", async (importOriginal) => ({
     __esModule: true,
     ...(await importOriginal<typeof import("node:fs")>()),
-    existsSync: vi.fn().mockReturnValue(true),
+    existsSync: vi.fn<(typeof import("node:fs"))["existsSync"]>().mockReturnValue(true),
   }));
 
   vi.doMock("@react-pdf/renderer", () => {
@@ -90,10 +90,10 @@ describe("CvPdfDocument", () => {
     expect(registerMock).toHaveBeenCalledTimes(1);
 
     const registration = registerMock.mock.calls[0]?.[0];
-    expect(registration).toBeDefined();
-    expect(registration.family).toBe("IBM Plex Mono");
+    expect(registration).toMatchObject({ family: "IBM Plex Mono" });
 
-    const sources = (registration.fonts ?? []).map((font: { src: string }) => font.src);
+    const sources =
+      registration && "fonts" in registration ? registration.fonts.map((font) => font.src) : [];
     const fontsDir = path.join("public", "fonts", "ibm-plex-mono");
 
     expect(sources).toEqual(

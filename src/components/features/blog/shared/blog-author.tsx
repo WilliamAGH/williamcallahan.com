@@ -14,20 +14,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMount } from "@/components/ui/theme/use-mount";
 import type { BlogAuthorProps } from "@/types/features/blog";
 import type { AuthorBioSegment } from "@/types/blog";
 
 import { getOptimizedImageSrc, shouldBypassOptimizer } from "@/lib/utils/cdn-utils";
 
 export function BlogAuthor({ author }: Readonly<BlogAuthorProps>) {
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useMount();
 
   const avatarSrc = getOptimizedImageSrc(author.avatar, undefined, 64);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const renderBioSegments = (bio: AuthorBioSegment[]) =>
     bio.map((segment) => {

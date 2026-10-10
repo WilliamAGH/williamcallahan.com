@@ -7,11 +7,19 @@
 
 "use client";
 
-import { forwardRef, useCallback, useId, useState, useEffect } from "react";
+import { forwardRef, useCallback, useId, useSyncExternalStore } from "react";
 import type { CommandInputProps } from "@/types/ui/terminal";
 
-// Breakpoint for mobile placeholder (matches Tailwind's sm breakpoint)
-const MOBILE_BREAKPOINT = 640;
+// Mobile placeholder query (below Tailwind's sm breakpoint of 640px)
+const MOBILE_MEDIA_QUERY = "(max-width: 639.98px)";
+
+const subscribeToMobileQuery = (onChange: () => void): (() => void) => {
+  const mediaQueryList = window.matchMedia(MOBILE_MEDIA_QUERY);
+  mediaQueryList.addEventListener("change", onChange);
+  return () => mediaQueryList.removeEventListener("change", onChange);
+};
+const getMobileQuerySnapshot = (): boolean => window.matchMedia(MOBILE_MEDIA_QUERY).matches;
+const getMobileQueryServerSnapshot = (): boolean => false;
 
 export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(function CommandInput(
   { value, onChange, onSubmit, disabled = false },
@@ -20,18 +28,12 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
   // Generate unique ID for accessibility
   const inputId = useId();
 
-  // Track hydration state to prevent SSR/client mismatch
-  const [mounted, setMounted] = useState(false);
-  // Track if we're on a mobile-sized screen for shorter placeholder
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const checkMobile = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  // Server snapshot is false, so SSR and hydration render the desktop placeholder
+  const isMobile = useSyncExternalStore(
+    subscribeToMobileQuery,
+    getMobileQuerySnapshot,
+    getMobileQueryServerSnapshot,
+  );
 
   const handleChange = useCallback(
     (newValue: string) => {
@@ -75,7 +77,7 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
             placeholder={
               disabled
                 ? "Processing..."
-                : mounted && isMobile
+                : isMobile
                   ? "Enter command or search site here"
                   : "Enter a command or search the site here"
             }

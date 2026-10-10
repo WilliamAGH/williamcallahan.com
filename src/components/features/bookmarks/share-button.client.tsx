@@ -12,9 +12,10 @@ import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants/client";
 import type { BookmarkShareButtonProps } from "@/types/features/bookmarks";
 import { Check } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
+import { useMount } from "@/components/ui/theme/use-mount";
 
 export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMount();
   const [copied, setCopied] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
@@ -27,19 +28,15 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
   useFixSvgTransforms({ rootRef: buttonRef });
   useFixSvgTransforms({ rootRef: placeholderButtonRef });
 
-  // Track mounted state for hydration safety
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // Reset copied state after animation
   useEffect(() => {
-    if (copied) {
-      const timer = setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-      return () => clearTimeout(timer);
+    if (!copied) {
+      return undefined;
     }
+    const timer = setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [copied]);
 
   // Get the full URL for sharing
@@ -126,7 +123,9 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
     <div className="relative">
       <button
         ref={buttonRef}
-        onClick={() => void handleCopy()}
+        onClick={() => {
+          void handleCopy();
+        }}
         data-transform-fix-container="true"
         className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         aria-label="Copy link"

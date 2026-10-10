@@ -83,31 +83,48 @@ vi.mock("@/data/projects", () => ({
   ],
 }));
 
+import type * as SearchIndexArtifacts from "@/lib/db/queries/search-index-artifacts";
+import type * as HybridSearch from "@/lib/db/queries/hybrid-search";
+import type * as FeatureConfig from "@/lib/ai/openai-compatible/feature-config";
+import type * as HybridSearchInvestments from "@/lib/db/queries/hybrid-search-investments";
+import type * as QueryEmbedding from "@/lib/db/queries/query-embedding";
+
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
-  getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
+  getSerializedSearchIndexArtifact: vi
+    .fn<typeof SearchIndexArtifacts.getSerializedSearchIndexArtifact>()
+    .mockResolvedValue(null),
 }));
-const mockHybridSearchThoughts = vi.fn();
+const mockHybridSearchThoughts = vi.fn<typeof HybridSearch.hybridSearchThoughts>();
 vi.mock("@/lib/db/queries/hybrid-search", () => ({
-  hybridSearchThoughts: (...args: unknown[]) => mockHybridSearchThoughts(...args),
-  hybridSearchBookmarks: vi.fn().mockResolvedValue([]),
+  hybridSearchThoughts: (...args: Parameters<typeof HybridSearch.hybridSearchThoughts>) =>
+    mockHybridSearchThoughts(...args),
+  hybridSearchBookmarks: vi.fn<typeof HybridSearch.hybridSearchBookmarks>().mockResolvedValue([]),
 }));
 vi.mock("@/lib/ai/openai-compatible/feature-config", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ai/openai-compatible/feature-config")>();
   return {
     ...actual,
-    resolveDefaultEndpointCompatibleEmbeddingConfig: vi.fn().mockReturnValue(null),
+    resolveDefaultEndpointCompatibleEmbeddingConfig: vi
+      .fn<typeof FeatureConfig.resolveDefaultEndpointCompatibleEmbeddingConfig>()
+      .mockReturnValue(null),
   };
 });
 
-const mockHybridSearchInvestments = vi.fn();
-const mockHybridSearchProjects = vi.fn();
+const mockHybridSearchInvestments = vi.fn<typeof HybridSearchInvestments.hybridSearchInvestments>();
+const mockHybridSearchProjects = vi.fn<typeof HybridSearchInvestments.hybridSearchProjects>();
 vi.mock("@/lib/db/queries/hybrid-search-investments", () => ({
-  hybridSearchInvestments: (...args: unknown[]) => mockHybridSearchInvestments(...args),
-  hybridSearchProjects: (...args: unknown[]) => mockHybridSearchProjects(...args),
+  hybridSearchInvestments: (
+    ...args: Parameters<typeof HybridSearchInvestments.hybridSearchInvestments>
+  ) => mockHybridSearchInvestments(...args),
+  hybridSearchProjects: (
+    ...args: Parameters<typeof HybridSearchInvestments.hybridSearchProjects>
+  ) => mockHybridSearchProjects(...args),
 }));
 
 vi.mock("@/lib/db/queries/query-embedding", () => ({
-  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+  buildQueryEmbedding: vi
+    .fn<typeof QueryEmbedding.buildQueryEmbedding>()
+    .mockResolvedValue(undefined),
 }));
 
 import {

@@ -192,7 +192,7 @@ export async function findSimilarByEmbedding(
       domain: row.domain,
       entityId: row.entity_id,
       title: row.title,
-      similarity: Number(row.similarity),
+      similarity: row.similarity,
       contentDate: row.content_date,
     }));
 }

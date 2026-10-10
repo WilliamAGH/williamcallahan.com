@@ -6,31 +6,41 @@ import {
   mapUnifiedBookmarkToBookmarkInsert,
 } from "@/lib/db/bookmark-record-mapper";
 import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { assertDatabaseWriteAllowed } from "@/lib/db/connection";
+import type { getBookmarkBySlugFromDatabase } from "@/lib/db/queries/bookmarks";
 
 const mocks = vi.hoisted(() => {
   const events: string[] = [];
-  const onConflictDoUpdate = vi.fn(async () => undefined);
-  const values = vi.fn(() => ({ onConflictDoUpdate }));
-  const insert = vi.fn(() => ({ values }));
-  const where = vi.fn(async () => undefined);
-  const deleteRows = vi.fn(() => ({ where }));
-  const execute = vi.fn(async () => {
+  const onConflictDoUpdate = vi.fn<(conflictConfig: unknown) => Promise<undefined>>(
+    async () => undefined,
+  );
+  const values = vi.fn<(rows: unknown) => { onConflictDoUpdate: typeof onConflictDoUpdate }>(
+    () => ({ onConflictDoUpdate }),
+  );
+  const insert = vi.fn<(table: unknown) => { values: typeof values }>(() => ({ values }));
+  const where = vi.fn<(condition: unknown) => Promise<undefined>>(async () => undefined);
+  const deleteRows = vi.fn<(table: unknown) => { where: typeof where }>(() => ({ where }));
+  const execute = vi.fn<(query: SQL) => Promise<unknown[]>>(async () => {
     events.push("lock");
     return [];
   });
   const transactionExecutor = { delete: deleteRows, execute, insert };
-  const transaction = vi.fn(async (operation: (executor: unknown) => Promise<unknown>) => {
+  const transaction = vi.fn<
+    (operation: (executor: unknown) => Promise<unknown>) => Promise<unknown>
+  >(async (operation) => {
     events.push("transaction");
     return operation(transactionExecutor);
   });
   const persistedSlugs: Array<{ id: string; slug: string; url: string; title: string }> = [];
-  const getSlugMappingRows = vi.fn(async (_executor: unknown) => {
-    events.push("read");
-    return persistedSlugs;
-  });
+  const getSlugMappingRows = vi.fn<(_executor: unknown) => Promise<typeof persistedSlugs>>(
+    async () => {
+      events.push("read");
+      return persistedSlugs;
+    },
+  );
 
   return {
-    assertDatabaseWriteAllowed: vi.fn(),
+    assertDatabaseWriteAllowed: vi.fn<typeof assertDatabaseWriteAllowed>(),
     deleteRows,
     events,
     execute,
@@ -53,7 +63,7 @@ vi.mock("@/lib/db/connection", () => ({
 }));
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getBookmarkBySlugFromDatabase: vi.fn(),
+  getBookmarkBySlugFromDatabase: vi.fn<typeof getBookmarkBySlugFromDatabase>(),
   getSlugMappingRowsFromDatabase: mocks.getSlugMappingRows,
 }));
 

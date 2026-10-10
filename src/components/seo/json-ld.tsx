@@ -11,13 +11,25 @@
 
 "use client";
 
-import { useLayoutEffect, useState, useSyncExternalStore, type JSX } from "react";
+import { useState, useSyncExternalStore, type JSX } from "react";
 
 import type { JsonLdScriptProps } from "@/types/features/seo";
 
 const subscribeToClientRuntime = (): (() => void) => () => undefined;
 const getClientRuntimeSnapshot = (): boolean => true;
 const getServerRuntimeSnapshot = (): boolean => false;
+
+/**
+ * React Activity attaches host refs when the owning route becomes visible and
+ * detaches them when it hides, while preserving the host DOM. Toggling the
+ * script type here keeps hidden copies inert without a state round-trip.
+ */
+const activateJsonLdScript = (node: HTMLScriptElement): (() => void) => {
+  node.type = "application/ld+json";
+  return () => {
+    node.type = "application/json";
+  };
+};
 
 export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element {
   // Keep the host node stable during streamed hydration and hidden mounts inert.
@@ -26,17 +38,10 @@ export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element {
     getClientRuntimeSnapshot,
     getServerRuntimeSnapshot,
   );
-  const [isDocumentActive, setIsDocumentActive] = useState(!isClientRuntime);
-
-  useLayoutEffect(() => {
-    // React Activity recreates this effect when the owning route becomes visible.
-    setIsDocumentActive(true);
-
-    return () => {
-      // Hidden Activities disconnect layout effects before preserving their host DOM.
-      setIsDocumentActive(false);
-    };
-  }, []);
+  // Frozen at mount so the rendered attribute never changes after hydration.
+  const [initialScriptType] = useState(
+    isClientRuntime ? "application/json" : "application/ld+json",
+  );
 
   /**
    * JSON-LD must be embedded using dangerouslySetInnerHTML to avoid issues
@@ -51,7 +56,8 @@ export function JsonLdScript({ data, id }: JsonLdScriptProps): JSX.Element {
 
   return (
     <script
-      type={isDocumentActive ? "application/ld+json" : "application/json"}
+      ref={activateJsonLdScript}
+      type={initialScriptType}
       {...(id ? { id } : {})}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: Necessary for embedding JSON-LD, and the content is sanitized.
       dangerouslySetInnerHTML={{ __html: json }}

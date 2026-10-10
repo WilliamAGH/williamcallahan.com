@@ -319,7 +319,8 @@ describe("Logo API Route Validation", () => {
 describe("OG-Data API URL validation", () => {
   it("rejects private URLs before OpenGraph data access", async () => {
     vi.resetModules();
-    const getOpenGraphData = vi.fn();
+    const getOpenGraphData =
+      vi.fn<(typeof import("@/lib/data-access/opengraph"))["getOpenGraphData"]>();
     vi.doMock("@/lib/data-access/opengraph", () => ({ getOpenGraphData }));
 
     try {

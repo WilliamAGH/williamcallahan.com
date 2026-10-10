@@ -14,8 +14,8 @@ import { BOOKMARK_ENRICHMENT_FIELDS } from "@/lib/db/bookmark-record-mapper";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const mergeField = <K extends (typeof BOOKMARK_ENRICHMENT_FIELDS)[number]>(
-  target: UnifiedBookmark,
-  prior: UnifiedBookmark,
+  target: Pick<UnifiedBookmark, K>,
+  prior: Pick<UnifiedBookmark, K>,
   field: K,
 ): void => {
   target[field] ??= prior[field];

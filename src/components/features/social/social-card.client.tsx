@@ -49,9 +49,6 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
-  const [domainImageUrl, setDomainImageUrl] = useState<string | null>(null);
 
   let domain = "";
   try {
@@ -140,23 +137,9 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
     [resolveImageUrl],
   );
 
-  /**
-   * Resolves and sets the profile and domain images via optimized URLs.
-   */
-  const fetchSocialImages = useCallback(() => {
-    const profile = getProfileFallbackImage(label);
-    const domainBanner = getDomainFallbackImage(label);
-
-    setProfileImageUrl(profile);
-    setDomainImageUrl(domainBanner);
-    setIsLoading(false);
-    setImageError(false);
-  }, [label, getProfileFallbackImage, getDomainFallbackImage]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    fetchSocialImages();
-  }, [mounted, fetchSocialImages]);
+  // Profile and banner images resolve synchronously from the label via optimized URLs.
+  const [profileImageUrl, setProfileImageUrl] = useState(() => getProfileFallbackImage(label));
+  const [domainImageUrl, setDomainImageUrl] = useState(() => getDomainFallbackImage(label));
 
   if (!mounted) {
     return (
@@ -190,11 +173,6 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
             "bg-gray-100 dark:bg-gray-800", // Default background
         )}
       >
-        {isLoading && !imageError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-            <div className="w-6 h-6 border-2 border-gray-400 border-t-blue-500 rounded-full animate-spin" />
-          </div>
-        )}
         {imageError && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-100/50 dark:bg-red-900/30">
             <p className="text-xs font-semibold text-red-600 dark:text-red-400">
@@ -233,9 +211,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
                 })}
                 fill
                 sizes="100vw"
-                {...(shouldBypassOptimizer(domainImageUrl ?? undefined)
-                  ? { unoptimized: true }
-                  : {})}
+                {...(shouldBypassOptimizer(domainImageUrl) ? { unoptimized: true } : {})}
                 onError={() => {
                   setImageError(true);
                   setDomainImageUrl(getDomainFallbackImage(label));
@@ -271,9 +247,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
                   priority
                   sizes="64px"
                   className="object-cover"
-                  {...(shouldBypassOptimizer(profileImageUrl ?? undefined)
-                    ? { unoptimized: true }
-                    : {})}
+                  {...(shouldBypassOptimizer(profileImageUrl) ? { unoptimized: true } : {})}
                   onError={() => {
                     setImageError(true);
                     setProfileImageUrl(getProfileFallbackImage(label));

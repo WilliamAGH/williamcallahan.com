@@ -96,7 +96,7 @@ export function processSvgTransforms(svg: string | SVGElement): string | undefin
       }
     }
 
-    return;
+    return undefined;
   }
 
   // For string input, use regex to replace transform attributes

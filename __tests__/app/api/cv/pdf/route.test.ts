@@ -7,14 +7,15 @@
 
 import type { ReactElement } from "react";
 import { NextRequest } from "next/server";
+import type logger from "@/lib/utils/logger";
 
 const renderToBufferMock = vi.fn<(element: ReactElement) => Promise<Buffer>>();
-const mockPdfComponent = vi.fn(() => null);
+const mockPdfComponent = vi.fn<() => null>(() => null);
 
 const mockedLogger = {
-  error: vi.fn(),
-  info: vi.fn(),
-  warn: vi.fn(),
+  error: vi.fn<typeof logger.error>(),
+  info: vi.fn<typeof logger.info>(),
+  warn: vi.fn<typeof logger.warn>(),
 };
 
 vi.mock("@react-pdf/renderer", () => ({

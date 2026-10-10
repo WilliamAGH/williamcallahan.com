@@ -9,13 +9,27 @@ import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { readContentGraphArtifact } from "@/lib/db/queries/content-graph";
 import { writeContentGraphArtifacts } from "@/lib/db/mutations/content-graph";
 import type { DataFetchConfig } from "@/types/lib";
+import type {
+  getBookmarkBySlugFromDatabase,
+  getBookmarksIndexFromDatabase,
+  getSlugMappingRowsFromDatabase,
+} from "@/lib/db/queries/bookmarks";
+import type { upsertAllSearchIndexArtifacts } from "@/lib/db/mutations/search-index-artifacts";
+import type { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
+import type { and, eq, inArray } from "drizzle-orm";
+
+/** Row shapes `buildContentGraph` reads through `db.execute`, in call order. */
+type ContentGraphExecuteRow =
+  | { id: string; has_description: boolean; is_favorite: boolean; has_word_count: boolean }
+  | { domain: string; entity_id: string; title: string; content_date: string | null }
+  | { domain: string; entity_id: string; tags: string[] | null };
 
 // Mock external dependencies
 vi.mock("@/lib/s3/objects");
 vi.mock("@/lib/db/mutations/content-graph");
 vi.mock("@/lib/db/queries/content-graph");
 vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getBookmarksIndexFromDatabase: vi.fn().mockResolvedValue({
+  getBookmarksIndexFromDatabase: vi.fn<typeof getBookmarksIndexFromDatabase>().mockResolvedValue({
     count: 1,
     totalPages: 1,
     pageSize: 24,
@@ -25,8 +39,12 @@ vi.mock("@/lib/db/queries/bookmarks", () => ({
     checksum: "test-checksum",
     changeDetected: true,
   }),
-  getSlugMappingRowsFromDatabase: vi.fn().mockResolvedValue([]),
-  getBookmarkBySlugFromDatabase: vi.fn().mockResolvedValue(null),
+  getSlugMappingRowsFromDatabase: vi
+    .fn<typeof getSlugMappingRowsFromDatabase>()
+    .mockResolvedValue([]),
+  getBookmarkBySlugFromDatabase: vi
+    .fn<typeof getBookmarkBySlugFromDatabase>()
+    .mockResolvedValue(null),
 }));
 vi.mock("@/lib/bookmarks/service.server");
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server");
@@ -34,27 +52,29 @@ vi.mock("@/lib/blog");
 vi.mock("@/lib/utils/logger");
 vi.mock("@/lib/search/index-builder");
 vi.mock("@/lib/db/mutations/search-index-artifacts", () => ({
-  upsertAllSearchIndexArtifacts: vi.fn().mockResolvedValue(undefined),
+  upsertAllSearchIndexArtifacts: vi
+    .fn<typeof upsertAllSearchIndexArtifacts>()
+    .mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/blog/mdx");
 vi.mock("@/data/projects", () => ({ projects: [] }));
 
 // Mock DB-backed content graph dependencies (pgvector queries)
-const mockDbExecute = vi.fn();
+const mockDbExecute = vi.fn<(query: unknown) => Promise<ContentGraphExecuteRow[]>>();
 vi.mock("@/lib/db/connection", () => ({
-  db: { execute: (...args: unknown[]) => mockDbExecute(...args) },
+  db: { execute: (query: unknown) => mockDbExecute(query) },
 }));
 vi.mock("drizzle-orm", () => ({
   sql: Object.assign(
     (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values, _tag: "sql" }),
     { raw: (s: string) => ({ raw: s, _tag: "sql-raw" }) },
   ),
-  inArray: vi.fn(),
-  eq: vi.fn(),
-  and: vi.fn(),
+  inArray: vi.fn<typeof inArray>(),
+  eq: vi.fn<typeof eq>(),
+  and: vi.fn<typeof and>(),
 }));
 vi.mock("@/lib/db/queries/cross-domain-similarity", () => ({
-  findSimilarByEntity: vi.fn().mockResolvedValue([]),
+  findSimilarByEntity: vi.fn<typeof findSimilarByEntity>().mockResolvedValue([]),
 }));
 
 const mockReadContentGraphArtifact = readContentGraphArtifact as MockedFunction<

@@ -48,7 +48,7 @@ export async function hybridSearchInvestments(options: {
       status: string;
       operating_status: string;
       location: string | null;
-      hybrid_score: number;
+      hybrid_score: string;
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
@@ -106,7 +106,7 @@ export async function hybridSearchInvestments(options: {
     status: string;
     operating_status: string;
     location: string | null;
-    keyword_score: number;
+    keyword_score: string;
   }>(sql`
     SELECT id, name, slug, description, category, stage, status, operating_status, location,
       ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
@@ -157,7 +157,7 @@ export async function hybridSearchProjects(options: {
       url: string;
       image_key: string;
       tags: string[] | null;
-      hybrid_score: number;
+      hybrid_score: string;
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
@@ -212,7 +212,7 @@ export async function hybridSearchProjects(options: {
     url: string;
     image_key: string;
     tags: string[] | null;
-    keyword_score: number;
+    keyword_score: string;
   }>(sql`
     SELECT id, name, slug, description, short_summary, url, image_key, tags,
       ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY

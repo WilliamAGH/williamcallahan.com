@@ -42,11 +42,11 @@ const mockBookmarkEntries = [
 ];
 
 vi.mock("../../src/lib/bookmarks/service.server", () => {
-  const mockIndex = vi.fn();
-  const mockPage = vi.fn();
-  const mockList = vi.fn();
-  const mockTagIndex = vi.fn();
-  const mockTagPage = vi.fn();
+  const mockIndex = vi.fn<typeof getBookmarksIndex>();
+  const mockPage = vi.fn<typeof getBookmarksPage>();
+  const mockList = vi.fn<typeof listBookmarkTagSlugs>();
+  const mockTagIndex = vi.fn<typeof getTagBookmarksIndex>();
+  const mockTagPage = vi.fn<typeof getTagBookmarksPage>();
   return {
     getBookmarksIndex: mockIndex,
     getBookmarksPage: mockPage,
@@ -74,7 +74,7 @@ vi.setConfig({ testTimeout: DEFAULT_TEST_TIMEOUT_MS });
 const originalFetch = global.fetch;
 
 // Mock fetch globally
-const mockFetch = vi.fn();
+const mockFetch = vi.fn<typeof fetch>();
 global.fetch = mockFetch; // Assert type for assignment
 
 // Constants for test configuration
@@ -135,12 +135,7 @@ describe("Routes Module", () => {
 
     test.each(nonExistentRoutes)("route %s returns 404", async (route) => {
       // Mock 404 response for non-existent routes
-      mockFetch.mockImplementationOnce(() =>
-        Promise.resolve({
-          status: 404,
-          ok: false,
-        }),
-      );
+      mockFetch.mockResolvedValueOnce(new Response(null, { status: 404 }));
 
       const response = await fetch(`${SITE_URL}${route}`);
       expect(response.status).toBe(404);
@@ -162,7 +157,7 @@ describe("Routes Module", () => {
      */
     it("returns 200 for every canonical blog post URL", async () => {
       for (const post of await getAllPostsMeta()) {
-        mockFetch.mockResolvedValueOnce({ status: 200, ok: true });
+        mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
         const url = `${SITE_URL}/blog/${post.slug}`;
         const response = await fetch(url);
         expect(response.status).toBe(200);
@@ -214,12 +209,7 @@ describe("Routes Module", () => {
       // Test each URL
       for (const url of urls) {
         // Mock successful response for valid sitemap URLs
-        mockFetch.mockImplementationOnce(() =>
-          Promise.resolve({
-            status: 200,
-            ok: true,
-          }),
-        );
+        mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
 
         const response = await fetch(url);
         results.push({ url, status: response.status });
@@ -277,12 +267,7 @@ describe("Routes Module", () => {
       const bookmarkSample = bookmarkUrls.slice(0, samplesToTest);
 
       for (const url of bookmarkSample) {
-        mockFetch.mockImplementationOnce(() =>
-          Promise.resolve({
-            status: 200,
-            ok: true,
-          }),
-        );
+        mockFetch.mockResolvedValueOnce(new Response(null, { status: 200 }));
 
         const response = await fetch(url);
         expect(response.status).toBe(200);

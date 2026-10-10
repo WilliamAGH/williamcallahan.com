@@ -10,9 +10,8 @@ export function TerminalSkeleton() {
     // This skeleton now perfectly mirrors the structure and classes of the real Terminal component
     // to ensure a zero-shift loading experience. It uses the same layout classes but replaces
     // dynamic content with static, pulsing placeholders.
-    <div
-      className="relative z-10 mx-auto mt-4 mb-4 w-full max-w-[calc(100vw-2rem)] rounded-lg border border-gray-700 bg-[#1a1b26] p-4 font-mono text-sm shadow-xl sm:mt-8 sm:mb-8 sm:max-w-3xl sm:p-6"
-      role="status"
+    <output
+      className="block relative z-10 mx-auto mt-4 mb-4 w-full max-w-[calc(100vw-2rem)] rounded-lg border border-gray-700 bg-[#1a1b26] p-4 font-mono text-sm shadow-xl sm:mt-8 sm:mb-8 sm:max-w-3xl sm:p-6"
       aria-label="Loading terminal"
     >
       <div className="animate-pulse">
@@ -58,7 +57,7 @@ export function TerminalSkeleton() {
         </div>
       </div>
       <span className="sr-only">Loading terminal interface...</span>
-    </div>
+    </output>
   );
 }
 

@@ -5,9 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ThemeToggle } from "@/components/ui/theme/theme-toggle";
 
 // Mock next-themes
-const mockSetTheme = vi.fn();
+const mockSetTheme = vi.fn<ReturnType<typeof useTheme>["setTheme"]>();
 vi.mock("next-themes", () => ({
-  useTheme: vi.fn(() => ({
+  useTheme: vi.fn<typeof useTheme>(() => ({
+    themes: ["light", "dark"],
     theme: "system",
     setTheme: mockSetTheme,
     resolvedTheme: "light",

@@ -95,29 +95,29 @@ function setupAbortSignal(
 }
 
 /**
- * Handle fetch errors with proper abort/timeout distinction
+ * Map a fetch failure to the error to throw, distinguishing caller abort from timeout
  */
-function handleFetchError(
+function toFetchError(
   error: unknown,
   abortedByExternalSignal: boolean,
   timeout: number,
   effectiveUrl: string,
-): never {
+): Error {
   if (!(error instanceof Error)) {
-    throw new Error(`Fetch failed: ${String(error)}`, { cause: error });
+    return new Error(`Fetch failed: ${String(error)}`, { cause: error });
   }
 
   if (error.name === "AbortError") {
     if (abortedByExternalSignal) {
-      throw new DOMException("Request aborted", "AbortError");
+      return new DOMException("Request aborted", "AbortError");
     }
 
-    throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
+    return new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
       cause: error,
     });
   }
 
-  throw error;
+  return error;
 }
 
 function getValidatedRedirectUrl(response: Response, requestUrl: string): string | null {
@@ -197,7 +197,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
       requestUrl = redirectUrl;
     }
   } catch (error) {
-    handleFetchError(error, abortedByExternalSignal, timeout, effectiveUrl);
+    throw toFetchError(error, abortedByExternalSignal, timeout, effectiveUrl);
   } finally {
     clearTimeout(timeoutId);
   }

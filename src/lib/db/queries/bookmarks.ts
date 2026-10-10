@@ -447,7 +447,7 @@ export async function searchBookmarksFtsPage(
 
   const items = rows.map((row) => ({
     bookmark: mapBookmarkSelectToUnifiedBookmark(row.bookmark),
-    score: Number(row.score),
+    score: row.score,
   }));
 
   return { items, totalCount };

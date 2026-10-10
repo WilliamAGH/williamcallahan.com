@@ -164,7 +164,7 @@ export async function retryWithOptions<T>(
     jitter = false,
     isRetryable = () => true,
     onRetry = () => {},
-    debug = false,
+    debug: debugEnabled = false,
     resolveDelay,
   } = options;
 
@@ -173,7 +173,7 @@ export async function retryWithOptions<T>(
   while (true) {
     try {
       const result = await operation();
-      if (debug && retries > 0) {
+      if (debugEnabled && retries > 0) {
         debugLog(`[Retry] Operation succeeded after ${retries} retries`);
       }
       return { success: true, data: result };
@@ -181,7 +181,7 @@ export async function retryWithOptions<T>(
       const currentError = normalizeError(error);
 
       if (!isRetryable(error)) {
-        if (debug) {
+        if (debugEnabled) {
           debugLog("[Retry] Non-retryable error encountered", "error", {
             error: currentError.message,
           });
@@ -189,14 +189,14 @@ export async function retryWithOptions<T>(
         return { success: false, error: currentError };
       }
 
-      if (debug) {
+      if (debugEnabled) {
         debugLog(`[Retry] Operation failed (attempt ${retries + 1}/${maxRetries + 1})`, "warn", {
           error: currentError.message,
         });
       }
 
       if (retries >= maxRetries) {
-        if (debug) {
+        if (debugEnabled) {
           debugLog(`[Retry] All ${maxRetries + 1} attempts failed. Giving up.`, "error", {
             lastError: currentError.message,
           });
@@ -226,7 +226,7 @@ export async function retryWithOptions<T>(
 
       const backoff = Math.min(requestedDelayMs, maxBackoff);
 
-      if (debug) {
+      if (debugEnabled) {
         debugLog(`[Retry] Retrying operation after ${backoff}ms delay...`, "info");
       }
 
@@ -284,13 +284,13 @@ export function computeExponentialDelay(
   jitterFactor = 0,
 ): number {
   // Exponential growth – attempt 1 => baseDelay, attempt 2 => 2x, etc.
-  let delay = Math.min(baseDelay * 2 ** (attempt - 1), maxDelay);
+  const backoffDelay = Math.min(baseDelay * 2 ** (attempt - 1), maxDelay);
 
   if (jitterFactor > 0) {
     // Jitter between -jitterFactor and +jitterFactor of the delay
     const jitter = (Math.random() * 2 - 1) * jitterFactor;
-    delay = Math.round(delay * (1 + jitter));
+    return Math.round(backoffDelay * (1 + jitter));
   }
 
-  return delay;
+  return backoffDelay;
 }

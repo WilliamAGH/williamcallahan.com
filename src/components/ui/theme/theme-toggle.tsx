@@ -9,18 +9,15 @@
 import { THEME_TIMESTAMP_KEY } from "@/lib/constants/client";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useMount } from "./use-mount";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const THEME_TOGGLE_SIZE_CLASSES =
   "h-7 w-10 [@media(min-width:1000px)]:w-[5.5rem] [@media(min-width:1100px)]:w-[8rem]";
 
 export function ThemeToggle() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMount();
   const { theme, resolvedTheme, setTheme } = useTheme();
-
-  // Prevent hydration mismatch by only rendering after mount
-  useEffect(() => setMounted(true), []);
 
   if (!mounted) {
     // Preserve space to avoid layout shift but keep it invisible during SSR/initial hydration.

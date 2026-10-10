@@ -167,7 +167,7 @@ describe("Search Helpers", () => {
   describe("coalesceSearchRequest", () => {
     it("should execute the search function and return results", async () => {
       const mockResults = [{ id: "1", title: "Result" }];
-      const searchFn = vi.fn().mockResolvedValue(mockResults);
+      const searchFn = vi.fn<() => Promise<typeof mockResults>>().mockResolvedValue(mockResults);
 
       const result = await coalesceSearchRequest("test-key", searchFn);
 
@@ -182,7 +182,7 @@ describe("Search Helpers", () => {
       const searchPromise = new Promise<string[]>((resolve) => {
         resolveSearch = resolve;
       });
-      const searchFn = vi.fn().mockReturnValue(searchPromise);
+      const searchFn = vi.fn<() => Promise<string[]>>().mockReturnValue(searchPromise);
 
       // Start two concurrent requests with the same key
       const promise1 = coalesceSearchRequest("same-key", searchFn);
@@ -201,8 +201,8 @@ describe("Search Helpers", () => {
     });
 
     it("should allow new search after previous completes", async () => {
-      const searchFn1 = vi.fn().mockResolvedValue(["first"]);
-      const searchFn2 = vi.fn().mockResolvedValue(["second"]);
+      const searchFn1 = vi.fn<() => Promise<string[]>>().mockResolvedValue(["first"]);
+      const searchFn2 = vi.fn<() => Promise<string[]>>().mockResolvedValue(["second"]);
 
       // First search
       const result1 = await coalesceSearchRequest("reuse-key", searchFn1);
@@ -217,12 +217,12 @@ describe("Search Helpers", () => {
     });
 
     it("should clean up after promise resolves", async () => {
-      const searchFn = vi.fn().mockResolvedValue(["result"]);
+      const searchFn = vi.fn<() => Promise<string[]>>().mockResolvedValue(["result"]);
 
       await coalesceSearchRequest("cleanup-key", searchFn);
 
       // A new request with same key should call the function again (not reuse old promise)
-      const searchFn2 = vi.fn().mockResolvedValue(["new-result"]);
+      const searchFn2 = vi.fn<() => Promise<string[]>>().mockResolvedValue(["new-result"]);
       const result = await coalesceSearchRequest("cleanup-key", searchFn2);
 
       expect(result).toEqual(["new-result"]);
@@ -231,12 +231,12 @@ describe("Search Helpers", () => {
 
     it("should clean up after promise rejects", async () => {
       const error = new Error("Search failed");
-      const searchFn = vi.fn().mockRejectedValue(error);
+      const searchFn = vi.fn<() => Promise<string[]>>().mockRejectedValue(error);
 
       await expect(coalesceSearchRequest("error-key", searchFn)).rejects.toThrow("Search failed");
 
       // A new request with same key should work after error
-      const searchFn2 = vi.fn().mockResolvedValue(["recovered"]);
+      const searchFn2 = vi.fn<() => Promise<string[]>>().mockResolvedValue(["recovered"]);
       const result = await coalesceSearchRequest("error-key", searchFn2);
 
       expect(result).toEqual(["recovered"]);
@@ -257,8 +257,8 @@ describe("Search Helpers", () => {
         resolveB = resolve;
       });
 
-      const fnA = vi.fn().mockReturnValue(promiseA);
-      const fnB = vi.fn().mockReturnValue(promiseB);
+      const fnA = vi.fn<() => Promise<string>>().mockReturnValue(promiseA);
+      const fnB = vi.fn<() => Promise<string>>().mockReturnValue(promiseB);
 
       const resultA = coalesceSearchRequest("key-a", fnA);
       const resultB = coalesceSearchRequest("key-b", fnB);

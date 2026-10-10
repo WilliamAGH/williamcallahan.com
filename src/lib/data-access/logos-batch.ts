@@ -155,17 +155,17 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
     const googleSources = LOGO_SOURCES.google;
     const duckduckgoSources = LOGO_SOURCES.duckduckgo;
 
-    const sources: Array<{ name: LogoSource; url: string }> = [];
+    const variantFetchUrls: Array<{ name: LogoSource; url: string }> = [];
 
     // Only add sources if they exist
     if (googleSources?.hd) {
-      sources.push({ name: "google", url: googleSources.hd(variant) });
+      variantFetchUrls.push({ name: "google", url: googleSources.hd(variant) });
     }
     if (duckduckgoSources?.hd) {
-      sources.push({ name: "duckduckgo", url: duckduckgoSources.hd(variant) });
+      variantFetchUrls.push({ name: "duckduckgo", url: duckduckgoSources.hd(variant) });
     }
 
-    for (const { name, url } of sources) {
+    for (const { name, url } of variantFetchUrls) {
       try {
         // Set up 5-second timeout via AbortController (Bun/standard fetch has no 'timeout' option)
         const controller = new AbortController();

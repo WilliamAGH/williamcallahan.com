@@ -18,7 +18,8 @@
 
 import { projects } from "@/data/projects";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMount } from "@/components/ui/theme/use-mount";
 
 const TAG_LIMIT = 10; // Number of tags to show initially
 
@@ -32,8 +33,10 @@ const TAG_LIMIT = 10; // Number of tags to show initially
 export function ProjectTagsClient(): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [selectedTag, setSelectedTag] = useState("All");
-  const [mounted, setMounted] = useState(false);
+  const urlTag = searchParams.get("tag");
+  const [selectedTag, setSelectedTag] = useState(urlTag ?? "All");
+  const [syncedUrlTag, setSyncedUrlTag] = useState(urlTag);
+  const mounted = useMount();
   const [showAllTags, setShowAllTags] = useState(false);
 
   // Get all unique tags from projects data, excluding "All" for counting purposes
@@ -43,18 +46,13 @@ export function ProjectTagsClient(): React.JSX.Element {
   // Determine if there are more tags than the limit (excluding "All")
   const hasMoreTags = uniqueProjectTags.length > TAG_LIMIT;
 
-  // One-time hydration signal — empty deps so it runs exactly once on mount
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Sync selected tag from URL whenever searchParams changes
-  useEffect(() => {
-    const tagParam = searchParams.get("tag");
-    if (tagParam) {
-      setSelectedTag(tagParam);
+  // Adopt a new tag from the URL during render (keeps the current tag when the param is removed)
+  if (urlTag !== syncedUrlTag) {
+    setSyncedUrlTag(urlTag);
+    if (urlTag) {
+      setSelectedTag(urlTag);
     }
-  }, [searchParams]);
+  }
 
   /**
    * Handles the selection of a project tag.

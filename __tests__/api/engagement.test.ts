@@ -2,6 +2,9 @@
  * @vitest-environment node
  */
 
+import type { SQL } from "drizzle-orm";
+import type { contentEngagement } from "@/lib/db/schema/content-engagement";
+
 const {
   mockWhere,
   mockSelect,
@@ -11,20 +14,33 @@ const {
   mockTransaction,
   mockResolveDatabaseAccessMode,
 } = vi.hoisted(() => {
-  const where = vi.fn();
-  const from = vi.fn(() => ({ where }));
-  const select = vi.fn(() => ({ from }));
-  const values = vi.fn();
-  const insert = vi.fn(() => ({ values }));
-  const execute = vi.fn();
-  const resolveDatabaseAccessMode = vi.fn(() => ({
+  const where = vi.fn<(condition: SQL | undefined) => Promise<Array<{ count: number }>>>();
+  const from = vi.fn<(table: typeof contentEngagement) => { where: typeof where }>(() => ({
+    where,
+  }));
+  const select = vi.fn<(fields: { count: SQL<number> }) => { from: typeof from }>(() => ({
+    from,
+  }));
+  const values = vi.fn<(rows: Array<typeof contentEngagement.$inferInsert>) => Promise<void>>();
+  const insert = vi.fn<(table: typeof contentEngagement) => { values: typeof values }>(() => ({
+    values,
+  }));
+  const execute = vi.fn<(query: SQL) => Promise<void>>();
+  const resolveDatabaseAccessMode = vi.fn<
+    (typeof import("@/lib/db/connection"))["resolveDatabaseAccessMode"]
+  >(() => ({
     allowWrites: true,
     environment: "production",
     source: "test",
   }));
-  const transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
-    callback({ select, insert, execute }),
-  );
+  type EngagementTransaction = {
+    select: typeof select;
+    insert: typeof insert;
+    execute: typeof execute;
+  };
+  const transaction = vi.fn<
+    (callback: (tx: EngagementTransaction) => Promise<boolean>) => Promise<boolean>
+  >((callback) => callback({ select, insert, execute }));
 
   return {
     mockWhere: where,

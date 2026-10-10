@@ -45,7 +45,7 @@ export async function hybridSearchBooks(options: {
       authors: string[] | null;
       description: string | null;
       cover_url: string | null;
-      hybrid_score: number;
+      hybrid_score: string;
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
@@ -96,7 +96,7 @@ export async function hybridSearchBooks(options: {
     authors: string[] | null;
     description: string | null;
     cover_url: string | null;
-    keyword_score: number;
+    keyword_score: string;
   }>(sql`
     SELECT id, title, slug, authors, description, cover_url,
       ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY
@@ -143,7 +143,7 @@ export async function hybridSearchBlogPosts(options: {
       author_name: string;
       tags: string[] | null;
       published_at: string;
-      hybrid_score: number;
+      hybrid_score: string;
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
@@ -198,7 +198,7 @@ export async function hybridSearchBlogPosts(options: {
     author_name: string;
     tags: string[] | null;
     published_at: string;
-    keyword_score: number;
+    keyword_score: string;
   }>(sql`
     SELECT id, title, slug, excerpt, author_name, tags, published_at,
       ${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY

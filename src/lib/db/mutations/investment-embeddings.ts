@@ -38,7 +38,7 @@ function buildHalfvecLiteral(embedding: number[]): string {
       throw new TypeError(`Embedding contains non-finite value at index ${idx}.`);
     }
   }
-  const serialized = embedding.map((v) => Number(v).toString());
+  const serialized = embedding.map((component) => component.toString());
   return `'[${serialized.join(",")}]'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`;
 }
 
@@ -127,7 +127,6 @@ export async function backfillInvestmentEmbeddings(
   }
 
   const batchSize = Math.min(options.batchSize ?? DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE);
-  const maxRows = options.maxRows;
   const dryRun = options.dryRun === true;
 
   if (!dryRun) {
@@ -137,8 +136,9 @@ export async function backfillInvestmentEmbeddings(
   let processedRows = 0;
   let updatedRows = 0;
 
-  while (maxRows === undefined || processedRows < maxRows) {
-    const budget = maxRows === undefined ? batchSize : Math.min(batchSize, maxRows - processedRows);
+  const rowLimit = options.maxRows ?? Number.POSITIVE_INFINITY;
+  while (processedRows < rowLimit) {
+    const budget = Math.min(batchSize, rowLimit - processedRows);
     if (budget <= 0) break;
 
     const rows = await readMissingEmbeddingRows(budget);

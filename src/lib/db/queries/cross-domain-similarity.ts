@@ -155,7 +155,7 @@ export async function findSimilarByEntity(options: {
     domain: r.domain,
     entityId: r.entity_id,
     title: r.title,
-    similarity: Number(r.similarity),
+    similarity: r.similarity,
     contentDate: r.content_date,
   }));
 
@@ -236,7 +236,7 @@ export async function findSimilarByVector(options: {
     domain: r.domain,
     entityId: r.entity_id,
     title: r.title,
-    similarity: Number(r.similarity),
+    similarity: r.similarity,
     contentDate: r.content_date,
   }));
 }

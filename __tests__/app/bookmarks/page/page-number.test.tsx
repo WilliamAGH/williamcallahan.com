@@ -2,17 +2,37 @@ import React, { act } from "react";
 import { vi } from "vitest";
 import { render } from "@testing-library/react";
 import type { DiscoverFeedWrapperProps } from "@/types/features/discovery";
+import type { BookmarksIndex } from "@/types/schemas/bookmark";
+
+type BookmarksDataAccess = typeof import("@/lib/bookmarks/bookmarks-data-access.server");
+type BookmarkService = typeof import("@/lib/bookmarks/service.server");
+type NextNavigation = typeof import("next/navigation");
+type DiscoveryGroupedQueries = typeof import("@/lib/db/queries/discovery-grouped");
+
+const { bookmarksIndexFixture } = vi.hoisted(() => {
+  const fixture: BookmarksIndex = {
+    count: 1,
+    totalPages: 1,
+    pageSize: 24,
+    lastModified: "2024-01-01T00:00:00.000Z",
+    lastFetchedAt: 0,
+    lastAttemptedAt: 0,
+    checksum: "page-number-test",
+  };
+  return { bookmarksIndexFixture: fixture };
+});
 
 // Manually mock the entire data access layer for this test suite
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
   __esModule: true,
-  getBookmarksIndex: vi.fn().mockResolvedValue({ count: 1, totalPages: 1 }),
-  getBookmarksPage: vi.fn().mockResolvedValue([]),
-  getTagBookmarksPage: vi.fn().mockResolvedValue([]),
-  getTagBookmarksIndex: vi.fn().mockResolvedValue({ count: 0, totalPages: 1 }),
-  setRefreshBookmarksCallback: vi.fn(),
-  initializeBookmarksDataAccess: vi.fn(),
-  cleanupBookmarksDataAccess: vi.fn(),
+  getBookmarksIndex: vi
+    .fn<BookmarksDataAccess["getBookmarksIndex"]>()
+    .mockResolvedValue(bookmarksIndexFixture),
+  getBookmarksPage: vi.fn<BookmarksDataAccess["getBookmarksPage"]>().mockResolvedValue([]),
+  getTagBookmarksPage: vi.fn<BookmarksDataAccess["getTagBookmarksPage"]>().mockResolvedValue([]),
+  getTagBookmarksIndex: vi
+    .fn<BookmarksDataAccess["getTagBookmarksIndex"]>()
+    .mockResolvedValue({ ...bookmarksIndexFixture, count: 0 }),
 }));
 
 // Mock the service layer (this is what the page component imports from)
@@ -23,30 +43,34 @@ const {
   mockResolveBookmarkTagSlug,
   mockGetBookmarksByTag,
 } = vi.hoisted(() => ({
-  mockGetBookmarks: vi.fn().mockResolvedValue([]),
-  mockGetBookmarksIndex: vi.fn().mockResolvedValue({ count: 1, totalPages: 1 }),
-  mockGetBookmarksPage: vi.fn().mockResolvedValue([]),
-  mockResolveBookmarkTagSlug: vi.fn(),
-  mockGetBookmarksByTag: vi.fn(),
+  mockGetBookmarks: vi.fn<BookmarkService["getBookmarks"]>().mockResolvedValue([]),
+  mockGetBookmarksIndex: vi
+    .fn<BookmarkService["getBookmarksIndex"]>()
+    .mockResolvedValue(bookmarksIndexFixture),
+  mockGetBookmarksPage: vi.fn<BookmarkService["getBookmarksPage"]>().mockResolvedValue([]),
+  mockResolveBookmarkTagSlug: vi.fn<BookmarkService["resolveBookmarkTagSlug"]>(),
+  mockGetBookmarksByTag: vi.fn<BookmarkService["getBookmarksByTag"]>(),
 }));
 
 const { mockGetDiscoveryGroupedBookmarks } = vi.hoisted(() => ({
-  mockGetDiscoveryGroupedBookmarks: vi.fn().mockResolvedValue({
-    recentlyAdded: [],
-    topicSections: [],
-    internalHrefs: {},
-    pagination: {
-      sectionPage: 1,
-      sectionsPerPage: 2,
-      totalSections: 0,
-      hasNextSectionPage: false,
-      nextSectionPage: null,
-    },
-    degradation: {
-      isDegraded: false,
-      reasons: [],
-    },
-  }),
+  mockGetDiscoveryGroupedBookmarks: vi
+    .fn<DiscoveryGroupedQueries["getDiscoveryGroupedBookmarks"]>()
+    .mockResolvedValue({
+      recentlyAdded: [],
+      topicSections: [],
+      internalHrefs: {},
+      pagination: {
+        sectionPage: 1,
+        sectionsPerPage: 2,
+        totalSections: 0,
+        hasNextSectionPage: false,
+        nextSectionPage: null,
+      },
+      degradation: {
+        isDegraded: false,
+        reasons: [],
+      },
+    }),
 }));
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
@@ -59,10 +83,10 @@ vi.mock("@/lib/bookmarks/service.server", () => ({
 }));
 
 const { mockRedirect, mockNotFound } = vi.hoisted(() => ({
-  mockRedirect: vi.fn((url: string) => {
+  mockRedirect: vi.fn<NextNavigation["redirect"]>((url) => {
     throw new Error(`redirect:${url}`);
   }),
-  mockNotFound: vi.fn(() => {
+  mockNotFound: vi.fn<NextNavigation["notFound"]>(() => {
     throw new Error("notFound");
   }),
 }));
