@@ -120,7 +120,13 @@ export const CodeBlock = ({
   // Max-heights use Tailwind preset sizes to ensure classes are statically discoverable by the compiler
   // 64 => 16rem (256px), 72 => 18rem (288px), 80 => 20rem (320px)
 
-  const language = extractLanguage(className);
+  // MDX code fences put `language-*` on the child <code>, not on the <pre>.
+  const childClassName =
+    isValidElement<{ className?: unknown }>(children) &&
+    typeof children.props.className === "string"
+      ? children.props.className
+      : undefined;
+  const language = extractLanguage(className) || extractLanguage(childClassName);
   const codeElementRef = useRef<HTMLElement | null>(null);
   const collapsibleRegionId = useId();
 
