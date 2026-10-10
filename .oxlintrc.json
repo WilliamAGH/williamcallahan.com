@@ -30,6 +30,8 @@
     "pedantic": "off"
   },
   "rules": {
+    "jsx-a11y/no-noninteractive-tabindex": ["error", { "roles": ["tabpanel", "region"] }],
+    "jsx-a11y/no-redundant-roles": ["error", { "section": ["region"] }],
     "default-param-last": "error",
     "eqeqeq": [
       "error",
