@@ -21,7 +21,7 @@ function parseOgPayload(payload: unknown, context: string): OgResult | null {
     console.warn(`[db/queries/opengraph] Invalid payload for ${context}:`, parsed.error);
     return null;
   }
-  return parsed.data as OgResult;
+  return parsed.data;
 }
 
 /**

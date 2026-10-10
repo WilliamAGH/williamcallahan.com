@@ -50,10 +50,10 @@ describe("discovery grouped integration", () => {
     expect(recent.length).toBeGreaterThanOrEqual(4);
 
     expect(sections).toHaveLength(2);
-    expect(sections[0]!.tagSlug).toBe("ai");
-    expect(sections[1]!.tagSlug).toBe("dev-tools");
+    expect(sections[0].tagSlug).toBe("ai");
+    expect(sections[1].tagSlug).toBe("dev-tools");
 
-    expect(sections[0]!.bookmarks[0]!.id).toBe("1");
-    expect(sections[1]!.bookmarks[0]!.id).toBe("4");
+    expect(sections[0].bookmarks[0].id).toBe("1");
+    expect(sections[1].bookmarks[0].id).toBe("4");
   });
 });

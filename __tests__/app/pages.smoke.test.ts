@@ -70,7 +70,7 @@ beforeAll(() => {
   });
 
   // Apply the mock
-  global.fetch = mockFetchWithPreconnect as typeof fetch;
+  global.fetch = mockFetchWithPreconnect;
 });
 
 afterAll(() => {
@@ -180,7 +180,7 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
       const pageModule = (await import("@/app/projects/page")) as PageComponentModule;
       const ProjectsPage = pageModule.default;
 
-      const element = (await ProjectsPage({ params: {}, searchParams: {} })) as JSX.Element;
+      const element = await ProjectsPage({ params: {}, searchParams: {} });
       const wrapped = React.createElement(GlobalWindowRegistryProvider, null, element);
       const html = renderToString(wrapped);
 
@@ -222,7 +222,7 @@ describe("App Router Page Smoke Tests (Static Routes)", () => {
     const pageModule = (await import("@/app/projects/page")) as PageComponentModule;
     const ProjectsPage = pageModule.default;
 
-    const element = (await ProjectsPage({ params: {}, searchParams: {} })) as JSX.Element;
+    const element = await ProjectsPage({ params: {}, searchParams: {} });
     const wrapped = React.createElement(GlobalWindowRegistryProvider, null, element);
     const html = renderToString(wrapped);
 

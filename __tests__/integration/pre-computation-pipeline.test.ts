@@ -402,7 +402,7 @@ describe("Pre-computation Pipeline Integration", () => {
         if (!metadata || typeof metadata !== "object" || !("counts" in metadata)) {
           throw new Error("Invalid metadata structure");
         }
-        const metadataWithCounts = metadata as Record<string, unknown>;
+        const metadataWithCounts = metadata;
         if (!metadataWithCounts.counts || typeof metadataWithCounts.counts !== "object") {
           throw new Error("Invalid counts structure in metadata");
         }

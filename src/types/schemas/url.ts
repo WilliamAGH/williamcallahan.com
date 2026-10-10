@@ -137,44 +137,41 @@ export function isPrivateIP(hostname: string): boolean {
 /**
  * Base URL validation schema
  */
-export const safeUrlSchema = z
-  .string()
-  .url()
-  .refine(
-    (url) => {
-      try {
-        const parsed = new URL(url);
+export const safeUrlSchema = z.url().refine(
+  (url) => {
+    try {
+      const parsed = new URL(url);
 
-        // Block private and internal hosts
-        if (isPrivateIP(parsed.hostname)) {
-          return false;
-        }
-
-        // Only allow http/https
-        if (!["http:", "https:"].includes(parsed.protocol)) {
-          return false;
-        }
-
-        // Block URLs with credentials
-        if (parsed.username || parsed.password) {
-          return false;
-        }
-
-        // Block suspicious ports (only allow standard web ports)
-        const port = parsed.port;
-        if (port && !ALLOWED_PORTS.has(port)) {
-          return false;
-        }
-
-        return true;
-      } catch {
+      // Block private and internal hosts
+      if (isPrivateIP(parsed.hostname)) {
         return false;
       }
-    },
-    {
-      message: "URL is not safe (contains private IP, credentials, or suspicious port)",
-    },
-  );
+
+      // Only allow http/https
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        return false;
+      }
+
+      // Block URLs with credentials
+      if (parsed.username || parsed.password) {
+        return false;
+      }
+
+      // Block suspicious ports (only allow standard web ports)
+      const port = parsed.port;
+      if (port && !ALLOWED_PORTS.has(port)) {
+        return false;
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  {
+    message: "URL is not safe (contains private IP, credentials, or suspicious port)",
+  },
+);
 
 /**
  * Allowed domains for logo/image fetching

@@ -125,7 +125,7 @@ export class S3Operations {
    * Start periodic retry processing
    */
   private startRetryProcessing(): void {
-    this.retryTimerId = setInterval(() => void this.processRetryQueue(), 60000);
+    this.retryTimerId = setInterval(() => this.processRetryQueue(), 60000);
     // Prevent interval from keeping Node.js alive (especially in tests)
     this.retryTimerId.unref();
     if (process.env.NODE_ENV !== "test") process.on("beforeExit", () => this.stopRetryProcessing());

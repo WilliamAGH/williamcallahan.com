@@ -101,8 +101,8 @@ const resolveTagMetadata = (
   }
 
   if (rawTag && typeof rawTag === "object") {
-    const nameValue = "name" in rawTag ? (rawTag.name as unknown) : null;
-    const slugValue = "slug" in rawTag ? (rawTag.slug as unknown) : null;
+    const nameValue = "name" in rawTag ? rawTag.name : null;
+    const slugValue = "slug" in rawTag ? rawTag.slug : null;
     if (typeof nameValue !== "string") {
       return null;
     }

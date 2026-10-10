@@ -305,7 +305,7 @@ describe("Book Transforms", () => {
         statusText: "Server Error",
         headers: new Headers(),
         json: vi.fn(),
-      }) as unknown as typeof fetch;
+      });
 
       await expect(fetchBookById("book-500")).rejects.toThrow("AudioBookShelf API error");
     });
@@ -317,7 +317,7 @@ describe("Book Transforms", () => {
         statusText: "Not Found",
         headers: new Headers(),
         json: vi.fn(),
-      }) as unknown as typeof fetch;
+      });
 
       await expect(fetchBookById("book-404")).resolves.toBeNull();
     });

@@ -102,7 +102,7 @@ describe("UnifiedImageService streaming fallback", () => {
 
     // Verify the result has valid buffer with expected length from the second (re-fetched) response
     expect(result.buffer).toBeDefined();
-    expect(result.buffer.length).toBe(3);
+    expect(result.buffer?.length).toBe(3);
     // Note: Buffer content verification skipped due to ArrayBuffer/Buffer transfer quirks in tests
     // The length assertion confirms re-fetch succeeded with new response data
   });

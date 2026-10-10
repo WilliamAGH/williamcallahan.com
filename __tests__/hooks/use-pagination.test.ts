@@ -36,7 +36,7 @@ describe("usePagination", () => {
       mutate: vi.fn(),
       isValidating: false,
       isLoading: true,
-    } as any);
+    });
 
     const { result } = renderHook(() => usePagination({ apiUrl: mockApiUrl }));
 
@@ -72,7 +72,7 @@ describe("usePagination", () => {
       mutate: vi.fn(),
       isValidating: false,
       isLoading: false,
-    } as any);
+    });
 
     const { result } = renderHook(() =>
       usePagination<UnifiedBookmark>({ apiUrl: mockApiUrl, limit: 24 }),
@@ -111,7 +111,7 @@ describe("usePagination", () => {
       mutate: vi.fn(),
       isValidating: false,
       isLoading: false,
-    } as any);
+    });
 
     const { result } = renderHook(() => usePagination({ apiUrl: mockApiUrl }));
 
@@ -148,7 +148,7 @@ describe("usePagination", () => {
       mutate: vi.fn(),
       isValidating: false,
       isLoading: false,
-    } as any);
+    });
 
     const { result } = renderHook(() => usePagination({ apiUrl: mockApiUrl }));
 
@@ -171,7 +171,7 @@ describe("usePagination", () => {
       mutate: vi.fn(),
       isValidating: false,
       isLoading: false,
-    } as any);
+    });
 
     const { result } = renderHook(() => usePagination({ apiUrl: mockApiUrl }));
 
@@ -216,7 +216,7 @@ describe("usePagination", () => {
       mutate: vi.fn(),
       isValidating: false,
       isLoading: true,
-    } as any);
+    });
 
     renderHook(() =>
       usePagination({

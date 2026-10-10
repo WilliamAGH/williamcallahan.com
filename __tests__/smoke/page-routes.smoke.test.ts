@@ -75,7 +75,7 @@ const originalFetch = global.fetch;
 
 // Mock fetch globally
 const mockFetch = vi.fn();
-global.fetch = mockFetch as unknown as typeof fetch; // Assert type for assignment
+global.fetch = mockFetch; // Assert type for assignment
 
 // Constants for test configuration
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";

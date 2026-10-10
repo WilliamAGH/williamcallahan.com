@@ -128,18 +128,13 @@ describe("Bookmarks Root Feed", () => {
   });
 
   it("renders discover layout by default on /bookmarks", async () => {
-    const RootComponent = await RootPage({
+    const RootComponent = RootPage({
       searchParams: Promise.resolve({}),
     });
 
-    let container: HTMLElement | null = null;
-    await act(async () => {
-      const rendered = render(assertReactElement(RootComponent));
-      container = rendered.container;
-    });
+    const { container } = await act(() => render(assertReactElement(RootComponent)));
 
-    expect(container).toBeTruthy();
-    expect(container?.querySelector('[data-testid="discover-feed"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="discover-feed"]')).not.toBeNull();
     expect(mockGetDiscoveryGroupedBookmarks).toHaveBeenCalled();
     expect(mockGetDiscoveryGroupedBookmarks).toHaveBeenCalledWith({
       sectionPage: 1,
@@ -149,18 +144,13 @@ describe("Bookmarks Root Feed", () => {
   });
 
   it("renders latest feed via BookmarksServer when feed=latest", async () => {
-    const RootComponent = await RootPage({
+    const RootComponent = RootPage({
       searchParams: Promise.resolve({ feed: "latest" }),
     });
 
-    let container: HTMLElement | null = null;
-    await act(async () => {
-      const rendered = render(assertReactElement(RootComponent));
-      container = rendered.container;
-    });
+    const { container } = await act(() => render(assertReactElement(RootComponent)));
 
-    expect(container).toBeTruthy();
-    expect(container?.querySelector('[data-testid="bookmarks-server"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="bookmarks-server"]')).not.toBeNull();
     expect(mockGetDiscoveryGroupedBookmarks).not.toHaveBeenCalled();
   });
 

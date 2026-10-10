@@ -377,8 +377,6 @@ export function Terminal() {
             const syntheticEvent = new KeyboardEvent("keydown", {
               key: e.key,
               code: e.code,
-              keyCode: e.keyCode,
-              which: e.which,
               shiftKey: e.shiftKey,
               ctrlKey: e.ctrlKey,
               altKey: e.altKey,
@@ -548,7 +546,9 @@ export function Terminal() {
                 ref={inputRef}
                 value={input}
                 onChange={setInput}
-                onSubmit={handleSubmit}
+                onSubmit={() => {
+                  void handleSubmit();
+                }}
                 disabled={isCommandSubmitting}
               />
             )}

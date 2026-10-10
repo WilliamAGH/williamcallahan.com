@@ -319,7 +319,10 @@ describe("GitHub activity atomic persistence", () => {
       return "integrity-event";
     });
     const tx = {
-      execute: () => (events.push("lock"), Promise.resolve()),
+      execute: () => {
+        events.push("lock");
+        return Promise.resolve();
+      },
       select: () => (
         events.push("read"),
         { from: () => ({ where: () => ({ limit: async () => [{ payload: existing }] }) }) }

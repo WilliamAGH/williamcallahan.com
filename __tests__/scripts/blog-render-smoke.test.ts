@@ -17,9 +17,8 @@ if (canary === undefined) {
 
 const completeContent = canary.markers.map((marker) => marker.text).join(" ");
 
-function renderBlogHtml(content: string, title: string = canary.title): string {
-  return `<article><h1>${title}</h1><article class="blog-content">${content}</article></article>`;
-}
+const renderBlogHtml = (content: string, title: string = canary.title): string =>
+  `<article><h1>${title}</h1><article class="blog-content">${content}</article></article>`;
 
 describe("validateBlogRenderHtml", () => {
   it("accepts a complete rendered blog article", () => {

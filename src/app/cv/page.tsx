@@ -14,10 +14,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
-import { FileText, Globe, Linkedin, Loader2, MapPin } from "lucide-react";
+import { FileText, Globe, Loader2, MapPin } from "lucide-react";
 import { PAGE_METADATA, OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import CvPdfDownloadButtonEnhancer from "@/components/features/cv/CvPdfDownloadButton";
+import { LinkedIn } from "@/components/ui/social-icons/linkedin-icon";
 import { X } from "@/components/ui/social-icons/x-icon";
 import { getCurriculumVitae } from "@/lib/cv/cv-data";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
@@ -196,7 +197,7 @@ export default async function CvPage(): Promise<React.JSX.Element> {
                 </Link>
               </span>
               <span className="flex items-center gap-2">
-                <Linkedin className="h-4 w-4" aria-hidden="true" />
+                <LinkedIn className="h-4 w-4" aria-hidden="true" />
                 <Link
                   href={linkedInUrl}
                   className="transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"

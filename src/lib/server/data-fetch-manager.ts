@@ -62,7 +62,7 @@ export class DataFetchManager {
     const results: DataFetchOperationSummary[] = [];
 
     // Initialize bookmarks data access (non-blocking)
-    void initializeBookmarksDataAccess();
+    initializeBookmarksDataAccess();
 
     // STEP 1: Fetch bookmarks first (critical - generates slug mappings)
     if (config.bookmarks) {
@@ -161,7 +161,7 @@ export class DataFetchManager {
 
         const duration = (getMonotonicTime() - startTime) / 1000;
         logger.info(
-          `[DataFetchManager] ${"bulk logo update"} batches complete. Success: ${successCount}, Failures: ${failureCount}`,
+          `[DataFetchManager] bulk logo update batches complete. Success: ${successCount}, Failures: ${failureCount}`,
         );
         return {
           success: true,

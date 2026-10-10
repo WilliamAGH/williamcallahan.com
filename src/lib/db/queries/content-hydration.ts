@@ -76,7 +76,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       url: buildBookmarkPath(r.slug),
       score: score ?? 0,
       metadata: {
-        tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
+        tags: extractTagNames(r.tags),
         domain: r.domain ?? undefined,
         date: r.dateBookmarked ?? undefined,
         imageUrl: resolveImageUrl(
@@ -243,8 +243,8 @@ async function hydrateBooks(entries: HydrationEntry[]): Promise<RelatedContentSu
     const metadata: RelatedContentMetadata = {
       tags: (r.genres as string[]) ?? [],
       imageUrl: resolveImageUrl(r.coverUrl ?? undefined),
-      authors: (r.authors as string[]) ?? undefined,
-      formats: (r.formats as string[]) ?? undefined,
+      authors: r.authors ?? undefined,
+      formats: r.formats ?? undefined,
     };
     return {
       type: "book" as const,

@@ -148,7 +148,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
                   Local refresh completed. Would you like to{" "}
                   <button
                     type="button"
-                    onClick={handleProductionRefresh}
+                    onClick={() => {
+                      void handleProductionRefresh();
+                    }}
                     className="underline hover:text-blue-700 dark:hover:text-blue-200 font-medium"
                     disabled={isRefreshingProduction}
                   >

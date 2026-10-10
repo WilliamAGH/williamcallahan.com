@@ -28,10 +28,11 @@ const FORMAT_TO_CONTENT_TYPE: Record<string, string> = {
 
 const detectContentTypeFromMagicNumbers = (buffer: Buffer, logContext: string): string | null => {
   const magicNumbers = {
-    gif: buffer.slice(0, 3).toString() === "GIF",
-    png: buffer.slice(1, 4).toString() === "PNG",
+    gif: buffer.subarray(0, 3).toString() === "GIF",
+    png: buffer.subarray(1, 4).toString() === "PNG",
     jpeg: buffer[0] === JPEG_SOI_0 && buffer[1] === JPEG_SOI_1,
-    webp: buffer.slice(0, 4).toString() === "RIFF" && buffer.slice(8, 12).toString() === "WEBP",
+    webp:
+      buffer.subarray(0, 4).toString() === "RIFF" && buffer.subarray(8, 12).toString() === "WEBP",
   };
 
   // Use lookup table instead of conditional chain

@@ -41,7 +41,7 @@ export async function extractBasicImageMeta(buffer: Buffer): Promise<BasicImageM
     // For troubleshooting we want a single concise line that includes format hint
     // but we do NOT want to spam every occurrence. Use first 4-byte magic + size
     try {
-      const magic = buffer.slice(0, 4).toString("hex");
+      const magic = buffer.subarray(0, 4).toString("hex");
       const sig = `${magic}-${buffer.length}`;
       if (!loggedUnsupportedImages.has(sig)) {
         loggedUnsupportedImages.add(sig);

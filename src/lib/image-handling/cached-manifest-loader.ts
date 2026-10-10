@@ -10,7 +10,6 @@ import { cacheContextGuards } from "@/lib/cache";
 import {
   imageManifestSchema,
   logoManifestSchema,
-  type ImageManifest,
   type LogoManifest,
 } from "@/types/schemas/image-manifest";
 
@@ -48,9 +47,9 @@ export async function loadManifestsWithCache() {
   ]);
 
   return {
-    logos: logoManifestSchema.parse(rawLogos ?? {}) as LogoManifest,
-    opengraph: imageManifestSchema.parse(rawOpengraph ?? []) as ImageManifest,
-    blog: imageManifestSchema.parse(rawBlog ?? []) as ImageManifest,
+    logos: logoManifestSchema.parse(rawLogos ?? {}),
+    opengraph: imageManifestSchema.parse(rawOpengraph ?? []),
+    blog: imageManifestSchema.parse(rawBlog ?? []),
   };
 }
 

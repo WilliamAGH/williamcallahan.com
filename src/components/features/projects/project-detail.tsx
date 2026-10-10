@@ -21,8 +21,8 @@ import {
   AlertTriangle,
   Code2,
   Tag,
-  Github,
 } from "lucide-react";
+import { GitHub } from "@/components/ui/social-icons/github-icon";
 import { safeExternalHref, getDisplayHostname } from "@/lib/utils/url-utils";
 import { buildCdnUrl, getCdnConfigFromEnv, getOptimizedImageSrc } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
@@ -326,7 +326,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 w-full px-5 py-3 sm:py-2.5 bg-github text-white font-medium rounded-lg hover:bg-github/90 transition-colors"
                 >
-                  <Github className="w-4 h-4" />
+                  <GitHub className="w-4 h-4" />
                   <span>View Source</span>
                 </a>
               )}

@@ -10,6 +10,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { z } from "zod/v4";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { buildApiServiceBusyResponse, isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -156,7 +157,7 @@ export async function POST(): Promise<NextResponse> {
     if (!parseResult.success) {
       envLogger.log(
         "Production GitHub activity refresh response validation failed",
-        { errors: parseResult.error.format() },
+        { errors: z.treeifyError(parseResult.error) },
         { category: "GitHubActivityRefresh" },
       );
       return NextResponse.json(

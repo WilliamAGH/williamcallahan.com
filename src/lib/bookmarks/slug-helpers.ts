@@ -42,7 +42,7 @@ const normalizeReverseMap = (
   return {
     normalized: {
       ...mapping,
-      reverseMap: rebuilt as Readonly<Record<string, string>>,
+      reverseMap: rebuilt,
     },
     rebuilt: true,
   };
@@ -106,7 +106,7 @@ async function loadOrGenerateSlugMapping(
  */
 export function tryGetEmbeddedSlug(input: unknown): string | null {
   if (input && typeof input === "object" && "slug" in input) {
-    const val = (input as { slug: unknown }).slug;
+    const val = input.slug;
     if (typeof val === "string" && val.length > 0) return val;
   }
   return null;

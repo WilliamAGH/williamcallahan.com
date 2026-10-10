@@ -34,7 +34,7 @@ export const ImageWindow = ({
   width,
   height,
   sizes,
-  priority,
+  preload,
   noMargin = false,
   ...props // Spread remaining ImageProps
 }: ImageWindowProps): JSX.Element => {
@@ -234,8 +234,8 @@ export const ImageWindow = ({
               width={width}
               height={height}
               sizes={sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"}
-              priority={priority}
-              loading={priority ? "eager" : "lazy"}
+              preload={preload}
+              loading={preload ? "eager" : "lazy"}
               className={imageClasses}
               style={{
                 maxWidth: "100%",

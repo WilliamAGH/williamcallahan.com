@@ -136,9 +136,6 @@ describe("node instrumentation register", () => {
     vi.doMock("@/lib/image-handling/image-manifest-loader", () => ({
       loadImageManifests: vi.fn().mockResolvedValue(undefined),
     }));
-    vi.doMock("@/lib/rate-limiter", () => ({
-      loadRateLimitStore: vi.fn().mockResolvedValue(undefined),
-    }));
     vi.doMock("@/lib/constants", () => ({
       JINA_FETCH_STORE_NAME: "jina",
       JINA_FETCH_RATE_LIMIT_STORE_KEY: "jina-key",

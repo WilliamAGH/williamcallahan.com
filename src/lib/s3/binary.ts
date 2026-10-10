@@ -63,7 +63,7 @@ export async function writeBinaryS3(
         payload instanceof ReadableStream ||
         (typeof payload === "object" && payload && "pipe" in payload)
       ) {
-        payload = await streamToBuffer(payload as Readable);
+        payload = await streamToBuffer(payload);
       }
     } catch (error) {
       throw new S3OperationError(

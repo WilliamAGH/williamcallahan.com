@@ -34,7 +34,7 @@ function safeStringify(data: unknown, indent?: number): string {
   } catch {
     // Handle circular references or Proxy objects that can't be serialized
     if (typeof data === "object" && data !== null) {
-      const keys = Object.keys(data as { readonly [k: string]: unknown });
+      const keys = Object.keys(data);
       const MAX_PREVIEW_KEYS = 3;
       return `{${keys.length} props: ${keys.slice(0, MAX_PREVIEW_KEYS).join(", ")}${keys.length > MAX_PREVIEW_KEYS ? "..." : ""}}`;
     }

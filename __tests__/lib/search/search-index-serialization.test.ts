@@ -148,7 +148,7 @@ describe("Search Index Serialization", () => {
 
     it("should throw meaningful error when index data is invalid", () => {
       const invalidSerializedIndex: SerializedIndex = {
-        index: { invalid: "structure" } as unknown as string,
+        index: { invalid: "structure" },
         metadata: {
           itemCount: 0,
           buildTime: new Date().toISOString(),

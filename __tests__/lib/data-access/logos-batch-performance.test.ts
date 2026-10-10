@@ -82,7 +82,7 @@ describe("Logos Batch Performance Optimizations", () => {
       ok: true,
       headers: new Headers({ "content-type": "image/png" }),
       body: mockBody,
-    }) as unknown as typeof fetch;
+    });
 
     // Mock Readable.fromWeb for Node.js stream conversion
     const { Readable } = require("node:stream");

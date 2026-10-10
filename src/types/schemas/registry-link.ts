@@ -33,18 +33,13 @@ export const registryLinkSchema = z
     /** The type of registry (determines icon and default label) */
     type: registryTypeSchema,
     /** Full URL to the package on the registry */
-    url: z.string().url(),
+    url: z.url(),
     /** Optional custom label (required for 'other' type, overrides default for known types) */
     label: z.string().optional(),
   })
-  .superRefine((value, ctx) => {
-    if (value.type === "other" && !value.label?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "label is required when type is 'other'",
-        path: ["label"],
-      });
-    }
+  .refine((value) => value.type !== "other" || Boolean(value.label?.trim()), {
+    message: "label is required when type is 'other'",
+    path: ["label"],
   });
 
 /**

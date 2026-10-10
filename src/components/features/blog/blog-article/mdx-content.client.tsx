@@ -128,10 +128,10 @@ const buildMdxComponent = (
 
     const keys = Object.keys(fullScope);
     const values = Object.values(fullScope);
-    const hydrateFn = Reflect.construct(Function, keys.concat(`${content.compiledSource}`)) as (
+    const hydrateFn = Reflect.construct(Function, keys.concat(content.compiledSource)) as (
       ...fnArgs: unknown[]
     ) => { default: ComponentType };
-    const { default: Component } = hydrateFn.apply(hydrateFn, values) as { default: ComponentType };
+    const { default: Component } = hydrateFn.apply(hydrateFn, values);
     const SafeComponent: ComponentType = (componentProps) => <Component {...componentProps} />;
     compiledMdxCache.set(content.compiledSource, SafeComponent);
     return SafeComponent;
@@ -325,7 +325,7 @@ const MdxImage = ({
         width={1600}
         height={800}
         className="rounded-lg shadow-md w-full h-auto"
-        priority={priority}
+        preload={priority}
       />
     );
   } else {
@@ -340,7 +340,7 @@ const MdxImage = ({
         width={1600}
         height={800}
         className="rounded-lg shadow-md w-full h-auto"
-        priority={priority}
+        preload={priority}
         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 83vw, 75vw"
         {...(useUnoptimized ? { unoptimized: true } : {})}
       />

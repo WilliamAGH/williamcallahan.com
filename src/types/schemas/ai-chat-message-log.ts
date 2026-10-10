@@ -52,7 +52,7 @@ export type AiChatMetrics = z.infer<typeof aiChatMetricsSchema>;
 export const aiChatBookmarkContextSchema = z
   .object({
     /** The bookmark URL being analyzed */
-    bookmarkUrl: z.string().url().optional(),
+    bookmarkUrl: z.url().optional(),
     /** The bookmark title if available */
     bookmarkTitle: z.string().optional(),
   })
@@ -65,13 +65,13 @@ export type AiChatBookmarkContext = z.infer<typeof aiChatBookmarkContextSchema>;
  */
 export const aiChatMessageLogSchema = z.object({
   /** Unique identifier for this specific log entry */
-  messageId: z.string().uuid(),
+  messageId: z.uuid(),
 
   /** Conversation identifier grouping related messages */
-  conversationId: z.string().uuid().optional(),
+  conversationId: z.uuid().optional(),
 
   /** ISO 8601 timestamp when the message was processed */
-  timestamp: z.string().datetime(),
+  timestamp: z.iso.datetime(),
 
   /** Source/feature that initiated the chat request */
   source: aiChatSourceSchema,
@@ -145,7 +145,7 @@ export const logChatMessageInputMessageSchema = z.object({
  */
 export const logChatMessageParamsSchema = z.object({
   feature: z.string(),
-  conversationId: z.string().uuid().optional(),
+  conversationId: z.uuid().optional(),
   clientIp: z.string(),
   userAgent: z.string().optional(),
   originHost: z.string().optional(),
