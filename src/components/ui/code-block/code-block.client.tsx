@@ -353,9 +353,16 @@ export const CodeBlock = ({
               isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden",
             )}
           >
+            {/* The section is the scroll container; tabIndex lets keyboard users scroll it
+                in browsers that do not make scrollers focusable on their own (Safari). */}
             <section
-              aria-label={language ? `${language} code` : "Code block"}
-              className={cn(isMaximized && !embeddedInTabFrame && "h-full")}
+              role="region"
+              aria-label={language ? `Code: ${language}` : "Code block"}
+              tabIndex={0}
+              className={cn(
+                "overflow-x-auto custom-scrollbar",
+                isMaximized && !embeddedInTabFrame && "h-full overflow-y-auto",
+              )}
             >
               <pre
                 id={collapsibleRegionId}
@@ -363,15 +370,12 @@ export const CodeBlock = ({
                   "not-prose max-w-full",
                   "whitespace-pre-wrap",
                   "break-words",
-                  "overflow-x-auto",
                   embeddedInTabFrame
                     ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none text-gray-900 dark:text-gray-100"
                     : "p-4 text-gray-900 dark:text-gray-100",
                   "text-[13px] leading-relaxed",
-                  "custom-scrollbar",
                   "![text-shadow:none] [&_*]:![text-shadow:none]",
                   "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
-                  isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
                   // Auto-collapse long code blocks unless maximized
                   isCollapsed &&
                     !isMaximized &&
