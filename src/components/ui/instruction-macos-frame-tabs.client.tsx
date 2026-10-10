@@ -61,7 +61,7 @@ export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): JSX
         "[&_a:hover]:text-blue-500 [&_a:hover]:dark:text-blue-300 [&_a:hover]:no-underline",
       ),
     };
-    return React.cloneElement(childNode as React.ReactElement<unknown>, newProps);
+    return React.cloneElement(childNode as React.ReactElement, newProps);
   });
   return <>{childrenWithProps}</>;
 }

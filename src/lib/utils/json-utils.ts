@@ -5,7 +5,7 @@
  * with proper error handling and type safety
  */
 
-import type { ZodSchema } from "zod/v4";
+import type { ZodType } from "zod/v4";
 import { debugLog } from "./debug";
 
 /**
@@ -15,9 +15,9 @@ import { debugLog } from "./debug";
  * @overload With schema - validates and returns typed result
  * @overload Without schema - returns unknown for caller to validate
  */
-export function safeJsonParse<T>(text: string, schema: ZodSchema<T>): T | null;
+export function safeJsonParse<T>(text: string, schema: ZodType<T>): T | null;
 export function safeJsonParse(text: string): unknown;
-export function safeJsonParse<T>(text: string, schema?: ZodSchema<T>): T | unknown | null {
+export function safeJsonParse<T>(text: string, schema?: ZodType<T>): unknown {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -97,7 +97,7 @@ export function prettyJson(value: unknown, indent = 2): string {
  * Deep clone an object using JSON methods with optional schema validation
  * Note: This will lose functions, undefined values, and symbols
  */
-export function jsonClone<T>(obj: T, schema?: ZodSchema<T>): T | null {
+export function jsonClone<T>(obj: T, schema?: ZodType<T>): T | null {
   const stringified = safeJsonStringify(obj);
   if (!stringified) return null;
 
@@ -114,19 +114,19 @@ export function jsonClone<T>(obj: T, schema?: ZodSchema<T>): T | null {
  */
 export function parseJsonFromBuffer<T>(
   data: Buffer | string,
-  schema: ZodSchema<T>,
+  schema: ZodType<T>,
   encoding?: BufferEncoding,
 ): T | null;
 export function parseJsonFromBuffer(data: Buffer | string, encoding?: BufferEncoding): unknown;
 export function parseJsonFromBuffer<T>(
   data: Buffer | string,
-  schemaOrEncoding?: ZodSchema<T> | BufferEncoding,
+  schemaOrEncoding?: ZodType<T> | BufferEncoding,
   encoding: BufferEncoding = "utf-8",
-): T | unknown | null {
+): unknown {
   const actualEncoding = typeof schemaOrEncoding === "string" ? schemaOrEncoding : encoding;
   const schema =
     typeof schemaOrEncoding === "object" && schemaOrEncoding !== null
-      ? (schemaOrEncoding as ZodSchema<T>)
+      ? schemaOrEncoding
       : undefined;
 
   const text = Buffer.isBuffer(data) ? data.toString(actualEncoding) : data;

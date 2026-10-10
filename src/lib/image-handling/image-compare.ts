@@ -73,7 +73,7 @@ export async function generateImageSignature(buffer: Buffer): Promise<ImageSigna
       height: meta.height || 0,
     },
     format: meta.format ?? "unknown",
-    entropy: calculateEntropy(buffer.slice(0, 1024)),
+    entropy: calculateEntropy(buffer.subarray(0, 1024)),
   };
 }
 
@@ -112,7 +112,7 @@ function generateStructuralHash(meta: BasicImageMeta, buffer: Buffer): string {
  */
 function extractColorSignature(buffer: Buffer): number[] {
   // Sample first 2KB for color distribution
-  const sample = buffer.slice(0, 2048);
+  const sample = buffer.subarray(0, 2048);
   const histogram: number[] = Array.from({ length: 8 }, () => 0);
 
   // Simple byte distribution as proxy for color

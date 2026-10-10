@@ -61,7 +61,7 @@ export function SvgTransformFixer() {
       for (const container of containerTargets) {
         const svgsInContainer = container.querySelectorAll("svg");
         for (const svg of svgsInContainer) {
-          processSvgTransforms(svg as SVGElement);
+          processSvgTransforms(svg);
         }
       }
     };

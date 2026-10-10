@@ -140,7 +140,6 @@ describe("Sitemap Generation", () => {
         buildBookmarksIndex({
           count: BOOKMARKS_PER_PAGE + 6,
           totalPages: 2,
-          lastModified: undefined,
         }),
       );
 
@@ -162,7 +161,6 @@ describe("Sitemap Generation", () => {
         buildBookmarksIndex({
           count: BOOKMARKS_PER_PAGE - 1,
           totalPages: 1,
-          lastModified: undefined,
         }),
       );
 

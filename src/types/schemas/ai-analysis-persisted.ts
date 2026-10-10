@@ -18,7 +18,7 @@ import { z } from "zod/v4";
  */
 export const analysisMetadataSchema = z.object({
   /** ISO timestamp when the analysis was generated */
-  generatedAt: z.string().datetime(),
+  generatedAt: z.iso.datetime(),
   /** Model version identifier (e.g., "v1", "gpt-4-turbo") */
   modelVersion: z.string().min(1),
   /** Optional content hash for change detection */

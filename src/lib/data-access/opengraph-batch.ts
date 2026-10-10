@@ -72,7 +72,7 @@ export async function getOpenGraphDataBatch(
     }
 
     // Step 3: Store to PostgreSQL
-    await writeOgMetadata(urlHash, normalizedUrl, result as OgResult);
+    await writeOgMetadata(urlHash, normalizedUrl, result);
 
     return result;
   } catch (error) {

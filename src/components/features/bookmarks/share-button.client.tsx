@@ -68,40 +68,6 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
     }
   };
 
-  const copyUsingFallback = (text: string): boolean => {
-    if (typeof document === "undefined") {
-      return false;
-    }
-
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "true");
-    textarea.style.position = "absolute";
-    textarea.style.left = "-9999px";
-    document.body.appendChild(textarea);
-
-    const selection = document.getSelection();
-    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-
-    textarea.select();
-
-    let succeeded = false;
-    try {
-      succeeded = document.execCommand("copy");
-    } catch {
-      succeeded = false;
-    }
-
-    document.body.removeChild(textarea);
-
-    if (range && selection) {
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-
-    return succeeded;
-  };
-
   const showTooltip = (failed: boolean) => {
     setCopyFailed(failed);
     setTooltipVisible(true);
@@ -113,34 +79,9 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
 
   const handleCopy = async () => {
     try {
-      const bookmarkUrl = getBookmarkUrl();
-      let copySucceeded = false;
-
-      const clipboard = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
-      if (clipboard?.writeText) {
-        try {
-          await clipboard.writeText(bookmarkUrl);
-          copySucceeded = true;
-        } catch (clipboardError) {
-          console.warn(
-            "navigator.clipboard.writeText failed, falling back to execCommand",
-            clipboardError,
-          );
-        }
-      }
-
-      if (!copySucceeded) {
-        copySucceeded = copyUsingFallback(bookmarkUrl);
-      }
-
-      if (copySucceeded) {
-        showTooltip(false);
-        setCopied(true);
-        return;
-      }
-
-      showTooltip(true);
-      setCopied(false);
+      await navigator.clipboard.writeText(getBookmarkUrl());
+      showTooltip(false);
+      setCopied(true);
     } catch (error) {
       console.error("Failed to copy URL:", error);
       showTooltip(true);

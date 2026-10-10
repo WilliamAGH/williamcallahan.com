@@ -45,7 +45,7 @@ function buildBookmark(id: string): UnifiedBookmark {
     tags: [],
     dateBookmarked: timestamp,
     sourceUpdatedAt: timestamp,
-  } as UnifiedBookmark;
+  };
 }
 
 function buildSlugMapping(bookmarks: UnifiedBookmark[]) {

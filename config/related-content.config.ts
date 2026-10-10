@@ -92,7 +92,7 @@ export const SLUG_CACHE_TTL_MS = {
  */
 export function getSlugCacheTTL(): number {
   const env = process.env.NODE_ENV || "development";
-  return SLUG_CACHE_TTL_MS[env as keyof typeof SLUG_CACHE_TTL_MS] || SLUG_CACHE_TTL_MS.development;
+  return SLUG_CACHE_TTL_MS[env] || SLUG_CACHE_TTL_MS.development;
 }
 
 /**

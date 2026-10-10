@@ -10,6 +10,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { z } from "zod/v4";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { isMissingClerkMiddlewareError } from "@/lib/utils/api-utils";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -134,7 +135,7 @@ export async function POST(): Promise<NextResponse> {
     if (!parseResult.success) {
       envLogger.log(
         "Production bookmarks refresh response validation failed",
-        { errors: parseResult.error.format(), raw: rawResult },
+        { errors: z.treeifyError(parseResult.error), raw: rawResult },
         { category: "BookmarksRefresh" },
       );
       return NextResponse.json(

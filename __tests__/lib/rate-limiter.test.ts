@@ -314,8 +314,8 @@ describe("Rate Limiter", () => {
         .fill(null)
         .map(() => isOperationAllowed("concurrent-store", clientId, config));
 
-      const allowedCount = results.filter((result) => result === true).length;
-      const blockedCount = results.filter((result) => result === false).length;
+      const allowedCount = results.filter((result) => result).length;
+      const blockedCount = results.filter((result) => !result).length;
 
       expect(allowedCount).toBe(5);
       expect(blockedCount).toBe(5);

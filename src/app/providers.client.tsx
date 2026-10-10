@@ -36,11 +36,11 @@ function ThemedClerkProvider({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider
       appearance={{
-        baseTheme: isDark ? dark : undefined,
+        theme: isDark ? dark : undefined,
         variables: {
           colorPrimary: isDark ? "#60a5fa" : "#2563eb",
           colorBackground: isDark ? "#1a1b26" : "#ffffff",
-          colorText: isDark ? "#e5e7eb" : "#1f2937",
+          colorForeground: isDark ? "#e5e7eb" : "#1f2937",
         },
       }}
     >

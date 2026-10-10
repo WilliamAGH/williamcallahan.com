@@ -53,7 +53,7 @@ export type UploadRequest = z.infer<typeof UploadRequestSchema>;
  */
 export const UploadResponseSchema = z.object({
   success: z.boolean(),
-  uploadUrl: z.string().url().optional(),
+  uploadUrl: z.url().optional(),
   s3Key: z.string().optional(),
   error: z.string().optional(),
 });

@@ -7,7 +7,7 @@
  */
 
 import { eq } from "drizzle-orm";
-import type { ZodIssue } from "zod/v4";
+import type { z } from "zod/v4";
 import { db } from "@/lib/db/connection";
 import { CONTENT_GRAPH_ARTIFACT_TYPES, contentGraphArtifacts } from "@/lib/db/schema/content-graph";
 import { relatedContentGraphSchema, booksRelatedContentDataSchema } from "@/types/schemas/book";
@@ -21,11 +21,11 @@ import type { BooksRelatedContent, RelatedContentGraph } from "@/types/schemas/b
 
 let invalidRelatedContentArtifactLogged = false;
 
-function formatZodIssuePath(issue: ZodIssue): string {
+function formatZodIssuePath(issue: z.core.$ZodIssue): string {
   return issue.path.length > 0 ? issue.path.map(String).join(".") : "<root>";
 }
 
-function logInvalidRelatedContentArtifact(issues: readonly ZodIssue[]): void {
+function logInvalidRelatedContentArtifact(issues: readonly z.core.$ZodIssue[]): void {
   if (invalidRelatedContentArtifactLogged) {
     return;
   }

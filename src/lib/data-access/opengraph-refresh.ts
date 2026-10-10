@@ -57,7 +57,7 @@ export async function refreshOpenGraphData(
 
       if (result && typeof result === "object" && "url" in result) {
         debug(`[OpenGraph Refresh] Successfully refreshed: ${normalizedUrl}`);
-        const refreshed = result as OgResult;
+        const refreshed = result;
         try {
           await writeOgMetadata(urlHash, normalizedUrl, refreshed);
           debug(`[OpenGraph DB] Persisted refreshed metadata to DB: ${urlHash}`);

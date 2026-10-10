@@ -172,10 +172,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("rejects result when aborting a running task", async () => {
       const queue = new UpstreamRequestQueue({ key: "test-running-abort", maxParallel: 1 });
       const controller = new AbortController();
-      let resolveRun: ((value: string) => void) | null = null;
-      const runPromise = new Promise<string>((resolve) => {
-        resolveRun = resolve;
-      });
+      const { promise: runPromise, resolve: resolveRun } = Promise.withResolvers<string>();
       const { started, result } = queue.enqueue({
         signal: controller.signal,
         run: () => runPromise,
@@ -183,7 +180,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       await started;
       controller.abort();
       await expect(result).rejects.toMatchObject({ name: "AbortError" });
-      resolveRun?.("ok");
+      resolveRun("ok");
     });
   });
 
@@ -303,7 +300,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       const params = resolveModelParams("terminal_chat", {
         userText: "hi",
         reasoning_effort: "none",
-      } as ParsedRequestBody);
+      });
 
       expect(params.reasoningEffort).toBe("none");
     });

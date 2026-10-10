@@ -414,7 +414,7 @@ export async function processBookmarksInBatches(
 
   console.log(`${LOG_PREFIX} ====== OPENGRAPH ENRICHMENT SUMMARY ======`);
   console.log(`${LOG_PREFIX} Total bookmarks processed: ${imageStats.totalBookmarks}`);
-  console.log(`${LOG_PREFIX}`);
+  console.log(LOG_PREFIX);
   console.log(`${LOG_PREFIX} IMAGE SOURCES BREAKDOWN:`);
   console.log(`${LOG_PREFIX}   📦 Already in S3: ${imageStats.bookmarksUsingS3Image} bookmarks`);
   console.log(
@@ -424,7 +424,7 @@ export async function processBookmarksInBatches(
     `${LOG_PREFIX}   🔄 Karakeep fallback: ${imageStats.bookmarksUsingKarakeepImage} bookmarks`,
   );
   console.log(`${LOG_PREFIX}   ❌ No image found: ${imageStats.bookmarksWithoutImages} bookmarks`);
-  console.log(`${LOG_PREFIX}`);
+  console.log(LOG_PREFIX);
   console.log(`${LOG_PREFIX} PERSISTENCE STATUS:`);
   if (useBatchMode) {
     console.log(
@@ -437,7 +437,7 @@ export async function processBookmarksInBatches(
     );
     console.log(`${LOG_PREFIX}   📦 Images already stored in S3: ${imageStats.imagesAlreadyInS3}`);
   }
-  console.log(`${LOG_PREFIX}`);
+  console.log(LOG_PREFIX);
   console.log(`${LOG_PREFIX} PROCESSING STATS:`);
   const totalWithImages =
     imageStats.bookmarksUsingS3Image +

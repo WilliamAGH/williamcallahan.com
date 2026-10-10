@@ -14,10 +14,10 @@ export const failureRecordBaseSchema = z.object({
 
 export type FailureRecordBase = z.infer<typeof failureRecordBaseSchema>;
 
-export const createFailedItemSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+export const createFailedItemSchema = <T extends z.ZodType>(itemSchema: T) =>
   failureRecordBaseSchema.extend({
     item: itemSchema,
   });
 
-export const createFailedItemRecordSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+export const createFailedItemRecordSchema = <T extends z.ZodType>(itemSchema: T) =>
   z.record(z.string(), createFailedItemSchema(itemSchema));

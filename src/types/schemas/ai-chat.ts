@@ -23,7 +23,7 @@ export const requestBodySchema = z
     reasoning_effort: reasoningEffortSchema.nullable().optional(),
     response_format: openAiCompatibleResponseFormatSchema.optional(),
     apiMode: aiUpstreamApiModeSchema.optional(),
-    conversationId: z.string().uuid().optional(),
+    conversationId: z.uuid().optional(),
     priority: z.number().int().min(-100).max(100).optional(),
     messages: z
       .array(

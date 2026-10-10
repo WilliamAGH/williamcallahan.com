@@ -19,7 +19,7 @@ function normalizeFeatureEnvKey(feature: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
-const baseUrlSchema = z.string().url();
+const baseUrlSchema = z.url();
 const modelSchema = z.string().min(1);
 const maxParallelSchema = z.number().int().min(1).max(20);
 

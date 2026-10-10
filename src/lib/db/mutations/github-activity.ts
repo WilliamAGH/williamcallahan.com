@@ -58,7 +58,7 @@ const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
   const hasData = Array.isArray(ty?.data) && (ty?.data?.length ?? 0) > 0;
   const hasCount = typeof ty?.totalContributions === "number" && ty.totalContributions >= 0;
   const contributions = ty?.totalContributions ?? -1;
-  const isDataComplete = ty?.dataComplete === true;
+  const isDataComplete = ty?.dataComplete;
 
   const isEmpty = !hasData && contributions <= 0;
   const isIncomplete = !hasData || !hasCount || !isDataComplete;
@@ -80,7 +80,7 @@ function canPublishGitHubActivity(
     segment.totalContributions === 0 &&
     segment.linesAdded === 0 &&
     segment.linesRemoved === 0 &&
-    segment.dataComplete === true &&
+    segment.dataComplete &&
     segment.allPriorYearCommits === undefined;
   const isExplicitEmptyCurrentRepositorySet =
     isCompleteZeroSegment(data.trailingYearData) &&

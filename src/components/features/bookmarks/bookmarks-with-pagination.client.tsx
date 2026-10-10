@@ -238,7 +238,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         isRefreshing={isRefreshing}
         showCrossEnvRefresh={showCrossEnvRefresh}
         isRefreshingProduction={isRefreshingProduction}
-        onProductionRefresh={handleProductionRefresh}
+        onProductionRefresh={() => {
+          void handleProductionRefresh();
+        }}
       />
 
       {showFilterBar && (

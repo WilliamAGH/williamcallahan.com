@@ -16,7 +16,7 @@ import { IMAGE_MANIFEST_TYPES, type ImageManifestType } from "@/types/schemas/im
  * Read a single image manifest by type.
  * Returns the raw JSONB payload or null when not found.
  */
-export async function readImageManifest(manifestType: ImageManifestType): Promise<unknown | null> {
+export async function readImageManifest(manifestType: ImageManifestType): Promise<unknown> {
   const rows = await db
     .select({ payload: imageManifests.payload })
     .from(imageManifests)

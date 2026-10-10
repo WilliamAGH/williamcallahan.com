@@ -45,7 +45,7 @@ function createBookmark(
     dateBookmarked,
     sourceUpdatedAt: "2026-02-27T00:00:00.000Z",
     ...overrides,
-  } as UnifiedBookmark;
+  };
 }
 
 function createPost(
@@ -63,7 +63,7 @@ function createPost(
     author: { id: "will", name: "William Callahan" },
     tags: [],
     ...overrides,
-  } as FeedPost;
+  };
 }
 
 function createSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugMapping {
@@ -142,9 +142,7 @@ describe("Bookmark feed modes", () => {
     }));
 
     mockGetDiscoveryRankedBookmarks.mockResolvedValue({ items: ranked, totalCount: ranked.length });
-    mockLoadSlugMapping.mockResolvedValue(
-      createSlugMapping(ranked.map((entry) => entry.bookmark as UnifiedBookmark)),
-    );
+    mockLoadSlugMapping.mockResolvedValue(createSlugMapping(ranked.map((entry) => entry.bookmark)));
 
     const response = await getBookmarksRoute(
       new NextRequest("http://localhost/api/bookmarks?feed=discover&page=1&limit=4"),

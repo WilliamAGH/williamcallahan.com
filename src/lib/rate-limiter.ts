@@ -192,15 +192,6 @@ export async function waitForPermit(
 }
 
 /**
- * No-op kept for call-site compatibility. Rate limit state is purely in-memory;
- * it resets on process restart, which is acceptable for sliding-window limiters.
- * @deprecated Remove callers and this stub once all references are cleaned up.
- */
-export async function loadRateLimitStore(_storeName: string, _storePath: string): Promise<void> {
-  // In-memory only — nothing to load.
-}
-
-/**
  * Updates the in-memory rate limit counter.
  * The `_storeKey` parameter is retained for call-site compatibility but is not used.
  */

@@ -24,7 +24,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "noImplicitAny": false,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "noUncheckedIndexedAccess": false,
     "strict": true,
     "skipLibCheck": true

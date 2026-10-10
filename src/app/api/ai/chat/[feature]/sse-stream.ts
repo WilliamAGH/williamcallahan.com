@@ -10,7 +10,6 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 
 import type { SseStreamConfig } from "@/types/features/ai-chat";
 import { logSuccessfulChat, logFailedChat } from "./chat-helpers";
@@ -197,7 +196,6 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
   });
 
   const headers: HeadersInit = {
-    ...NO_STORE_HEADERS,
     "Cache-Control": "no-store, no-transform",
     "Content-Type": "text/event-stream; charset=utf-8",
     Connection: "keep-alive",

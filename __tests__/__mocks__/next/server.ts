@@ -41,10 +41,7 @@ function makeCaseInsensitiveHeaders(initHeaders?: Record<string, string>): Map<s
     value: string,
   ) => originalSet(String(name).toLowerCase(), value);
 
-  return headers as Map<string, string> & {
-    get: (name: string) => string | undefined;
-    set: (name: string, value: string) => void;
-  };
+  return headers;
 }
 
 function serializeCookie(cookie: CookieOptions): string {

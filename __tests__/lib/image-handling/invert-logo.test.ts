@@ -6,7 +6,7 @@ if (typeof global.TextEncoder === "undefined" && UtilTextEncoder) {
 }
 
 if (typeof global.TextDecoder === "undefined" && UtilTextDecoder) {
-  global.TextDecoder = UtilTextDecoder as unknown as typeof global.TextDecoder;
+  global.TextDecoder = UtilTextDecoder;
 }
 
 import { Image } from "image-js";

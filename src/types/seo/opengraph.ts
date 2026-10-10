@@ -62,12 +62,12 @@ export type WebsiteOpenGraph = OpenGraph & {
 export type ExtendedOpenGraph = ArticleOpenGraph | ProfileOpenGraph | WebsiteOpenGraph;
 
 // Base schemas for common types
-const urlSchema = z.string().url().optional().or(z.literal(""));
+const urlSchema = z.url().optional().or(z.literal(""));
 const nullableSafeOgUrlSchema = openGraphUrlSchema.nullable().optional().or(z.literal(""));
 const stringOrNullSchema = z.string().nullable().optional();
 const timestampSchema = z.number().int().positive();
 const nonEmptyStringSchema = z.string().min(1);
-const nullableUrlSchema = z.string().url().nullable().optional();
+const nullableUrlSchema = z.url().nullable().optional();
 const ogMetadataRecordSchema = z.record(z.string(), stringOrNullSchema);
 const socialProfilesSchema = z.record(z.string(), z.string());
 

@@ -171,7 +171,7 @@ function parseImageHeader(buffer: Buffer): ProbeResult {
   }
 
   // Check for SVG (text-based)
-  const header = buffer.slice(0, Math.min(1024, buffer.length)).toString("utf8");
+  const header = buffer.subarray(0, Math.min(1024, buffer.length)).toString("utf8");
   if (header.includes("<svg") || header.includes("<?xml")) {
     return parseSVG(header);
   }
@@ -240,7 +240,7 @@ function parseWebP(buffer: Buffer): ProbeResult {
   let offset = 12;
 
   while (offset < buffer.length - 8) {
-    const chunkType = buffer.slice(offset, offset + 4).toString("ascii");
+    const chunkType = buffer.subarray(offset, offset + 4).toString("ascii");
     const chunkSize = buffer.readUInt32LE(offset + 4);
     offset += 8;
 

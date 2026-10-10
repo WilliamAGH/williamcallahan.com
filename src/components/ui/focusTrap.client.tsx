@@ -132,7 +132,7 @@ export function FocusTrap({ children, active, initialFocus = true, onEscape }: F
           padding: 0,
           margin: -1,
           overflow: "hidden",
-          clip: "rect(0 0 0 0)",
+          clipPath: "inset(50%)",
           whiteSpace: "nowrap",
           border: 0,
         }}
@@ -154,7 +154,7 @@ export function FocusTrap({ children, active, initialFocus = true, onEscape }: F
           padding: 0,
           margin: -1,
           overflow: "hidden",
-          clip: "rect(0 0 0 0)",
+          clipPath: "inset(50%)",
           whiteSpace: "nowrap",
           border: 0,
         }}
