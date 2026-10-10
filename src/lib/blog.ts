@@ -214,6 +214,10 @@ export async function getPostMetaBySlug(slug: string): Promise<BlogPost | null> 
         result.error,
       );
       return null;
+    default: {
+      const unhandledLookup: never = result;
+      throw new Error(`Unhandled post lookup result: ${JSON.stringify(unhandledLookup)}`);
+    }
   }
 }
 
@@ -254,6 +258,10 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
         slug,
         result.error,
       );
+    default: {
+      const unhandledLookup: never = result;
+      throw new Error(`Unhandled post lookup result: ${JSON.stringify(unhandledLookup)}`);
+    }
   }
 }
 

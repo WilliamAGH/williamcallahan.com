@@ -5,7 +5,7 @@
 
 // Mock the OpenGraph data access module
 vi.mock("@/lib/data-access/opengraph", () => ({
-  getOpenGraphData: vi.fn(),
+  getOpenGraphData: vi.fn<typeof getOpenGraphData>(),
 }));
 
 import { getOpenGraphData } from "@/lib/data-access/opengraph";

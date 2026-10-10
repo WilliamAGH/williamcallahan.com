@@ -10,7 +10,7 @@ function parseBeaconPayload(rawPayload: unknown) {
 }
 
 describe("useEngagementTracker", () => {
-  const sendBeaconMock = vi.fn();
+  const sendBeaconMock = vi.fn<Navigator["sendBeacon"]>();
 
   beforeEach(() => {
     vi.clearAllMocks();

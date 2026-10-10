@@ -78,9 +78,9 @@ export async function parsePdfFromBuffer(
       publisher: getInfoString(pdfInfo.Publisher),
       description: getInfoString(pdfInfo.Subject),
       date: pdfInfo.CreationDate
-        ? formatPdfDate(String(pdfInfo.CreationDate))
+        ? formatPdfDate(pdfInfo.CreationDate)
         : pdfInfo.ModDate
-          ? formatPdfDate(String(pdfInfo.ModDate))
+          ? formatPdfDate(pdfInfo.ModDate)
           : undefined,
     };
 
@@ -162,9 +162,9 @@ export async function extractPdfMetadata(buffer: Buffer): Promise<EpubMetadata> 
       publisher: getInfoString(pdfInfo.Publisher),
       description: getInfoString(pdfInfo.Subject),
       date: pdfInfo.CreationDate
-        ? formatPdfDate(String(pdfInfo.CreationDate))
+        ? formatPdfDate(pdfInfo.CreationDate)
         : pdfInfo.ModDate
-          ? formatPdfDate(String(pdfInfo.ModDate))
+          ? formatPdfDate(pdfInfo.ModDate)
           : undefined,
     };
   } finally {

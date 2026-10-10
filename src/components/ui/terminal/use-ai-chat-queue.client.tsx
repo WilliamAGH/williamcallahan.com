@@ -36,6 +36,8 @@ export function useAiChatQueue({
   feature,
 }: AiChatQueueConfig): AiChatQueueResult {
   const historyRef = useRef(history);
+  const addToHistoryRef = useRef(addToHistory);
+  const runQueuedMessageRef = useRef<(userText: string) => Promise<void>>(() => Promise.resolve());
   const conversationIdRef = useRef(conversationId);
   const [queuedMessages, setQueuedMessages] = useState<string[]>([]);
   const [queueNotice, setQueueNotice] = useState<string | null>(null);
@@ -48,6 +50,10 @@ export function useAiChatQueue({
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  useEffect(() => {
+    addToHistoryRef.current = addToHistory;
+  }, [addToHistory]);
 
   useEffect(() => {
     conversationIdRef.current = conversationId;
@@ -216,8 +222,9 @@ export function useAiChatQueue({
       while (queueRef.current.length > 0) {
         const [nextMessage, ...rest] = queueRef.current;
         if (typeof nextMessage !== "string") {
-          updateQueue(rest);
-          addToHistory({
+          queueRef.current = rest;
+          setQueuedMessages(rest);
+          addToHistoryRef.current({
             type: "error",
             id: crypto.randomUUID(),
             input: "",
@@ -227,15 +234,20 @@ export function useAiChatQueue({
           });
           continue;
         }
-        updateQueue(rest);
-        await runQueuedMessage(nextMessage);
+        queueRef.current = rest;
+        setQueuedMessages(rest);
+        await runQueuedMessageRef.current(nextMessage);
       }
     } finally {
       processingRef.current = false;
       setIsSubmitting(false);
       setAiQueueMessage(null);
     }
-  }, [addToHistory, runQueuedMessage, updateQueue]);
+  }, []);
+
+  useEffect(() => {
+    runQueuedMessageRef.current = runQueuedMessage;
+  }, [runQueuedMessage]);
 
   const queueChatMessage = useCallback(
     (userText: string): boolean => {

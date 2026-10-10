@@ -11,12 +11,13 @@ import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
+import type { getStaticPageMetadata } from "@/lib/seo/metadata";
 
 const { mockGetBookmarkById, mockGetStaticPageMetadata, mockResolveBookmarkIdFromSlug } =
   vi.hoisted(() => ({
-    mockGetBookmarkById: vi.fn(),
-    mockResolveBookmarkIdFromSlug: vi.fn(),
-    mockGetStaticPageMetadata: vi.fn(() => ({
+    mockGetBookmarkById: vi.fn<typeof getBookmarkById>(),
+    mockResolveBookmarkIdFromSlug: vi.fn<typeof resolveBookmarkIdFromSlug>(),
+    mockGetStaticPageMetadata: vi.fn<typeof getStaticPageMetadata>(() => ({
       title: "Bookmarks",
       description: "A collection of bookmarks",
       openGraph: {

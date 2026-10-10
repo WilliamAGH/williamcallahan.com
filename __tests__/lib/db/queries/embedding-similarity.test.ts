@@ -1,10 +1,33 @@
 import type { mapBookmarkSelectsToUnifiedBookmarks } from "@/lib/db/bookmark-record-mapper";
+import type { db } from "@/lib/db/connection";
+import type { PgTable } from "drizzle-orm/pg-core";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+
+/** Row shapes the queries under test request through `db.execute<Row>()`. */
+type ExecuteRow =
+  | { exists: number }
+  | { domain: string; entity_id: string; title: string; content_date: string; similarity: number }
+  | { id: string; hybrid_score: string }
+  | { entity_id: string; vec_score: string }
+  | {
+      id: string;
+      title: string;
+      slug: string;
+      authors: string[] | null;
+      description: string | null;
+      cover_url: string | null;
+      keyword_score: string;
+    };
+type ExecuteStub = (query: SQL) => Promise<ExecuteRow[]>;
+type WhereStub = (condition: SQL | undefined) => Promise<UnifiedBookmark[]>;
+type FromStub = (table: PgTable) => { where: WhereStub };
+type SelectStub = (...fields: Parameters<typeof db.select>) => { from: FromStub };
 
 const { mockExecute, mockMapBookmarks, mockSelect, mockWhere } = vi.hoisted(() => ({
-  mockExecute: vi.fn(),
+  mockExecute: vi.fn<ExecuteStub>(),
   mockMapBookmarks: vi.fn<typeof mapBookmarkSelectsToUnifiedBookmarks>(),
-  mockSelect: vi.fn(),
-  mockWhere: vi.fn(),
+  mockSelect: vi.fn<SelectStub>(),
+  mockWhere: vi.fn<WhereStub>(),
 }));
 
 vi.mock("@/lib/db/connection", () => ({
@@ -222,7 +245,7 @@ describe("hybrid search SQL ranking", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSelect.mockReturnValue({
-      from: vi.fn(() => ({ where: mockWhere })),
+      from: vi.fn<FromStub>(() => ({ where: mockWhere })),
     });
   });
 

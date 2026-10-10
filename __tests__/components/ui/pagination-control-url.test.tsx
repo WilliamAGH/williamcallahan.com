@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
-  useSearchParams: vi.fn(),
+  useSearchParams: vi.fn<typeof useSearchParams>(),
 }));
 
 // Mock Link component to avoid router context issues

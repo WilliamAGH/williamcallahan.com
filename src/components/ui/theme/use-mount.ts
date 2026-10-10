@@ -1,18 +1,17 @@
 /**
  * Mount Hook
  *
- * Custom hook to handle component mounting state.
- * Prevents hydration mismatch in theme components.
+ * Reports whether the component renders on the client after hydration.
+ * Prevents hydration mismatch in client-only UI: the server snapshot (false)
+ * is used for SSR and the hydration pass, the client snapshot (true) afterwards.
  */
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
-export function useMount() {
-  const [mounted, setMounted] = useState(false);
+const subscribeToNothing = (): (() => void) => () => undefined;
+const getClientSnapshot = (): boolean => true;
+const getServerSnapshot = (): boolean => false;
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  return mounted;
+export function useMount(): boolean {
+  return useSyncExternalStore(subscribeToNothing, getClientSnapshot, getServerSnapshot);
 }

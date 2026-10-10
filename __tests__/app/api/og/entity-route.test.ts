@@ -8,11 +8,14 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+/** The slice of the sharp pipeline that `fetchImageAsDataUrl` drives. */
+type FakeSharpPipeline = { png: () => FakeSharpPipeline; toBuffer: () => Promise<Buffer> };
+
 // Mock sharp before any imports that use it
 vi.mock("sharp", () => ({
-  default: vi.fn(() => ({
-    png: vi.fn().mockReturnThis(),
-    toBuffer: vi.fn().mockResolvedValue(Buffer.from("fake-png")),
+  default: vi.fn<() => FakeSharpPipeline>(() => ({
+    png: vi.fn<() => FakeSharpPipeline>().mockReturnThis(),
+    toBuffer: vi.fn<() => Promise<Buffer>>().mockResolvedValue(Buffer.from("fake-png")),
   })),
 }));
 
@@ -21,7 +24,7 @@ vi.mock("@/lib/og-image/fetch-image", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/og-image/fetch-image")>();
   return {
     ...actual,
-    fetchImageAsDataUrl: vi.fn().mockResolvedValue(null),
+    fetchImageAsDataUrl: vi.fn<typeof actual.fetchImageAsDataUrl>().mockResolvedValue(null),
   };
 });
 

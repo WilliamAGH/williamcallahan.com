@@ -11,8 +11,7 @@
  */
 
 import { investments } from "../data/investments";
-import type { Investment } from "../src/types/investment";
-import type { InvestmentUrlValidationResult } from "@/types/investment";
+import type { Investment, InvestmentUrlValidationResult } from "@/types/investment";
 
 /**
  * Validate URL format using URL constructor (from web search results)
@@ -166,11 +165,11 @@ function isActiveInvestment(investment: Investment): boolean {
  * Process investments in batches with concurrency control
  */
 async function processBatch(
-  investments: Investment[],
+  pendingInvestments: Investment[],
   concurrencyLimit: number,
 ): Promise<InvestmentUrlValidationResult[]> {
   const results: InvestmentUrlValidationResult[] = [];
-  const queue = [...investments];
+  const queue = [...pendingInvestments];
   const activePromises = new Set<Promise<void>>();
 
   while (queue.length > 0 || activePromises.size > 0) {
@@ -182,7 +181,7 @@ async function processBatch(
       const promise = validateInvestmentUrl(investment)
         .then((result) => {
           results.push(result);
-          console.log(`Tested ${results.length}/${investments.length}: ${investment.name}`);
+          console.log(`Tested ${results.length}/${pendingInvestments.length}: ${investment.name}`);
           return undefined;
         })
         .finally(() => {

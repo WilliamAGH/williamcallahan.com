@@ -19,8 +19,8 @@ import type { FocusTrapExtendedProps as FocusTrapProps } from "@/types/ui/intera
  */
 export function FocusTrap({ children, active, initialFocus = true, onEscape }: FocusTrapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const startRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
+  const endRef = useRef<HTMLButtonElement>(null);
 
   // Store the element that had focus before trap was activated
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -104,6 +104,7 @@ export function FocusTrap({ children, active, initialFocus = true, onEscape }: F
         }
       };
     }
+    return undefined;
   }, [active, initialFocus, handleFocus, handleKeyDown]);
 
   // Handle component unmount
@@ -119,8 +120,10 @@ export function FocusTrap({ children, active, initialFocus = true, onEscape }: F
   return (
     <div ref={containerRef}>
       {/* Start focus sentinel */}
-      <div
+      <button
+        type="button"
         ref={startRef}
+        aria-label="Focus trap start"
         tabIndex={active ? 0 : -1}
         data-inert={!active}
         style={{
@@ -141,8 +144,10 @@ export function FocusTrap({ children, active, initialFocus = true, onEscape }: F
       {children}
 
       {/* End focus sentinel */}
-      <div
+      <button
+        type="button"
         ref={endRef}
+        aria-label="Focus trap end"
         tabIndex={active ? 0 : -1}
         data-inert={!active}
         style={{

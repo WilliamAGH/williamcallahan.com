@@ -472,6 +472,285 @@ const TweetEmbedRenderer = (props: ComponentProps<typeof TweetEmbed>) => (
   </div>
 );
 
+const CodeRenderer = ({ className, children, ...rest }: ComponentProps<"code">) => {
+  const isBlockCode = className?.includes("language-"); // Heuristic for code within <pre>
+
+  return (
+    <code
+      className={cn(
+        "font-medium align-middle font-mono", // Base styles
+        isBlockCode
+          ? "whitespace-pre" // For <code> inside <pre>: respect all whitespace. Display will be handled by CSS.
+          : "bg-gray-100/80 dark:bg-gray-800/70 text-gray-900 dark:text-gray-100 px-1.5 sm:px-2 py-0.5 rounded-md whitespace-normal break-words ring-1 ring-inset ring-black/5 dark:ring-white/10", // Styles for INLINE <code>
+        "text-[13px] leading-relaxed",
+        className, // Merge className from MDX (e.g., language-bash)
+      )}
+      {...rest}
+    >
+      {children}
+    </code>
+  );
+};
+
+const AnchorRenderer = (props: ComponentProps<"a">) => {
+  const { href, children, className, ...rest } = props;
+
+  const unwrapParagraph = (node: React.ReactNode): React.ReactNode => {
+    if (
+      isValidElement<{ children?: React.ReactNode }>(node) &&
+      node.type === "p" &&
+      Object.hasOwn(node, "props")
+    ) {
+      return (node as React.ReactElement<{ children?: React.ReactNode }>).props.children;
+    }
+    return node;
+  };
+
+  const normalizedChildren = toKeyed(
+    React.Children.map(children, (child: React.ReactNode) => unwrapParagraph(child)) ?? [],
+  );
+  if (!href) {
+    return (
+      <a {...rest} className={className}>
+        {normalizedChildren}
+      </a>
+    );
+  }
+
+  // Treat footnote-style anchors (#fn*, #ref*) specially: keep them clickable
+  // but remove default link styling so superscripts render cleanly.
+  if (href.startsWith("#fn") || href.startsWith("#ref")) {
+    return (
+      <a href={href} {...rest} className={cn("no-underline text-inherit", className)}>
+        {normalizedChildren}
+      </a>
+    );
+  }
+
+  if (href.startsWith("http://") || href.startsWith("https://")) {
+    return (
+      <ExternalLink href={href} {...rest} className={className}>
+        {normalizedChildren}
+      </ExternalLink>
+    );
+  }
+  if (href.startsWith("/")) {
+    return (
+      <Link href={href} {...rest} className={className}>
+        {normalizedChildren}
+      </Link>
+    );
+  }
+  return (
+    <a href={href} className="text-inherit no-underline hover:underline" {...rest}>
+      {normalizedChildren}
+    </a>
+  );
+};
+
+const SupRenderer = ({ className, children, ...rest }: ComponentProps<"sup">) => (
+  <sup className={cn("align-super text-[0.75em] leading-none ml-0.5", className)} {...rest}>
+    {children}
+  </sup>
+);
+
+const H1Renderer = ({ children, ...props }: ComponentProps<"h1">) => (
+  <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+    {children}
+  </h1>
+);
+
+const H2Renderer = ({ children, ...props }: ComponentProps<"h2">) => (
+  <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+    {children}
+  </h2>
+);
+
+const H3Renderer = ({ children, ...props }: ComponentProps<"h3">) => (
+  <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
+    {children}
+  </h3>
+);
+
+const UlRenderer = ({ className, children, ...rest }: ComponentProps<"ul">) => (
+  <ul
+    {...rest}
+    className={cn("pl-6 list-disc text-gray-700 dark:text-gray-300 text-base", className)}
+  >
+    {withKeyedChildren(children, "li")}
+  </ul>
+);
+
+const OlRenderer = ({ className, children, ...rest }: ComponentProps<"ol">) => (
+  <ol
+    {...rest}
+    className={cn("pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base", className)}
+  >
+    {withKeyedChildren(children, "li")}
+  </ol>
+);
+
+const LiRenderer = (props: ComponentProps<"li">) => (
+  <li className="mb-1 pl-1 text-gray-700 dark:text-gray-300 text-base" {...props} />
+);
+
+const BlockquoteRenderer = ({ children, ...rest }: ComponentProps<"blockquote">) => (
+  <blockquote
+    className="pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm text-base"
+    {...rest}
+  >
+    {toKeyed(children)}
+  </blockquote>
+);
+
+const HrRenderer = (props: ComponentProps<"hr">) => <hr className="hidden" {...props} />;
+
+const TableRenderer = (props: ComponentProps<"table">) => {
+  const { children, className, ...restProps } = props;
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+      <table
+        {...restProps}
+        className={cn(
+          "min-w-full divide-y divide-gray-200 dark:divide-gray-700",
+          "bg-white dark:bg-gray-900", // Table background
+          className,
+        )}
+      >
+        {toKeyed(children)}
+      </table>
+    </div>
+  );
+};
+
+const TbodyRenderer = (props: ComponentProps<"tbody">) => {
+  const { children, ...rest } = props;
+  return <tbody {...rest}>{toKeyed(children)}</tbody>;
+};
+
+const TrRenderer = (props: ComponentProps<"tr">) => {
+  const { children, ...rest } = props;
+  return <tr {...rest}>{toKeyed(children)}</tr>;
+};
+
+const TheadRenderer = (props: ComponentProps<"thead">) => {
+  const { children, ...rest } = props;
+  return (
+    <thead className="bg-gray-50 dark:bg-gray-800" {...rest}>
+      {toKeyed(children)}
+    </thead>
+  );
+};
+
+const ThRenderer = (props: ComponentProps<"th">) => (
+  <th
+    scope="col"
+    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 whitespace-nowrap"
+    {...props}
+  />
+);
+
+const TdRenderer = (props: ComponentProps<"td">) => (
+  <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap" {...props} />
+);
+
+/** Maps MDX elements and custom tags to stable module-scope renderers. */
+const components: MDXComponents = {
+  /** Custom renderer for `<pre>` elements using the PreRenderer component that can access context */
+  pre: PreRenderer,
+  /**
+   * Custom renderer for inline `<code>` elements.
+   * Applies specific background, padding, and font styling for inline code snippets,
+   * differentiating them from block-level code displays.
+   * @param {ComponentProps<'code'>} codeProps - Props passed to the `<code>` element.
+   * @returns {JSX.Element} The styled inline code snippet.
+   */
+  code: CodeRenderer,
+  /** Renderer for the custom `MetricsGroup` component, providing specific layout. */
+  MetricsGroup: MetricsGroupRenderer,
+  /** Renderer for `<img>` tags, delegating to the {@link MdxImage} component for enhanced features like captions and optimized loading. */
+  img: MdxImage,
+  /** Renderer for the custom `ArticleGallery` component, used for displaying a collection of images. */
+  ArticleGallery: ArticleGallery,
+  /** Alias for `img` renderer, ensuring {@link MdxImage} is also used for the custom `ArticleImage` tag if used in MDX. */
+  ArticleImage: MdxImage,
+  /** Renderer for the custom `BackgroundInfo` component. */
+  BackgroundInfo: BackgroundInfoRenderer,
+  /** Renderer for the custom `CollapseDropdown` component. */
+  CollapseDropdown: CollapseDropdownRenderer,
+  /** Direct mapping for the `ExternalLink` component, used for links opening in a new tab. */
+  ExternalLink,
+  /** Renderer for the custom `InstructionToggleTabs` component (which maps to `InstructionMacOSFrameTabs`). */
+  InstructionToggleTabs: InstructionToggleTabsRenderer,
+  /** Renderer for the `InstructionMACOSTab` component with MacOSFrameContext provider. */
+  InstructionTab: InstructionTabRenderer,
+  /** Renderer for the custom `ShellParentTabs` component. */
+  ShellParentTabs: ShellParentTabsRenderer,
+  /** Renderer for the `ShellTab` component with MacOSFrameContext provider. */
+  ShellTab: ShellTabRenderer,
+  /** Renderer for the custom `MacOSWindow` component. */
+  MacOSWindow: MacOSWindowRenderer,
+  /** Renderer for the custom `MacOSCodeWindow` component. */
+  MacOSCodeWindow: MacOSCodeWindowRenderer,
+  /** Renderer for `MDXCodeBlock` if used directly as a component tag in MDX (as opposed to via a `<pre>` tag). */
+  MDXCodeBlock: MDXCodeBlockRenderer,
+  /** Renderer for the custom `SoftwareSchema` component, typically for structured data. */
+  SoftwareSchema,
+  /**
+   * Custom renderer for anchor `<a>` tags.
+   * This function intelligently handles different types of links:
+   * - Footnote links (starting with `#fn`): Rendered as simple text spans to avoid link behavior.
+   * - External links (starting with `http://` or `https://`): Rendered using the `ExternalLink` component, which typically adds `target="_blank"` and appropriate `rel` attributes.
+   * - Internal links (starting with `/`): Rendered using Next.js `Link` for client-side navigation.
+   * - Other hash links: Rendered as standard `<a>` tags for in-page navigation.
+   * @param {ComponentProps<'a'>} props - Props passed to the `<a>` element.
+   * @returns {JSX.Element} The appropriately rendered link or span element.
+   */
+  a: AnchorRenderer,
+  // Ensure consistent superscript rendering across prose and custom containers
+  sup: SupRenderer,
+  /** Renderer for `<h1>` elements, applying specific Tailwind CSS classes for styling. */
+  h1: H1Renderer,
+  /** Renderer for `<h2>` elements, applying specific Tailwind CSS classes for styling. */
+  h2: H2Renderer,
+  /** Renderer for `<h3>` elements, applying specific Tailwind CSS classes for styling. */
+  h3: H3Renderer,
+  // Remove custom <p> renderer to avoid ever creating nested <p> inside raw HTML structures.
+  // Let Tailwind Typography's prose styles handle paragraph styling globally.
+  /** Renderer for `<ul>` (unordered list) elements. Styling primarily handled by `prose`. */
+  ul: UlRenderer,
+  /** Renderer for `<ol>` (ordered list) elements. Styling primarily handled by `prose`. */
+  ol: OlRenderer,
+  /** Renderer for `<li>` (list item) elements. Includes a small bottom margin for spacing. Styling primarily handled by `prose`. */
+  li: LiRenderer,
+  /** Renderer for `<blockquote>` elements, applying distinct styling for visual emphasis. */
+  blockquote: BlockquoteRenderer,
+  /** Renderer for `<hr>` (horizontal rule) elements. Currently styled to be hidden. */
+  hr: HrRenderer,
+  /**
+   * Custom renderer for `<table>` elements.
+   * Wraps the HTML table in a `<div>` to enable horizontal scrolling on smaller viewports (`overflow-x-auto`)
+   * and applies consistent border, shadow, and background styling.
+   * @param {ComponentProps<'table'>} props - Props passed to the `<table>` element.
+   * @returns {JSX.Element} The styled and wrapped table.
+   */
+  table: TableRenderer,
+  tbody: TbodyRenderer,
+  tr: TrRenderer,
+  /** Renderer for `<thead>` (table head) elements, applying background styling. */
+  thead: TheadRenderer,
+  /** Renderer for `<th>` (table header cell) elements, applying text, padding, and alignment styling. */
+  th: ThRenderer,
+  /** Renderer for `<td>` (table data cell) elements, applying text and padding styling. */
+  td: TdRenderer,
+  /**
+   * Renderer for the custom `TweetEmbed` component.
+   * Wrapped in a `div` with `not-prose` to prevent Tailwind Typography styles from interfering
+   * with the TweetEmbed component's own internal styling.
+   */
+  TweetEmbed: TweetEmbedRenderer,
+};
+
 /**
  * @component MDXContent
  * The primary client-side component for rendering serialized MDX (Markdown Extended) content.
@@ -559,265 +838,6 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     }
   }, []);
 
-  /**
-   * @constant components
-   * A memoized object mapping MDX element tag names (or custom component names used in MDX)
-   * to their corresponding React components for rendering. This is passed to `MDXRemote`.
-   * `useMemo` is employed to prevent this potentially large object from being recreated on every render cycle,
-   * which is crucial for performance, especially if `MDXContent` re-renders frequently.
-   *
-   * Each key in this object represents an HTML tag (e.g., `pre`, `a`, `p`) or a custom component
-   * (e.g., `MetricsGroup`, `ArticleGallery`). The value is the React component that will be used
-   * to render that element when encountered in the MDX source.
-   */
-  const components: MDXComponents = useMemo(() => {
-    return {
-      /** Custom renderer for `<pre>` elements using the PreRenderer component that can access context */
-      pre: PreRenderer,
-      /**
-       * Custom renderer for inline `<code>` elements.
-       * Applies specific background, padding, and font styling for inline code snippets,
-       * differentiating them from block-level code displays.
-       * @param {ComponentProps<'code'>} codeProps - Props passed to the `<code>` element.
-       * @returns {JSX.Element} The styled inline code snippet.
-       */
-      code: ({ className, children, ...rest }: ComponentProps<"code">) => {
-        const isBlockCode = className?.includes("language-"); // Heuristic for code within <pre>
-
-        return (
-          <code
-            className={cn(
-              "font-medium align-middle font-mono", // Base styles
-              isBlockCode
-                ? "whitespace-pre" // For <code> inside <pre>: respect all whitespace. Display will be handled by CSS.
-                : "bg-gray-100/80 dark:bg-gray-800/70 text-gray-900 dark:text-gray-100 px-1.5 sm:px-2 py-0.5 rounded-md whitespace-normal break-words ring-1 ring-inset ring-black/5 dark:ring-white/10", // Styles for INLINE <code>
-              "text-[13px] leading-relaxed",
-              className, // Merge className from MDX (e.g., language-bash)
-            )}
-            {...rest}
-          >
-            {children}
-          </code>
-        );
-      },
-      /** Renderer for the custom `MetricsGroup` component, providing specific layout. */
-      MetricsGroup: MetricsGroupRenderer,
-      /** Renderer for `<img>` tags, delegating to the {@link MdxImage} component for enhanced features like captions and optimized loading. */
-      img: MdxImage,
-      /** Renderer for the custom `ArticleGallery` component, used for displaying a collection of images. */
-      ArticleGallery: ArticleGallery,
-      /** Alias for `img` renderer, ensuring {@link MdxImage} is also used for the custom `ArticleImage` tag if used in MDX. */
-      ArticleImage: MdxImage,
-      /** Renderer for the custom `BackgroundInfo` component. */
-      BackgroundInfo: BackgroundInfoRenderer,
-      /** Renderer for the custom `CollapseDropdown` component. */
-      CollapseDropdown: CollapseDropdownRenderer,
-      /** Direct mapping for the `ExternalLink` component, used for links opening in a new tab. */
-      ExternalLink,
-      /** Renderer for the custom `InstructionToggleTabs` component (which maps to `InstructionMacOSFrameTabs`). */
-      InstructionToggleTabs: InstructionToggleTabsRenderer,
-      /** Renderer for the `InstructionMACOSTab` component with MacOSFrameContext provider. */
-      InstructionTab: InstructionTabRenderer,
-      /** Renderer for the custom `ShellParentTabs` component. */
-      ShellParentTabs: ShellParentTabsRenderer,
-      /** Renderer for the `ShellTab` component with MacOSFrameContext provider. */
-      ShellTab: ShellTabRenderer,
-      /** Renderer for the custom `MacOSWindow` component. */
-      MacOSWindow: MacOSWindowRenderer,
-      /** Renderer for the custom `MacOSCodeWindow` component. */
-      MacOSCodeWindow: MacOSCodeWindowRenderer,
-      /** Renderer for `MDXCodeBlock` if used directly as a component tag in MDX (as opposed to via a `<pre>` tag). */
-      MDXCodeBlock: MDXCodeBlockRenderer,
-      /** Renderer for the custom `SoftwareSchema` component, typically for structured data. */
-      SoftwareSchema,
-      /**
-       * Custom renderer for anchor `<a>` tags.
-       * This function intelligently handles different types of links:
-       * - Footnote links (starting with `#fn`): Rendered as simple text spans to avoid link behavior.
-       * - External links (starting with `http://` or `https://`): Rendered using the `ExternalLink` component, which typically adds `target="_blank"` and appropriate `rel` attributes.
-       * - Internal links (starting with `/`): Rendered using Next.js `Link` for client-side navigation.
-       * - Other hash links: Rendered as standard `<a>` tags for in-page navigation.
-       * @param {ComponentProps<'a'>} props - Props passed to the `<a>` element.
-       * @returns {JSX.Element} The appropriately rendered link or span element.
-       */
-      a: (props: ComponentProps<"a">) => {
-        const { href, children, className, ...rest } = props;
-
-        const unwrapParagraph = (node: React.ReactNode): React.ReactNode => {
-          if (
-            isValidElement<{ children?: React.ReactNode }>(node) &&
-            node.type === "p" &&
-            Object.hasOwn(node, "props")
-          ) {
-            return (node as React.ReactElement<{ children?: React.ReactNode }>).props.children;
-          }
-          return node;
-        };
-
-        const normalizedChildren = toKeyed(
-          React.Children.map(children, (child: React.ReactNode) => unwrapParagraph(child)) ?? [],
-        );
-        if (!href) {
-          return (
-            <a {...rest} className={className}>
-              {normalizedChildren}
-            </a>
-          );
-        }
-
-        // Treat footnote-style anchors (#fn*, #ref*) specially: keep them clickable
-        // but remove default link styling so superscripts render cleanly.
-        if (href.startsWith("#fn") || href.startsWith("#ref")) {
-          return (
-            <a href={href} {...rest} className={cn("no-underline text-inherit", className)}>
-              {normalizedChildren}
-            </a>
-          );
-        }
-
-        if (href.startsWith("http://") || href.startsWith("https://")) {
-          return (
-            <ExternalLink href={href} {...rest} className={className}>
-              {normalizedChildren}
-            </ExternalLink>
-          );
-        }
-        if (href.startsWith("/")) {
-          return (
-            <Link href={href} {...rest} className={className}>
-              {normalizedChildren}
-            </Link>
-          );
-        }
-        return (
-          <a href={href} className="text-inherit no-underline hover:underline" {...rest}>
-            {normalizedChildren}
-          </a>
-        );
-      },
-      // Ensure consistent superscript rendering across prose and custom containers
-      sup: ({ className, children, ...rest }: ComponentProps<"sup">) => (
-        <sup className={cn("align-super text-[0.75em] leading-none ml-0.5", className)} {...rest}>
-          {children}
-        </sup>
-      ),
-      /** Renderer for `<h1>` elements, applying specific Tailwind CSS classes for styling. */
-      h1: ({ children, ...props }: ComponentProps<"h1">) => (
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
-          {children}
-        </h1>
-      ),
-      /** Renderer for `<h2>` elements, applying specific Tailwind CSS classes for styling. */
-      h2: ({ children, ...props }: ComponentProps<"h2">) => (
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
-          {children}
-        </h2>
-      ),
-      /** Renderer for `<h3>` elements, applying specific Tailwind CSS classes for styling. */
-      h3: ({ children, ...props }: ComponentProps<"h3">) => (
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props}>
-          {children}
-        </h3>
-      ),
-      // Remove custom <p> renderer to avoid ever creating nested <p> inside raw HTML structures.
-      // Let Tailwind Typography's prose styles handle paragraph styling globally.
-      /** Renderer for `<ul>` (unordered list) elements. Styling primarily handled by `prose`. */
-      ul: ({ className, children, ...rest }: ComponentProps<"ul">) => (
-        <ul
-          {...rest}
-          className={cn("pl-6 list-disc text-gray-700 dark:text-gray-300 text-base", className)}
-        >
-          {withKeyedChildren(children, "li")}
-        </ul>
-      ),
-      /** Renderer for `<ol>` (ordered list) elements. Styling primarily handled by `prose`. */
-      ol: ({ className, children, ...rest }: ComponentProps<"ol">) => (
-        <ol
-          {...rest}
-          className={cn("pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base", className)}
-        >
-          {withKeyedChildren(children, "li")}
-        </ol>
-      ),
-      /** Renderer for `<li>` (list item) elements. Includes a small bottom margin for spacing. Styling primarily handled by `prose`. */
-      li: (props: ComponentProps<"li">) => (
-        <li className="mb-1 pl-1 text-gray-700 dark:text-gray-300 text-base" {...props} />
-      ),
-      /** Renderer for `<blockquote>` elements, applying distinct styling for visual emphasis. */
-      blockquote: ({ children, ...rest }: ComponentProps<"blockquote">) => (
-        <blockquote
-          className="pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm text-base"
-          {...rest}
-        >
-          {toKeyed(children)}
-        </blockquote>
-      ),
-      /** Renderer for `<hr>` (horizontal rule) elements. Currently styled to be hidden. */
-      hr: (props: ComponentProps<"hr">) => <hr className="hidden" {...props} />,
-      /**
-       * Custom renderer for `<table>` elements.
-       * Wraps the HTML table in a `<div>` to enable horizontal scrolling on smaller viewports (`overflow-x-auto`)
-       * and applies consistent border, shadow, and background styling.
-       * @param {ComponentProps<'table'>} props - Props passed to the `<table>` element.
-       * @returns {JSX.Element} The styled and wrapped table.
-       */
-      table: (props: ComponentProps<"table">) => {
-        const { children, className, ...restProps } = props;
-        return (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-            <table
-              {...restProps}
-              className={cn(
-                "min-w-full divide-y divide-gray-200 dark:divide-gray-700",
-                "bg-white dark:bg-gray-900", // Table background
-                className,
-              )}
-            >
-              {toKeyed(children)}
-            </table>
-          </div>
-        );
-      },
-      tbody: (props: ComponentProps<"tbody">) => {
-        const { children, ...rest } = props;
-        return <tbody {...rest}>{toKeyed(children)}</tbody>;
-      },
-      tr: (props: ComponentProps<"tr">) => {
-        const { children, ...rest } = props;
-        return <tr {...rest}>{toKeyed(children)}</tr>;
-      },
-      /** Renderer for `<thead>` (table head) elements, applying background styling. */
-      thead: (props: ComponentProps<"thead">) => {
-        const { children, ...rest } = props;
-        return (
-          <thead className="bg-gray-50 dark:bg-gray-800" {...rest}>
-            {toKeyed(children)}
-          </thead>
-        );
-      },
-      /** Renderer for `<th>` (table header cell) elements, applying text, padding, and alignment styling. */
-      th: (props: ComponentProps<"th">) => (
-        <th
-          scope="col"
-          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 whitespace-nowrap"
-          {...props}
-        />
-      ),
-      /** Renderer for `<td>` (table data cell) elements, applying text and padding styling. */
-      td: (props: ComponentProps<"td">) => (
-        <td
-          className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
-          {...props}
-        />
-      ),
-      /**
-       * Renderer for the custom `TweetEmbed` component.
-       * Wrapped in a `div` with `not-prose` to prevent Tailwind Typography styles from interfering
-       * with the TweetEmbed component's own internal styling.
-       */
-      TweetEmbed: TweetEmbedRenderer,
-    };
-  }, []);
   const CompiledMdxComponent = useMemo(() => buildMdxComponent(content), [content]);
 
   return (
@@ -848,7 +868,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         {/* Wrapper div to enforce consistent vertical spacing between direct children of MDX content */}
         <div className="flex flex-col space-y-5">
           <MDXProvider components={components}>
-            <CompiledMdxComponent />
+            {React.createElement(CompiledMdxComponent)}
           </MDXProvider>
         </div>
       </article>

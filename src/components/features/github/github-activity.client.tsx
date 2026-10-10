@@ -43,24 +43,21 @@ const GitHubActivity = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchInitiatedRef = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const trailingYearData = activity?.trailingYearData;
   const allTimeStats = activity?.allTimeStats;
   const activityData = trailingYearData ? toCalendarActivity(trailingYearData.data) : [];
   const priorYearCommits = activity?.priorYearCommits;
   const lifetimeContributionTotal = allTimeStats?.totalContributions;
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
+  // Callback ref: measures whenever the calendar container mounts (it renders only after loading)
+  const observeContainerWidth = useCallback((container: HTMLDivElement) => {
     setIsMobile(container.clientWidth < SM_BREAKPOINT);
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setIsMobile(entry.contentRect.width < SM_BREAKPOINT);
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [isLoading]);
+  }, []);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -157,7 +154,7 @@ const GitHubActivity = () => {
             </div>
           ) : (
             <div
-              ref={containerRef}
+              ref={observeContainerWidth}
               className={`mt-4 mb-2 p-2 w-full ${isMobile ? "overflow-x-auto -mx-2 px-2" : ""}`}
             >
               <ActivityCalendarComponent

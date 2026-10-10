@@ -22,7 +22,6 @@ const ALREADY_IN_CONFIG = [
   "vitest.config.ts",
   "biome.json",
   "sgconfig.yml",
-  "oxlintrc.json",
   "oxfmtrc.json",
   "drizzle.config.ts",
   "tailwind.config.js",
@@ -34,6 +33,7 @@ const ROOT_REQUIRED = [
   "tsconfig.json",
   "next.config.ts",
   "postcss.config.js", // Next.js auto-discovers from root
+  ".oxlintrc.json", // Oxlint resolves ignorePatterns relative to the config file
   ".gitignore",
   ".env*",
 ];

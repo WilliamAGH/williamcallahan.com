@@ -132,10 +132,12 @@ async function backfillLoop(
   let processed = 0,
     updated = 0,
     skipped = 0;
-  while (maxRows === undefined || processed < maxRows) {
-    const limit = maxRows === undefined ? batchSize : Math.min(batchSize, maxRows - processed);
+  const rowLimit = maxRows ?? Number.POSITIVE_INFINITY;
+  while (processed < rowLimit) {
+    const limit = Math.min(batchSize, rowLimit - processed);
     if (limit <= 0) break;
-    const offset = force || dry ? processed : 0;
+    // Skipped rows never gain an embedding and stay first in missing-row order; offset past them.
+    const offset = force || dry ? processed : skipped;
     const rows = await cfg.fetch(force, limit, offset);
     if (rows.length === 0) break;
     const texts = [],

@@ -4,11 +4,21 @@
  * @module __tests__/lib/books/pdf-parser.test
  */
 
+import type { InfoResult, PDFParse, TextResult } from "pdf-parse";
+
+/** The parser reads only `info` from getInfo() and `pages` from getText(). */
+type GetInfoStub = (
+  ...params: Parameters<PDFParse["getInfo"]>
+) => Promise<Pick<InfoResult, "info">>;
+type GetTextStub = (
+  ...params: Parameters<PDFParse["getText"]>
+) => Promise<Pick<TextResult, "pages">>;
+
 // Hoist mock functions for use in the mock factory
 const { mockGetInfo, mockGetText, mockDestroy } = vi.hoisted(() => ({
-  mockGetInfo: vi.fn(),
-  mockGetText: vi.fn(),
-  mockDestroy: vi.fn(),
+  mockGetInfo: vi.fn<GetInfoStub>(),
+  mockGetText: vi.fn<GetTextStub>(),
+  mockDestroy: vi.fn<PDFParse["destroy"]>(),
 }));
 
 // Mock pdf-parse with a proper constructor class

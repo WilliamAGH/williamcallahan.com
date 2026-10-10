@@ -112,9 +112,7 @@ export async function fetchContributedRepositories(username: string): Promise<{
     throw new Error(`Failed to fetch user ID for ${username}`);
   }
 
-  const repositories = (user.repositoriesContributedTo?.nodes || []).filter(
-    (repo): repo is GraphQLRepoNode => !!(repo && !repo.isFork),
-  );
+  const repositories = (user.repositoriesContributedTo?.nodes || []).filter((repo) => !repo.isFork);
 
   return { userId: user.id, repositories };
 }

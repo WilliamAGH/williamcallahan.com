@@ -5,8 +5,6 @@
  * Used across image services, S3 operations, and HTTP responses
  */
 
-import { normalizeString } from "@/lib/utils";
-
 /**
  * Default content type for images when type cannot be detected
  */
@@ -144,7 +142,7 @@ export function getExtensionFromContentType(contentType: string | null): string 
   if (!contentType) return "jpg"; // Default fallback
 
   // Extract the base content type (remove charset and other parameters)
-  const baseType = normalizeString(contentType.split(";")[0] ?? "");
+  const baseType = (contentType.split(";")[0] ?? "").trim().toLowerCase();
 
   // Use the comprehensive mapping
   return CONTENT_TYPE_TO_EXTENSION[baseType] || "jpg";
@@ -185,7 +183,7 @@ export function isTextContentType(contentType: string): boolean {
  * Normalize content type (remove parameters, lowercase)
  */
 export function normalizeContentType(contentType: string): string {
-  return normalizeString(contentType.split(";")[0] ?? "");
+  return (contentType.split(";")[0] ?? "").trim().toLowerCase();
 }
 
 /**

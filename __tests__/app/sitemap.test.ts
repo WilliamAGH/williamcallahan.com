@@ -26,15 +26,15 @@ import {
 } from "@/test-utils/sitemap-factories";
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
-  getBookmarksIndex: vi.fn(),
-  getBookmarksPage: vi.fn(),
-  listBookmarkTagSlugs: vi.fn(),
-  listCanonicalTagPageCounts: vi.fn(),
-  getTagBookmarksPage: vi.fn(),
+  getBookmarksIndex: vi.fn<typeof getBookmarksIndex>(),
+  getBookmarksPage: vi.fn<typeof getBookmarksPage>(),
+  listBookmarkTagSlugs: vi.fn<typeof listBookmarkTagSlugs>(),
+  listCanonicalTagPageCounts: vi.fn<typeof listCanonicalTagPageCounts>(),
+  getTagBookmarksPage: vi.fn<typeof getTagBookmarksPage>(),
 }));
 
 vi.mock("@/lib/bookmarks/slug-manager", () => ({
-  loadSlugMapping: vi.fn(),
+  loadSlugMapping: vi.fn<typeof loadSlugMapping>(),
 }));
 
 vi.mock("@/data/education", () => ({ education: [], updatedAt: "2024-01-01" }));

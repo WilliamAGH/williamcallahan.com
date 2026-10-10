@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useRef, type JSX } from "react";
 
 const isChunkSyntaxError = (error: unknown): boolean => {
   if (!(error instanceof Error)) {
@@ -24,16 +24,16 @@ export default function BookmarkPageError({
   error: Error & { digest?: string };
   reset: () => void;
 }): JSX.Element {
-  const [retryAttempted, setRetryAttempted] = useState(false);
+  const retryAttemptedRef = useRef(false);
 
   useEffect(() => {
     console.error("Bookmark detail error", error);
 
-    if (retryAttempted || !isChunkSyntaxError(error)) {
-      return;
+    if (retryAttemptedRef.current || !isChunkSyntaxError(error)) {
+      return undefined;
     }
 
-    setRetryAttempted(true);
+    retryAttemptedRef.current = true;
 
     const timeout = setTimeout(() => {
       try {
@@ -46,7 +46,7 @@ export default function BookmarkPageError({
     return () => {
       clearTimeout(timeout);
     };
-  }, [error, reset, retryAttempted]);
+  }, [error, reset]);
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-4 rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">

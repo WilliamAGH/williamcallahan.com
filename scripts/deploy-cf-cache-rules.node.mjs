@@ -20,16 +20,14 @@
  */
 
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import Ajv from "ajv";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const CF_API_BASE = "https://api.cloudflare.com/client/v4";
 const CF_API_TIMEOUT_MS = 30_000; // 30s timeout for CF API calls
 const PHASE = "http_request_cache_settings";
-const CONFIG_PATH = resolve(__dirname, "../infra/cloudflare/cache-rules.json");
-const SCHEMA_PATH = resolve(__dirname, "../infra/cloudflare/cache-rules.schema.json");
+const CONFIG_PATH = resolve(import.meta.dirname, "../infra/cloudflare/cache-rules.json");
+const SCHEMA_PATH = resolve(import.meta.dirname, "../infra/cloudflare/cache-rules.schema.json");
 const schema = JSON.parse(readFileSync(SCHEMA_PATH, "utf-8"));
 const ajv = new Ajv({ allErrors: true });
 const validateCacheRulesSchema = ajv.compile(schema);
@@ -232,11 +230,11 @@ async function main() {
   const toAdd = desiredRules.filter((r) => !currentByDesc.has(r.description));
   const toRemove = currentRules.filter((r) => !desiredDescriptions.has(r.description));
   const toUpdate = desiredRules.filter((desired) => {
-    const current = currentByDesc.get(desired.description);
-    if (!current) return false;
+    const existingRule = currentByDesc.get(desired.description);
+    if (!existingRule) return false;
     // Compare only the fields present in the desired config
     return Object.entries(desired).some(
-      ([key, value]) => JSON.stringify(value) !== JSON.stringify(current[key]),
+      ([key, value]) => JSON.stringify(value) !== JSON.stringify(existingRule[key]),
     );
   });
 
@@ -268,7 +266,7 @@ async function main() {
 }
 
 const isEntrypoint =
-  process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  process.argv[1] !== undefined && resolve(process.argv[1]) === import.meta.filename;
 
 if (isEntrypoint) {
   main().catch((err) => {

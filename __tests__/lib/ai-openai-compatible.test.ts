@@ -24,14 +24,55 @@ import { PROJECT_ANALYSIS_RESPONSE_FORMAT } from "@/components/features/projects
 import { GET as getAiToken } from "@/app/api/ai/token/route";
 import { NextRequest } from "next/server";
 import type { ParsedRequestBody } from "@/types/schemas/ai-chat";
+import type OpenAI from "openai";
+import type {
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionCreateParamsStreaming,
+} from "openai/resources/chat/completions";
+import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
+import type * as Sentry from "@sentry/nextjs";
+import type { isOperationAllowed } from "@/lib/rate-limiter";
+import type { streamOpenAiCompatibleChatCompletions } from "@/lib/ai/openai-compatible/openai-compatible-client";
+import type {
+  OpenAiCompatibleChatCompletionsResponse,
+  OpenAiCompatibleResponsesResponse,
+} from "@/types/schemas/ai-openai-compatible";
+import type { AiChatClientOptions } from "@/types/ai-openai-compatible-client";
+
+type MockChatCompletionChunk = {
+  id: string;
+  model: string;
+  choices: Array<{ delta: { content?: string } }>;
+};
+type MockChatCompletionStream = {
+  [Symbol.asyncIterator](): AsyncGenerator<MockChatCompletionChunk>;
+  finalChatCompletion: () => Promise<OpenAiCompatibleChatCompletionsResponse>;
+};
+type MockResponsesResult = Pick<OpenAiCompatibleResponsesResponse, "id" | "output"> & {
+  output_text?: string;
+};
+type ChatCompletionsCreate = (
+  body: ChatCompletionCreateParamsNonStreaming,
+  options?: OpenAI.RequestOptions,
+) => Promise<OpenAiCompatibleChatCompletionsResponse>;
+type ChatCompletionsStream = (
+  body: ChatCompletionCreateParamsStreaming,
+  options?: OpenAI.RequestOptions,
+) => MockChatCompletionStream;
+type ResponsesCreate = (
+  body: ResponseCreateParamsNonStreaming,
+  options?: OpenAI.RequestOptions,
+) => Promise<MockResponsesResult>;
+type ResponsesStream = OpenAI["responses"]["stream"];
+type StreamChatArgs = Parameters<typeof streamOpenAiCompatibleChatCompletions>[0];
 
 vi.mock("@/lib/rate-limiter", () => ({
-  isOperationAllowed: vi.fn(() => true),
+  isOperationAllowed: vi.fn<typeof isOperationAllowed>(() => true),
 }));
 
 vi.mock("@sentry/nextjs", () => ({
-  captureMessage: vi.fn(),
-  captureException: vi.fn(),
+  captureMessage: vi.fn<typeof Sentry.captureMessage>(),
+  captureException: vi.fn<typeof Sentry.captureException>(),
 }));
 
 describe("OpenAI-Compatible AI Utilities", () => {
@@ -372,13 +413,18 @@ describe("OpenAI-Compatible AI Utilities", () => {
   describe("openai-compatible-client adapter", () => {
     it("serializes max reasoning effort for a non-GPT Chat Completions model", async () => {
       vi.resetModules();
-      const mockCreate = vi.fn().mockResolvedValue({
+      const mockCreate = vi.fn<ChatCompletionsCreate>().mockResolvedValue({
         id: "chatcmpl_2",
         choices: [{ message: { role: "assistant", content: "ok" } }],
       });
       class MockOpenAI {
-        public chat = { completions: { create: mockCreate, stream: vi.fn() } };
-        public responses = { create: vi.fn(), stream: vi.fn() };
+        public chat = {
+          completions: { create: mockCreate, stream: vi.fn<ChatCompletionsStream>() },
+        };
+        public responses = {
+          create: vi.fn<ResponsesCreate>(),
+          stream: vi.fn<ResponsesStream>(),
+        };
       }
       vi.doMock("openai", () => ({ __esModule: true, default: MockOpenAI, OpenAI: MockOpenAI }));
       const { callOpenAiCompatibleChatCompletions } =
@@ -398,23 +444,28 @@ describe("OpenAI-Compatible AI Utilities", () => {
       });
       const payload = mockCreate.mock.calls[0]?.[0];
       const requestOptions = mockCreate.mock.calls[0]?.[1];
-      expect(payload.max_completion_tokens).toBe(8192);
-      expect(payload.max_tokens).toBeUndefined();
-      expect(payload.top_p).toBe(0.9);
-      expect(payload.reasoning_effort).toBe("max");
-      expect(payload.temperature).toBe(1);
-      expect(requestOptions?.headers?.["X-Tier"]).toBe("production-a");
+      expect(payload?.max_completion_tokens).toBe(8192);
+      expect(payload).not.toHaveProperty("max_tokens");
+      expect(payload?.top_p).toBe(0.9);
+      expect(payload?.reasoning_effort).toBe("max");
+      expect(payload?.temperature).toBe(1);
+      expect(requestOptions?.headers).toEqual({ "X-Tier": "production-a" });
     });
 
     it("omits undefined optional fields from chat request", async () => {
       vi.resetModules();
-      const mockCreate = vi.fn().mockResolvedValue({
+      const mockCreate = vi.fn<ChatCompletionsCreate>().mockResolvedValue({
         id: "chatcmpl_3",
         choices: [{ message: { role: "assistant", content: "ok" } }],
       });
       class MockOpenAI {
-        public chat = { completions: { create: mockCreate, stream: vi.fn() } };
-        public responses = { create: vi.fn(), stream: vi.fn() };
+        public chat = {
+          completions: { create: mockCreate, stream: vi.fn<ChatCompletionsStream>() },
+        };
+        public responses = {
+          create: vi.fn<ResponsesCreate>(),
+          stream: vi.fn<ResponsesStream>(),
+        };
       }
       vi.doMock("openai", () => ({ __esModule: true, default: MockOpenAI, OpenAI: MockOpenAI }));
       const { callOpenAiCompatibleChatCompletions } =
@@ -435,7 +486,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
 
     it("accepts refusal-only assistant responses from chat completions", async () => {
       vi.resetModules();
-      const mockCreate = vi.fn().mockResolvedValue({
+      const mockCreate = vi.fn<ChatCompletionsCreate>().mockResolvedValue({
         id: "chatcmpl_refusal",
         choices: [
           {
@@ -449,8 +500,13 @@ describe("OpenAI-Compatible AI Utilities", () => {
         ],
       });
       class MockOpenAI {
-        public chat = { completions: { create: mockCreate, stream: vi.fn() } };
-        public responses = { create: vi.fn(), stream: vi.fn() };
+        public chat = {
+          completions: { create: mockCreate, stream: vi.fn<ChatCompletionsStream>() },
+        };
+        public responses = {
+          create: vi.fn<ResponsesCreate>(),
+          stream: vi.fn<ResponsesStream>(),
+        };
       }
       vi.doMock("openai", () => ({ __esModule: true, default: MockOpenAI, OpenAI: MockOpenAI }));
       const { callOpenAiCompatibleChatCompletions } =
@@ -472,14 +528,19 @@ describe("OpenAI-Compatible AI Utilities", () => {
 
     it("maps Responses tool inputs and serializes max reasoning effort", async () => {
       vi.resetModules();
-      const mockResponsesCreate = vi.fn().mockResolvedValue({
+      const mockResponsesCreate = vi.fn<ResponsesCreate>().mockResolvedValue({
         id: "response_1",
         output_text: "ok",
         output: [],
       });
       class MockOpenAI {
-        public chat = { completions: { create: vi.fn(), stream: vi.fn() } };
-        public responses = { create: mockResponsesCreate, stream: vi.fn() };
+        public chat = {
+          completions: {
+            create: vi.fn<ChatCompletionsCreate>(),
+            stream: vi.fn<ChatCompletionsStream>(),
+          },
+        };
+        public responses = { create: mockResponsesCreate, stream: vi.fn<ResponsesStream>() };
       }
       vi.doMock("openai", () => ({
         __esModule: true,
@@ -512,18 +573,18 @@ describe("OpenAI-Compatible AI Utilities", () => {
         },
       });
       const payload = mockResponsesCreate.mock.calls[0]?.[0];
-      expect(payload.input).toEqual(
+      expect(payload?.input).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ type: "function_call", call_id: "call_1" }),
           expect.objectContaining({ type: "function_call_output", call_id: "call_1" }),
         ]),
       );
-      expect(payload.reasoning).toEqual({ effort: "max" });
+      expect(payload?.reasoning).toEqual({ effort: "max" });
     });
 
     it("derives responses output_text from refusal output when text output is absent", async () => {
       vi.resetModules();
-      const mockResponsesCreate = vi.fn().mockResolvedValue({
+      const mockResponsesCreate = vi.fn<ResponsesCreate>().mockResolvedValue({
         id: "response_refusal",
         output: [
           {
@@ -533,8 +594,13 @@ describe("OpenAI-Compatible AI Utilities", () => {
         ],
       });
       class MockOpenAI {
-        public chat = { completions: { create: vi.fn(), stream: vi.fn() } };
-        public responses = { create: mockResponsesCreate, stream: vi.fn() };
+        public chat = {
+          completions: {
+            create: vi.fn<ChatCompletionsCreate>(),
+            stream: vi.fn<ChatCompletionsStream>(),
+          },
+        };
+        public responses = { create: mockResponsesCreate, stream: vi.fn<ResponsesStream>() };
       }
       vi.doMock("openai", () => ({
         __esModule: true,
@@ -559,11 +625,13 @@ describe("OpenAI-Compatible AI Utilities", () => {
 
     it("forwards streaming chat callbacks and returns the final completion", async () => {
       vi.resetModules();
-      const finalChatCompletion = vi.fn().mockResolvedValue({
-        id: "chatcmpl_1",
-        choices: [{ message: { role: "assistant", content: "ok" } }],
-      });
-      const mockChatStream = vi.fn().mockReturnValue({
+      const finalChatCompletion = vi
+        .fn<MockChatCompletionStream["finalChatCompletion"]>()
+        .mockResolvedValue({
+          id: "chatcmpl_1",
+          choices: [{ message: { role: "assistant", content: "ok" } }],
+        });
+      const mockChatStream = vi.fn<ChatCompletionsStream>().mockReturnValue({
         async *[Symbol.asyncIterator]() {
           yield { id: "chatcmpl_1", model: "test-model", choices: [{ delta: { content: "o" } }] };
           yield { id: "chatcmpl_1", model: "test-model", choices: [{ delta: { content: "k" } }] };
@@ -571,8 +639,13 @@ describe("OpenAI-Compatible AI Utilities", () => {
         finalChatCompletion,
       });
       class MockOpenAI {
-        public chat = { completions: { create: vi.fn(), stream: mockChatStream } };
-        public responses = { create: vi.fn(), stream: vi.fn() };
+        public chat = {
+          completions: { create: vi.fn<ChatCompletionsCreate>(), stream: mockChatStream },
+        };
+        public responses = {
+          create: vi.fn<ResponsesCreate>(),
+          stream: vi.fn<ResponsesStream>(),
+        };
       }
       vi.doMock("openai", () => ({
         __esModule: true,
@@ -581,8 +654,8 @@ describe("OpenAI-Compatible AI Utilities", () => {
       }));
       const { streamOpenAiCompatibleChatCompletions } =
         await import("@/lib/ai/openai-compatible/openai-compatible-client");
-      const onStart = vi.fn();
-      const onDelta = vi.fn();
+      const onStart = vi.fn<NonNullable<StreamChatArgs["onStart"]>>();
+      const onDelta = vi.fn<NonNullable<StreamChatArgs["onDelta"]>>();
       const response = await streamOpenAiCompatibleChatCompletions({
         baseUrl: "https://example.net",
         apiKey: "test-key",
@@ -643,7 +716,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       vi.stubGlobal("fetch", fetchMock);
 
       const { aiChat } = await import("@/lib/ai/openai-compatible/browser-client");
-      const onStreamEvent = vi.fn();
+      const onStreamEvent = vi.fn<NonNullable<AiChatClientOptions["onStreamEvent"]>>();
 
       const message = await aiChat(
         "terminal_chat",
@@ -753,7 +826,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
 
     it("reports successful analysis persistence", async () => {
       const fetchMock = vi
-        .fn()
+        .fn<typeof fetch>()
         .mockResolvedValue(Response.json({ success: true, persisted: true }, { status: 200 }));
       vi.stubGlobal("fetch", fetchMock);
 
@@ -770,7 +843,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       vi.stubGlobal(
         "fetch",
         vi
-          .fn()
+          .fn<typeof fetch>()
           .mockResolvedValue(Response.json({ success: true, persisted: false }, { status: 200 })),
       );
 
@@ -783,7 +856,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("rejects malformed successful persistence responses", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue(Response.json({ success: true }, { status: 200 })),
+        vi.fn<typeof fetch>().mockResolvedValue(Response.json({ success: true }, { status: 200 })),
       );
 
       await expect(persistAnalysis("bookmarks", "bookmark-1", { summary: "ok" })).resolves.toEqual({
@@ -797,7 +870,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
       vi.stubGlobal(
         "fetch",
         vi
-          .fn()
+          .fn<typeof fetch>()
           .mockResolvedValue(
             new Response(JSON.stringify({ error: "Invalid analysis data" }), { status: 400 }),
           ),
@@ -813,7 +886,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("extracts the user-facing message from a StandardApiErrorResponse rate-limit body", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue(
+        vi.fn<typeof fetch>().mockResolvedValue(
           new Response(
             JSON.stringify({
               code: "RATE_LIMITED",
@@ -837,7 +910,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
     it("falls back to statusText when the error body is whitespace-only", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue(
+        vi.fn<typeof fetch>().mockResolvedValue(
           new Response("   \n\t  ", {
             status: 502,
             statusText: "Bad Gateway",

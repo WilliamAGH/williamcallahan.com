@@ -29,8 +29,8 @@ function base64UrlEncode(input: Buffer | string): string {
   return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function hmacSha256Base64Url(secret: string, data: string): string {
-  const digest = crypto.createHmac("sha256", secret).update(data, "utf8").digest();
+function hmacSha256Base64Url(signingSecret: string, data: string): string {
+  const digest = crypto.createHmac("sha256", signingSecret).update(data, "utf8").digest();
   return base64UrlEncode(digest);
 }
 

@@ -25,7 +25,7 @@ vi.mock("next/link", () => ({ default: MockNextLink }));
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
-  usePathname: vi.fn(),
+  usePathname: vi.fn<typeof usePathname>(),
 }));
 
 vi.mock("framer-motion", () => ({

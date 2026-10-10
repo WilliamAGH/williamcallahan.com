@@ -116,7 +116,7 @@ function buildHalfvecLiteral(embedding: number[]): string {
     if (!Number.isFinite(value)) {
       throw new TypeError(`Embedding contains non-finite value at index ${idx}.`);
     }
-    return Number(value).toString();
+    return value.toString();
   });
   return `'[${serialized.join(",")}]'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`;
 }
@@ -259,9 +259,9 @@ export async function backfillBookmarkEmbeddings(
   let processedRows = 0;
   let updatedRows = 0;
 
-  while (maxRows === undefined || processedRows < maxRows) {
-    const remainingBudget =
-      maxRows === undefined ? batchSize : Math.min(batchSize, maxRows - processedRows);
+  const rowLimit = maxRows ?? Number.POSITIVE_INFINITY;
+  while (processedRows < rowLimit) {
+    const remainingBudget = Math.min(batchSize, rowLimit - processedRows);
     if (remainingBudget <= 0) break;
 
     console.log(

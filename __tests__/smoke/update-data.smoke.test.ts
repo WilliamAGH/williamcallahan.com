@@ -2,6 +2,16 @@
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { execSync } from "node:child_process";
 import type { GraphQLRepoNode } from "@/types/github";
+import type {
+  fetchContributedRepositories,
+  fetchContributorStats as realFetchContributorStats,
+} from "@/lib/data-access/github-api";
+import type {
+  readRepoWeeklyStatsRecord,
+  writeRepoWeeklyStatsRecord,
+} from "@/lib/data-access/github-storage";
+import type { readRepoCsvChecksum } from "@/lib/db/queries/github-activity";
+import type { writeRepoCsvChecksumToDb } from "@/lib/db/mutations/github-activity";
 
 const UPDATE_DATA_COMMAND = "node --run update-data";
 // S3 Bucket name from environment for log verification
@@ -60,7 +70,7 @@ describe("scheduler/data-updater.ts Smoke Test", () => {
           env: envVars,
           encoding: "utf8",
           stdio: ["inherit", "pipe", "pipe"],
-        }).toString();
+        });
       } catch (error: any) {
         exitCode = error.status || 1;
         stdout = error.stdout || "";
@@ -105,13 +115,15 @@ describe("GitHub stats updater log severity", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     vi.doMock("@/lib/data-access/github-api", () => ({
-      fetchContributorStats: vi.fn().mockRejectedValue(new PendingStats()),
+      fetchContributorStats: vi
+        .fn<typeof realFetchContributorStats>()
+        .mockRejectedValue(new PendingStats()),
       GitHubContributorStatsPendingError: PendingStats,
       GitHubContributorStatsRateLimitError: RateLimitedStats,
     }));
     vi.doMock("@/lib/data-access/github-storage", () => ({
-      readRepoWeeklyStatsRecord: vi.fn().mockResolvedValue(null),
-      writeRepoWeeklyStatsRecord: vi.fn(),
+      readRepoWeeklyStatsRecord: vi.fn<typeof readRepoWeeklyStatsRecord>().mockResolvedValue(null),
+      writeRepoWeeklyStatsRecord: vi.fn<typeof writeRepoWeeklyStatsRecord>(),
     }));
 
     try {
@@ -141,12 +153,14 @@ describe("GitHub stats updater log severity", () => {
     vi.resetModules();
     class PendingStats extends Error {}
     class RateLimitedStats extends Error {}
-    const fetchContributorStats = vi.fn().mockRejectedValue(new PendingStats());
+    const fetchContributorStats = vi
+      .fn<typeof realFetchContributorStats>()
+      .mockRejectedValue(new PendingStats());
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     vi.doMock("@/lib/data-access/github-api", () => ({
-      fetchContributedRepositories: vi.fn().mockResolvedValue({
+      fetchContributedRepositories: vi.fn<typeof fetchContributedRepositories>().mockResolvedValue({
         userId: "user-id",
         repositories: [buildRepoNode("owner", "repo")],
       }),
@@ -157,14 +171,14 @@ describe("GitHub stats updater log severity", () => {
       isGitHubApiConfigured: () => true,
     }));
     vi.doMock("@/lib/data-access/github-storage", () => ({
-      readRepoWeeklyStatsRecord: vi.fn().mockResolvedValue(null),
-      writeRepoWeeklyStatsRecord: vi.fn(),
+      readRepoWeeklyStatsRecord: vi.fn<typeof readRepoWeeklyStatsRecord>().mockResolvedValue(null),
+      writeRepoWeeklyStatsRecord: vi.fn<typeof writeRepoWeeklyStatsRecord>(),
     }));
     vi.doMock("@/lib/db/queries/github-activity", () => ({
-      readRepoCsvChecksum: vi.fn(),
+      readRepoCsvChecksum: vi.fn<typeof readRepoCsvChecksum>(),
     }));
     vi.doMock("@/lib/db/mutations/github-activity", () => ({
-      writeRepoCsvChecksumToDb: vi.fn(),
+      writeRepoCsvChecksumToDb: vi.fn<typeof writeRepoCsvChecksumToDb>(),
     }));
 
     try {

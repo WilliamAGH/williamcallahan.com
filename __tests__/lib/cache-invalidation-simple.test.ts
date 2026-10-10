@@ -1,10 +1,16 @@
+import type {
+  hybridSearchBlogPosts,
+  hybridSearchBooks,
+} from "@/lib/db/queries/hybrid-search-books-blog";
+import type { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+
 vi.mock("@/lib/data-access/opengraph");
 vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
-  hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
-  hybridSearchBooks: vi.fn().mockResolvedValue([]),
+  hybridSearchBlogPosts: vi.fn<typeof hybridSearchBlogPosts>().mockResolvedValue([]),
+  hybridSearchBooks: vi.fn<typeof hybridSearchBooks>().mockResolvedValue([]),
 }));
 vi.mock("@/lib/db/queries/query-embedding", () => ({
-  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+  buildQueryEmbedding: vi.fn<typeof buildQueryEmbedding>().mockResolvedValue(undefined),
 }));
 
 describe("Cache Invalidation Functions", () => {

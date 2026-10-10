@@ -42,12 +42,19 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
   className = "",
   defaultCollapsed = false,
 }: Readonly<AiAnalysisTerminalProps<TEntity, TAnalysis>>) {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const [collapseState, setCollapseState] = useState({
+    entityId,
+    defaultCollapsed,
+    isCollapsed: defaultCollapsed,
+  });
 
-  // Reset collapse state when entity changes
-  useEffect(() => {
-    setIsCollapsed(defaultCollapsed);
-  }, [entityId, defaultCollapsed]);
+  if (collapseState.entityId !== entityId || collapseState.defaultCollapsed !== defaultCollapsed) {
+    setCollapseState({ entityId, defaultCollapsed, isCollapsed: defaultCollapsed });
+  }
+  const isCollapsed =
+    collapseState.entityId === entityId && collapseState.defaultCollapsed === defaultCollapsed
+      ? collapseState.isCollapsed
+      : defaultCollapsed;
 
   const {
     state,
@@ -82,7 +89,7 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
 
   // Auto-scroll streaming text to bottom
   useEffect(() => {
-    if (streamScrollRef.current) {
+    if (streamingText && streamScrollRef.current) {
       streamScrollRef.current.scrollTop = streamScrollRef.current.scrollHeight;
     }
   }, [streamingText]);
@@ -206,7 +213,9 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
             </button>
             <button
               type="button"
-              onClick={() => setIsCollapsed((prev) => !prev)}
+              onClick={() =>
+                setCollapseState((current) => ({ ...current, isCollapsed: !current.isCollapsed }))
+              }
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
               title={isCollapsed ? "Expand analysis" : "Collapse analysis"}
               aria-label={isCollapsed ? "Expand analysis" : "Collapse analysis"}
@@ -220,7 +229,9 @@ export function AiAnalysisTerminal<TEntity, TAnalysis>({
         </div>
 
         {isCollapsed ? (
-          <CollapsedTerminalHint onExpand={() => setIsCollapsed(false)} />
+          <CollapsedTerminalHint
+            onExpand={() => setCollapseState((current) => ({ ...current, isCollapsed: false }))}
+          />
         ) : (
           <div className="p-5 sm:p-6 space-y-5">
             {renderAnalysis(analysis, helpers)}

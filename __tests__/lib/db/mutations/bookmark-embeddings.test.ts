@@ -1,24 +1,32 @@
+import type { getEndpointCompatibleEmbeddingRetryAfterMilliseconds } from "@/lib/ai/openai-compatible/embeddings-client";
+import type { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
+import type { assertDatabaseWriteAllowed } from "@/lib/db/connection";
+import type { upsertUnifiedBookmarks } from "@/lib/db/mutations/bookmarks";
+import type { EndpointCompatibleEmbeddingConfig } from "@/types/schemas/ai-openai-compatible";
+
 const mocks = vi.hoisted(() => {
-  const onConflictDoUpdate = vi.fn();
-  const values = vi.fn((_input: unknown) => ({ onConflictDoUpdate }));
-  const where = vi.fn();
-  const deleteRows = vi.fn(() => ({ where }));
-  const insert = vi.fn(() => ({ values }));
-  const transaction = vi.fn((operation: (transaction: unknown) => Promise<unknown>) =>
-    operation({ delete: deleteRows, insert }),
+  const onConflictDoUpdate = vi.fn<() => Promise<void>>();
+  const values = vi.fn<(input: unknown) => { onConflictDoUpdate: typeof onConflictDoUpdate }>(
+    (_input) => ({ onConflictDoUpdate }),
   );
+  const where = vi.fn<() => Promise<void>>();
+  const deleteRows = vi.fn<() => { where: typeof where }>(() => ({ where }));
+  const insert = vi.fn<() => { values: typeof values }>(() => ({ values }));
+  const transaction = vi.fn<
+    (operation: (transaction: unknown) => Promise<unknown>) => Promise<unknown>
+  >((operation) => operation({ delete: deleteRows, insert }));
 
   return {
-    assertDatabaseWriteAllowed: vi.fn(),
+    assertDatabaseWriteAllowed: vi.fn<typeof assertDatabaseWriteAllowed>(),
     deleteRows,
     embed: vi.fn<(args: unknown) => Promise<number[][]>>(),
     execute: vi.fn<(query: unknown) => Promise<unknown[]>>(),
-    getRetryAfterMilliseconds: vi.fn(),
+    getRetryAfterMilliseconds: vi.fn<typeof getEndpointCompatibleEmbeddingRetryAfterMilliseconds>(),
     insert,
     onConflictDoUpdate,
-    resolveConfig: vi.fn(),
+    resolveConfig: vi.fn<typeof resolveDefaultEndpointCompatibleEmbeddingConfig>(),
     transaction,
-    upsertBookmarks: vi.fn(),
+    upsertBookmarks: vi.fn<typeof upsertUnifiedBookmarks>(),
     values,
     where,
   };
@@ -60,7 +68,7 @@ import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/boo
 import { is, SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 
-const embeddingConfig = {
+const embeddingConfig: EndpointCompatibleEmbeddingConfig = {
   model: "text-embedding-qwen3-embedding-4b",
   baseUrl: "https://example.test",
   apiKey: "test-key",
@@ -118,7 +126,9 @@ describe("backfillBookmarkEmbeddings", () => {
     mocks.transaction.mockClear();
     mocks.upsertBookmarks
       .mockReset()
-      .mockImplementation((bookmarks: UnifiedBookmark[]) => Promise.resolve(bookmarks));
+      .mockImplementation((bookmarks: readonly UnifiedBookmark[]) =>
+        Promise.resolve([...bookmarks]),
+      );
     mocks.values.mockClear();
     mocks.where.mockReset().mockResolvedValue(undefined);
     process.env.AI_DEFAULT_EMBEDDING_MODEL = embeddingConfig.model;

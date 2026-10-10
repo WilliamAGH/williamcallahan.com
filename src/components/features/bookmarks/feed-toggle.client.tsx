@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import type { FeedToggleProps } from "@/types/features/bookmarks";
 
 const FEED_OPTIONS = [
@@ -10,15 +10,21 @@ const FEED_OPTIONS = [
   { label: "Latest", value: "latest" },
 ] as const;
 
-export function FeedToggle({ mode, onChange }: Readonly<FeedToggleProps>) {
-  const [shouldRender, setShouldRender] = useState(false);
+const subscribeToNothing = (): (() => void) => () => undefined;
+const isOnBookmarksIndex = (): boolean => {
+  const pathname = window.location.pathname;
+  const normalizedPathname =
+    pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+  return normalizedPathname === "/bookmarks";
+};
+const isOnBookmarksIndexOnServer = (): boolean => false;
 
-  useEffect(() => {
-    const pathname = window.location.pathname;
-    const normalizedPathname =
-      pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
-    setShouldRender(normalizedPathname === "/bookmarks");
-  }, []);
+export function FeedToggle({ mode, onChange }: Readonly<FeedToggleProps>) {
+  const shouldRender = useSyncExternalStore(
+    subscribeToNothing,
+    isOnBookmarksIndex,
+    isOnBookmarksIndexOnServer,
+  );
 
   if (!shouldRender) {
     return null;

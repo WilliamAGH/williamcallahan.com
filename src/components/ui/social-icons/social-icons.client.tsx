@@ -18,10 +18,12 @@ const PLATFORM_SLUGS = ["github", "x", "discord", "linkedin", "bluesky"] as cons
 const isPlatformSlug = (value: string): value is (typeof PLATFORM_SLUGS)[number] =>
   (PLATFORM_SLUGS as readonly string[]).includes(value);
 
+const NO_EXCLUDED_PLATFORMS: NonNullable<SocialIconsProps["excludePlatforms"]> = [];
+
 export function SocialIcons({
   className = "",
   showXOnly = false,
-  excludePlatforms = [],
+  excludePlatforms = NO_EXCLUDED_PLATFORMS,
 }: SocialIconsProps) {
   // Icon button styling
   const iconButtonClasses =

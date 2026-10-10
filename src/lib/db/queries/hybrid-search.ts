@@ -66,7 +66,7 @@ async function hybridSearchWithEmbedding(
   const vectorLiteral = `[${embedding.join(",")}]`;
   const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
 
-  const rows = await db.execute<{ id: string; hybrid_score: number }>(sql`
+  const rows = await db.execute<{ id: string; hybrid_score: string }>(sql`
     WITH keyword_results AS (
       SELECT id,
           row_number() OVER (ORDER BY
@@ -139,7 +139,7 @@ async function hydrateScoredBookmarks(
 
 async function keywordOnlySearch(query: string, limit: number): Promise<BookmarkFtsSearchHit[]> {
   const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
-  const keywordScore = sql<number>`${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
+  const keywordScore = sql<string>`${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${bookmarks.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
     + word_similarity(${query}, ${bookmarks.title}) * ${TRIGRAM_WEIGHT} DESC, ${bookmarks.id} DESC))`;
 
   const rows = await db
@@ -176,7 +176,8 @@ export async function semanticSearchBookmarks(
 
   const idRows = await db.execute<{
     entity_id: string;
-    vec_score: number;
+    // Driver may stringify the computed score.
+    vec_score: number | string;
   }>(sql`
     SELECT e.entity_id,
       1.0 - (e.qwen_4b_fp16_embedding <=> ${sql.raw(`'${vectorLiteral}'::halfvec(${CONTENT_EMBEDDING_DIMENSIONS})`)}) AS vec_score
@@ -231,7 +232,7 @@ export async function hybridSearchThoughts(options: {
       tags: string[] | null;
       created_at: number;
       updated_at: number | null;
-      hybrid_score: number;
+      hybrid_score: string;
     }>(sql`
       WITH keyword_results AS (
         SELECT id,
@@ -284,7 +285,7 @@ export async function hybridSearchThoughts(options: {
   }
 
   const tsQuery = sql`websearch_to_tsquery('english', ${normalizedQuery})`;
-  const keywordScore = sql<number>`${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${thoughts.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
+  const keywordScore = sql<string>`${RRF_RANKER_COUNT} * 1.0 / (${RRF_K} + row_number() OVER (ORDER BY ts_rank_cd(${thoughts.searchVector}, ${tsQuery}) * ${FTS_WEIGHT}
     + word_similarity(${normalizedQuery}, ${thoughts.title}) * ${TRIGRAM_WEIGHT} DESC, ${thoughts.id} DESC))`;
   const rows = await db
     .select({

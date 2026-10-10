@@ -13,7 +13,45 @@ import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type { Experience } from "@/types/schemas/experience";
 import { ExperienceCardClient } from "./experience-card.client";
 
-import type { JSX } from "react";
+import type { ComponentProps, JSX } from "react";
+
+type ExperienceLogoData = ComponentProps<typeof ExperienceCardClient>["logoData"];
+
+/** Resolves the experience logo: explicit logo, then manifest, then direct CDN, then placeholder. */
+async function resolveExperienceLogo({
+  website,
+  company,
+  logo,
+  isDarkTheme,
+}: Experience & { isDarkTheme?: boolean }): Promise<ExperienceLogoData> {
+  if (logo) {
+    return { url: logo, source: null };
+  }
+
+  const domain = website ? normalizeDomain(website) : normalizeDomain(company);
+
+  if (domain) {
+    try {
+      const manifestEntry = await getLogoFromManifestAsync(domain);
+      if (manifestEntry) {
+        const selectedUrl =
+          isDarkTheme && manifestEntry.invertedCdnUrl
+            ? manifestEntry.invertedCdnUrl
+            : manifestEntry.cdnUrl;
+        return { url: selectedUrl, source: manifestEntry.originalSource };
+      }
+    } catch (manifestError) {
+      console.warn(`[ExperienceCard] Manifest lookup failed for ${domain}:`, manifestError);
+    }
+
+    const directLogo = await getLogoCdnData(domain);
+    if (directLogo) {
+      return directLogo;
+    }
+  }
+
+  return { url: getCompanyPlaceholder(), source: null };
+}
 
 /**
  * Experience Card Server Component
@@ -23,51 +61,13 @@ import type { JSX } from "react";
 export async function ExperienceCard(
   props: Experience & { isDarkTheme?: boolean },
 ): Promise<JSX.Element> {
-  const { website, company, logo, isDarkTheme } = props;
-
+  let logoData: ExperienceLogoData;
   try {
-    if (logo) {
-      return <ExperienceCardClient {...props} logoData={{ url: logo, source: null }} />;
-    }
-
-    const domain = website ? normalizeDomain(website) : normalizeDomain(company);
-
-    if (domain) {
-      try {
-        const manifestEntry = await getLogoFromManifestAsync(domain);
-        if (manifestEntry) {
-          const selectedUrl =
-            isDarkTheme && manifestEntry.invertedCdnUrl
-              ? manifestEntry.invertedCdnUrl
-              : manifestEntry.cdnUrl;
-
-          return (
-            <ExperienceCardClient
-              {...props}
-              logoData={{
-                url: selectedUrl,
-                source: manifestEntry.originalSource,
-              }}
-            />
-          );
-        }
-      } catch (manifestError) {
-        console.warn(`[ExperienceCard] Manifest lookup failed for ${domain}:`, manifestError);
-      }
-
-      const directLogo = await getLogoCdnData(domain);
-      if (directLogo) {
-        return <ExperienceCardClient {...props} logoData={directLogo} />;
-      }
-    }
-
-    return (
-      <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />
-    );
+    logoData = await resolveExperienceLogo(props);
   } catch (error) {
     console.error("[ExperienceCard] Failed to resolve logo:", error);
-    return (
-      <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />
-    );
+    logoData = { url: getCompanyPlaceholder(), source: null };
   }
+
+  return <ExperienceCardClient {...props} logoData={logoData} />;
 }

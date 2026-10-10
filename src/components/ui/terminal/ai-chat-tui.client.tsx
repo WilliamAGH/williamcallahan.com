@@ -150,7 +150,9 @@ export function AiChatInput({
     textareaRef.current?.focus();
   }, []);
 
-  // Auto-resize textarea to fit content
+  // Auto-resize textarea to fit content after every render (keyed on the
+  // DOM node's current scrollHeight, not on `input` directly, so there is
+  // no stale-dependency risk from running this on every render).
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -159,7 +161,7 @@ export function AiChatInput({
     textarea.style.height = "auto";
     // Cap at max-height (150px leaves room for history in terminal)
     textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
-  }, [input]);
+  });
 
   // Handle paste: show placeholder, store actual content for resolution on submit
   const handlePaste = useCallback(
@@ -268,7 +270,7 @@ export function AiChatInput({
   );
 
   return (
-    <div data-testid="ai-chat-input" onKeyDown={handleKeyDown}>
+    <section data-testid="ai-chat-input">
       {/* Thinking indicator while waiting for response */}
       {isSubmitting && <ThinkingIndicator queueMessage={queueMessage} />}
 
@@ -289,6 +291,7 @@ export function AiChatInput({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
             rows={1}
             className="bg-transparent w-full focus:outline-none text-gray-200 caret-gray-200
                 text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50
@@ -308,6 +311,6 @@ export function AiChatInput({
           />
         </div>
       </div>
-    </div>
+    </section>
   );
 }

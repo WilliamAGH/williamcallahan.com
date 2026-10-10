@@ -48,7 +48,7 @@ export function createFallbackResult(
     console.log(`[OG-Fallback] 📋 Found Karakeep fallback data for: ${url}`);
 
     // PRIORITY LEVEL 5: Try Karakeep imageUrl first (highest priority)
-    const karakeepImageUrl = String(validatedFallbackData.imageUrl ?? "not found");
+    const karakeepImageUrl = validatedFallbackData.imageUrl ?? "not found";
     console.log(`[OG-Priority-5] 🔍 Checking Karakeep imageUrl: ${karakeepImageUrl}`);
     if (validatedFallbackData.imageUrl && isValidImageUrl(validatedFallbackData.imageUrl)) {
       imageUrl = validatedFallbackData.imageUrl;
@@ -76,9 +76,9 @@ export function createFallbackResult(
             // No persistence during runtime - only during data-updater runs
           }
         }
-      } catch (error) {
+      } catch (assetUrlError) {
         console.error(
-          `[OG-Fallback] Error constructing URL for assetId ${assetId}: ${String(error)}`,
+          `[OG-Fallback] Error constructing URL for assetId ${assetId}: ${String(assetUrlError)}`,
         );
       }
     } else if (!imageUrl) {
@@ -102,9 +102,9 @@ export function createFallbackResult(
             // No persistence during runtime - only during data-updater runs
           }
         }
-      } catch (error) {
+      } catch (screenshotUrlError) {
         console.error(
-          `[OG-Fallback] Error constructing URL for screenshotAssetId ${screenshotAssetId}: ${String(error)}`,
+          `[OG-Fallback] Error constructing URL for screenshotAssetId ${screenshotAssetId}: ${String(screenshotUrlError)}`,
         );
       }
     } else if (!imageUrl) {

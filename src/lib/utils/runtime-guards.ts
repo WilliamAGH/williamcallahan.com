@@ -5,8 +5,6 @@
  * These functions will throw runtime errors when code is executed in the wrong context.
  */
 
-import { useEffect, useState } from "react";
-
 /**
  * @serverOnly
  * Throws an error if executed in a browser context.
@@ -38,23 +36,6 @@ export function assertClientOnly(featureName: string): void {
       `'${featureName}' can only be used in client components. Add 'use client' directive or move to a .client.tsx file.`,
     );
   }
-}
-
-/**
- * @clientHook
- * React hook that returns whether the component is mounted on the client.
- * Useful for conditional rendering of browser-dependent features.
- *
- * @returns boolean indicating if code is running on the client
- */
-export function useIsClient(): boolean {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  return isClient;
 }
 
 /**

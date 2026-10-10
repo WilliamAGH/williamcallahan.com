@@ -11,6 +11,7 @@
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { aiAnalysisLatest, aiAnalysisVersions } from "@/lib/db/schema/ai-analysis";
 import type { AnalysisDomain } from "@/types/ai-analysis";
+import type { AnyAnalysisResponse } from "@/types/search";
 import type { AnalysisMetadata } from "@/types/schemas/ai-analysis-persisted";
 
 const DEFAULT_MODEL_VERSION = "v1";
@@ -46,10 +47,10 @@ const buildJsonbPayload = (
  * @param analysis - The analysis data to persist
  * @param options - Optional persistence options
  */
-export async function persistAnalysisToDb<T>(
+export async function persistAnalysisToDb(
   domain: AnalysisDomain,
   entityId: string,
-  analysis: T,
+  analysis: AnyAnalysisResponse,
   options?: {
     modelVersion?: string;
     contentHash?: string;
@@ -105,24 +106,5 @@ export async function persistAnalysisToDb<T>(
         })
         .onConflictDoNothing();
     }
-  });
-}
-
-/**
- * Update only the latest analysis row without creating a versioned history entry.
- * Convenience wrapper around persistAnalysisToDb with skipVersioning=true.
- */
-export async function updateLatestAnalysisInDb<T>(
-  domain: AnalysisDomain,
-  entityId: string,
-  analysis: T,
-  options?: {
-    modelVersion?: string;
-    contentHash?: string;
-  },
-): Promise<void> {
-  return persistAnalysisToDb(domain, entityId, analysis, {
-    ...options,
-    skipVersioning: true,
   });
 }

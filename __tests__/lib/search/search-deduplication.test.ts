@@ -12,31 +12,43 @@ import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
 import type { SearchResult } from "@/types/schemas/search";
+import type { getSerializedSearchIndexArtifact } from "@/lib/db/queries/search-index-artifacts";
+import type {
+  hybridSearchInvestments,
+  hybridSearchProjects,
+} from "@/lib/db/queries/hybrid-search-investments";
+import type { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+import type {
+  hybridSearchBlogPosts,
+  hybridSearchBooks,
+} from "@/lib/db/queries/hybrid-search-books-blog";
 
 vi.mock("@/lib/db/queries/search-index-artifacts", () => ({
-  getSerializedSearchIndexArtifact: vi.fn().mockResolvedValue(null),
+  getSerializedSearchIndexArtifact: vi
+    .fn<typeof getSerializedSearchIndexArtifact>()
+    .mockResolvedValue(null),
 }));
 
 // Mock DB-backed hybrid search for investments (now uses PostgreSQL)
 vi.mock("@/lib/db/queries/hybrid-search-investments", () => ({
-  hybridSearchInvestments: vi.fn().mockResolvedValue([]),
-  hybridSearchProjects: vi.fn().mockResolvedValue([]),
+  hybridSearchInvestments: vi.fn<typeof hybridSearchInvestments>().mockResolvedValue([]),
+  hybridSearchProjects: vi.fn<typeof hybridSearchProjects>().mockResolvedValue([]),
 }));
 
 // Mock query embedding (requires AI endpoint)
 vi.mock("@/lib/db/queries/query-embedding", () => ({
-  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+  buildQueryEmbedding: vi.fn<typeof buildQueryEmbedding>().mockResolvedValue(undefined),
 }));
 
 // Mock blog hybrid search
 vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
-  hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
-  hybridSearchBooks: vi.fn().mockResolvedValue([]),
+  hybridSearchBlogPosts: vi.fn<typeof hybridSearchBlogPosts>().mockResolvedValue([]),
+  hybridSearchBooks: vi.fn<typeof hybridSearchBooks>().mockResolvedValue([]),
 }));
 
 // Mock console methods to check for duplicate warnings
 const originalWarn = console.warn;
-const warnSpy = vi.fn();
+const warnSpy = vi.fn<typeof console.warn>();
 
 beforeEach(() => {
   console.warn = warnSpy;

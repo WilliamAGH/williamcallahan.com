@@ -1,7 +1,7 @@
 "use client";
 
 import { useSafeWindowRegistry } from "@/lib/context/global-window-registry-context.client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 /**
  * BodyClassManager Component
@@ -12,19 +12,9 @@ import { useEffect, useState } from "react";
  */
 export function BodyClassManager() {
   const { windows } = useSafeWindowRegistry();
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Track mount status to avoid SSR issues with direct DOM manipulation
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   // Effect to manage body classes based on window states
+  // Effects never run during SSR, so direct DOM manipulation is safe here
   useEffect(() => {
-    if (!isMounted) {
-      return;
-    }
-
     // Check states separately
     const isAnyWindowMaximized = Object.values(windows).some((w) => w.state === "maximized");
     const isAnyWindowMinimized = Object.values(windows).some((w) => w.state === "minimized");
@@ -45,13 +35,10 @@ export function BodyClassManager() {
 
     // Cleanup MUST remove both potential classes on unmount or state change
     return () => {
-      // Check isMounted again in cleanup in case of fast unmounts
-      if (isMounted) {
-        document.body.classList.remove("window-maximized");
-        document.body.classList.remove("window-minimized");
-      }
+      document.body.classList.remove("window-maximized");
+      document.body.classList.remove("window-minimized");
     };
-  }, [windows, isMounted]); // Depend on windows state and mount status
+  }, [windows]);
 
   // This component doesn't render anything itself
   return null;

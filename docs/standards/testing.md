@@ -148,7 +148,7 @@ Use Vitest primitives:
 import { vi } from "vitest";
 
 vi.mock("@/lib/data", () => ({
-  fetchData: vi.fn(),
+  fetchData: vi.fn<() => Promise<string[]>>(),
 }));
 
 const spy = vi.spyOn(console, "error").mockImplementation(() => {});

@@ -3,4 +3,5 @@
  */
 import { vi } from "vitest";
 
-export default vi.fn(() => () => {});
+// The real plugin returns undefined and registers extensions on `this.data()`; this stub returns a no-op transformer.
+export default vi.fn<() => () => void>(() => () => {});

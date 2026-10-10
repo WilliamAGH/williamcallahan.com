@@ -8,9 +8,15 @@ import { NextRequest, connection } from "next/server";
 import { GET } from "@/app/api/search/all/route";
 import { GET as getRelatedContent } from "@/app/api/related-content/route";
 import { GET as getRelatedContentDebug } from "@/app/api/related-content/debug/route";
+import type { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+import type {
+  findSimilarByEntity,
+  sourceEmbeddingExists,
+} from "@/lib/db/queries/cross-domain-similarity";
+import type { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
 
 const queryEmbeddingMocks = vi.hoisted(() => ({
-  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+  buildQueryEmbedding: vi.fn<typeof buildQueryEmbedding>().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/db/queries/query-embedding", () => ({
@@ -18,9 +24,9 @@ vi.mock("@/lib/db/queries/query-embedding", () => ({
 }));
 
 const relatedContentMocks = vi.hoisted(() => ({
-  findSimilarByEntity: vi.fn().mockResolvedValue([]),
-  sourceEmbeddingExists: vi.fn().mockResolvedValue(true),
-  hydrateRelatedContent: vi.fn().mockResolvedValue([]),
+  findSimilarByEntity: vi.fn<typeof findSimilarByEntity>().mockResolvedValue([]),
+  sourceEmbeddingExists: vi.fn<typeof sourceEmbeddingExists>().mockResolvedValue(true),
+  hydrateRelatedContent: vi.fn<typeof hydrateRelatedContent>().mockResolvedValue([]),
 }));
 
 // Headers is already available globally via polyfills.js
@@ -28,102 +34,122 @@ const relatedContentMocks = vi.hoisted(() => ({
 // Mock search functions to return empty arrays for test environment
 // Note: [Blog] prefix is added by the aggregator, not by searchBlogPostsServerSide
 vi.mock("@/lib/blog/server-search", () => ({
-  searchBlogPostsServerSide: vi.fn().mockResolvedValue([
-    {
-      id: "1",
-      type: "post",
-      title: "Test Post 1",
-      description: "Test description",
-      url: "/blog/test-1",
-      score: 1,
-    },
-    {
-      id: "2",
-      type: "post",
-      title: "Test Post 2",
-      description: "Test description",
-      url: "/blog/test-2",
-      score: 0.8,
-    },
-  ]),
+  searchBlogPostsServerSide: vi
+    .fn<(typeof import("@/lib/blog/server-search"))["searchBlogPostsServerSide"]>()
+    .mockResolvedValue([
+      {
+        id: "1",
+        type: "blog-post",
+        title: "Test Post 1",
+        description: "Test description",
+        url: "/blog/test-1",
+        score: 1,
+      },
+      {
+        id: "2",
+        type: "blog-post",
+        title: "Test Post 2",
+        description: "Test description",
+        url: "/blog/test-2",
+        score: 0.8,
+      },
+    ]),
 }));
 
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
-  searchBookmarks: vi.fn().mockResolvedValue([
-    {
-      id: "bm1",
-      type: "bookmark",
-      title: "Test Bookmark",
-      description: "Test description",
-      url: "/bookmarks/test",
-      score: 0.7,
-    },
-  ]),
-  searchBooks: vi.fn().mockResolvedValue([
-    {
-      id: "book1",
-      type: "book",
-      title: "Test Book",
-      description: "Test book description",
-      url: "/books/test-book",
-      score: 0.65,
-    },
-  ]),
+  searchBookmarks: vi
+    .fn<(typeof import("@/lib/search/searchers/dynamic-searchers"))["searchBookmarks"]>()
+    .mockResolvedValue([
+      {
+        id: "bm1",
+        type: "bookmark",
+        title: "Test Bookmark",
+        description: "Test description",
+        url: "/bookmarks/test",
+        score: 0.7,
+      },
+    ]),
+  searchBooks: vi
+    .fn<(typeof import("@/lib/search/searchers/dynamic-searchers"))["searchBooks"]>()
+    .mockResolvedValue([
+      {
+        id: "book1",
+        type: "book",
+        title: "Test Book",
+        description: "Test book description",
+        url: "/books/test-book",
+        score: 0.65,
+      },
+    ]),
 }));
 
 vi.mock("@/lib/search/searchers/static-searchers", () => ({
-  searchInvestments: vi.fn().mockResolvedValue([
-    {
-      id: "inv1",
-      type: "project",
-      title: "Test Investment",
-      description: "Test description",
-      url: "/investments#inv1",
-      score: 0.9,
-    },
-  ]),
-  searchExperience: vi.fn().mockResolvedValue([
-    {
-      id: "exp1",
-      type: "page",
-      title: "Test Experience",
-      description: "Test description",
-      url: "/experience#exp1",
-      score: 0.85,
-    },
-  ]),
-  searchEducation: vi.fn().mockResolvedValue([
-    {
-      id: "edu1",
-      type: "page",
-      title: "Test Education",
-      description: "Test description",
-      url: "/education#edu1",
-      score: 0.75,
-    },
-  ]),
-  searchProjects: vi.fn().mockResolvedValue([
-    {
-      id: "proj1",
-      type: "project",
-      title: "Test Project",
-      description: "Test description",
-      url: "/projects/test",
-      score: 0.8,
-    },
-  ]),
+  searchInvestments: vi
+    .fn<(typeof import("@/lib/search/searchers/static-searchers"))["searchInvestments"]>()
+    .mockResolvedValue([
+      {
+        id: "inv1",
+        type: "project",
+        title: "Test Investment",
+        description: "Test description",
+        url: "/investments#inv1",
+        score: 0.9,
+      },
+    ]),
+  searchExperience: vi
+    .fn<(typeof import("@/lib/search/searchers/static-searchers"))["searchExperience"]>()
+    .mockResolvedValue([
+      {
+        id: "exp1",
+        type: "project",
+        title: "Test Experience",
+        description: "Test description",
+        url: "/experience#exp1",
+        score: 0.85,
+      },
+    ]),
+  searchEducation: vi
+    .fn<(typeof import("@/lib/search/searchers/static-searchers"))["searchEducation"]>()
+    .mockResolvedValue([
+      {
+        id: "edu1",
+        type: "page",
+        title: "Test Education",
+        description: "Test description",
+        url: "/education#edu1",
+        score: 0.75,
+      },
+    ]),
+  searchProjects: vi
+    .fn<(typeof import("@/lib/search/searchers/static-searchers"))["searchProjects"]>()
+    .mockResolvedValue([
+      {
+        id: "proj1",
+        type: "project",
+        title: "Test Project",
+        description: "Test description",
+        url: "/projects/test",
+        score: 0.8,
+      },
+    ]),
 }));
 
 vi.mock("@/lib/search/searchers/thoughts-search", () => ({
-  searchThoughts: vi.fn().mockResolvedValue([]),
+  searchThoughts: vi
+    .fn<(typeof import("@/lib/search/searchers/thoughts-search"))["searchThoughts"]>()
+    .mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/search/searchers/tag-search", () => ({
-  searchTags: vi.fn().mockResolvedValue([]),
+  searchTags: vi
+    .fn<(typeof import("@/lib/search/searchers/tag-search"))["searchTags"]>()
+    .mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/search/searchers/ai-analysis-searcher", () => ({
-  searchAiAnalysis: vi.fn().mockResolvedValue([]),
+  searchAiAnalysis: vi
+    .fn<(typeof import("@/lib/search/searchers/ai-analysis-searcher"))["searchAiAnalysis"]>()
+    .mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/db/queries/cross-domain-similarity", () => ({

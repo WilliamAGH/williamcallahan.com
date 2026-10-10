@@ -353,41 +353,40 @@ export const CodeBlock = ({
               isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden",
             )}
           >
-            <pre
-              id={collapsibleRegionId}
-              role="region"
-              aria-label={language ? `${language} code` : "Code block"}
-              tabIndex={0}
-              className={cn(
-                "not-prose max-w-full",
-                "whitespace-pre-wrap",
-                "break-words",
-                "overflow-x-auto",
-                embeddedInTabFrame
-                  ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none text-gray-900 dark:text-gray-100"
-                  : "p-4 text-gray-900 dark:text-gray-100",
-                "text-[13px] leading-relaxed",
-                "custom-scrollbar",
-                "![text-shadow:none] [&_*]:![text-shadow:none]",
-                "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
-                isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
-                // Auto-collapse long code blocks unless maximized
-                isCollapsed &&
-                  !isMaximized &&
-                  isLongCode &&
-                  "overflow-hidden max-h-64 sm:max-h-72 md:max-h-80",
-                className, // From MDX (e.g., language-bash)
-              )}
-              {...props}
-            >
-              {isValidElement(children) ? (
-                children
-              ) : (
-                <code ref={codeElementRef} className={className}>
-                  {displayContent}
-                </code>
-              )}
-            </pre>
+            <section aria-label={language ? `${language} code` : "Code block"}>
+              <pre
+                id={collapsibleRegionId}
+                className={cn(
+                  "not-prose max-w-full",
+                  "whitespace-pre-wrap",
+                  "break-words",
+                  "overflow-x-auto",
+                  embeddedInTabFrame
+                    ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none text-gray-900 dark:text-gray-100"
+                    : "p-4 text-gray-900 dark:text-gray-100",
+                  "text-[13px] leading-relaxed",
+                  "custom-scrollbar",
+                  "![text-shadow:none] [&_*]:![text-shadow:none]",
+                  "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
+                  isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
+                  // Auto-collapse long code blocks unless maximized
+                  isCollapsed &&
+                    !isMaximized &&
+                    isLongCode &&
+                    "overflow-hidden max-h-64 sm:max-h-72 md:max-h-80",
+                  className, // From MDX (e.g., language-bash)
+                )}
+                {...props}
+              >
+                {isValidElement(children) ? (
+                  children
+                ) : (
+                  <code ref={codeElementRef} className={className}>
+                    {displayContent}
+                  </code>
+                )}
+              </pre>
+            </section>
             {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
             <CopyButton content={filteredContent} parentIsPadded={!embeddedInTabFrame} />
             {/* Collapsed overlay with gradient and expand/collapse control */}

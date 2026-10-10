@@ -32,7 +32,7 @@ export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
   const ref = rootRef || internalRef;
 
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current) return undefined;
 
     // Fix all SVGs in the container
     const svgs = ref.current.querySelectorAll(selector);

@@ -92,12 +92,12 @@ export function ResponsiveTable({
 
       // For React elements, try to extract text content or use element type
       if (React.isValidElement(cell)) {
-        const props = cell.props as { children?: ReactNode };
+        const cellProps = cell.props as { children?: ReactNode };
         if (
-          props.children &&
-          (typeof props.children === "string" || typeof props.children === "number")
+          cellProps.children &&
+          (typeof cellProps.children === "string" || typeof cellProps.children === "number")
         ) {
-          return String(props.children).slice(0, 20);
+          return String(cellProps.children).slice(0, 20);
         }
         return `${String(cell.type) || "element"}-${cellIndex}`;
       }
@@ -149,8 +149,8 @@ export function ResponsiveTable({
 
           if (React.isValidElement(node)) {
             // Cast props to a known shape including children
-            const props = node.props as { children?: ReactNode };
-            const propsChildren = props.children; // Now propsChildren is ReactNode | undefined
+            const nodeProps = node.props as { children?: ReactNode };
+            const propsChildren = nodeProps.children; // Now propsChildren is ReactNode | undefined
 
             if (propsChildren === null || propsChildren === undefined) {
               return "";

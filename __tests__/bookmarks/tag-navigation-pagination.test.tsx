@@ -11,12 +11,16 @@ import { useRouter, usePathname } from "next/navigation";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
 import { usePagination } from "@/hooks/use-pagination";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { UsePaginationReturn } from "@/types/ui/pagination";
+
+type AppRouter = ReturnType<typeof useRouter>;
+type BookmarkPagination = UsePaginationReturn<UnifiedBookmark>;
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
-  useRouter: vi.fn(),
-  usePathname: vi.fn(),
-  useSearchParams: vi.fn(() => new URLSearchParams()),
+  useRouter: vi.fn<typeof useRouter>(),
+  usePathname: vi.fn<typeof usePathname>(),
+  useSearchParams: vi.fn<() => URLSearchParams>(() => new URLSearchParams()),
 }));
 
 // Mock the pagination hook
@@ -57,17 +61,17 @@ const mockBookmarks: UnifiedBookmark[] = [
 ];
 
 describe("Tag Navigation with Pagination", () => {
-  const mockPush = vi.fn();
-  const mockMutate = vi.fn();
-  const mockGoToPage = vi.fn();
-  const mockLoadMore = vi.fn();
+  const mockPush = vi.fn<AppRouter["push"]>();
+  const mockMutate = vi.fn<BookmarkPagination["mutate"]>();
+  const mockGoToPage = vi.fn<BookmarkPagination["goToPage"]>();
+  const mockLoadMore = vi.fn<BookmarkPagination["loadMore"]>();
 
   beforeEach(() => {
     vi.clearAllMocks();
 
     (useRouter as Mock).mockReturnValue({
       push: mockPush,
-      refresh: vi.fn(),
+      refresh: vi.fn<AppRouter["refresh"]>(),
     });
 
     (usePathname as Mock).mockReturnValue("/bookmarks");

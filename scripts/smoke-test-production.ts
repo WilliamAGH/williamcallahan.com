@@ -156,7 +156,8 @@ class ProductionSmokeTests {
     path: string,
     options: SmokeTestEndpointOptions = {},
   ): Promise<void> {
-    return this.testEndpoint(name, path, options).then((result) => void this.results.push(result));
+    const result = await this.testEndpoint(name, path, options);
+    this.results.push(result);
   }
 
   async runCriticalPathTests(): Promise<void> {

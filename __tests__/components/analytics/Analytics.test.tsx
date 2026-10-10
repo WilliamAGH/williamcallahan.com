@@ -2,6 +2,7 @@ import type { UmamiMock, MockScriptProps } from "@/types/test";
 import { render, act } from "@testing-library/react";
 import { Analytics } from "@/components/analytics/analytics.client";
 import { vi } from "vitest";
+import type { usePathname } from "next/navigation";
 
 function isUmamiMock(value: unknown): value is UmamiMock {
   if (typeof value !== "function") {
@@ -33,6 +34,11 @@ type MockedScriptDataProps = {
   "data-website-id"?: string;
 };
 
+type UmamiPageview = {
+  path: string;
+  website?: string;
+};
+
 type MockedNextScriptProps = MockScriptProps &
   MockedScriptDataProps & {
     [key: string]: unknown;
@@ -40,11 +46,13 @@ type MockedNextScriptProps = MockScriptProps &
 
 // Use vi.hoisted for shared state to avoid hoisting issues
 const { loadedScripts, scriptConfig, mockUsePathname } = vi.hoisted(() => {
-  const loadedScripts: Record<string, boolean> = {};
-  const scriptConfig = { shouldError: false };
-  const mockUsePathname = vi.fn();
+  const loadedScriptIds: Record<string, boolean> = {};
 
-  return { loadedScripts, scriptConfig, mockUsePathname };
+  return {
+    loadedScripts: loadedScriptIds,
+    scriptConfig: { shouldError: false },
+    mockUsePathname: vi.fn<typeof usePathname>(),
+  };
 });
 
 // Mock next/navigation using vi.mock
@@ -77,7 +85,7 @@ vi.mock("next/script", async () => {
             if (id === "umami") {
               // Mock Umami initialization
               const umamiMock: UmamiMock = Object.assign(vi.fn(), {
-                track: vi.fn(),
+                track: vi.fn<(eventName: string, eventData: UmamiPageview) => void>(),
               });
               Reflect.set(globalThis, "umami", umamiMock);
               loadedScripts[id] = true; // Mark as loaded
@@ -118,6 +126,7 @@ vi.mock("next/script", async () => {
               // website id might not be needed for subsequent calls or is implicit
             });
           }
+          return undefined;
         }
       }, [autoTrack, id, onError, onLoad, pathname, websiteId]); // React to pathname changes
       return null;

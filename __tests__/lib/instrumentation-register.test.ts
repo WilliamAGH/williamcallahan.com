@@ -2,17 +2,21 @@
  * @fileoverview Tests for instrumentation register hook
  * @vitest-environment node
  */
+import type * as Sentry from "@sentry/nextjs";
+import type { register as registerNode } from "@/instrumentation-node";
+import type { register as registerEdge } from "@/instrumentation-edge";
+import type { loadImageManifests } from "@/lib/image-handling/image-manifest-loader";
 
 describe("instrumentation register", () => {
   const ORIGINAL_ENV = { ...process.env };
 
   const mockRuntimeModules = (): void => {
     vi.doMock("../../src/instrumentation-node", () => ({
-      register: vi.fn(),
+      register: vi.fn<typeof registerNode>(),
     }));
 
     vi.doMock("../../src/instrumentation-edge", () => ({
-      register: vi.fn(),
+      register: vi.fn<typeof registerEdge>(),
     }));
   };
 
@@ -64,7 +68,7 @@ describe("instrumentation register", () => {
   });
 
   it("forwards redacted request error context to Sentry synchronously", async () => {
-    const captureRequestError = vi.fn();
+    const captureRequestError = vi.fn<typeof Sentry.captureRequestError>();
     vi.doMock("@sentry/nextjs", () => ({ captureRequestError }));
     mockRuntimeModules();
 
@@ -125,16 +129,20 @@ describe("node instrumentation register", () => {
     vi.doUnmock("@/instrumentation-edge");
     vi.clearAllMocks();
     vi.doMock("@sentry/nextjs", () => ({
-      init: vi.fn(),
-      zodErrorsIntegration: vi.fn(() => ({ name: "ZodErrors" })),
-      extraErrorDataIntegration: vi.fn(() => ({ name: "ExtraErrorData" })),
-      dedupeIntegration: vi.fn(() => ({ name: "Dedupe" })),
+      init: vi.fn<typeof Sentry.init>(),
+      zodErrorsIntegration: vi.fn<typeof Sentry.zodErrorsIntegration>(() => ({
+        name: "ZodErrors",
+      })),
+      extraErrorDataIntegration: vi.fn<typeof Sentry.extraErrorDataIntegration>(() => ({
+        name: "ExtraErrorData",
+      })),
+      dedupeIntegration: vi.fn<typeof Sentry.dedupeIntegration>(() => ({ name: "Dedupe" })),
     }));
     vi.doMock("@/lib/sentry/resolve-environment", () => ({
       resolveSentryEnvironment: () => "test",
     }));
     vi.doMock("@/lib/image-handling/image-manifest-loader", () => ({
-      loadImageManifests: vi.fn().mockResolvedValue(undefined),
+      loadImageManifests: vi.fn<typeof loadImageManifests>().mockResolvedValue(undefined),
     }));
     vi.doMock("@/lib/constants", () => ({
       JINA_FETCH_STORE_NAME: "jina",

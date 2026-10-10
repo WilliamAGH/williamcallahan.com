@@ -18,7 +18,7 @@ import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { openGraphUrlSchema } from "@/types/schemas/url";
 
 vi.mock("@/lib/utils/get-base-url", () => ({
-  getBaseUrl: vi.fn(() => "https://williamcallahan.com"),
+  getBaseUrl: vi.fn<typeof getBaseUrl>(() => "https://williamcallahan.com"),
 }));
 
 const COVER_BOX = { width: 420, height: 500 };
@@ -122,7 +122,7 @@ describe("fetchImageAsDataUrl", () => {
     const image = Buffer.from(
       '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"></svg>',
     );
-    const fetchMock = vi.fn().mockResolvedValue(
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(image, {
         headers: { "content-type": "image/svg+xml" },
       }),
@@ -146,7 +146,9 @@ describe("fetchImageAsDataUrl", () => {
       .toBuffer();
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(photo, { headers: { "content-type": "image/jpeg" } })),
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(photo, { headers: { "content-type": "image/jpeg" } })),
     );
 
     const dataUrl = await fetchImageAsDataUrl("https://example.com/photo.jpg", COVER_BOX);
@@ -161,7 +163,7 @@ describe("fetchImageAsDataUrl", () => {
     );
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
+      vi.fn<typeof fetch>().mockResolvedValue(
         new Response(image, {
           headers: { "content-type": "image/svg+xml" },
         }),

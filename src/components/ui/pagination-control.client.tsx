@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
 import type { PaginationControlProps } from "@/types/ui/pagination";
 
 /** Page number threshold for showing leading ellipsis (gap between page 1 and visible range) */
 const ELLIPSIS_GAP_THRESHOLD = 2;
 
+const ignorePageChange = (): void => undefined;
+
 export const PaginationControl: React.FC<PaginationControlProps> = ({
   currentPage = 1,
   totalPages = 10,
   totalItems = 100,
   itemsPerPage = 10,
-  onPageChange = () => {},
+  onPageChange = ignorePageChange,
   isLoading = false,
   disabled = false,
   showFirstLast = true,
@@ -21,11 +23,14 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
   className = "",
 }) => {
   const [internalCurrentPage, setInternalCurrentPage] = useState(currentPage);
+  const [syncedCurrentPage, setSyncedCurrentPage] = useState(currentPage);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  useEffect(() => {
+  // Adopt a new controlled page during render instead of a follow-up effect pass
+  if (currentPage !== syncedCurrentPage) {
+    setSyncedCurrentPage(currentPage);
     setInternalCurrentPage(currentPage);
-  }, [currentPage]);
+  }
 
   const handlePageChange = useCallback(
     (page: number) => {

@@ -1,31 +1,42 @@
 /**
  * Mock for @sentry/nextjs in Vitest tests
  */
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
+import type * as Sentry from "@sentry/nextjs";
 
-export const captureException = vi.fn();
-export const captureMessage = vi.fn();
-export const configureScope = vi.fn();
-export const init = vi.fn();
+interface ScopeContext {
+  setTag: Mock<Sentry.Scope["setTag"]>;
+  setLevel: Mock<Sentry.Scope["setLevel"]>;
+  setContext: Mock<Sentry.Scope["setContext"]>;
+}
 
-export const getCurrentHub = vi.fn(() => ({
-  getClient: vi.fn(() => ({
-    captureException: vi.fn(),
-    captureMessage: vi.fn(),
+interface MockSentryClient {
+  captureException: Mock<typeof Sentry.captureException>;
+  captureMessage: Mock<typeof Sentry.captureMessage>;
+}
+
+interface MockSentryHub {
+  getClient: Mock<() => MockSentryClient>;
+}
+
+export const captureException = vi.fn<typeof Sentry.captureException>();
+export const captureMessage = vi.fn<typeof Sentry.captureMessage>();
+// `configureScope` and `getCurrentHub` were removed from the Sentry v8+ API; these stubs keep their legacy shapes.
+export const configureScope = vi.fn<(callback: (scope: ScopeContext) => void) => void>();
+export const init = vi.fn<typeof Sentry.init>();
+
+export const getCurrentHub = vi.fn<() => MockSentryHub>(() => ({
+  getClient: vi.fn<() => MockSentryClient>(() => ({
+    captureException: vi.fn<typeof Sentry.captureException>(),
+    captureMessage: vi.fn<typeof Sentry.captureMessage>(),
   })),
 }));
 
-interface ScopeContext {
-  setTag: ReturnType<typeof vi.fn>;
-  setLevel: ReturnType<typeof vi.fn>;
-  setContext: ReturnType<typeof vi.fn>;
-}
-
-export const withScope = vi.fn((callback: (scope: ScopeContext) => void) =>
+export const withScope = vi.fn<(callback: (scope: ScopeContext) => void) => void>((callback) =>
   callback({
-    setTag: vi.fn(),
-    setLevel: vi.fn(),
-    setContext: vi.fn(),
+    setTag: vi.fn<Sentry.Scope["setTag"]>(),
+    setLevel: vi.fn<Sentry.Scope["setLevel"]>(),
+    setContext: vi.fn<Sentry.Scope["setContext"]>(),
   }),
 );
 

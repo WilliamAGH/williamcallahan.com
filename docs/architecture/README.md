@@ -59,7 +59,7 @@ Example schemas:
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
 - Twitter image roots, formats, normalized upstream paths, and storage categories share one policy owner in `src/lib/image-handling/twitter-image-policy.ts`, covered by `__tests__/app/api/twitter-image/route.test.ts`.
 - ESLint project-specific rules live under `config/eslint/rules/` and are wired from `config/eslint.config.ts`.
-- Oxlint JS plugins live under `config/oxlint/js-plugins/` and are wired from `config/oxlintrc.json` (experimental; not supported in the language server/editor integrations).
+- Oxlint JS plugins live under `config/oxlint/js-plugins/` and are wired from the root `.oxlintrc.json` (experimental; not supported in the language server/editor integrations).
 - The canonical S3 retry scope and durability contract is [`s3-storage.md`](s3-storage.md); CDN usage remains explicit at call sites.
 - Runtime JSON persistence is PostgreSQL-backed across all environments via domain tables (`github_activity_store`, `content_graph_artifacts`, `search_index_artifacts`, `books_latest`/`books_snapshots`, etc.); the legacy `lib/s3/json.ts` layer has been removed.
 - Bookmark runtime reads and bookmark/index/tag writes are PostgreSQL-only; S3 is reserved for binary assets (see `bookmarks.md`).

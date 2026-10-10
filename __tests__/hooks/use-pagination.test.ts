@@ -1,9 +1,10 @@
-import type { MockedFunction } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePagination } from "@/hooks/use-pagination";
-import useSWRInfinite from "swr/infinite";
+import useSWRInfinite, { type SWRInfiniteResponse } from "swr/infinite";
 import type { PaginatedResponse } from "@/types/lib";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+
+type BookmarkPagesResponse = SWRInfiniteResponse<PaginatedResponse<UnifiedBookmark>>;
 
 // Mock SWR
 vi.mock("swr/infinite");
@@ -20,7 +21,7 @@ const mockItems: UnifiedBookmark[] = Array.from({ length: 50 }, (_, i) => ({
 }));
 
 describe("usePagination", () => {
-  const mockUseSWRInfinite = useSWRInfinite as MockedFunction<typeof useSWRInfinite>;
+  const mockUseSWRInfinite = vi.mocked(useSWRInfinite<PaginatedResponse<UnifiedBookmark>>);
   const mockApiUrl = "/api/test-items";
 
   beforeEach(() => {
@@ -32,8 +33,8 @@ describe("usePagination", () => {
       data: undefined,
       error: undefined,
       size: 1,
-      setSize: vi.fn(),
-      mutate: vi.fn(),
+      setSize: vi.fn<BookmarkPagesResponse["setSize"]>(),
+      mutate: vi.fn<() => Promise<undefined>>(),
       isValidating: false,
       isLoading: true,
     });
@@ -68,8 +69,8 @@ describe("usePagination", () => {
       data: mockData,
       error: undefined,
       size: 1,
-      setSize: vi.fn(),
-      mutate: vi.fn(),
+      setSize: vi.fn<BookmarkPagesResponse["setSize"]>(),
+      mutate: vi.fn<() => Promise<undefined>>(),
       isValidating: false,
       isLoading: false,
     });
@@ -86,7 +87,7 @@ describe("usePagination", () => {
   });
 
   it("loads more pages when requested", () => {
-    const mockSetSize = vi.fn();
+    const mockSetSize = vi.fn<BookmarkPagesResponse["setSize"]>();
     const mockData: PaginatedResponse<UnifiedBookmark>[] = [
       {
         data: mockItems.slice(0, 24),
@@ -108,7 +109,7 @@ describe("usePagination", () => {
       error: undefined,
       size: 1,
       setSize: mockSetSize,
-      mutate: vi.fn(),
+      mutate: vi.fn<() => Promise<undefined>>(),
       isValidating: false,
       isLoading: false,
     });
@@ -123,7 +124,7 @@ describe("usePagination", () => {
   });
 
   it("navigates to specific page", () => {
-    const mockSetSize = vi.fn();
+    const mockSetSize = vi.fn<BookmarkPagesResponse["setSize"]>();
     const mockData: PaginatedResponse<UnifiedBookmark>[] = [
       {
         data: mockItems.slice(0, 24),
@@ -145,7 +146,7 @@ describe("usePagination", () => {
       error: undefined,
       size: 1,
       setSize: mockSetSize,
-      mutate: vi.fn(),
+      mutate: vi.fn<() => Promise<undefined>>(),
       isValidating: false,
       isLoading: false,
     });
@@ -167,8 +168,8 @@ describe("usePagination", () => {
       data: undefined,
       error: mockError,
       size: 1,
-      setSize: vi.fn(),
-      mutate: vi.fn(),
+      setSize: vi.fn<BookmarkPagesResponse["setSize"]>(),
+      mutate: vi.fn<() => Promise<undefined>>(),
       isValidating: false,
       isLoading: false,
     });
@@ -190,8 +191,8 @@ describe("usePagination", () => {
         data: options?.fallbackData,
         error: undefined,
         size: 1,
-        setSize: vi.fn(),
-        mutate: vi.fn(),
+        setSize: vi.fn<BookmarkPagesResponse["setSize"]>(),
+        mutate: vi.fn<() => Promise<undefined>>(),
         isValidating: false,
         isLoading: false,
       } as any;
@@ -212,8 +213,8 @@ describe("usePagination", () => {
       data: undefined,
       error: undefined,
       size: 1,
-      setSize: vi.fn(),
-      mutate: vi.fn(),
+      setSize: vi.fn<BookmarkPagesResponse["setSize"]>(),
+      mutate: vi.fn<() => Promise<undefined>>(),
       isValidating: false,
       isLoading: true,
     });

@@ -14,11 +14,10 @@ import {
 } from "@/lib/search/api-guards";
 import { NextRequest } from "next/server";
 import type { RateLimiterConfig } from "@/types/lib";
+import type { isOperationAllowed } from "@/lib/rate-limiter";
 
 // Mock the rate limiter
-const mockIsOperationAllowed = vi.fn(
-  (_storeName: string, _contextId: string, _config: RateLimiterConfig) => true,
-);
+const mockIsOperationAllowed = vi.fn<typeof isOperationAllowed>(() => true);
 vi.mock("@/lib/rate-limiter", () => ({
   isOperationAllowed: (storeName: string, contextId: string, config: RateLimiterConfig) =>
     mockIsOperationAllowed(storeName, contextId, config),

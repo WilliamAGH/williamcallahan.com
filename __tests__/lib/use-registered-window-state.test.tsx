@@ -17,15 +17,19 @@ describe("useRegisteredWindowState", () => {
      * This renders once (children are inside the same provider) and captures
      * stable references to registerWindow/unregisterWindow.
      */
+    const attachSpies = (ctx: NonNullable<ReturnType<typeof useWindowRegistry>>) => {
+      if (!registerSpy) {
+        registerSpy = vi.spyOn(ctx, "registerWindow");
+        unregisterSpy = vi.spyOn(ctx, "unregisterWindow");
+      }
+    };
+
     const SpyCollector = () => {
       const ctx = useWindowRegistry();
       if (!ctx) {
         throw new Error("useWindowRegistry returned null outside GlobalWindowRegistryProvider");
       }
-      if (!registerSpy) {
-        registerSpy = vi.spyOn(ctx, "registerWindow");
-        unregisterSpy = vi.spyOn(ctx, "unregisterWindow");
-      }
+      attachSpies(ctx);
       return null;
     };
 

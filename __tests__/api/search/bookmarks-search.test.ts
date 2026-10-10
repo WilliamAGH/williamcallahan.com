@@ -4,6 +4,10 @@ import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 import { bookmarkSearchResponseSchema } from "@/types/schemas/search";
 import { NextRequest } from "next/server";
+import type { searchBookmarksFtsPage } from "@/lib/db/queries/bookmarks";
+import type { hybridSearchBookmarks } from "@/lib/db/queries/hybrid-search";
+import type { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
+import type { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 
 const {
   mockEmbedTextsWithEndpointCompatibleModel,
@@ -11,10 +15,11 @@ const {
   mockResolveDefaultEndpointCompatibleEmbeddingConfig,
   mockSearchBookmarksFtsPage,
 } = vi.hoisted(() => ({
-  mockEmbedTextsWithEndpointCompatibleModel: vi.fn(),
-  mockHybridSearchBookmarks: vi.fn(),
-  mockResolveDefaultEndpointCompatibleEmbeddingConfig: vi.fn(),
-  mockSearchBookmarksFtsPage: vi.fn(),
+  mockEmbedTextsWithEndpointCompatibleModel: vi.fn<typeof embedTextsWithEndpointCompatibleModel>(),
+  mockHybridSearchBookmarks: vi.fn<typeof hybridSearchBookmarks>(),
+  mockResolveDefaultEndpointCompatibleEmbeddingConfig:
+    vi.fn<typeof resolveDefaultEndpointCompatibleEmbeddingConfig>(),
+  mockSearchBookmarksFtsPage: vi.fn<typeof searchBookmarksFtsPage>(),
 }));
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({

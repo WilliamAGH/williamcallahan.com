@@ -168,18 +168,18 @@ async function performFetchWithRetry(
           }
 
           try {
-            const result = await fetchExternalOpenGraph(effectiveUrl, fallbackImageData);
+            const ogResult = await fetchExternalOpenGraph(effectiveUrl, fallbackImageData);
 
-            if (result && typeof result === "object" && "permanentFailure" in result) {
+            if (ogResult && typeof ogResult === "object" && "permanentFailure" in ogResult) {
               envLogger.log(
                 `Permanent failure for OpenGraph fetch, trying next option`,
-                { effectiveUrl, status: result.status },
+                { effectiveUrl, status: ogResult.status },
                 { category: "OpenGraph" },
               );
               continue;
             }
 
-            if (result && typeof result === "object" && "blocked" in result) {
+            if (ogResult && typeof ogResult === "object" && "blocked" in ogResult) {
               envLogger.log(
                 `Access blocked for OpenGraph fetch, trying next option`,
                 { effectiveUrl },
@@ -188,22 +188,22 @@ async function performFetchWithRetry(
               continue;
             }
 
-            if (result && !("permanentFailure" in result) && !("blocked" in result)) {
+            if (ogResult && !("permanentFailure" in ogResult) && !("blocked" in ogResult)) {
               // Check if we actually got meaningful data
-              const hasValidData = result.title || result.description || result.imageUrl;
+              const hasValidData = ogResult.title || ogResult.description || ogResult.imageUrl;
 
               if (hasValidData) {
                 envLogger.log(
                   `Successfully crawled OpenGraph`,
                   {
                     url,
-                    title: result.title,
-                    descriptionPreview: result.description?.substring(0, 100) ?? null,
-                    imageUrl: result.imageUrl ?? null,
+                    title: ogResult.title,
+                    descriptionPreview: ogResult.description?.substring(0, 100) ?? null,
+                    imageUrl: ogResult.imageUrl ?? null,
                   },
                   { category: "OpenGraph" },
                 );
-                return result; // Success!
+                return ogResult; // Success!
               } else {
                 envLogger.log(
                   `Empty metadata from OpenGraph fetch, trying next option`,

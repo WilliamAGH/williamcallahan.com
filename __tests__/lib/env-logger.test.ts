@@ -20,7 +20,7 @@ describe("envLogger", () => {
       API_BASE_URL: "https://williamcallahan.com",
     };
     vi.resetModules();
-    console.log = vi.fn();
+    console.log = vi.fn<typeof console.log>();
   });
 
   afterEach(() => {

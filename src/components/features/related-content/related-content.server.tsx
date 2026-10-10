@@ -18,7 +18,11 @@ import { readRelatedContent } from "@/lib/db/queries/content-graph";
 import { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
 import { applyBlendedScoring } from "@/lib/content-graph/blended-scoring";
 import { hydrateRelatedContent } from "@/lib/db/queries/content-hydration";
-import type { RelatedContentProps, RelatedContentSuggestion } from "@/types/related-content";
+import type {
+  RelatedContentOptions,
+  RelatedContentProps,
+  RelatedContentSuggestion,
+} from "@/types/related-content";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 import type { RelatedContentType } from "@/types/schemas/related-content";
 
@@ -142,91 +146,100 @@ async function resolveOnDemand(
   return hydrateRelatedContent(scored);
 }
 
+const NO_RELATED_CONTENT_OPTIONS: RelatedContentOptions = {};
+
+/** Resolves, filters, and limits related items; an empty list means nothing to render. */
+async function selectRelatedContent({
+  sourceType,
+  sourceId,
+  sourceSlug,
+  options = NO_RELATED_CONTENT_OPTIONS,
+}: Pick<RelatedContentProps, "sourceType" | "sourceId" | "sourceSlug" | "options">): Promise<
+  RelatedContentSuggestion[]
+> {
+  // For bookmarks, prefer slug over ID for idempotency
+  let actualSourceId = sourceId;
+  if (sourceType === "bookmark" && sourceSlug) {
+    const bookmarkId = await resolveBookmarkIdFromSlug(sourceSlug);
+    if (bookmarkId) {
+      actualSourceId = bookmarkId;
+      debug(`[RelatedContent] Using slug "${sourceSlug}" resolved to ID "${bookmarkId}"`);
+    } else {
+      console.error(`[RelatedContent] No bookmark found for slug "${sourceSlug}"`);
+      return [];
+    }
+  }
+
+  const {
+    maxPerType = DEFAULT_MAX_PER_TYPE,
+    maxTotal = DEFAULT_MAX_TOTAL,
+    includeTypes,
+    excludeTypes,
+    excludeIds = [],
+    excludeTags = [],
+  } = options;
+
+  const contentKey = `${sourceType}:${actualSourceId}`;
+
+  // Path 1: try pre-computed content graph
+  let items = await resolveFromPrecomputed(contentKey);
+
+  // Path 2: fall back to on-demand pgvector search
+  if (!items || items.length === 0) {
+    debug(
+      `[RelatedContent] No pre-computed data for ${contentKey}, falling back to on-demand pgvector`,
+    );
+    items = await resolveOnDemand(sourceType, actualSourceId);
+  }
+
+  if (items.length === 0) return [];
+
+  // Apply user-specified filters
+  const filtered = applyFilters(items, {
+    includeTypes,
+    excludeTypes,
+    excludeIds,
+    excludeTags,
+    sourceType,
+    sourceId: actualSourceId,
+  });
+
+  // Filter to only environment-enabled types
+  const enabledTypes = new Set(getEnabledContentTypes());
+  const enabledItems = filtered.filter((i) => enabledTypes.has(i.type));
+
+  // Apply per-type and total limits
+  return limitByTypeAndTotal(enabledItems, maxPerType, maxTotal, stableRelatedContentTieBreak);
+}
+
 export async function RelatedContent({
   sourceType,
   sourceId,
   sourceSlug,
   sectionTitle = "Similar Content",
-  options = {},
+  options,
   className,
 }: RelatedContentProps) {
   "use cache";
   cacheLife("hours");
   cacheTag(RELATED_CONTENT_CACHE_TAG);
 
+  let limited: RelatedContentSuggestion[] = [];
   try {
-    // For bookmarks, prefer slug over ID for idempotency
-    let actualSourceId = sourceId;
-    if (sourceType === "bookmark" && sourceSlug) {
-      const bookmarkId = await resolveBookmarkIdFromSlug(sourceSlug);
-      if (bookmarkId) {
-        actualSourceId = bookmarkId;
-        debug(`[RelatedContent] Using slug "${sourceSlug}" resolved to ID "${bookmarkId}"`);
-      } else {
-        console.error(`[RelatedContent] No bookmark found for slug "${sourceSlug}"`);
-        return null;
-      }
-    }
-
-    const {
-      maxPerType = DEFAULT_MAX_PER_TYPE,
-      maxTotal = DEFAULT_MAX_TOTAL,
-      includeTypes,
-      excludeTypes,
-      excludeIds = [],
-      excludeTags = [],
-    } = options;
-
-    const contentKey = `${sourceType}:${actualSourceId}`;
-
-    // Path 1: try pre-computed content graph
-    let items = await resolveFromPrecomputed(contentKey);
-
-    // Path 2: fall back to on-demand pgvector search
-    if (!items || items.length === 0) {
-      debug(
-        `[RelatedContent] No pre-computed data for ${contentKey}, falling back to on-demand pgvector`,
-      );
-      items = await resolveOnDemand(sourceType, actualSourceId);
-    }
-
-    if (items.length === 0) return null;
-
-    // Apply user-specified filters
-    const filtered = applyFilters(items, {
-      includeTypes,
-      excludeTypes,
-      excludeIds,
-      excludeTags,
-      sourceType,
-      sourceId: actualSourceId,
-    });
-
-    // Filter to only environment-enabled types
-    const enabledTypes = new Set(getEnabledContentTypes());
-    const enabledItems = filtered.filter((i) => enabledTypes.has(i.type));
-
-    // Apply per-type and total limits
-    const limited = limitByTypeAndTotal(
-      enabledItems,
-      maxPerType,
-      maxTotal,
-      stableRelatedContentTieBreak,
-    );
-
-    if (limited.length === 0) return null;
-
-    return (
-      <RelatedContentSection
-        title={sectionTitle}
-        items={limited}
-        className={className}
-        sourceType={sourceType}
-      />
-    );
+    limited = await selectRelatedContent({ sourceType, sourceId, sourceSlug, options });
   } catch (error) {
+    // RC1a: error logged; an empty list is the documented contract (component renders nothing)
     console.error("Error fetching related content:", error);
-    // RC1a: error logged; null is the documented contract (component renders nothing)
   }
-  return null;
+
+  if (limited.length === 0) return null;
+
+  return (
+    <RelatedContentSection
+      title={sectionTitle}
+      items={limited}
+      className={className}
+      sourceType={sourceType}
+    />
+  );
 }

@@ -5,12 +5,20 @@ import { buildBookmark } from "@/test-utils/sitemap-factories";
 import type { BookmarkDetailProps } from "@/types/bookmark-ai-analysis";
 import type { CachedAnalysis } from "@/types/ai-analysis";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
+import type { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
+import type { getBookmarkById } from "@/lib/bookmarks/service.server";
 
 const { mockGetCachedAnalysis, mockResolveBookmarkIdFromSlug, mockGetBookmarkById } = vi.hoisted(
   () => ({
-    mockGetCachedAnalysis: vi.fn(),
-    mockResolveBookmarkIdFromSlug: vi.fn(),
-    mockGetBookmarkById: vi.fn(),
+    mockGetCachedAnalysis:
+      vi.fn<
+        (
+          domain: "bookmarks",
+          id: string,
+        ) => Promise<CachedAnalysis<BookmarkAiAnalysisResponse> | null>
+      >(),
+    mockResolveBookmarkIdFromSlug: vi.fn<typeof resolveBookmarkIdFromSlug>(),
+    mockGetBookmarkById: vi.fn<typeof getBookmarkById>(),
   }),
 );
 

@@ -21,7 +21,7 @@ const LOGO_RESOLUTION_BATCH_SIZE = 6;
  * @returns A JSX element containing the client-side investments component wrapped in a global window registry provider.
  */
 export async function Investments({
-  investments = [],
+  investments,
 }: Readonly<InvestmentsProps>): Promise<JSX.Element> {
   const resolvedInvestments = await mapWithBoundedConcurrency(
     investments,
