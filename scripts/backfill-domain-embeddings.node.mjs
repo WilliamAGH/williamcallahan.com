@@ -79,6 +79,7 @@ async function embedTexts(apiBaseUrl, apiKey, model, input, timeoutMs) {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "X-Tier": "batch",
+      "X-User-ID": "williamcallahan.com:embeddings:batch",
     },
     body: JSON.stringify({ model, input }),
     signal: AbortSignal.timeout(timeoutMs),

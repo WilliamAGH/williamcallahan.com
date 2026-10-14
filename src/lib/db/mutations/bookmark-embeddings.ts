@@ -294,6 +294,7 @@ export async function backfillBookmarkEmbeddings(
         config,
         input: embeddingInput,
         tier: "batch",
+        workload: "williamcallahan.com:embeddings:batch",
         ...(options.retryTransientFailures ? { retry: BATCH_EMBEDDING_RETRY } : {}),
       });
       if (embeddings.length !== rows.length) {

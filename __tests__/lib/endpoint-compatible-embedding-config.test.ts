@@ -81,6 +81,9 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
   it("preserves OpenAI embedding response order by index", async () => {
     const requests: EndpointCompatibleEmbeddingsRequest[] = [];
     const fetchMock = vi.fn<typeof fetch>(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get("X-Tier")).toBe("batch");
+      expect(headers.get("X-User-ID")).toBe("williamcallahan.com:embeddings:batch");
       const request = readEmbeddingRequest(init);
       requests.push(request);
       const data = request.input
@@ -98,6 +101,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["alpha", "beta"],
       tier: "batch",
+      workload: "williamcallahan.com:embeddings:batch",
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();
@@ -134,6 +138,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["a".repeat(32_769), "short"],
       tier: "batch",
+      workload: "williamcallahan.com:embeddings:batch",
     });
 
     expect(requests[0]?.input).toHaveLength(3);
@@ -172,6 +177,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
         config: embeddingConfig,
         input: ["alpha"],
         tier: "batch",
+        workload: "williamcallahan.com:embeddings:batch",
         retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 0 },
       }),
     ).resolves.toEqual([[1, 2]]);
@@ -201,6 +207,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["alpha"],
       tier: "batch",
+      workload: "williamcallahan.com:embeddings:batch",
       retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 2_000 },
     });
     await vi.advanceTimersByTimeAsync(0);
@@ -227,6 +234,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
         config: embeddingConfig,
         input: ["alpha"],
         tier: "batch",
+        workload: "williamcallahan.com:embeddings:batch",
       });
     } catch (error) {
       thrown = error;

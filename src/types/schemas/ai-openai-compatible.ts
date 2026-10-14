@@ -25,6 +25,19 @@ export const openAiCompatibleTierSchema = z.enum([
 ]);
 export type OpenAiCompatibleTier = z.infer<typeof openAiCompatibleTierSchema>;
 
+/**
+ * Stable workload labels recorded by the LLM gateway from the `X-User-ID`
+ * header. The tier remains a separate routing header; these labels are the
+ * source and operation dimensions used for cost attribution.
+ */
+export const openAiCompatibleWorkloadSchema = z.enum([
+  "williamcallahan.com:chat-completions:live",
+  "williamcallahan.com:embeddings:live",
+  "williamcallahan.com:embeddings:batch",
+  "williamcallahan.com:chat-completions:batch",
+]);
+export type OpenAiCompatibleWorkload = z.infer<typeof openAiCompatibleWorkloadSchema>;
+
 const openAiCompatibleToolCallSchema = z.object({
   id: z.string().min(1),
   type: z.literal("function"),

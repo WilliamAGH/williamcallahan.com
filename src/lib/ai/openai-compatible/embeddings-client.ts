@@ -7,6 +7,7 @@ import { retryWithThrow } from "@/lib/utils/retry";
 import type {
   EndpointCompatibleEmbeddingConfig,
   OpenAiCompatibleTier,
+  OpenAiCompatibleWorkload,
 } from "@/types/schemas/ai-openai-compatible";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -192,6 +193,7 @@ export async function embedTextsWithEndpointCompatibleModel(args: {
   input: string[];
   dimensions?: number;
   tier: OpenAiCompatibleTier;
+  workload: OpenAiCompatibleWorkload;
   timeoutMs?: number;
   signal?: AbortSignal;
   retry?: {
@@ -226,6 +228,7 @@ export async function embedTextsWithEndpointCompatibleModel(args: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "X-Tier": args.tier,
+        "X-User-ID": args.workload,
       },
       body: JSON.stringify(request),
       signal: requestSignal,

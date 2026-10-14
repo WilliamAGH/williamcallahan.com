@@ -433,6 +433,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         baseUrl: "https://example.com",
         apiKey: "test-key",
         tier: "production-a",
+        workload: "williamcallahan.com:chat-completions:live",
         request: {
           model: "qwen/qwen3-32b",
           messages: [{ role: "user", content: "hi" }],
@@ -449,7 +450,10 @@ describe("OpenAI-Compatible AI Utilities", () => {
       expect(payload?.top_p).toBe(0.9);
       expect(payload?.reasoning_effort).toBe("max");
       expect(payload?.temperature).toBe(1);
-      expect(requestOptions?.headers).toEqual({ "X-Tier": "production-a" });
+      expect(requestOptions?.headers).toEqual({
+        "X-Tier": "production-a",
+        "X-User-ID": "williamcallahan.com:chat-completions:live",
+      });
     });
 
     it("omits undefined optional fields from chat request", async () => {
@@ -474,6 +478,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         baseUrl: "https://example.com",
         apiKey: "test-key",
         tier: "production-a",
+        workload: "williamcallahan.com:chat-completions:live",
         request: { model: "test-model", messages: [{ role: "user", content: "hi" }] },
       });
       const payload = mockCreate.mock.calls[0]?.[0];
@@ -516,6 +521,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         baseUrl: "https://example.com",
         apiKey: "test-key",
         tier: "production-a",
+        workload: "williamcallahan.com:chat-completions:live",
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hello" }],
@@ -553,6 +559,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         baseUrl: "https://example.com",
         apiKey: "test-key",
         tier: "production-a",
+        workload: "williamcallahan.com:chat-completions:live",
         request: {
           model: "qwen/qwen3-32b",
           reasoning: { effort: "max" },
@@ -614,6 +621,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         baseUrl: "https://example.com",
         apiKey: "test-key",
         tier: "production-a",
+        workload: "williamcallahan.com:chat-completions:live",
         request: {
           model: "test-model",
           input: [{ role: "user", content: "hello" }],
@@ -660,6 +668,7 @@ describe("OpenAI-Compatible AI Utilities", () => {
         baseUrl: "https://example.net",
         apiKey: "test-key",
         tier: "production-a",
+        workload: "williamcallahan.com:chat-completions:live",
         request: {
           model: "test-model",
           messages: [{ role: "user", content: "hello" }],

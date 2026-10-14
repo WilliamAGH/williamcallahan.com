@@ -104,6 +104,12 @@ For a route param `feature`, the server resolves configuration with this precede
 
 ## OpenAI SDK Notes
 
+Every OpenAI-compatible request carries the existing `X-Tier` routing header and
+the stable internal `X-User-ID` workload label. Labels use
+`williamcallahan.com:<operation>:<tier>` for chat-completions and embeddings;
+background embedding and tag-alias jobs use the `batch` suffix, while user-facing
+chat and search embeddings use `live`.
+
 - Dependency: `openai@6.18.0` from npm.
 - SDK base URL is normalized to include `/v1`, so both OpenAI and OpenAI-compatible providers (including LM Studio) can be configured with or without a trailing `/v1`.
 - If no API key is configured, the server fails before constructing the SDK client; set `AI_DEFAULT_OPENAI_API_KEY` or a feature-specific key.
