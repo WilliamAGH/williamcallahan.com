@@ -17,7 +17,8 @@ import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import { getMonotonicTime } from "@/lib/utils";
 import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import { getErrorMessage } from "@/lib/utils/error-utils";
-import { createRetryingFetch } from "@/lib/utils/http-client";
+import { fetchWithTimeout } from "@/lib/utils/http-client";
+import { retryWithThrow, RETRY_CONFIGS } from "@/lib/utils/retry";
 
 const LOG_PREFIX = "[Bookmarks OpenGraph]";
 
@@ -107,12 +108,10 @@ export async function processBookmarksInBatches(
     imagesAlreadyInS3: 0,
     // Error tracking
     bookmarksWithErrors: 0,
-    errorDetails: [] as Array<{ url: string; error: string }>,
     // Karakeep fallback tracking
     karakeepFallbackDetails: [] as Array<{ url: string; karakeepImage: string }>,
   };
 
-  // Process sequentially with a small delay between requests
   const enrichedBookmarks: UnifiedBookmark[] = [];
   const s3CdnUrl = getS3CdnUrl();
 
@@ -223,7 +222,6 @@ export async function processBookmarksInBatches(
             `${LOG_PREFIX} ❌ OpenGraph fetch for ${bookmark.url} failed: ${error.message}`,
           );
           imageStats.bookmarksWithErrors++;
-          imageStats.errorDetails.push({ url: bookmark.url, error: error.message });
           sourceImageUrl = null;
         }
       }
@@ -389,7 +387,6 @@ export async function processBookmarksInBatches(
       const error = e instanceof Error ? e : new Error(String(e));
       console.error(`${LOG_PREFIX} ❌ Outer error for ${bookmark.url}: ${error.message}`);
       imageStats.bookmarksWithErrors++;
-      imageStats.errorDetails.push({ url: bookmark.url || "unknown", error: error.message });
       // On outer error, assign a placeholder
       bookmark.ogImage = undefined;
       bookmark.ogImageExternal = undefined;
@@ -443,12 +440,7 @@ export async function processBookmarksInBatches(
   return enrichedBookmarks;
 }
 
-/** One retry absorbs a transient socket reset; the asset GET is idempotent */
-const fetchKarakeepAsset = createRetryingFetch(1, 1000);
-
-/**
- * Fetches an image asset from the Karakeep/Hoarder API using the asset ID
- */
+/** Fetches a Karakeep image asset with one retry and a deadline per complete download. */
 export async function fetchKarakeepImage(assetId: string): Promise<Buffer | null> {
   const bearerToken = BOOKMARKS_API_CONFIG.BEARER_TOKEN;
 
@@ -460,22 +452,38 @@ export async function fetchKarakeepImage(assetId: string): Promise<Buffer | null
   try {
     console.log(`[fetchKarakeepImage] Fetching asset: ${assetId}`);
 
-    const response = await fetchKarakeepAsset(`${BOOKMARKS_API_CONFIG.API_URL}/assets/${assetId}`, {
-      headers: { Authorization: `Bearer ${bearerToken}` },
-      timeout: BOOKMARKS_API_CONFIG.REQUEST_TIMEOUT_MS,
-    });
-
-    if (!response.ok) {
-      console.warn(
-        `[fetchKarakeepImage] Failed to fetch asset ${assetId}: ${response.status} ${response.statusText}`,
-      );
-      return null;
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    console.log(
-      `[fetchKarakeepImage] Successfully fetched asset ${assetId} (${buffer.length} bytes)`,
+    // Retry the complete idempotent download, including failures after response headers.
+    const buffer = await retryWithThrow(
+      async () => {
+        const deadline = AbortSignal.timeout(BOOKMARKS_API_CONFIG.REQUEST_TIMEOUT_MS);
+        const response = await fetchWithTimeout(
+          `${BOOKMARKS_API_CONFIG.API_URL}/assets/${assetId}`,
+          {
+            headers: { Authorization: `Bearer ${bearerToken}` },
+            timeout: BOOKMARKS_API_CONFIG.REQUEST_TIMEOUT_MS,
+            signal: deadline,
+          },
+        );
+        if (!response.ok) {
+          console.warn(
+            `[fetchKarakeepImage] Failed to fetch asset ${assetId}: ${response.status} ${response.statusText}`,
+          );
+          return null;
+        }
+        const imageBytes = await response.arrayBuffer().catch((error: unknown) => {
+          deadline.throwIfAborted();
+          throw error;
+        });
+        return Buffer.from(imageBytes);
+      },
+      { ...RETRY_CONFIGS.HTTP_CLIENT, maxRetries: 1 },
     );
+
+    if (buffer) {
+      console.log(
+        `[fetchKarakeepImage] Successfully fetched asset ${assetId} (${buffer.length} bytes)`,
+      );
+    }
     return buffer;
   } catch (error) {
     // Logging the Error object prints its `cause` on a second line; keep the failure on one line

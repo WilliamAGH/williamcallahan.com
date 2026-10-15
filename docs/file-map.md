@@ -226,6 +226,7 @@ File/Path Functionality Description
 - [x] `bookmarks.{client,server}.ts` `json-handling` - Helper functions for bookmarks
 - [x] `bookmarks.ts` `json-handling` - Core bookmarks logic
 - [x] `bookmarks/enrichment-hydration.ts` `bookmarks` - Merges prior persisted enrichment into refreshed datasets; pending Karakeep image-upgrade predicate
+- [x] `bookmarks/enrich-opengraph.ts` `bookmarks` - OpenGraph enrichment and bounded Karakeep asset downloads with one retry
 - [x] `cache.ts` `caching` - Next.js cache guard, tag revalidation, and immediate tag expiration utilities
 - [x] `constants.ts` `overview` - Project-wide constants
 - [x] `education-data-processor.ts` `education` - Utilities for education logos and data
