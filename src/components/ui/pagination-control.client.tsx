@@ -24,7 +24,6 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
 }) => {
   const [internalCurrentPage, setInternalCurrentPage] = useState(currentPage);
   const [syncedCurrentPage, setSyncedCurrentPage] = useState(currentPage);
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Adopt a new controlled page during render instead of a follow-up effect pass
   if (currentPage !== syncedCurrentPage) {
@@ -38,7 +37,6 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
         return;
       }
 
-      setIsTransitioning(true);
       setInternalCurrentPage(page);
 
       try {
@@ -46,8 +44,6 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
       } catch (error) {
         console.error("Page navigation failed:", error);
         setInternalCurrentPage(currentPage);
-      } finally {
-        setTimeout(() => setIsTransitioning(false), 150);
       }
     },
     [internalCurrentPage, totalPages, disabled, isLoading, onPageChange, currentPage],
@@ -198,7 +194,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
                 page === internalCurrentPage
                   ? "bg-blue-600 text-white border-blue-600 shadow-sm"
                   : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-              } ${isTransitioning && page === internalCurrentPage ? "scale-95" : ""}`}
+              }`}
               aria-label={`Go to page ${page}`}
               aria-current={page === internalCurrentPage ? "page" : undefined}
             >

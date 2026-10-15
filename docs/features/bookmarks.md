@@ -177,6 +177,7 @@ deployments remain read-only and do not send engagement requests.
 - **Tag Pages**: URL-based pagination remains on `/bookmarks/tags/[tagSlug]/page/[n]`
 - **Efficient Loading**: 24 items per page, served from PostgreSQL pagination + RSC cache
 - **Dual Modes**: Tag pagination controls or infinite scroll where explicitly enabled
+- **Callback controls**: The selected page updates immediately; `isLoading` owns the loading indicator and disabled state. Navigation schedules no cosmetic state-reset timer after unmount.
 - **SEO Optimized**: Canonical tag pagination URLs in sitemap generation
 
 ### Tag System

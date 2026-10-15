@@ -124,6 +124,7 @@ File/Path Functionality Description
   - [x] `json-ld.tsx` `seo` - JSON-LD structured data component
   - [x] `opengraph-logo.tsx` `seo` - OpenGraph logo meta tag component
 - [~] **ui/**
+  - [x] `pagination-control.client.tsx` `bookmarks` - Callback pagination with immediate selection and caller-owned loading
   - [x] **terminal/**
     - [x] `terminal-implementation.client.tsx` `terminal` - Terminal core UI implementation
     - [x] `terminal-header.tsx` `terminal` - Header UI with window controls & title
