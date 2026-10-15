@@ -9,7 +9,7 @@ const DEFAULT_RELATED_LIMIT = 8;
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_BASE_URL = "https://api.llm-gateway.iocloudhost.net";
 const BOOKMARK_SITE_ORIGIN = "https://williamcallahan.com";
-const DEFAULT_MODEL = "qwen3.8-27b";
+const DEFAULT_MODEL = "qwen3.8-27b-self-hosted";
 const AI_OUTPUT_SCHEMA = z.object({
   aliasMappings: z
     .array(z.object({ alias: z.string().min(1), canonical: z.string().min(1) }))
