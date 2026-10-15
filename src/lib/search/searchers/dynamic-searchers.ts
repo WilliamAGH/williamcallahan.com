@@ -30,7 +30,12 @@ export async function searchBookmarks(
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBookmarks]", context);
+  const embedding = await buildQueryEmbedding(
+    sanitizedQuery,
+    "[searchBookmarks]",
+    "bookmark",
+    context,
+  );
   const rows = await hybridSearchBookmarks({
     query: sanitizedQuery,
     embedding,
@@ -75,7 +80,7 @@ export async function searchBooks(
 
   let rows: Awaited<ReturnType<typeof hybridSearchBooks>>;
   try {
-    const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBooks]", context);
+    const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBooks]", "book", context);
     rows = await hybridSearchBooks({ query: sanitizedQuery, embedding, limit: SEARCH_LIMIT });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -48,6 +48,7 @@ function buildTurnParams(args: {
   const { config } = args;
   const stripResponseFormat = args.analysisValidationAttempts > 0;
   return {
+    feature: config.feature,
     turnConfig: {
       model: args.activeModel,
       baseUrl: config.config.baseUrl,

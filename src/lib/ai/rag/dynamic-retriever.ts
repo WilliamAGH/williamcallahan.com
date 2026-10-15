@@ -146,7 +146,7 @@ export async function retrieveRelevantContent(
   const needsEmbedding = scopes.some((scope) => !KEYWORD_ONLY_SCOPES.has(scope));
   const precomputed =
     sanitizedQuery && needsEmbedding
-      ? await buildQueryEmbedding(sanitizedQuery, "[RAG]", undefined, embeddingTimeoutMs)
+      ? await buildQueryEmbedding(sanitizedQuery, "[RAG]", "rag", undefined, embeddingTimeoutMs)
       : undefined;
   const embeddingContext: QueryEmbeddingContext = { precomputed };
   const scopeTimeoutMs = Math.max(0, deadline - Date.now());

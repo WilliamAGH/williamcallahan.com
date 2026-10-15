@@ -1,10 +1,7 @@
 import type { NextRequest } from "next/server";
 import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import type {
-  AiFeatureIdentifier,
-  ParsedRequestBody,
-  SearchToolResult,
-} from "@/types/schemas/ai-chat";
+import type { ParsedRequestBody, SearchToolResult } from "@/types/schemas/ai-chat";
+import type { AiFeatureIdentifier } from "@/types/schemas/ai-feature";
 import type {
   AiUpstreamApiMode,
   OpenAiCompatibleChatMessage,
@@ -107,6 +104,7 @@ export type ToolDispatchResult = {
  *  Model params (temperature, topP, maxTokens, reasoningEffort) are always
  *  resolved by `resolveModelParams()` so they are non-optional here. */
 export type UpstreamTurnParams = {
+  feature: AiFeatureIdentifier;
   turnConfig: { model: string; baseUrl: string; apiKey: string | undefined };
   signal: AbortSignal;
   toolChoice: "required" | "auto" | undefined;
@@ -140,7 +138,7 @@ export type AnalysisFeatureId = Exclude<AiFeatureIdentifier, "terminal_chat">;
 
 /** Configuration bag passed to createUpstreamRunner */
 export type UpstreamRunnerConfig = {
-  feature: string;
+  feature: AiFeatureIdentifier;
   apiMode: AiUpstreamApiMode;
   messages: OpenAiCompatibleChatMessage[];
   parsedBody: ValidatedRequestContext["parsedBody"];

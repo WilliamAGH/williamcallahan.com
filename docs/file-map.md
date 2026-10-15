@@ -465,6 +465,7 @@ File/Path Functionality Description
 - [x] **db/**
   - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmark row/insert type exports for DB modules
 - [ ] **schemas/**
+  - [x] `ai-feature.ts` `ai-shared-services` - Canonical AI feature identifiers for request validation, logging, and workload attribution
   - [x] `api.ts` `log-error-debug-handling` - Canonical Zod schemas for API errors, client-error telemetry, and shared route response contracts
   - [x] `blog-frontmatter.ts` `blog` - Zod single owner of MDX frontmatter and `blogSlugSchema`; runtime MDX and Node seed ingestion parse through it
   - [x] `github-storage.ts` `github-activity` - Canonical persisted and public GitHub activity schemas, projections, and write intents

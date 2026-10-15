@@ -26,7 +26,12 @@ export async function searchThoughts(
     return [];
   }
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchThoughts]", context);
+  const embedding = await buildQueryEmbedding(
+    sanitizedQuery,
+    "[searchThoughts]",
+    "thought",
+    context,
+  );
   const rows = await hybridSearchThoughts({
     query: sanitizedQuery,
     embedding,

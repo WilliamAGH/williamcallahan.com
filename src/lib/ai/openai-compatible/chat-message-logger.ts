@@ -16,7 +16,7 @@ import type {
   AiChatBookmarkContext,
   LogChatMessageParams,
 } from "@/types/schemas/ai-chat-message-log";
-import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
 
 /**
  * Categorizes the feature string into a known source type

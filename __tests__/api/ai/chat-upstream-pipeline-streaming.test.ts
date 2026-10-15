@@ -5,14 +5,22 @@ import {
   expectSingleMessageDoneEvent,
   expectStandardStreamEvents,
   mockCallOpenAiCompatibleChatCompletions,
+  mockCallOpenAiCompatibleResponses,
   mockSingleBookmarkSearchResult,
   mockStreamOpenAiCompatibleChatCompletions,
+  mockStreamOpenAiCompatibleResponses,
   mockStreamingSearchBookmarksToolCall,
   resetPipelineMocks,
   runPipelineWithEvents,
   streamModel,
   type EventPayload,
 } from "./upstream-pipeline-test-harness";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
+import {
+  executeChatCompletionsTurn,
+  executeResponsesTurn,
+} from "@/app/api/ai/chat/[feature]/upstream-turn";
+import { toRequestOptions } from "@/lib/ai/openai-compatible/openai-compatible-message-mapper";
 
 const ANALYSIS_PROMPT = "Analyze this bookmark";
 
@@ -20,6 +28,43 @@ describe("AI Chat Upstream Pipeline Streaming", () => {
   beforeEach(() => {
     resetPipelineMocks();
   });
+
+  it.each(aiFeatureIdentifierSchema.options)(
+    "attributes every API mode and stream for %s",
+    async (feature) => {
+      for (const streaming of [false, true]) {
+        const params = {
+          feature,
+          turnConfig: { baseUrl: "https://example.test", apiKey: "test-key", model: streamModel },
+          signal: new AbortController().signal,
+          toolChoice: undefined,
+          hasToolSupport: false,
+          temperature: 0.7,
+          topP: 1,
+          reasoningEffort: null,
+          maxTokens: 1024,
+          ...(streaming ? { onStreamEvent: () => undefined } : {}),
+        };
+        await executeChatCompletionsTurn([{ role: "user", content: "hello" }], params);
+        await executeResponsesTurn([{ role: "user", content: "hello" }], params);
+        const chatCall = (
+          streaming
+            ? mockStreamOpenAiCompatibleChatCompletions
+            : mockCallOpenAiCompatibleChatCompletions
+        ).mock.lastCall?.[0];
+        const responsesCall = (
+          streaming ? mockStreamOpenAiCompatibleResponses : mockCallOpenAiCompatibleResponses
+        ).mock.lastCall?.[0];
+        for (const call of [chatCall, responsesCall]) {
+          if (!call) throw new Error("Expected upstream request");
+          expect(toRequestOptions(call).headers).toEqual({
+            "X-Tier": "production-a",
+            "X-User-ID": `williamcallahan.com:${feature}:live`,
+          });
+        }
+      }
+    },
+  );
 
   it("defaults terminal chat to feature-specific model params when not provided", async () => {
     mockCallOpenAiCompatibleChatCompletions.mockImplementationOnce(({ baseUrl, request }) =>

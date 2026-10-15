@@ -5,15 +5,6 @@ import {
   reasoningEffortSchema,
 } from "@/types/schemas/ai-openai-compatible";
 
-export const aiFeatureIdentifierSchema = z.enum([
-  "terminal_chat",
-  "bookmark-analysis",
-  "book-analysis",
-  "project-analysis",
-]);
-
-export type AiFeatureIdentifier = z.infer<typeof aiFeatureIdentifierSchema>;
-
 export const requestBodySchema = z
   .object({
     userText: z.string().min(1).optional(),

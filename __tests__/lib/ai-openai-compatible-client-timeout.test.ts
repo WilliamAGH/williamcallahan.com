@@ -119,7 +119,7 @@ describe("OpenAI-compatible client request policy", () => {
       baseUrl: "https://example.com",
       apiKey: "test-key",
       tier: "production-a" as const,
-      workload: "williamcallahan.com:chat-completions:live" as const,
+      workload: "williamcallahan.com:terminal_chat:live" as const,
       request,
     };
 

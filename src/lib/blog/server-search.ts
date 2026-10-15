@@ -26,7 +26,7 @@ export async function searchBlogPostsServerSide(
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBlogPosts]", context);
+  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchBlogPosts]", "blog", context);
   const rows = await hybridSearchBlogPosts({
     query: sanitizedQuery,
     embedding,

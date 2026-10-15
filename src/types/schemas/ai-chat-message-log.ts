@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod/v4";
-import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
 
 /**
  * Source categories for chat messages
