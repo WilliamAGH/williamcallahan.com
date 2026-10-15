@@ -396,10 +396,7 @@ export async function processBookmarksInBatches(
 
   // Each outcome is one log line: the scheduler error alert counts error lines per 5 minutes,
   // and per-bookmark failures were already logged where they occurred.
-  const totalWithImages =
-    imageStats.bookmarksUsingS3Image +
-    imageStats.bookmarksUsingOpenGraphImage +
-    imageStats.bookmarksUsingKarakeepImage;
+  const totalWithImages = enrichedBookmarks.filter((bookmark) => Boolean(bookmark.ogImage)).length;
   const withImagesPercent =
     imageStats.totalBookmarks > 0
       ? Math.round((totalWithImages / imageStats.totalBookmarks) * 100)
@@ -413,7 +410,7 @@ export async function processBookmarksInBatches(
       `errors ${imageStats.bookmarksWithErrors}`,
   );
 
-  if (imageStats.imagesNewlyPersisted === 0) {
+  if (imageStats.imagesNewlyPersisted === 0 && refreshOptions?.metadataOnly !== true) {
     const karakeepUrls = imageStats.karakeepFallbackDetails
       .map((detail) => `${detail.url} -> ${detail.karakeepImage}`)
       .join(", ");
