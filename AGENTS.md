@@ -72,7 +72,7 @@ Core standards:
 
 - [VR1a] Build via `pnpm run build` (or `pnpm run build:only` as appropriate)
 - [VR1b] Test via `pnpm run test` (or `test:watch`, `test:coverage`, `test:ci`, `test:smoke`)
-- [VR1c] `pnpm run validate` (0 errors, 0 warnings) is the commit gate; the lefthook pre-push hook runs `pnpm run verify`, which covers it, so never run it between edits or repeat it ([TV0b])
+- [VR1c] `pnpm run validate` (0 errors, 0 warnings) is the commit gate; the lefthook pre-push hook runs `pnpm run verify` on branch pushes, which covers it, so never run it between edits or repeat it ([TV0b])
 - [VR1d] Typecheck via `pnpm run type-check` (and `pnpm run type-check:tests` when relevant)
 - [VR1e] Format via `pnpm run format` and `pnpm run format:check`
 - [VR1f] Deployment readiness: use `pnpm run deploy:verify` and/or `pnpm run deploy:smoke-test`
