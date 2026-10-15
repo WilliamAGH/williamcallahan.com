@@ -161,6 +161,7 @@ export function categorizeError(error: unknown, domain?: string): ErrorCategory 
   // Network-related errors
   if (
     causeCode === "UND_ERR_SOCKET" ||
+    causeCode === "ECONNRESET" ||
     message.includes("econnreset") ||
     message.includes("econnrefused") ||
     message.includes("etimedout") ||

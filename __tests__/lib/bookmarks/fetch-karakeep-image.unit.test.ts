@@ -54,28 +54,31 @@ describe("fetchKarakeepImage", () => {
     expect(errorLines).toEqual([]);
   });
 
-  it("returns the complete asset when a socket reset after headers succeeds on retry", async () => {
-    const failure = new TypeError("terminated", {
-      cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }),
-    });
-    const failedBody = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.error(failure);
-      },
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(new Response(failedBody, { status: 200 }))
-        .mockResolvedValueOnce(new Response(new Uint8Array(8000), { status: 200 })),
-    );
+  it.each(["UND_ERR_SOCKET", "ECONNRESET"])(
+    "returns the complete asset after a body failure with cause %s",
+    async (code) => {
+      const failure = new TypeError("terminated", {
+        cause: Object.assign(new Error("other side closed"), { code }),
+      });
+      const failedBody = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.error(failure);
+        },
+      });
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn<typeof fetch>()
+          .mockResolvedValueOnce(new Response(failedBody, { status: 200 }))
+          .mockResolvedValueOnce(new Response(new Uint8Array(8000), { status: 200 })),
+      );
 
-    const asset = await fetchKarakeepImage("asset-body-reset");
+      const asset = await fetchKarakeepImage("asset-body-reset");
 
-    expect(asset?.length).toBe(8000);
-    expect(errorLines).toEqual([]);
-  });
+      expect(asset?.length).toBe(8000);
+      expect(errorLines).toEqual([]);
+    },
+  );
 
   it("returns null with one final error when every successful response body stalls", async () => {
     vi.stubGlobal(
