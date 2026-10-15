@@ -5,6 +5,7 @@ import { checkIfS3ObjectExists } from "@/lib/s3/objects";
 import { writeBinaryS3 } from "@/lib/s3/binary";
 import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
+import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import { retryWithThrow } from "@/lib/utils/retry";
 import type { LogoSource } from "@/types/logo";
 import type { UnifiedImageService } from "@/lib/services/unified-image-service";
@@ -97,38 +98,53 @@ describe("Logos Batch Performance Optimizations", () => {
   });
 
   describe("Batch S3 existence checking", () => {
-    it("should check S3 keys in parallel batches", async () => {
-      const checkTimes: Record<string, number> = {};
-      const startTime = Date.now();
+    it.each([2, 4])(
+      "checks ten S3 objects concurrently across %i domain variants",
+      async (variantCount) => {
+        const variants = [
+          "example.com",
+          "www.example.com",
+          "app.example.com",
+          "api.example.com",
+        ].slice(0, variantCount);
+        mockGetDomainVariants.mockReturnValue(variants);
+        const matchingKey = `logos/duckduckgo/${variants.at(-1)}.webp`;
+        let batchStarted = Promise.withResolvers<void>();
+        let batchCompletion = Promise.withResolvers<void>();
+        let activeChecks = 0;
+        let peakActiveChecks = 0;
 
-      // Track when each check is called
-      mockCheckIfS3ObjectExists.mockImplementation(async (key) => {
-        checkTimes[key] = Date.now() - startTime;
-        await new Promise((resolve) => setTimeout(resolve, 10)); // Simulate S3 latency
-        return false;
-      });
+        mockCheckIfS3ObjectExists.mockImplementation(async (key) => {
+          const completion = batchCompletion.promise;
+          activeChecks += 1;
+          peakActiveChecks = Math.max(peakActiveChecks, activeChecks);
+          if (activeChecks === 10) batchStarted.resolve();
+          await completion;
+          activeChecks -= 1;
+          return key === matchingKey;
+        });
 
-      await getLogoBatch("example.com");
+        const logoResult = getLogoBatch("example.com");
+        for (let batchIndex = 0; batchIndex < variantCount; batchIndex += 1) {
+          // Hold every check open until the full batch is in flight.
+          await Promise.race([batchStarted.promise, logoResult]);
+          expect(activeChecks).toBe(10);
+          const completeBatch = batchCompletion.resolve;
+          batchStarted = Promise.withResolvers<void>();
+          batchCompletion = Promise.withResolvers<void>();
+          completeBatch();
+        }
 
-      // Should check 2 variants × 2 sources × 5 extensions = 20 keys
-      expect(mockCheckIfS3ObjectExists).toHaveBeenCalledTimes(20);
-
-      // Analyze timing to verify batching
-      const timings = Object.values(checkTimes);
-      timings.sort((a, b) => a - b);
-
-      // First batch (10 keys) should start immediately
-      const firstBatchEnd = timings[9];
-      expect(firstBatchEnd).toBeLessThan(20); // Should complete quickly
-
-      // Second batch should start after first batch
-      const secondBatchStart = timings[10];
-      expect(secondBatchStart).toBeGreaterThanOrEqual(firstBatchEnd);
-
-      // Total time should be much less than sequential (20 × 10ms = 200ms)
-      const totalTime = timings[timings.length - 1];
-      expect(totalTime).toBeLessThan(50); // Should be ~20-30ms with batching
-    });
+        await expect(logoResult).resolves.toEqual({
+          url: `${getS3CdnUrl()}/${matchingKey}`,
+          source: "duckduckgo",
+          error: undefined,
+          contentType: "image/webp",
+        });
+        expect(activeChecks).toBe(0);
+        expect(peakActiveChecks).toBe(10);
+      },
+    );
 
     it("should return early when logo is found", async () => {
       // Make the 5th check return true
@@ -145,61 +161,9 @@ describe("Logos Batch Performance Optimizations", () => {
       expect(result.source).toBe("google"); // Found in first source
       expect(result.contentType).toBe("image/webp"); // 5th check is webp extension
     });
-
-    it("should handle multiple domain variants efficiently", async () => {
-      mockGetDomainVariants.mockReturnValue([
-        "example.com",
-        "www.example.com",
-        "app.example.com",
-        "api.example.com",
-      ]);
-
-      const checkTimes: number[] = [];
-      const startTime = Date.now();
-
-      mockCheckIfS3ObjectExists.mockImplementation(async () => {
-        checkTimes.push(Date.now() - startTime);
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        return false;
-      });
-
-      await getLogoBatch("example.com");
-
-      // Should check 4 variants × 2 sources × 5 extensions = 40 keys
-      expect(mockCheckIfS3ObjectExists).toHaveBeenCalledTimes(40);
-
-      // Verify batching is working
-      // Count how many checks started in each time window
-      const windows = [0, 10, 20, 30, 40];
-      const checksPerWindow = windows.map((window, i) => {
-        const nextWindow = windows[i + 1] || Infinity;
-        return checkTimes.filter((t) => t >= window && t < nextWindow).length;
-      });
-
-      // With fast mocked responses, many checks may complete in the first window
-      // The actual batching happens but timing windows may capture multiple batches
-      expect(checksPerWindow[0]).toBeGreaterThanOrEqual(10);
-    });
   });
 
-  describe("Performance comparison", () => {
-    it("should be significantly faster than sequential checking", async () => {
-      // Simulate realistic S3 latency
-      mockCheckIfS3ObjectExists.mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 20)); // 20ms per check
-        return false;
-      });
-
-      const startTime = Date.now();
-      await getLogoBatch("example.com");
-      const duration = Date.now() - startTime;
-
-      // Sequential would take 20 checks × 20ms = 400ms
-      // Batched should take ~2 batches × 20ms = ~40ms
-      expect(duration).toBeLessThan(100); // Allow some overhead
-      expect(duration).toBeGreaterThanOrEqual(40);
-    });
-
+  describe("Batch failures", () => {
     it("should handle errors in batch without failing entire operation", async () => {
       let checkCount = 0;
       mockCheckIfS3ObjectExists.mockImplementation(() => {
