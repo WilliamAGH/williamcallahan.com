@@ -29,7 +29,8 @@ This system is designed to support multiple AI-backed site features where each f
 - `src/lib/ai/openai-compatible/feature-config.ts` — Per-feature env resolution + URL builder + shared upstream queue-key builder.
 - `src/lib/ai/openai-compatible/browser-client.ts` — Minimal browser helper that mints `/api/ai/token` then calls `/api/ai/chat/[feature]`.
 - `src/types/schemas/ai-openai-compatible.ts` — Zod schemas for API mode, chat payload validation, and normalized upstream response parsing.
-- `src/types/schemas/ai-chat.ts` — Shared feature identifier schema and request validation for chat routes.
+- `src/types/schemas/ai-chat.ts` — Request validation for chat routes.
+- `src/types/schemas/ai-feature.ts` — Shared feature identifier schema for request validation, logging, and gateway workload attribution.
 - `src/lib/ai/openai-compatible/upstream-request-queue.ts` — Per-upstream (model + URL) priority queue with configurable max parallelism.
 - `src/app/api/ai/chat/[feature]/upstream-runner.ts` — Multi-turn upstream orchestration for tool calls, model fallback, and deterministic post-processing.
 - `src/app/api/ai/chat/[feature]/analysis-output-config.ts` — Analysis feature schema/field metadata used by structured-output validation.
