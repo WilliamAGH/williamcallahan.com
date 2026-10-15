@@ -1,6 +1,6 @@
 # lefthook.yml — Git hook configuration (replaces .husky/)
 # Pre-commit: lint-fix then format staged files (piped: both rewrite the same files)
-# Pre-push: production build + verification gate (sequential)
+# Pre-push: production build + verification gate (sequential) for branch pushes
 
 pre-commit:
   piped: true
@@ -17,9 +17,15 @@ pre-commit:
       stage_fixed: true
 
 pre-push:
-  piped: true
   commands:
-    build:
-      run: USE_NEXTJS_CACHE=false SKIP_BUILD_VALIDATIONS=1 pnpm run build
-    verify:
-      run: pnpm run verify
+    build-and-verify:
+      use_stdin: true
+      # refs/wip/* only shares unlanded work between hosts; a branch push ships, so only it pays
+      # for the build, which also needs a .env that most fleet hosts lack
+      run: |
+        gated=0
+        while read -r local_ref local_oid remote_ref remote_oid; do
+          case "$remote_ref" in refs/wip/*) ;; *) gated=1 ;; esac
+        done
+        [ "$gated" = 0 ] && exit 0
+        USE_NEXTJS_CACHE=false SKIP_BUILD_VALIDATIONS=1 pnpm run build && pnpm run verify
