@@ -103,6 +103,7 @@ describe("Search-mode client pagination", () => {
     render(
       <SWRConfig value={{ provider: () => new Map() }}>
         <BookmarksWithPagination
+          bookmarks={mockBookmarks.slice(0, 24)}
           initialBookmarks={mockBookmarks.slice(0, 24)}
           enableInfiniteScroll={false}
           showFilterBar={false}
