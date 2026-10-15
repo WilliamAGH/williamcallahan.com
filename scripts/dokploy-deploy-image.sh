@@ -62,7 +62,10 @@ if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" ||
   dokploy_post application.update "${update_body}" >/dev/null
 fi
 
-deploy_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg key "${digest_hex}" \
+# Dokploy reuses completed keys, so a label-only change must name a new desired deployment.
+deployment_key="$(jq -ncS --arg image "${image_ref}" --argjson labels "${target_labels}" \
+  '{image: $image, labels: $labels}' | sha256sum | cut -d ' ' -f 1)"
+deploy_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg key "${deployment_key}" \
   --argjson labels "${target_labels}" \
   '{applicationId: $id, expectedDockerImage: $image, expectedLabelsSwarm: $labels, idempotencyKey: $key}')"
 deployment_id="$(dokploy_post application.deploy "${deploy_body}" | jq -er '.deploymentId')"
