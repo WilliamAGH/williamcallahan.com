@@ -36,7 +36,6 @@ export function BaseIcon({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      role="img"
       {...props}
     >
       <title>Social Icon</title>

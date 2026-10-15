@@ -95,29 +95,29 @@ function setupAbortSignal(
 }
 
 /**
- * Handle fetch errors with proper abort/timeout distinction
+ * Map a fetch failure to the error to throw, distinguishing caller abort from timeout
  */
-function handleFetchError(
+function toFetchError(
   error: unknown,
   abortedByExternalSignal: boolean,
   timeout: number,
   effectiveUrl: string,
-): never {
+): Error {
   if (!(error instanceof Error)) {
-    throw new Error(`Fetch failed: ${String(error)}`, { cause: error });
+    return new Error(`Fetch failed: ${String(error)}`, { cause: error });
   }
 
   if (error.name === "AbortError") {
     if (abortedByExternalSignal) {
-      throw new DOMException("Request aborted", "AbortError");
+      return new DOMException("Request aborted", "AbortError");
     }
 
-    throw new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
+    return new Error(`Request timeout after ${timeout}ms: ${stripQueryAndHash(effectiveUrl)}`, {
       cause: error,
     });
   }
 
-  throw error;
+  return error;
 }
 
 function getValidatedRedirectUrl(response: Response, requestUrl: string): string | null {
@@ -154,7 +154,11 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
   } = options;
 
   const effectiveUrl = buildProxyUrl(url, proxyUrl);
-  const defaultHeaders = useBrowserHeaders ? BROWSER_HEADERS : DEFAULT_IMAGE_HEADERS;
+  const requestHeaders = new Headers(useBrowserHeaders ? BROWSER_HEADERS : DEFAULT_IMAGE_HEADERS);
+  if (userAgent) requestHeaders.set("User-Agent", userAgent);
+  new Headers(headers).forEach((headerValue, headerName) => {
+    requestHeaders.set(headerName, headerValue);
+  });
 
   const controller = new AbortController();
   const { abortedByExternalSignal } = setupAbortSignal(controller, signal);
@@ -168,11 +172,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
         ...fetchOptions,
         redirect: "manual",
         signal: controller.signal,
-        headers: {
-          ...defaultHeaders,
-          ...(userAgent && { "User-Agent": userAgent }),
-          ...headers,
-        },
+        headers: requestHeaders,
       });
 
       // Handle 202 Accepted status if requested (GitHub API pattern)
@@ -197,7 +197,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
       requestUrl = redirectUrl;
     }
   } catch (error) {
-    handleFetchError(error, abortedByExternalSignal, timeout, effectiveUrl);
+    throw toFetchError(error, abortedByExternalSignal, timeout, effectiveUrl);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -230,13 +230,9 @@ export async function fetchBinary(
  * Fetch JSON with timeout and validation
  */
 export async function fetchJson<T>(url: string, options?: FetchOptions): Promise<T> {
-  const response = await fetchWithTimeout(url, {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      ...options?.headers,
-    },
-  });
+  const jsonHeaders = new Headers(options?.headers);
+  if (!jsonHeaders.has("Accept")) jsonHeaders.set("Accept", "application/json");
+  const response = await fetchWithTimeout(url, { ...options, headers: jsonHeaders });
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);

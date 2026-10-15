@@ -1,3 +1,18 @@
+import type {
+  fetchContributedRepositories,
+  fetchContributionCalendar,
+  fetchRepositoryCommitCount,
+  getGitHubUsername,
+  isGitHubApiConfigured,
+} from "@/lib/data-access/github-api";
+import type {
+  readRepoWeeklyStatsRecord,
+  writeGitHubActivityRefreshRecord,
+} from "@/lib/data-access/github-storage";
+import type { processSingleRepository } from "@/lib/data-access/github-repo-processor";
+import type { isOperationAllowed } from "@/lib/rate-limiter";
+import type { assertDatabaseWriteAllowed } from "@/lib/db/connection";
+
 const {
   mockFetchContributedRepositories,
   mockFetchContributionCalendar,
@@ -8,21 +23,21 @@ const {
   mockReadRepoWeeklyStatsRecord,
   mockWriteGitHubActivityRefreshRecord,
 } = vi.hoisted(() => ({
-  mockFetchContributedRepositories: vi.fn(),
-  mockFetchContributionCalendar: vi.fn(),
-  mockFetchRepositoryCommitCount: vi.fn(),
-  mockIsGitHubApiConfigured: vi.fn(),
-  mockIsOperationAllowed: vi.fn(),
-  mockProcessSingleRepository: vi.fn(),
-  mockReadRepoWeeklyStatsRecord: vi.fn(),
-  mockWriteGitHubActivityRefreshRecord: vi.fn(),
+  mockFetchContributedRepositories: vi.fn<typeof fetchContributedRepositories>(),
+  mockFetchContributionCalendar: vi.fn<typeof fetchContributionCalendar>(),
+  mockFetchRepositoryCommitCount: vi.fn<typeof fetchRepositoryCommitCount>(),
+  mockIsGitHubApiConfigured: vi.fn<typeof isGitHubApiConfigured>(),
+  mockIsOperationAllowed: vi.fn<typeof isOperationAllowed>(),
+  mockProcessSingleRepository: vi.fn<typeof processSingleRepository>(),
+  mockReadRepoWeeklyStatsRecord: vi.fn<typeof readRepoWeeklyStatsRecord>(),
+  mockWriteGitHubActivityRefreshRecord: vi.fn<typeof writeGitHubActivityRefreshRecord>(),
 }));
 
 vi.mock("@/lib/data-access/github-api", () => ({
   fetchContributionCalendar: mockFetchContributionCalendar,
   fetchContributedRepositories: mockFetchContributedRepositories,
   fetchRepositoryCommitCount: mockFetchRepositoryCommitCount,
-  getGitHubUsername: vi.fn(() => "test-owner"),
+  getGitHubUsername: vi.fn<typeof getGitHubUsername>(() => "test-owner"),
   isGitHubApiConfigured: mockIsGitHubApiConfigured,
 }));
 vi.mock("@/lib/data-access/github-storage", () => ({
@@ -38,7 +53,6 @@ vi.mock("@/lib/rate-limiter", () => ({
 
 import { refreshGitHubActivityDataFromApi } from "../../src/lib/data-access/github";
 import { createGitHubActivitySummary } from "@/lib/data-access/github-activity-summaries";
-import type { writeGitHubActivityRefreshRecord } from "@/lib/data-access/github-storage";
 import {
   calculateAggregatedWeeklyActivity,
   createEmptyCategoryStats,
@@ -314,12 +328,15 @@ describe("GitHub activity atomic persistence", () => {
     vi.resetModules();
     const events: string[] = [];
     let records: Array<{ dataType: string; updatedAt: number }> = [];
-    const captureMessage = vi.fn(() => {
+    const captureMessage = vi.fn<typeof import("@sentry/nextjs").captureMessage>(() => {
       events.push("integrity");
       return "integrity-event";
     });
     const tx = {
-      execute: () => (events.push("lock"), Promise.resolve()),
+      execute: () => {
+        events.push("lock");
+        return Promise.resolve();
+      },
       select: () => (
         events.push("read"),
         { from: () => ({ where: () => ({ limit: async () => [{ payload: existing }] }) }) }
@@ -338,7 +355,7 @@ describe("GitHub activity atomic persistence", () => {
     };
     vi.doMock("@sentry/nextjs", () => ({ captureMessage }));
     vi.doMock("@/lib/db/connection", () => ({
-      assertDatabaseWriteAllowed: vi.fn(),
+      assertDatabaseWriteAllowed: vi.fn<typeof assertDatabaseWriteAllowed>(),
       db: {
         select: tx.select,
         transaction: (callback: (executor: typeof tx) => Promise<boolean>) => callback(tx),

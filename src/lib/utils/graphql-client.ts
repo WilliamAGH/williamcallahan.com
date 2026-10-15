@@ -13,6 +13,19 @@ import type { FetchOptions } from "@/types/http";
 import type { GraphQLRequest, GraphQLResponse, GraphQLClientConfig } from "@/types/graphql";
 
 /**
+ * Custom error class for GraphQL errors
+ */
+export class GraphQLError extends Error {
+  constructor(
+    message: string,
+    public errors: NonNullable<GraphQLResponse<never>["errors"]>,
+  ) {
+    super(message);
+    this.name = "GraphQLError";
+  }
+}
+
+/**
  * GraphQL Client class for making authenticated GraphQL requests
  */
 export class GraphQLClient {
@@ -127,19 +140,6 @@ export class GraphQLClient {
       ...this.config.headers,
       ...headers,
     };
-  }
-}
-
-/**
- * Custom error class for GraphQL errors
- */
-export class GraphQLError extends Error {
-  constructor(
-    message: string,
-    public errors: NonNullable<GraphQLResponse<never>["errors"]>,
-  ) {
-    super(message);
-    this.name = "GraphQLError";
   }
 }
 

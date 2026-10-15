@@ -2,7 +2,7 @@
 
 **Functionality:** `testing-config`
 
-This document defines the Vitest-based testing architecture for this project. It replaces legacy Jest guidance and aligns with Next.js 16 + React 19 + Bun runtime constraints.
+This document defines the Vitest-based testing architecture for this project. It replaces legacy Jest guidance and aligns with Next.js 16 + React 19 on Node.
 
 ## Anti-Polyfill Mandate
 
@@ -10,16 +10,16 @@ This codebase forbids polyfills. Use native runtime APIs, ponyfills, or targeted
 
 ## Core Principle: Vitest Only
 
-All tests run through Vitest via `bun run` scripts so the correct configuration is loaded. Do not use `bun test` directly.
+All tests run through Vitest via `pnpm run test*` scripts so the correct configuration is loaded.
 
 Required scripts:
 
 ```bash
-bun run test
-bun run test:watch
-bun run test:coverage
-bun run test:ci
-bun run test:smoke
+pnpm run test
+pnpm run test:watch
+pnpm run test:coverage
+pnpm run test:ci
+pnpm run test:smoke
 ```
 
 ## Next.js 16 + Vitest Constraints
@@ -80,13 +80,13 @@ probes is a repository of noise that future changes must keep green for no reaso
 
 Climb only when the rung below cannot answer the question:
 
-1. **Types** — editor diagnostics, or `bun run type-check` / `bun run type-check:tests`.
-2. **Lint** — `bun run lint:checks` (ast-grep rules via `bun run lint:ast-grep`).
+1. **Types** — editor diagnostics, or `pnpm run type-check` / `pnpm run type-check:tests`.
+2. **Lint** — `pnpm run lint:checks` (ast-grep rules via `pnpm run lint:ast-grep`).
 3. **Scratch probe** — a throwaway `.ts` file kept _outside_ the repo (the session
-   scratchpad, per [PX0h]) and executed with `bun <scratchpad>/probe.ts`. Bun runs
+   scratchpad, per [PX0h]) and executed with `pnpm exec tsx <scratchpad>/probe.ts`. tsx runs
    TypeScript directly; import repo modules by absolute path, because the `@/` alias
    resolves through `tsconfig.json` and is unavailable from outside the repo.
-4. **Running app** — `bun run dev`, then exercise the real route.
+4. **Running app** — `pnpm run dev`, then exercise the real route.
 5. **Committed test** — an assertion at the observable boundary. This is the only
    persistent rung; everything above it is deleted when the question is answered.
 
@@ -111,14 +111,14 @@ worktree hygienic.
 Run the complete local browser-free gate with:
 
 ```bash
-bun run verify
+pnpm run verify
 ```
 
 The automated GitHub gate in `.github/workflows/verification.yml` runs for pull
 requests targeting `main` (with `workflow_dispatch` reserved for manual runs), installs
-Chromium, and invokes `bun run verify:browser`, which adds the blog E2E test after the
+Chromium, and invokes `pnpm run verify:browser`, which adds the blog E2E test after the
 browser-free gate. The pre-push hook in `.config/lefthook.yml` runs the production build
-and then the browser-free `bun run verify` gate.
+and then the browser-free `pnpm run verify` gate.
 
 ## MDX Toolchain Compatibility
 
@@ -148,7 +148,7 @@ Use Vitest primitives:
 import { vi } from "vitest";
 
 vi.mock("@/lib/data", () => ({
-  fetchData: vi.fn(),
+  fetchData: vi.fn<() => Promise<string[]>>(),
 }));
 
 const spy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -166,7 +166,7 @@ Use `act` or `waitFor` when state updates are async. If `React.act` is missing i
 
 ## Troubleshooting
 
-`ReferenceError: vi is not defined` means you ran `bun test` directly. Use `bun run test` so Vitest config loads.
+`ReferenceError: vi is not defined` means Vitest ran without `config/vitest.config.ts`. Use `pnpm run test` so Vitest config loads.
 
 `document is not defined` means the jsdom environment or setup files did not load. Confirm `config/vitest.config.ts` and `config/vitest/setup.ts` are referenced correctly.
 

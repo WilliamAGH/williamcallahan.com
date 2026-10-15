@@ -19,7 +19,7 @@ import type { StandardApiErrorCode, StandardApiErrorResponse } from "@/types/sch
  * Standard headers to prevent caching in the response.
  * Used for API routes that return dynamic data.
  */
-export const NO_STORE_HEADERS: HeadersInit = { "Cache-Control": "no-store" };
+export const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const satisfies HeadersInit;
 export const RATE_LIMITED_MESSAGE =
   "You've reached a rate limit. Please wait a few minutes and try again.";
 export const SERVICE_UNAVAILABLE_MESSAGE =
@@ -85,16 +85,11 @@ export function createErrorResponse(
   status = 500,
   additionalHeaders?: HeadersInit,
 ): NextResponse {
-  return NextResponse.json(
-    { error: message },
-    {
-      status,
-      headers: {
-        ...NO_STORE_HEADERS,
-        ...additionalHeaders,
-      },
-    },
-  );
+  const responseHeaders = new Headers(NO_STORE_HEADERS);
+  new Headers(additionalHeaders).forEach((headerValue, headerName) => {
+    responseHeaders.set(headerName, headerValue);
+  });
+  return NextResponse.json({ error: message }, { status, headers: responseHeaders });
 }
 
 function normalizeRetryAfterSeconds(value: number): number {

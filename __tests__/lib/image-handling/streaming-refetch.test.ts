@@ -5,6 +5,7 @@ import { UnifiedImageService } from "@/lib/services/unified-image-service";
 import { streamToS3 } from "@/lib/services/image-streaming";
 import { fetchWithTimeout } from "@/lib/utils/http-client";
 import { checkIfS3ObjectExists } from "@/lib/s3/objects";
+import type { deleteFromS3, getObject, listS3Objects, putObject } from "@/lib/s3/objects";
 import { streamToBuffer } from "@/lib/s3/stream";
 
 type MockUploadInstance = {
@@ -20,13 +21,13 @@ const { uploadInstances, uploadBehavior } = vi.hoisted(() => ({
 
 vi.mock("@aws-sdk/lib-storage", () => {
   class MockUpload implements MockUploadInstance {
-    abort = vi.fn(() => Promise.resolve());
-    done = vi.fn(() =>
+    abort = vi.fn<() => Promise<void>>(() => Promise.resolve());
+    done = vi.fn<() => Promise<{ Location: string }>>(() =>
       uploadBehavior.completes
         ? Promise.resolve({ Location: "https://bucket.s3.amazonaws.com/key" })
         : new Promise<{ Location: string }>(() => undefined),
     );
-    on = vi.fn(() => this);
+    on = vi.fn<() => MockUploadInstance>(() => this);
 
     constructor() {
       uploadInstances.push(this);
@@ -37,16 +38,16 @@ vi.mock("@aws-sdk/lib-storage", () => {
 });
 
 vi.mock("@/lib/utils/http-client", () => ({
-  fetchWithTimeout: vi.fn(),
+  fetchWithTimeout: vi.fn<typeof fetchWithTimeout>(),
   DEFAULT_IMAGE_HEADERS: { "User-Agent": "test-agent" },
 }));
 
 vi.mock("@/lib/s3/objects", () => ({
-  checkIfS3ObjectExists: vi.fn(),
-  getObject: vi.fn(),
-  putObject: vi.fn(),
-  listS3Objects: vi.fn(),
-  deleteFromS3: vi.fn(),
+  checkIfS3ObjectExists: vi.fn<typeof checkIfS3ObjectExists>(),
+  getObject: vi.fn<typeof getObject>(),
+  putObject: vi.fn<typeof putObject>(),
+  listS3Objects: vi.fn<typeof listS3Objects>(),
+  deleteFromS3: vi.fn<typeof deleteFromS3>(),
 }));
 
 const mockFetchWithTimeout = fetchWithTimeout as Mock;
@@ -102,7 +103,7 @@ describe("UnifiedImageService streaming fallback", () => {
 
     // Verify the result has valid buffer with expected length from the second (re-fetched) response
     expect(result.buffer).toBeDefined();
-    expect(result.buffer.length).toBe(3);
+    expect(result.buffer?.length).toBe(3);
     // Note: Buffer content verification skipped due to ArrayBuffer/Buffer transfer quirks in tests
     // The length assertion confirms re-fetch succeeded with new response data
   });

@@ -50,9 +50,7 @@ function normalizeBlogMdxContent(content: string): string {
     .replaceAll(/```ps1\b/g, "```powershell");
 }
 
-async function serializeBlogMdxContent(
-  content: string,
-): Promise<MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>> {
+async function serializeBlogMdxContent(content: string): Promise<MDXRemoteSerializeResult> {
   return serialize(normalizeBlogMdxContent(content), {
     mdxOptions: {
       remarkPlugins: [remarkGfm],

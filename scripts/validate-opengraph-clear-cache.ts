@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 /**
  * OpenGraph Validation & Twitter Cache Clearing Utility
  * @file scripts/validate-opengraph-clear-cache.ts
@@ -19,10 +19,10 @@
  * **Usage Examples:**
  * ```bash
  * # Manual execution for immediate cache clearing
- * bun run validate-opengraph
+ * pnpm run validate-opengraph
  *
  * # Via package.json script (recommended)
- * bun run scripts/validate-opengraph-clear-cache.ts
+ * tsx scripts/validate-opengraph-clear-cache.ts
  * ```
  *
  * **Important Notes:**
@@ -200,7 +200,7 @@ async function main() {
     const fullUrl = new URL(path, siteMetadata.site.url).toString();
     console.log(`\n${"=".repeat(60)}`);
     console.log(`🔍 Processing: ${fullUrl}`);
-    console.log(`${"=".repeat(60)}`);
+    console.log("=".repeat(60));
 
     // Step 1: Real OpenGraph validation
     console.log(`\n📋 VALIDATION RESULTS:`);
@@ -246,7 +246,7 @@ async function main() {
   console.log("✨ All operations completed!");
   console.log("ℹ️  Social media cache updates may take 5-10 minutes to propagate");
   console.log("🔗 Use the manual verification links above to test immediately");
-  console.log(`${"=".repeat(60)}`);
+  console.log("=".repeat(60));
 }
 
 // Execute the script with proper error handling

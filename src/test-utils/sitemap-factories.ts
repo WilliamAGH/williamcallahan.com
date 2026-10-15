@@ -40,14 +40,14 @@ export const buildBookmarksIndex = (
   overrides: Partial<{
     count: number;
     totalPages: number;
-    lastModified: string | undefined;
+    lastModified: string;
     pageSize: number;
   }> = {},
 ) => ({
   count: overrides.count ?? 0,
   totalPages: overrides.totalPages ?? 1,
   pageSize: overrides.pageSize ?? BOOKMARKS_PER_PAGE,
-  lastModified: overrides.lastModified,
+  lastModified: overrides.lastModified ?? new Date().toISOString(),
   lastFetchedAt: Date.now(),
   lastAttemptedAt: Date.now(),
   checksum: "test",

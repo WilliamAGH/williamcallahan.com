@@ -16,6 +16,7 @@ import React, {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react"; // Removed unused type FC
@@ -61,7 +62,7 @@ export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): JSX
         "[&_a:hover]:text-blue-500 [&_a:hover]:dark:text-blue-300 [&_a:hover]:no-underline",
       ),
     };
-    return React.cloneElement(childNode as React.ReactElement<unknown>, newProps);
+    return React.cloneElement(childNode as React.ReactElement, newProps);
   });
   return <>{childrenWithProps}</>;
 }
@@ -114,7 +115,7 @@ export function InstructionMacOSFrameTabs({
   // Effect for handling Escape key to un-maximize and click outside to un-maximize.
   useEffect(() => {
     // Only attach listeners when maximized
-    if (!isMaximized) return;
+    if (!isMaximized) return undefined;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -163,14 +164,19 @@ export function InstructionMacOSFrameTabs({
     originalChild: ReactElement<InstructionMACOSTabProps>;
   }>;
 
-  // Set the default tab after the tabs are processed, but outside the render cycle
-  useEffect(() => {
-    if (activeTabLabel === null && instructionTabs.length > 0) {
-      // Prefer an explicitly-marked default, otherwise first tab
-      const defaultTab = instructionTabs.find((t) => t.isDefault) ?? instructionTabs[0];
-      if (defaultTab) setActiveTabLabel(defaultTab.label);
-    }
-  }, [activeTabLabel, instructionTabs]);
+  const resolvedActiveTabLabel =
+    activeTabLabel ??
+    (instructionTabs.find((t) => t.isDefault) ?? instructionTabs[0])?.label ??
+    null;
+  const contextValue = useMemo(
+    () => ({
+      activeTab: resolvedActiveTabLabel,
+      setActiveTab: setActiveTabLabel,
+      tabs: instructionTabs.map((t) => ({ label: t.label, id: t.id })),
+      baseId,
+    }),
+    [resolvedActiveTabLabel, setActiveTabLabel, instructionTabs, baseId],
+  );
 
   if (instructionTabs.length === 0) {
     return (
@@ -186,8 +192,8 @@ export function InstructionMacOSFrameTabs({
   }));
 
   // Process activeChildContent to open CollapseDropdowns
-  const activeTabDetails = activeTabLabel
-    ? instructionTabs.find((it) => it.label === activeTabLabel)
+  const activeTabDetails = resolvedActiveTabLabel
+    ? instructionTabs.find((it) => it.label === resolvedActiveTabLabel)
     : undefined;
   let activeChildContentProcessed: ReactNode = null;
 
@@ -214,7 +220,7 @@ export function InstructionMacOSFrameTabs({
 
         return React.cloneElement(collapseDropdownElement, {
           defaultOpen: true,
-          key: `${activeTabLabel}-dropdown-${keyPart}`,
+          key: `${resolvedActiveTabLabel}-dropdown-${keyPart}`,
         });
       }
       return child;
@@ -254,14 +260,7 @@ export function InstructionMacOSFrameTabs({
         className, // Allow external classes to be merged
       )}
     >
-      <InstructionMacOSFrameTabsContext.Provider
-        value={{
-          activeTab: activeTabLabel,
-          setActiveTab: setActiveTabLabel,
-          tabs: instructionTabs.map((t) => ({ label: t.label, id: t.id })),
-          baseId,
-        }}
-      >
+      <InstructionMacOSFrameTabsContext.Provider value={contextValue}>
         <MacOSWindow
           className={cn(
             "!my-0 !border-0 !shadow-none !rounded-none",
@@ -270,7 +269,7 @@ export function InstructionMacOSFrameTabs({
             !isMaximized && className,
           )}
           tabs={windowTabs}
-          activeTabId={activeTabLabel || ""}
+          activeTabId={resolvedActiveTabLabel || ""}
           onTabClick={(tabId) => setActiveTabLabel(tabId)}
           clipContent={false}
           contentClassName={cn(

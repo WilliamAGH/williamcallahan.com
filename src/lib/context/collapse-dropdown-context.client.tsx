@@ -171,7 +171,7 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
   // Handle initial hash on mount
   useEffect(() => {
     const hash = window.location.hash.substring(1);
-    if (!hash) return;
+    if (!hash) return undefined;
 
     // Give dropdowns time to register
     const timer = setTimeout(() => {

@@ -62,6 +62,7 @@ export async function buildQueryEmbedding(
       config: embeddingConfig,
       input: [query],
       tier: "production-z",
+      workload: "williamcallahan.com:embeddings:live",
       timeoutMs,
     });
     const vector = vectors[0];

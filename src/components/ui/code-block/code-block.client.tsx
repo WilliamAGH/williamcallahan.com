@@ -120,7 +120,13 @@ export const CodeBlock = ({
   // Max-heights use Tailwind preset sizes to ensure classes are statically discoverable by the compiler
   // 64 => 16rem (256px), 72 => 18rem (288px), 80 => 20rem (320px)
 
-  const language = extractLanguage(className);
+  // MDX code fences put `language-*` on the child <code>, not on the <pre>.
+  const childClassName =
+    isValidElement<{ className?: unknown }>(children) &&
+    typeof children.props.className === "string"
+      ? children.props.className
+      : undefined;
+  const language = extractLanguage(className) || extractLanguage(childClassName);
   const codeElementRef = useRef<HTMLElement | null>(null);
   const collapsibleRegionId = useId();
 
@@ -353,41 +359,47 @@ export const CodeBlock = ({
               isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden",
             )}
           >
-            <pre
-              id={collapsibleRegionId}
+            {/* The section is the scroll container; tabIndex lets keyboard users scroll it
+                in browsers that do not make scrollers focusable on their own (Safari). */}
+            <section
               role="region"
-              aria-label={language ? `${language} code` : "Code block"}
+              aria-label={language ? `Code: ${language}` : "Code block"}
               tabIndex={0}
               className={cn(
-                "not-prose max-w-full",
-                "whitespace-pre-wrap",
-                "break-words",
-                "overflow-x-auto",
-                embeddedInTabFrame
-                  ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none text-gray-900 dark:text-gray-100"
-                  : "p-4 text-gray-900 dark:text-gray-100",
-                "text-[13px] leading-relaxed",
-                "custom-scrollbar",
-                "![text-shadow:none] [&_*]:![text-shadow:none]",
-                "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
-                isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
-                // Auto-collapse long code blocks unless maximized
-                isCollapsed &&
-                  !isMaximized &&
-                  isLongCode &&
-                  "overflow-hidden max-h-64 sm:max-h-72 md:max-h-80",
-                className, // From MDX (e.g., language-bash)
+                "overflow-x-auto custom-scrollbar",
+                isMaximized && !embeddedInTabFrame && "h-full overflow-y-auto",
               )}
-              {...props}
             >
-              {isValidElement(children) ? (
-                children
-              ) : (
-                <code ref={codeElementRef} className={className}>
-                  {displayContent}
-                </code>
-              )}
-            </pre>
+              <pre
+                id={collapsibleRegionId}
+                className={cn(
+                  "not-prose max-w-full",
+                  "whitespace-pre-wrap",
+                  "break-words",
+                  embeddedInTabFrame
+                    ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none text-gray-900 dark:text-gray-100"
+                    : "p-4 text-gray-900 dark:text-gray-100",
+                  "text-[13px] leading-relaxed",
+                  "![text-shadow:none] [&_*]:![text-shadow:none]",
+                  "[&_*]:!bg-transparent [&_*]:!leading-relaxed font-mono",
+                  // Auto-collapse long code blocks unless maximized
+                  isCollapsed &&
+                    !isMaximized &&
+                    isLongCode &&
+                    "overflow-hidden max-h-64 sm:max-h-72 md:max-h-80",
+                  className, // From MDX (e.g., language-bash)
+                )}
+                {...props}
+              >
+                {isValidElement(children) ? (
+                  children
+                ) : (
+                  <code ref={codeElementRef} className={className}>
+                    {displayContent}
+                  </code>
+                )}
+              </pre>
+            </section>
             {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
             <CopyButton content={filteredContent} parentIsPadded={!embeddedInTabFrame} />
             {/* Collapsed overlay with gradient and expand/collapse control */}

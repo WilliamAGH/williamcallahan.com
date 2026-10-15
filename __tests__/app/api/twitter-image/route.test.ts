@@ -5,8 +5,9 @@ import {
   TWITTER_IMAGE_ROOT_POLICIES,
 } from "@/lib/image-handling/twitter-image-policy";
 import { ImageFetchHttpError } from "@/lib/services/image/image-fetcher";
+import type { UnifiedImageService } from "@/lib/services/unified-image-service";
 
-const { getImage } = vi.hoisted(() => ({ getImage: vi.fn() }));
+const { getImage } = vi.hoisted(() => ({ getImage: vi.fn<UnifiedImageService["getImage"]>() }));
 
 vi.mock("@/lib/services/unified-image-service", () => ({
   getUnifiedImageService: () => ({ getImage }),
@@ -32,7 +33,7 @@ describe("Twitter image route", () => {
     getImage.mockResolvedValue({
       buffer: Buffer.from([1]),
       contentType: "image/jpeg",
-      source: "network",
+      source: "origin",
     });
   });
 

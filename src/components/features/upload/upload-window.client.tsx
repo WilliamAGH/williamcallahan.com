@@ -54,7 +54,7 @@ function getUploadErrorMessage(responseText: string): string {
   try {
     const parsed: unknown = JSON.parse(trimmed);
     const result = UploadResponseSchema.safeParse(parsed);
-    if (result.success && result.data.success === false && result.data.error) {
+    if (result.success && !result.data.success && result.data.error) {
       return result.data.error;
     }
   } catch (error) {
@@ -484,7 +484,7 @@ function UploadWindowContentInner({
               }
 
               const response = result.data;
-              if (response.success === false) {
+              if (!response.success) {
                 reject(new Error(response.error ?? "Upload failed"));
                 return;
               }
@@ -614,7 +614,9 @@ function UploadWindowContentInner({
             <>
               <button
                 type="button"
-                onClick={handleUpload}
+                onClick={() => {
+                  void handleUpload();
+                }}
                 disabled={!canUpload}
                 className={cn(
                   "flex-1 px-6 py-3 font-mono text-sm",

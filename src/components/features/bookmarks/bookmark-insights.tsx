@@ -18,10 +18,12 @@ import type { BookmarkTag } from "@/types/schemas/bookmark";
 /** Character length threshold for showing expand/collapse control */
 const EXPANDABLE_CONTENT_LENGTH = 200;
 
+const NO_TAGS: Array<Partial<BookmarkTag>> = [];
+
 export function BookmarkInsights({
   note,
   summary,
-  tags = [],
+  tags = NO_TAGS,
   className,
 }: {
   note?: string | null;

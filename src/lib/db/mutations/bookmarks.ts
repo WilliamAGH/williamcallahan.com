@@ -101,8 +101,8 @@ const resolveTagMetadata = (
   }
 
   if (rawTag && typeof rawTag === "object") {
-    const nameValue = "name" in rawTag ? (rawTag.name as unknown) : null;
-    const slugValue = "slug" in rawTag ? (rawTag.slug as unknown) : null;
+    const nameValue = "name" in rawTag ? rawTag.name : null;
+    const slugValue = "slug" in rawTag ? rawTag.slug : null;
     if (typeof nameValue !== "string") {
       return null;
     }
@@ -161,10 +161,10 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
   >();
 
   for (const bookmark of bookmarksData) {
-    const bookmarkTags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
+    const rawBookmarkTags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
     const seenSlugsForBookmark = new Set<string>();
 
-    for (const rawTag of bookmarkTags) {
+    for (const rawTag of rawBookmarkTags) {
       const tagMetadata = resolveTagMetadata(rawTag);
       if (!tagMetadata || seenSlugsForBookmark.has(tagMetadata.tagSlug)) {
         continue;

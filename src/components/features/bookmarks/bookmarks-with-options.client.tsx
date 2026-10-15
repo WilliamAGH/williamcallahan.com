@@ -13,9 +13,10 @@ import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarksWithOptionsClientProps } from "@/types/features/bookmarks";
 import { Loader2, RefreshCw } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
+import { useMount } from "@/components/ui/theme/use-mount";
 import { useBookmarkRefresh } from "@/hooks/use-bookmark-refresh";
 import { useClientBookmarks } from "@/hooks/use-client-bookmarks";
 
@@ -35,7 +36,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   description,
   internalHrefs: initialInternalHrefs,
 }) => {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMount();
   const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   const router = useRouter();
   const pathname = usePathname();
@@ -73,10 +74,6 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
       router.refresh();
     },
   });
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const activeBookmarks = searchAllBookmarks ? clientBookmarks : bookmarks;
 
@@ -148,7 +145,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
                   Local refresh completed. Would you like to{" "}
                   <button
                     type="button"
-                    onClick={handleProductionRefresh}
+                    onClick={() => {
+                      void handleProductionRefresh();
+                    }}
                     className="underline hover:text-blue-700 dark:hover:text-blue-200 font-medium"
                     disabled={isRefreshingProduction}
                   >

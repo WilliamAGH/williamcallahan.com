@@ -64,10 +64,6 @@ export function useTerminal() {
     feature: TERMINAL_CHAT_FEATURE,
   });
 
-  // Ref to always access the latest clearHistory function (avoids stale closure in useCallback)
-  const clearHistoryRef = useRef(clearHistory);
-  clearHistoryRef.current = clearHistory;
-
   const focusInput = useCallback((event?: React.MouseEvent<HTMLDivElement>) => {
     // Only focus if the click target is not a button or inside a button
     if (event && event.target instanceof Element) {
@@ -88,14 +84,14 @@ export function useTerminal() {
     abortChatRequest(ABORT_REASON_CLEAR_EXIT);
     clearChatQueue();
     flushSync(() => {
-      clearHistoryRef.current();
+      clearHistory();
       setSelection(null);
       setInput("");
       setActiveApp(null);
       setAiChatConversationId(crypto.randomUUID());
     });
     inputRef.current?.focus();
-  }, [abortChatRequest, clearChatQueue]);
+  }, [abortChatRequest, clearChatQueue, clearHistory]);
 
   const cancelActiveRequest = useCallback(() => {
     abortChatRequest(ABORT_REASON_USER_CANCEL);
@@ -357,16 +353,15 @@ export function useTerminal() {
   );
 
   // Cancel search selection and clear terminal - EXACT same behavior as "clear" command
-  // Uses ref to ensure we always call the latest clearHistory (avoids stale closure)
   const cancelSelection = useCallback(() => {
     flushSync(() => {
       setSelection(null);
-      clearHistoryRef.current();
+      clearHistory();
       setInput("");
       setAiChatConversationId(crypto.randomUUID());
     });
     inputRef.current?.focus();
-  }, []);
+  }, [clearHistory]);
 
   // Cleanup animation frame and abort controller on unmount
   useEffect(() => {

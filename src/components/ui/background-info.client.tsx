@@ -10,8 +10,11 @@
 
 import { ChevronDown, ChevronUp, InfoIcon } from "lucide-react";
 import { type JSX, useEffect, useId, useRef, useState } from "react";
+import { useMount } from "@/components/ui/theme/use-mount";
 import type { LocalBackgroundInfoProps } from "@/types/ui/layout";
 import { cn } from "../../lib/utils";
+
+const DEFAULT_BACKGROUND_INFO_ICON = <InfoIcon className="w-4 h-4" />;
 
 /**
  * A client component that renders a collapsible box for supplementary background information.
@@ -24,26 +27,16 @@ export function BackgroundInfo({
   children,
   title = "Background Info",
   className = "",
-  icon = <InfoIcon className="w-4 h-4" />,
+  icon = DEFAULT_BACKGROUND_INFO_ICON,
 }: LocalBackgroundInfoProps): JSX.Element | null {
   const [isExpanded, setIsExpanded] = useState(false); // Whether the content is expanded on mobile
   const [showToggleButton, setShowToggleButton] = useState(false); // Whether to show the "Read more/less" button
-  const [isMounted, setIsMounted] = useState(false); // Tracks if the component has mounted on the client
+  const isMounted = useMount(); // Tracks if the component has hydrated on the client
   const contentRef = useRef<HTMLDivElement>(null); // Ref to the content div for height measurement
   const contentId = useId(); // Generate a unique, stable ID for ARIA attributes
 
-  // Effect 1: Set mounted status on client-side to enable dynamic calculations and rendering.
+  // Check content height on the client to determine if the toggle button is needed.
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Effect 2: Check content height after mounting to determine if the toggle button is needed.
-  // This effect runs when `isMounted` changes.
-  useEffect(() => {
-    if (!isMounted) {
-      return;
-    }
-
     const checkHeight = () => {
       setTimeout(() => {
         // Ensures layout is stable
@@ -67,7 +60,7 @@ export function BackgroundInfo({
     checkHeight(); // Initial check
     window.addEventListener("resize", checkHeight); // Re-check on resize
     return () => window.removeEventListener("resize", checkHeight);
-  }, [isMounted]); // Dependency: isMounted
+  }, []);
 
   const containerClasses = cn(
     "py-4 px-4 md:px-6 rounded-lg border",

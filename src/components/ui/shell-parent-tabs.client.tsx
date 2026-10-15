@@ -16,6 +16,7 @@ import {
   createContext,
   isValidElement,
   useId,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -110,6 +111,11 @@ export function ShellParentTabs({
     setActiveTab(tabs[0].label); // Set activeTab to the first tab's label
   }
 
+  const shellTabsContextValue = useMemo(
+    () => ({ activeTab, setActiveTab, tabs, baseId }),
+    [activeTab, tabs, baseId],
+  );
+
   if (tabs.length === 0) {
     return (
       <div className="my-4 p-4 border border-red-500 rounded-md bg-red-50 text-red-700">
@@ -120,7 +126,7 @@ export function ShellParentTabs({
   }
 
   return (
-    <ShellTabsContext.Provider value={{ activeTab, setActiveTab, tabs, baseId }}>
+    <ShellTabsContext.Provider value={shellTabsContextValue}>
       <div className={cn("my-5 overflow-hidden max-w-full w-full", className)}>
         {/* Shell parent tab navigation (no macOS traffic lights here) */}
         <div

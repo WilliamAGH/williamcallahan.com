@@ -87,14 +87,14 @@ Commands sent through the shared `getS3Client()` use AWS SDK adaptive retry mode
 
 ## Ops & Runbooks
 
-| Task                           | Action                                                                                                                                               |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Regenerate blog cover mappings | `bun scripts/sync-blog-cover-images.ts` (uploads + map update).                                                                                      |
-| Inspect manifests              | Use `bun run dev` logs from `instrumentation-node.ts` or `bun node -e "require('./lib/image-handling/image-manifest-loader').loadImageManifests()"`. |
-| Purge an image                 | Delete `images/...` key, run `invalidateImageCache(key)` (Next cache), optionally purge CDN depending on provider.                                   |
-| Reset logo blocklist           | Run helper in REPL (`FailureTracker.clear()`); ensures new domains can retry.                                                                        |
-| Troubleshoot S3 auth           | Run `bun -e "import('./src/lib/s3/client').then((m) => m.getS3Client())"` and check structured env logs.                                             |
-| Disable writes (safety)        | Set `DRY_RUN=true` when running scripts locally; UnifiedImageService honors `isS3ReadOnly()`.                                                        |
+| Task                           | Action                                                                                                                                                                       |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Regenerate blog cover mappings | `tsx scripts/sync-blog-cover-images.ts` (uploads + map update).                                                                                                              |
+| Inspect manifests              | Use `pnpm run dev` logs from `instrumentation-node.ts` or `pnpm exec tsx -e "import('./src/lib/image-handling/image-manifest-loader').then((m) => m.loadImageManifests())"`. |
+| Purge an image                 | Delete `images/...` key, run `invalidateImageCache(key)` (Next cache), optionally purge CDN depending on provider.                                                           |
+| Reset logo blocklist           | Run helper in REPL (`FailureTracker.clear()`); ensures new domains can retry.                                                                                                |
+| Troubleshoot S3 auth           | Run `pnpm exec tsx -e "import('./src/lib/s3/client').then((m) => m.getS3Client())"` and check structured env logs.                                                           |
+| Disable writes (safety)        | Set `DRY_RUN=true` when running scripts locally; UnifiedImageService honors `isS3ReadOnly()`.                                                                                |
 
 ## Dependencies & References
 

@@ -1,0 +1,9 @@
+# Ignored tool output that garbage-collection-worktrees may delete with a landed checkout.
+# Gitignore patterns from the repository root; each names the writer that recreates it.
+# generated/bookmarks/ has no writer in this tree and stays protected.
+# scripts/init-csp-hashes.ts (postinstall, dev, prebuild) and scripts/generate-csp-hashes.ts
+/generated/csp-hashes.json
+# tsc incremental output (tsconfig.json `incremental`): pnpm run type-check and type-check:tests
+tsconfig.tsbuildinfo
+# next dev and next build (pnpm run dev, pnpm run build)
+/.next/

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useEffectEvent, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { aiQueueStatsSchema } from "@/types/schemas/ai-openai-compatible-client";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
@@ -37,7 +37,8 @@ export function useAiAnalysis<TEntity, TAnalysis>(
     return { status: "idle", analysis: null, error: null };
   });
 
-  const startedFromCache = useRef(!!initialAnalysis?.analysis);
+  const startedFromCache = Boolean(initialAnalysis?.analysis);
+  const [previousInputs, setPreviousInputs] = useState({ entityId, initialAnalysis });
   const [loadingMessage, setLoadingMessage] = useState<string>(
     loadingMessages[0] ?? "Analyzing...",
   );
@@ -45,7 +46,16 @@ export function useAiAnalysis<TEntity, TAnalysis>(
   const [streamingText, setStreamingText] = useState("");
   const hasTriggered = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const generateAnalysisRef = useRef<((signal?: AbortSignal) => Promise<void>) | null>(null);
+
+  if (previousInputs.entityId !== entityId || previousInputs.initialAnalysis !== initialAnalysis) {
+    setPreviousInputs({ entityId, initialAnalysis });
+    setState(
+      initialAnalysis?.analysis
+        ? { status: "success", analysis: initialAnalysis.analysis, error: null }
+        : { status: "idle", analysis: null, error: null },
+    );
+    setStreamingText("");
+  }
 
   const generateAnalysis = useCallback(
     async (signal?: AbortSignal) => {
@@ -181,18 +191,14 @@ export function useAiAnalysis<TEntity, TAnalysis>(
     ],
   );
 
-  generateAnalysisRef.current = generateAnalysis;
+  const activeInputsRef = useRef({ entityId, initialAnalysis });
+  const triggerAutoAnalysis = useEffectEvent((requestedEntityId: string, signal: AbortSignal) => {
+    if (requestedEntityId === activeInputsRef.current.entityId) void generateAnalysis(signal);
+  });
 
   useEffect(() => {
-    if (initialAnalysis?.analysis) {
-      setState({ status: "success", analysis: initialAnalysis.analysis, error: null });
-      startedFromCache.current = true;
-    } else {
-      setState({ status: "idle", analysis: null, error: null });
-      startedFromCache.current = false;
-    }
+    activeInputsRef.current = { entityId, initialAnalysis };
     hasTriggered.current = false;
-    setStreamingText("");
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
   }, [entityId, initialAnalysis]);
@@ -204,7 +210,7 @@ export function useAiAnalysis<TEntity, TAnalysis>(
   }, [generateAnalysis]);
 
   useEffect(() => {
-    if (startedFromCache.current) return;
+    if (activeInputsRef.current.initialAnalysis?.analysis) return;
     if (!autoTrigger || hasTriggered.current) return;
 
     hasTriggered.current = true;
@@ -222,10 +228,10 @@ export function useAiAnalysis<TEntity, TAnalysis>(
             return;
           }
         }
-        void generateAnalysisRef.current?.(controller.signal);
+        triggerAutoAnalysis(entityId, controller.signal);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        void generateAnalysisRef.current?.(controller.signal);
+        triggerAutoAnalysis(entityId, controller.signal);
       }
     }
 
@@ -239,7 +245,7 @@ export function useAiAnalysis<TEntity, TAnalysis>(
   }, []);
 
   useEffect(() => {
-    if (state.status !== "loading") return;
+    if (state.status !== "loading") return undefined;
 
     let messageIndex = 0;
     const interval = setInterval(() => {
@@ -256,7 +262,7 @@ export function useAiAnalysis<TEntity, TAnalysis>(
     queueMessage,
     loadingMessage,
     streamingText,
-    startedFromCache: startedFromCache.current,
+    startedFromCache,
     handleManualTrigger,
   };
 }

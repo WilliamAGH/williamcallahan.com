@@ -7,7 +7,8 @@
 "use client";
 
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useMount } from "@/components/ui/theme/use-mount";
 import { useRouter, usePathname } from "next/navigation";
 import type { TagsListClientProps } from "@/types/features/bookmarks";
 
@@ -15,15 +16,10 @@ import type { TagsListClientProps } from "@/types/features/bookmarks";
 const MAX_VISIBLE_TAGS = 6;
 
 export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClientProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMount();
   const [showAllTags, setShowAllTags] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-
-  // Set mounted flag after hydration is complete
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Using the shared tag formatter from utils
 

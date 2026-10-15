@@ -15,6 +15,7 @@ import type {
   OpenAiCompatibleChatCompletionsRequest,
   OpenAiCompatibleResponsesRequest,
   OpenAiCompatibleTier,
+  OpenAiCompatibleWorkload,
 } from "@/types/schemas/ai-openai-compatible";
 
 export function toChatMessage(
@@ -112,9 +113,13 @@ export function toRequestOptions(args: {
   timeoutMs?: number;
   signal?: AbortSignal;
   tier: OpenAiCompatibleTier;
+  workload: OpenAiCompatibleWorkload;
 }): OpenAIClient.RequestOptions {
   const options: OpenAIClient.RequestOptions = {
-    headers: { "X-Tier": args.tier },
+    headers: {
+      "X-Tier": args.tier,
+      "X-User-ID": args.workload,
+    },
   };
   if (typeof args.timeoutMs === "number") options.timeout = args.timeoutMs;
   if (args.signal) options.signal = args.signal;

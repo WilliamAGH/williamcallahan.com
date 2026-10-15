@@ -73,41 +73,38 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
  * @returns Array of unified bookmarks for client use
  */
 export function convertRawBookmarksToUnified(rawBookmarks: RawBookmark[]): UnifiedBookmark[] {
-  return rawBookmarks.map(
-    (bookmark) =>
-      ({
-        id: bookmark.id,
-        url: bookmark.url,
-        title: bookmark.title,
-        description: bookmark.description || "",
-        slug: bookmark.slug, // REQUIRED field from RawBookmark
-        tags: bookmark.tags || [],
-        dateBookmarked: bookmark.dateBookmarked,
-        dateCreated: bookmark.dateCreated,
-        isPrivate: bookmark.isPrivate,
-        isFavorite: bookmark.isFavorite,
-        readingTime: bookmark.readingTime,
-        wordCount: bookmark.wordCount,
-        datePublished: null,
-        modifiedAt: undefined,
-        archived: false,
-        taggingStatus: undefined,
-        note: null,
-        summary: null,
-        scrapedContentText: undefined,
-        content: undefined,
-        assets: undefined,
-        logoData: undefined,
-        ogTitle: undefined,
-        ogDescription: undefined,
-        ogImage: undefined,
-        ogUrl: undefined,
-        domain: undefined,
-        sourceUpdatedAt: bookmark.dateBookmarked,
-        ogImageLastFetchedAt: undefined,
-        ogImageEtag: undefined,
-      }) as UnifiedBookmark,
-  );
+  return rawBookmarks.map((bookmark) => ({
+    id: bookmark.id,
+    url: bookmark.url,
+    title: bookmark.title,
+    description: bookmark.description || "",
+    slug: bookmark.slug, // REQUIRED field from RawBookmark
+    tags: bookmark.tags || [],
+    dateBookmarked: bookmark.dateBookmarked,
+    dateCreated: bookmark.dateCreated,
+    isPrivate: bookmark.isPrivate,
+    isFavorite: bookmark.isFavorite,
+    readingTime: bookmark.readingTime,
+    wordCount: bookmark.wordCount,
+    datePublished: null,
+    modifiedAt: undefined,
+    archived: false,
+    taggingStatus: undefined,
+    note: null,
+    summary: null,
+    scrapedContentText: undefined,
+    content: undefined,
+    assets: undefined,
+    logoData: undefined,
+    ogTitle: undefined,
+    ogDescription: undefined,
+    ogImage: undefined,
+    ogUrl: undefined,
+    domain: undefined,
+    sourceUpdatedAt: bookmark.dateBookmarked,
+    ogImageLastFetchedAt: undefined,
+    ogImageEtag: undefined,
+  }));
 }
 
 /**

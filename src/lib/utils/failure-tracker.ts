@@ -6,7 +6,7 @@
  * Used for domains, URLs, or any other items that need retry tracking.
  */
 
-import type { ZodSchema } from "zod/v4";
+import type { ZodType } from "zod/v4";
 import { debugLog } from "./debug";
 import { getMonotonicTime } from "@/lib/utils";
 import type { FailedEntry, FailureTrackerConfig } from "@/types/s3-cdn";
@@ -22,7 +22,7 @@ export class FailureTracker<T> {
 
   constructor(
     private getKey: (item: T) => string,
-    private itemSchema: ZodSchema<T>,
+    private itemSchema: ZodType<T>,
     config: FailureTrackerConfig,
   ) {
     this.config = {

@@ -22,28 +22,33 @@ import {
 } from "@/types/schemas/github-storage";
 import { standardApiErrorResponseSchema } from "@/types/schemas/api";
 import { connection, NextRequest } from "next/server";
+import type logger from "@/lib/utils/logger";
 
-const mockedAuth = vi.hoisted(() => vi.fn((userId: string | null = null) => ({ userId })));
+const mockedAuth = vi.hoisted(() =>
+  vi.fn<(userId?: string | null) => { userId: string | null }>((userId = null) => ({ userId })),
+);
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mockedAuth }));
 vi.mock("@/lib/data-access/github", () => ({
-  refreshGitHubActivityDataFromApi: vi.fn(),
+  refreshGitHubActivityDataFromApi: vi.fn<typeof refreshGitHubActivityDataFromApi>(),
 }));
-vi.mock("@/lib/data-access/github-public-api", () => ({ getGithubActivityCached: vi.fn() }));
+vi.mock("@/lib/data-access/github-public-api", () => ({
+  getGithubActivityCached: vi.fn<typeof getGithubActivityCached>(),
+}));
 vi.mock("@/lib/db/connection", () => ({
-  resolveDatabaseAccessMode: vi.fn(),
+  resolveDatabaseAccessMode: vi.fn<typeof resolveDatabaseAccessMode>(),
 }));
 vi.mock("@/lib/cache/invalidation", () => ({
-  invalidateAllGitHubCaches: vi.fn(),
+  invalidateAllGitHubCaches: vi.fn<typeof invalidateAllGitHubCaches>(),
 }));
 vi.mock("@/lib/utils", () => ({
-  getMonotonicTime: vi.fn(),
+  getMonotonicTime: vi.fn<typeof getMonotonicTime>(),
 }));
 vi.mock("@/lib/utils/logger", () => ({
   default: {
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
+    error: vi.fn<typeof logger.error>(),
+    info: vi.fn<typeof logger.info>(),
+    warn: vi.fn<typeof logger.warn>(),
   },
 }));
 
@@ -53,7 +58,7 @@ const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
 const mockedGetMonotonicTime = vi.mocked(getMonotonicTime);
 const mockedInvalidateAllGitHubCaches = vi.mocked(invalidateAllGitHubCaches);
 const mockedCaptureException = vi.mocked(Sentry.captureException);
-const relayFetch = vi.fn();
+const relayFetch = vi.fn<typeof fetch>();
 
 const refreshedActivity = {
   trailingYearData: {
@@ -84,12 +89,6 @@ function createAuthorizedGitHubActivityRefreshRequest(): NextRequest {
     method: "POST",
     headers: { authorization: `Bearer ${cronRefreshSecret}` },
   });
-}
-
-function expectNoStoreResponse(response: Response, status: number): void {
-  expect(response.status).toBe(status);
-  expect(response.headers.get("Cache-Control")).toBe("no-store");
-  expect(connection).toHaveBeenCalledOnce();
 }
 
 describe("GitHub activity refresh routes", () => {
@@ -336,12 +335,16 @@ describe("GET /api/github-activity", () => {
   it("returns no-store after calling connection on activity data", async () => {
     mockedGetGithubActivityCached.mockResolvedValueOnce(unavailableGitHubActivity);
     const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
-    expectNoStoreResponse(response, 200);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(connection).toHaveBeenCalledOnce();
   });
 
   it("returns no-store after calling connection on refresh guidance", async () => {
     const response = await getGitHubActivity(new NextRequest(`${githubActivityUrl}?refresh=true`));
-    expectNoStoreResponse(response, 400);
+    expect(response.status).toBe(400);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(connection).toHaveBeenCalledOnce();
   });
 
   it("returns no-store after calling connection on data access failure", async () => {
@@ -349,7 +352,9 @@ describe("GET /api/github-activity", () => {
       new Error("GitHub activity data access failed"),
     );
     const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
-    expectNoStoreResponse(response, 500);
+    expect(response.status).toBe(500);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(connection).toHaveBeenCalledOnce();
   });
 });
 

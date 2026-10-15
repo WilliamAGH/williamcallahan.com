@@ -9,8 +9,8 @@ const mockFetch = vi.fn<typeof globalThis.fetch>();
 globalThis.fetch = mockFetch;
 const originalConsoleError = console.error;
 const originalConsoleLog = console.log;
-const mockConsoleError = vi.fn();
-const mockConsoleLog = vi.fn();
+const mockConsoleError = vi.fn<typeof console.error>();
+const mockConsoleLog = vi.fn<typeof console.log>();
 Object.assign(console, { error: mockConsoleError, log: mockConsoleLog });
 
 function createSseResponse(chunks: string[]): Response {

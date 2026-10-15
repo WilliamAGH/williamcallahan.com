@@ -35,13 +35,13 @@ const createSpan = () => {
 export const trace = {
   getTracer: () => ({
     startSpan: () => createSpan(),
-    startActiveSpan: <T>(name: string, ...rest: unknown[]): T | undefined => {
+    startActiveSpan: (name: string, ...rest: unknown[]): unknown => {
       void name; // Explicitly mark as unused per project convention
       const maybeCallback = rest[rest.length - 1];
       if (typeof maybeCallback === "function") {
         const span = createSpan();
         // Cast is safe because we just checked typeof
-        return (maybeCallback as (span: unknown) => T)(span);
+        return (maybeCallback as (span: unknown) => unknown)(span);
       }
       // No callback supplied – return undefined to avoid throwing.
       return undefined;
@@ -162,6 +162,25 @@ export const createContextKey = (name: string) => Symbol(name);
 
 export const baggageEntryMetadataFromString = (str: string) => ({
   toString: () => str,
+});
+
+// OpenTelemetry instrumentations bundled for the webpack client/edge builds import this.
+const noopInstrument = {
+  add: () => {},
+  record: () => {},
+  addCallback: () => {},
+  removeCallback: () => {},
+};
+export const createNoopMeter = () => ({
+  createCounter: () => noopInstrument,
+  createUpDownCounter: () => noopInstrument,
+  createHistogram: () => noopInstrument,
+  createGauge: () => noopInstrument,
+  createObservableCounter: () => noopInstrument,
+  createObservableUpDownCounter: () => noopInstrument,
+  createObservableGauge: () => noopInstrument,
+  addBatchObservableCallback: () => {},
+  removeBatchObservableCallback: () => {},
 });
 
 // DiagLogLevel enum that Sentry expects

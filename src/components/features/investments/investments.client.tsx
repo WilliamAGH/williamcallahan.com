@@ -38,7 +38,7 @@ const INVESTMENTS_WINDOW_ID = "investments-window";
  * - Handling empty state
  */
 export function InvestmentsClient({
-  investments = [],
+  investments,
 }: Readonly<InvestmentsClientProps>): JSX.Element | null {
   // Register this window instance and get its state/actions
   const {

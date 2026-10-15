@@ -86,7 +86,7 @@ export async function fetchContributedRepositories(username: string): Promise<{
   await waitForPermit("github-graphql", "contributed-repos", GITHUB_API_RATE_LIMIT_CONFIG);
 
   const client = getGitHubGraphQLClient();
-  const rawResponse = await client.query<unknown>(
+  const rawResponse = await client.query(
     `
     query($username: String!) {
       user(login: $username) {
@@ -112,9 +112,7 @@ export async function fetchContributedRepositories(username: string): Promise<{
     throw new Error(`Failed to fetch user ID for ${username}`);
   }
 
-  const repositories = (user.repositoriesContributedTo?.nodes || []).filter(
-    (repo): repo is GraphQLRepoNode => !!(repo && !repo.isFork),
-  );
+  const repositories = (user.repositoriesContributedTo?.nodes || []).filter((repo) => !repo.isFork);
 
   return { userId: user.id, repositories };
 }
@@ -130,7 +128,7 @@ export async function fetchContributionCalendar(
   await waitForPermit("github-graphql", "contribution-calendar", GITHUB_API_RATE_LIMIT_CONFIG);
 
   const client = getGitHubGraphQLClient();
-  const rawResponse = await client.query<unknown>(
+  const rawResponse = await client.query(
     `
     query($username: String!, $from: DateTime, $to: DateTime) {
       user(login: $username) {
@@ -166,7 +164,7 @@ export async function fetchRepositoryCommitCount(
   await waitForPermit("github-graphql", "commit-count", GITHUB_API_RATE_LIMIT_CONFIG);
 
   const client = getGitHubGraphQLClient();
-  const rawResponse = await client.query<unknown>(
+  const rawResponse = await client.query(
     `
     query($owner: String!, $name: String!, $authorId: ID!) {
       repository(owner: $owner, name: $name) {

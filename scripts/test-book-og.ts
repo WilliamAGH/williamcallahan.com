@@ -1,6 +1,6 @@
 /**
  * Test script to fetch actual books and verify OG image URLs
- * Run with: bun scripts/test-book-og.ts
+ * Run with: tsx scripts/test-book-og.ts
  */
 
 import { fetchBooks } from "@/lib/books/audiobookshelf.server";

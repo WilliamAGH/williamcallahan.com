@@ -9,7 +9,7 @@
 "use client";
 
 import Image, { type ImageProps } from "next/image";
-import { useEffect, useState } from "react";
+import { useMount } from "@/components/ui/theme/use-mount";
 
 /**
  * HydrationSafeImage component
@@ -18,11 +18,7 @@ import { useEffect, useState } from "react";
  * Accepts all Next.js Image props with a fallback for server rendering.
  */
 export function HydrationSafeImage({ className = "", alt, ...props }: ImageProps) {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useMount();
 
   if (!isMounted) {
     // Server-side or initial render placeholder
@@ -32,8 +28,7 @@ export function HydrationSafeImage({ className = "", alt, ...props }: ImageProps
         style={{
           aspectRatio: props.width && props.height ? `${props.width}/${props.height}` : "auto",
         }}
-        role="img"
-        aria-label={alt}
+        aria-hidden="true"
       />
     );
   }

@@ -19,7 +19,7 @@ export function ImpressionTracker({
   useEffect(() => {
     const element = elementRef.current;
     if (!element || hasTrackedRef.current) {
-      return;
+      return undefined;
     }
 
     const clearPendingImpression = () => {

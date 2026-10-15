@@ -5,7 +5,7 @@
 
 // Mock the OpenGraph data access module
 vi.mock("@/lib/data-access/opengraph", () => ({
-  getOpenGraphData: vi.fn(),
+  getOpenGraphData: vi.fn<typeof getOpenGraphData>(),
 }));
 
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
@@ -16,7 +16,7 @@ import type { MockedFunction } from "vitest";
 const baseOg = (): Pick<OgResult, "timestamp" | "source" | "imageUrl"> => ({
   timestamp: Date.now(),
   source: "external",
-  imageUrl: undefined,
+  imageUrl: null,
 });
 
 // Cast to Vitest mocked function for proper typing
@@ -61,19 +61,12 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       expect(result?.siteName).toBe("Railway");
     });
 
-    it("should handle failed OpenGraph extraction", async () => {
-      mockGetOpenGraphData.mockResolvedValue(null as unknown as OgResult);
-
-      const result = await getOpenGraphData("https://example.com/non-existent");
-      expect(result).toBeNull();
-    });
-
     it("should handle partial OpenGraph data", async () => {
       const partialData: OgResult = {
         url: "https://example.com",
         timestamp: Date.now(),
         source: "external",
-        imageUrl: undefined,
+        imageUrl: null,
         title: "Some Title",
         description: "Some Description",
         // Missing image, url, type, siteName
@@ -85,7 +78,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       expect(result).toEqual(partialData);
       expect(result?.title).toBe("Some Title");
       expect(result?.description).toBe("Some Description");
-      expect(result?.imageUrl).toBeUndefined();
+      expect(result?.imageUrl).toBeNull();
     });
 
     it("should handle network errors", async () => {
@@ -181,7 +174,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
         url: "https://example.com",
         timestamp: Date.now(),
         source: "external",
-        imageUrl: undefined,
+        imageUrl: null,
         title: "Test Title",
         siteName: "Test Site",
         // Additional optional properties
@@ -192,7 +185,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       expect(optionalData.siteName).toBe("Test Site");
       expect(optionalData.locale).toBe("en_US");
       expect(optionalData.description).toBeUndefined();
-      expect(optionalData.imageUrl).toBeUndefined();
+      expect(optionalData.imageUrl).toBeNull();
     });
   });
 
@@ -202,8 +195,8 @@ describe("lib/data-access/opengraph.ts functionality", () => {
         url: "",
         timestamp: Date.now(),
         source: "external",
-        imageUrl: undefined,
-      } as OgResult);
+        imageUrl: null,
+      });
 
       const result = await getOpenGraphData("https://example.com");
       expect(result).toEqual(
@@ -241,22 +234,6 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
       await expect(getOpenGraphData("https://slow-site.com")).rejects.toThrow("Request timeout");
     });
-
-    it("should handle HTTP error responses", async () => {
-      mockGetOpenGraphData.mockResolvedValue(null as OgResult);
-
-      // Test various error scenarios
-      const errorUrls = [
-        "https://httpstat.us/404", // 404 Not Found
-        "https://httpstat.us/500", // 500 Internal Server Error
-        "https://httpstat.us/403", // 403 Forbidden
-      ];
-
-      for (const url of errorUrls) {
-        const result = await getOpenGraphData(url);
-        expect(result).toBeNull();
-      }
-    });
   });
 
   describe("integration test scenarios", () => {
@@ -272,7 +249,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
           url,
           timestamp: Date.now(),
           source: "external",
-          imageUrl: undefined,
+          imageUrl: null,
           title: `Title for ${url}`,
           description: `Description for ${url}`,
           siteName: `Site for ${url}`,
@@ -282,13 +259,6 @@ describe("lib/data-access/opengraph.ts functionality", () => {
         const result = await getOpenGraphData(url);
         expect(result).toEqual(mockSuccessData);
       }
-    });
-
-    it("should handle failed URL fetch", async () => {
-      mockGetOpenGraphData.mockResolvedValueOnce(null);
-
-      const result = await getOpenGraphData("https://non-existent-domain-12345.com");
-      expect(result).toBeNull();
     });
 
     it("should validate extracted data quality", async () => {

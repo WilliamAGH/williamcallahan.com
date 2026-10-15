@@ -7,7 +7,7 @@ import { render, screen } from "@testing-library/react";
 
 vi.mock("@/components/features/cv/CvPdfDownloadButton", () => ({
   __esModule: true,
-  default: vi.fn(() => null),
+  default: vi.fn<typeof CvPdfDownloadButtonEnhancer>(() => null),
 }));
 
 import CvPage from "@/app/cv/page";

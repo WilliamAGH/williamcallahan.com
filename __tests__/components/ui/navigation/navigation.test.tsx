@@ -6,15 +6,16 @@ import { Navigation } from "@/components/ui/navigation/navigation.client";
 import { socialLinks } from "@/components/ui/social-icons/social-links";
 import { TerminalProvider } from "@/components/ui/terminal/terminal-context.client";
 import { usePathname } from "next/navigation";
+import type { useWindowSize } from "@/lib/hooks/use-window-size.client";
 
-const mockUseWindowSize = vi.fn();
+const mockUseWindowSize = vi.fn<typeof useWindowSize>();
 
 vi.mock("@/lib/hooks/use-window-size.client", () => ({
   useWindowSize: () => mockUseWindowSize(),
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: vi.fn(),
+  usePathname: vi.fn<typeof usePathname>(),
 }));
 
 function MockWindowControls() {

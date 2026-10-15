@@ -28,6 +28,22 @@ describe("CodeBlock", () => {
       expect(screen.getByText("const x = 1;")).toBeInTheDocument();
     });
 
+    it("exposes the code as a named, keyboard-focusable scroll region", () => {
+      const { container } = render(<CodeBlock className="language-ts">const x = 1;</CodeBlock>);
+      const region = screen.getByRole("region", { name: "Code: ts" });
+      expect(region).toHaveAttribute("tabindex", "0");
+      expect(region).toContainElement(container.querySelector("pre"));
+    });
+
+    it("names the region after an MDX fence language on the child code element", () => {
+      render(
+        <CodeBlock>
+          <code className="language-tsx">const y = 2;</code>
+        </CodeBlock>,
+      );
+      expect(screen.getByRole("region", { name: "Code: tsx" })).toHaveAttribute("tabindex", "0");
+    });
+
     it("renders window controls toolbar", () => {
       render(<CodeBlock>test code</CodeBlock>);
       expect(screen.getByTestId("close-button")).toBeInTheDocument();
@@ -131,7 +147,6 @@ const y = 2;`}
       expect(pre).toHaveClass("custom-class");
       expect(pre).toHaveClass("not-prose");
       expect(pre).toHaveClass("max-w-full");
-      expect(pre).toHaveClass("overflow-x-auto");
       expect(pre).toHaveClass("p-4");
     });
 

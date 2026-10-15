@@ -36,38 +36,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------- Dependencies stage ----------
-# Bun is installed only here, to produce node_modules from bun.lock.
+# Corepack (bundled with Node) provides the pnpm release package.json pins. The pnpm store and
+# corepack cache mounts share their ids with every fleet image; corepack's pnpm is a native
+# binary, so its cache id carries the target architecture.
 FROM node AS deps
-
-ARG BUN_VERSION=1.3.2
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    unzip \
-    && ARCH=$(dpkg --print-architecture) \
-    && case "${ARCH}" in \
-         amd64) BUN_ARCH="x64" ;; \
-         arm64) BUN_ARCH="aarch64" ;; \
-         *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-       esac \
-    && curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${BUN_ARCH}.zip" -o /tmp/bun.zip \
-    && unzip /tmp/bun.zip -d /tmp \
-    && mv /tmp/bun-linux-${BUN_ARCH}/bun /usr/local/bin/bun \
-    && chmod +x /usr/local/bin/bun \
-    && rm -rf /tmp/bun.zip /tmp/bun-linux-${BUN_ARCH} \
-    && apt-get purge -y unzip \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
+ARG TARGETARCH
 
 WORKDIR /app
 ENV HUSKY=0
+# The image ships node_modules; a global virtual store would leave links into the absent cache mount.
+ENV pnpm_config_virtual_store_type=project
 
-COPY package.json ./
-COPY bun.lock* ./
-# postinstall runs init-csp-hashes, which needs these before bun install
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# The postinstall step (init-csp-hashes) reads these
 COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
-RUN mkdir -p generated/bookmarks \
-    && bun install --ignore-scripts --frozen-lockfile \
-    && bun scripts/init-csp-hashes.ts
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    --mount=type=cache,id=corepack-${TARGETARCH},target=/root/.cache/node/corepack \
+    mkdir -p generated/bookmarks \
+    && corepack enable \
+    && pnpm install --frozen-lockfile --ignore-scripts \
+    && pnpm exec tsx scripts/init-csp-hashes.ts
 
 # ---------- Runtime stage ----------
 # Package-declared checksum-pinned Node (node --run + tsx from node_modules); libvips and fontconfig for image/PDF paths.

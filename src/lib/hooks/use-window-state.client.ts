@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { WindowStateValue } from "@/types/ui/window";
 
 // Helper to generate storage key
@@ -39,6 +39,22 @@ const setSessionStorageState = (id: string, state: WindowStateValue) => {
   }
 };
 
+const subscribeToNothing = (): (() => void) => () => undefined;
+const getClientSnapshot = (): boolean => true;
+const getServerSnapshot = (): boolean => false;
+
+// Reads the persisted state for hydration; the terminal never restores maximized.
+const readHydratedState = (id: string): WindowStateValue | null => {
+  const storedState = getSessionStorageState(id);
+  if (!storedState) return null;
+  if (id === "terminal" && storedState === "maximized") {
+    console.log(`useWindowState (${id}): Preventing maximized state on load, using normal instead`);
+    return "normal";
+  }
+  console.log(`useWindowState (${id}): Hydrating state from sessionStorage: ${storedState}`);
+  return storedState;
+};
+
 /**
  * Custom hook to manage window-like state (normal, minimized, maximized, closed)
  * for a specific component instance, with persistence in sessionStorage.
@@ -46,41 +62,12 @@ const setSessionStorageState = (id: string, state: WindowStateValue) => {
  * @param initialState - The initial state if none is found in storage (defaults to 'normal').
  */
 export function useWindowState(id: string, initialState: WindowStateValue = "normal") {
-  // State for the window's current status
-  const [windowState, setWindowState] = useState<WindowStateValue>(initialState);
-  // State to track if the component has mounted on the client
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Effect to simply mark the component as mounted on the client side
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Effect to hydrate the state from sessionStorage *after* mounting
-  useEffect(() => {
-    // Only attempt to read from storage if we are mounted on the client
-    if (isMounted) {
-      const storedState = getSessionStorageState(id);
-      if (storedState) {
-        console.log(`useWindowState (${id}): Hydrating state from sessionStorage: ${storedState}`);
-        // Use functional update to avoid needing windowState in dependency array
-        setWindowState((prevState) => {
-          // Prevent terminal from starting maximized - always start in normal mode
-          if (id === "terminal" && storedState === "maximized") {
-            console.log(
-              `useWindowState (${id}): Preventing maximized state on load, using normal instead`,
-            );
-            return "normal";
-          }
-          // Only update if the stored state is different from the previous state
-          return storedState !== prevState ? storedState : prevState;
-        });
-      }
-    }
-    // This effect should run only once after mounting to hydrate the initial state.
-    // It depends on isMounted and id (in case id changes, though unlikely for a stable component).
-    // It should NOT depend on windowState itself, as that could cause loops.
-  }, [isMounted, id]); // Removed windowState from dependencies
+  // False on the server and during hydration, true afterwards, so SSR markup matches.
+  const isMounted = useSyncExternalStore(subscribeToNothing, getClientSnapshot, getServerSnapshot);
+  const hydratedState = useMemo(() => (isMounted ? readHydratedState(id) : null), [isMounted, id]);
+  // A state the user selected overrides the hydrated one.
+  const [selectedState, setSelectedState] = useState<WindowStateValue | null>(null);
+  const windowState = selectedState ?? hydratedState ?? initialState;
 
   // Effect to update sessionStorage when the state changes, but only if mounted
   useEffect(() => {
@@ -92,39 +79,37 @@ export function useWindowState(id: string, initialState: WindowStateValue = "nor
     // This effect runs whenever the state changes *after* the component is mounted
   }, [id, windowState, isMounted]);
 
-  // Define state update handlers - these modify the main windowState
+  const setWindowState = useCallback((state: WindowStateValue) => {
+    setSelectedState(state);
+  }, []);
+
   const closeWindow = useCallback(() => {
     console.log(`useWindowState (${id}): Setting state to closed`);
-    setWindowState("closed");
-  }, [id]); // Dependency array includes id for consistency, though setWindowState is stable
+    setSelectedState("closed");
+  }, [id]);
 
   const minimizeWindow = useCallback(() => {
     console.log(`useWindowState (${id}): Setting state to minimized`);
-    setWindowState("minimized");
-  }, [id]); // Dependency array includes id
+    setSelectedState("minimized");
+  }, [id]);
 
   const maximizeWindow = useCallback(() => {
     console.log(`useWindowState (${id}): Toggling maximize/normal`);
-    setWindowState((prev) => (prev === "maximized" ? "normal" : "maximized"));
-  }, [id]); // Dependency array includes id
-
-  // The state returned is always the current `windowState`.
-  // On the server, it's `initialState`.
-  // On the client, it starts as `initialState`, then potentially updates after hydration.
-  const currentState = windowState;
+    setSelectedState(windowState === "maximized" ? "normal" : "maximized");
+  }, [id, windowState]);
 
   // Memoize the returned object for performance optimization
   const value = useMemo(
     () => ({
-      windowState: currentState,
-      setWindowState: setWindowState, // Expose the main state setter
+      windowState,
+      setWindowState,
       closeWindow,
       minimizeWindow,
       maximizeWindow,
       // isReady indicates if the component has mounted and hydration attempt occurred
       isReady: isMounted,
     }),
-    [currentState, closeWindow, minimizeWindow, maximizeWindow, isMounted],
+    [windowState, setWindowState, closeWindow, minimizeWindow, maximizeWindow, isMounted],
   );
 
   return value;

@@ -1,6 +1,6 @@
 # syntax=dockerhub.haiku.host/docker/dockerfile:1
 ##
-## Multi-stage build for Next.js application with Bun
+## Multi-stage build for the Next.js application (pnpm on Node)
 ## Note: Requires BuildKit (DOCKER_BUILDKIT=1) for secret mount support
 ## Base registry can be overridden via --build-arg BASE_REGISTRY=<your-registry>
 ## The value must include any publisher/namespace prefix so that
@@ -41,67 +41,44 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------- Base stage ----------
-# Bun is installed from GitHub releases to avoid oven/bun Docker Hub dependency.
+# Corepack (bundled with Node) provides the pnpm release package.json pins. Its cache and the
+# pnpm store are BuildKit cache mounts whose ids every fleet image shares; corepack's pnpm is a
+# native binary, so its cache id carries the target architecture.
 FROM node AS base
-
-# 1. Install Bun from GitHub releases (avoids Docker Hub dependency on oven/bun image)
-#    Pin to specific version for reproducibility. Supports both x86_64 and arm64.
-ARG BUN_VERSION=1.3.2
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    unzip \
-    && ARCH=$(dpkg --print-architecture) \
-    && case "${ARCH}" in \
-         amd64) BUN_ARCH="x64" ;; \
-         arm64) BUN_ARCH="aarch64" ;; \
-         *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-       esac \
-    && curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${BUN_ARCH}.zip" -o /tmp/bun.zip \
-    && unzip /tmp/bun.zip -d /tmp \
-    && mv /tmp/bun-linux-${BUN_ARCH}/bun /usr/local/bin/bun \
-    && chmod +x /usr/local/bin/bun \
-    && ln -s /usr/local/bin/bun /usr/local/bin/bunx \
-    && rm -rf /tmp/bun.zip /tmp/bun-linux-${BUN_ARCH} \
-    && apt-get purge -y unzip \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# 2. Verify Bun installation
-RUN bun --version
+RUN corepack enable
+# The image ships node_modules, so every pnpm call in it uses a project-local virtual store; a
+# `pnpm run` that saw the workspace's `global` setting would relink into the absent cache mount.
+ENV pnpm_config_virtual_store_type=project
 
 # ---------- Dependencies stage ----------
-# Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
+ARG TARGETARCH
 
-# Set environment variable for Bun
-ENV BUN_INSTALL_CACHE=/root/.bun/install/cache
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
-# 1. Copy only package files first (rarely changes)
-#    Copying lock file separately ensures Docker caches the layer correctly
-COPY package.json ./
-COPY bun.lock* ./
+# 1. Lockfile inputs only, so this layer rebuilds only when dependencies change
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# 2. Copy the init-csp-hashes script and config directory needed by postinstall
-#    This is required because postinstall runs during bun install
+# 2. The init-csp-hashes script and config directory the postinstall step reads
 COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
 COPY config ./config
 
 # 3. Create generated/ directory for build-time generated files (CSP hashes, etc.)
 RUN mkdir -p generated/bookmarks
 
-# 4. Install dependencies with Bun, skipping third-party postinstall scripts to avoid native crashes.
-#    Use --frozen-lockfile to keep deployments deterministic and prevent dependency drift.
-#    Cache mounts are avoided so classic docker builds (DOCKER_BUILDKIT=0) continue to work.
-RUN bun install --ignore-scripts --frozen-lockfile
-
-# 5. Ensure CSP hashes file exists early for tooling that might import it
-RUN bun scripts/init-csp-hashes.ts
+# 4. Install the locked dependency graph without third-party lifecycle scripts, then run the
+#    project's postinstall step so the CSP hashes file exists for tooling that imports it.
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    --mount=type=cache,id=corepack-${TARGETARCH},target=/root/.cache/node/corepack \
+    pnpm install --frozen-lockfile --ignore-scripts \
+    && pnpm exec tsx scripts/init-csp-hashes.ts
 
 # ---------- Build stage (production build) ----------
-# Use the shared base stage so Bun commands and the exact Node.js runtime are available.
+# Use the shared base stage so pnpm and the exact Node.js runtime are available.
 FROM base AS builder
+ARG TARGETARCH
 
 # 1. System packages (rarely changes) - FIRST for maximum cache reuse
 #    ca-certificates required for HTTPS connectivity checks (S3, CDN)
@@ -179,15 +156,13 @@ RUN bash -c 'set -euo pipefail \
        echo "⚠️  NEXT_PUBLIC_S3_CDN_URL not set; skipping CDN connectivity check"; \
      fi'
 
-# Build orchestration runs through Bun scripts, but Next.js build runs on Node.
-# This keeps cacheComponents timer semantics aligned with Next.js expectations.
-#
 # Credentials are mounted directly as environment variables. Public build
 # configuration uses canonical secret filenames and only replaces ARG/ENV values
 # when present, so absent optional secrets cannot erase build arguments.
 # S3_SESSION_TOKEN is mirrored to AWS_SESSION_TOKEN for SDK compatibility.
 # Ref: https://docs.docker.com/build/building/secrets/#secret-mounts
-RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false \
+RUN --mount=type=cache,id=corepack-${TARGETARCH},target=/root/.cache/node/corepack \
+    --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false \
     --mount=type=secret,id=S3_SECRET_ACCESS_KEY,env=S3_SECRET_ACCESS_KEY,required=false \
     --mount=type=secret,id=S3_SESSION_TOKEN,env=S3_SESSION_TOKEN,required=false \
     --mount=type=secret,id=DATABASE_URL,env=DATABASE_URL,required=false \
@@ -211,7 +186,7 @@ RUN --mount=type=secret,id=S3_ACCESS_KEY_ID,env=S3_ACCESS_KEY_ID,required=false 
       && export GIT_HASH="${release_id}" \
       && export NEXT_DEPLOYMENT_ID="${release_id}" \
       && echo "Building Next.js deployment ${release_id}" \
-      && bun run build \
+      && pnpm run build \
       && printf %s "${release_id}" > /app/.next/RELEASE_ID \
       && (find /app/.next/cache -type f -mtime +5 -delete 2>/dev/null || true)'
 

@@ -89,7 +89,7 @@ export const standardApiErrorResponseSchema = apiErrorResponseSchema
     code: standardApiErrorCodeSchema,
     message: z.string().min(1),
     retryAfterSeconds: z.number().int().positive(),
-    retryAfterAt: z.string().datetime({ offset: true }),
+    retryAfterAt: z.iso.datetime({ offset: true }),
     status: z.union([z.literal(429), z.literal(503)]),
   });
 

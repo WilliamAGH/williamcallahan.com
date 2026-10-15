@@ -13,7 +13,7 @@
 "use client";
 
 import type { TerminalSearchHintProps } from "@/types/ui/terminal";
-import { useEffect, useState } from "react";
+import { useMount } from "@/components/ui/theme/use-mount";
 
 /**
  * Elegant keyboard shortcut badge that points users to the terminal
@@ -21,13 +21,7 @@ import { useEffect, useState } from "react";
  * Hidden on mobile viewports where keyboard shortcuts are irrelevant
  */
 export function TerminalSearchHint({ context = "bookmarks" }: TerminalSearchHintProps) {
-  const [mounted, setMounted] = useState(false);
-  const [isMac, setIsMac] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setIsMac(navigator.platform.toLowerCase().includes("mac"));
-  }, []);
+  const mounted = useMount();
 
   const contextText =
     context === "bookmarks"
@@ -44,6 +38,8 @@ export function TerminalSearchHint({ context = "bookmarks" }: TerminalSearchHint
   if (!mounted) {
     return <div className="hidden md:block h-7" aria-hidden="true" />;
   }
+
+  const isMac = navigator.platform.toLowerCase().includes("mac");
 
   /**
    * Trigger terminal focus by dispatching a synthetic keyboard event.

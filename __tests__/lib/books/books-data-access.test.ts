@@ -14,16 +14,18 @@ import {
   clearBooksCache,
 } from "@/lib/books/books-data-access.server";
 import type { Book } from "@/types/schemas/book";
+import type { readBooksFromDb as ReadBooksFromDb } from "@/lib/db/queries/books";
+import type { cacheContextGuards as CacheContextGuards } from "@/lib/cache";
 
 vi.mock("@/lib/db/queries/books", () => ({
-  readBooksFromDb: vi.fn(),
+  readBooksFromDb: vi.fn<typeof ReadBooksFromDb>(),
 }));
 
 vi.mock("@/lib/cache", () => ({
   cacheContextGuards: {
-    cacheLife: vi.fn(),
-    cacheTag: vi.fn(),
-    revalidateTag: vi.fn(),
+    cacheLife: vi.fn<typeof CacheContextGuards.cacheLife>(),
+    cacheTag: vi.fn<typeof CacheContextGuards.cacheTag>(),
+    revalidateTag: vi.fn<typeof CacheContextGuards.revalidateTag>(),
   },
   USE_NEXTJS_CACHE: true,
   withCacheFallback: async (
@@ -39,10 +41,10 @@ vi.mock("@/lib/cache", () => ({
 }));
 
 const { readBooksFromDb } = await import("@/lib/db/queries/books");
-const mockReadBooksFromDb = readBooksFromDb as ReturnType<typeof vi.fn>;
+const mockReadBooksFromDb = vi.mocked(readBooksFromDb);
 const { cacheContextGuards } = await import("@/lib/cache");
-const mockCacheLife = cacheContextGuards.cacheLife as ReturnType<typeof vi.fn>;
-const mockRevalidateTag = cacheContextGuards.revalidateTag as ReturnType<typeof vi.fn>;
+const mockCacheLife = vi.mocked(cacheContextGuards.cacheLife);
+const mockRevalidateTag = vi.mocked(cacheContextGuards.revalidateTag);
 
 const SAMPLE_BOOKS: Book[] = [
   { id: "li_book1", title: "TypeScript in Depth", authors: ["Author A"], formats: ["ebook"] },

@@ -17,7 +17,7 @@ import {
 } from "@/lib/data-access/github-refresh-outcome";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse, type NextRequest } from "next/server";
-import { incrementAndPersist, loadRateLimitStore } from "@/lib/rate-limiter";
+import { incrementAndPersist } from "@/lib/rate-limiter";
 import { envLogger } from "@/lib/utils/env-logger";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import { getClientIp } from "@/lib/utils/request-utils";
@@ -29,20 +29,6 @@ const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
 const RATE_LIMIT_STORE_KEY = "rate-limits/github-refresh";
 const RATE_LIMIT_STORE_NAME = "github-refresh";
-
-// Load rate limits from the in-memory store bootstrap on startup
-let rateLimitsLoaded = false;
-async function ensureRateLimitsLoaded() {
-  if (!rateLimitsLoaded) {
-    try {
-      await loadRateLimitStore(RATE_LIMIT_STORE_NAME, RATE_LIMIT_STORE_KEY);
-      rateLimitsLoaded = true;
-    } catch (error) {
-      console.warn("[API Refresh] Failed to load rate limits from store bootstrap:", error);
-      // Continue anyway - will start with empty store
-    }
-  }
-}
 
 /**
  * Handles POST requests to refresh GitHub activity data.
@@ -88,9 +74,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 200 },
     );
   }
-
-  // Ensure rate limits are loaded into the process store
-  await ensureRateLimitsLoaded();
 
   // Check for cron job authentication first
   const headerStore = request.headers;

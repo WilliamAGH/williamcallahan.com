@@ -6,15 +6,19 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import type * as HybridSearchBooksBlog from "@/lib/db/queries/hybrid-search-books-blog";
+import type * as QueryEmbedding from "@/lib/db/queries/query-embedding";
 
 const { mockHybridSearchBlogPosts } = vi.hoisted(() => ({
-  mockHybridSearchBlogPosts: vi.fn(),
+  mockHybridSearchBlogPosts: vi.fn<typeof HybridSearchBooksBlog.hybridSearchBlogPosts>(),
 }));
 vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
   hybridSearchBlogPosts: mockHybridSearchBlogPosts,
 }));
 vi.mock("@/lib/db/queries/query-embedding", () => ({
-  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+  buildQueryEmbedding: vi
+    .fn<typeof QueryEmbedding.buildQueryEmbedding>()
+    .mockResolvedValue(undefined),
 }));
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";

@@ -304,8 +304,8 @@ export async function monitoredAsync<T>(
     if (timeoutId) clearTimeout(timeoutId);
 
     // Use atomic check-and-set to avoid race conditions
-    const operation = asyncMonitor.getOperation(operationId);
-    if (operation && operation.status === "pending") {
+    const trackedOperation = asyncMonitor.getOperation(operationId);
+    if (trackedOperation && trackedOperation.status === "pending") {
       const err = error instanceof Error ? error : new Error(String(error));
       asyncMonitor.failOperation(operationId, err);
     }

@@ -84,7 +84,7 @@ For a route param `feature`, the server resolves configuration with this precede
    - `AI_DEFAULT_MAX_PARALLEL` (optional; default: 1)
 3. Built-in non-secret defaults:
    - `baseUrl = https://api.llm-gateway.iocloudhost.net`
-   - `model = qwen3.8-27b`
+   - `model = qwen3.8-27b-self-hosted`
    - `maxParallel = 1`
    - no API key
 
@@ -99,10 +99,16 @@ For a route param `feature`, the server resolves configuration with this precede
   - `AI_DEFAULT_OPENAI_BASE_URL`
   - `AI_DEFAULT_OPENAI_API_KEY`
 - Used for:
-  - PostgreSQL bookmark embedding backfill (`bun run bookmarks:embeddings:backfill`, executed via Node script `scripts/backfill-bookmark-embeddings.node.mjs`)
+  - PostgreSQL bookmark embedding backfill (`pnpm run bookmarks:embeddings:backfill`, executed via Node script `scripts/backfill-bookmark-embeddings.node.mjs`)
 - The shared app/server embeddings client sends OpenAI-style array inputs and splits oversized logical inputs into endpoint-safe chunks before posting. Chunk vectors are pooled back into one vector per original input so callers keep stable count/order parity. Because service time scales with total input size, a caller that does not pass an explicit `timeoutMs` gets a request timeout derived from the planned input length (2 000 chars/s budgeted, floor 30 s); a fixed timeout silently capped how much text one batch could carry and parked large bookmark batches in `embedding_failures`. Scheduler batch callers opt into bounded retries for timeouts, network errors, rate limits, and 5xx responses; interactive callers retain one attempt. Each dedicated data-updater cycle processes at most one canonical bookmark embedding batch. Terminal batch failures are persisted with a retry checkpoint, and future cycles drain due checkpoints without delaying scheduler health on the full backlog.
 
 ## OpenAI SDK Notes
+
+Every OpenAI-compatible request carries the existing `X-Tier` routing header and
+the stable internal `X-User-ID` workload label. Labels use
+`williamcallahan.com:<operation>:<tier>` for chat-completions and embeddings;
+background embedding and tag-alias jobs use the `batch` suffix, while user-facing
+chat and search embeddings use `live`.
 
 - Dependency: `openai@6.18.0` from npm.
 - SDK base URL is normalized to include `/v1`, so both OpenAI and OpenAI-compatible providers (including LM Studio) can be configured with or without a trailing `/v1`.

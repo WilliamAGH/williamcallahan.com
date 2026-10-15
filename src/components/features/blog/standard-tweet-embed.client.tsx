@@ -43,7 +43,6 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) =>
       script.id = scriptId;
       script.src = "https://platform.twitter.com/widgets.js";
       script.async = true;
-      script.charset = "utf-8";
       document.body.appendChild(script);
       script.addEventListener("load", createTweetEmbed, { once: true });
     } else {

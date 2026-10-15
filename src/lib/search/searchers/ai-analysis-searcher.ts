@@ -73,6 +73,9 @@ function extractProjectText(analysis: AnyAnalysisResponse): string[] {
   ].filter((s): s is string => typeof s === "string" && s.length > 0);
 }
 
+const truncate = (text: string, maxLength: number): string =>
+  text.length <= maxLength ? text : text.slice(0, maxLength - 3) + "...";
+
 /** Extract best-matching snippet from analysis for display. */
 function extractSnippetFromTexts(texts: string[], query: string, fieldLabels: string[]): string {
   const queryLower = query.toLowerCase();
@@ -104,9 +107,6 @@ function extractSnippetFromTexts(texts: string[], query: string, fieldLabels: st
 
   return best.label ? `${best.label}: ${truncate(best.text, 100)}` : truncate(best.text, 100);
 }
-
-const truncate = (text: string, maxLength: number): string =>
-  text.length <= maxLength ? text : text.slice(0, maxLength - 3) + "...";
 
 /** Domain configs mapping domain name to search behavior. */
 const DOMAIN_CONFIGS: Record<AnalysisDomain, AnalysisDomainConfig> = {

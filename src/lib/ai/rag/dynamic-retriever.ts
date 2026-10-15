@@ -169,15 +169,13 @@ export async function retrieveRelevantContent(
         scopeTimeoutMs,
         scope,
       );
-      return results.slice(0, Math.ceil(maxResults / scopes.length)).map(
-        (r): DynamicResult => ({
-          scope,
-          title: r.title,
-          description: r.description ?? "",
-          url: r.url,
-          score: r.score,
-        }),
-      );
+      return results.slice(0, Math.ceil(maxResults / scopes.length)).map((r): DynamicResult => ({
+        scope,
+        title: r.title,
+        description: r.description ?? "",
+        url: r.url,
+        score: r.score,
+      }));
     } catch (error) {
       const failure = error instanceof Error ? error.message : String(error);
       logger.warn(`[RAG] Search failed for scope "${scope}"`, { failure, scope });

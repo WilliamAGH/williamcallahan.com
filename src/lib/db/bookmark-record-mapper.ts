@@ -20,7 +20,7 @@ export const BOOKMARK_ENRICHMENT_FIELDS = [
   "readingTime",
   "wordCount",
   "scrapedContentText",
-] as const satisfies ReadonlyArray<keyof UnifiedBookmark & keyof BookmarkInsert>;
+] as const satisfies ReadonlyArray<Extract<keyof UnifiedBookmark, keyof BookmarkInsert>>;
 
 const toUndefined = <T>(value: T | null): T | undefined => {
   if (value === null) {

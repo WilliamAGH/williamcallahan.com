@@ -1,27 +1,61 @@
 import { buildChatPipeline } from "@/app/api/ai/chat/[feature]/upstream-pipeline";
-import { searchBookmarks } from "@/lib/search/searchers/dynamic-searchers";
+import {
+  UpstreamRequestQueue,
+  type getUpstreamRequestQueue,
+} from "@/lib/ai/openai-compatible/upstream-request-queue";
+import type { buildChatMessages } from "@/lib/ai/openai-compatible/chat-messages";
+import type {
+  callOpenAiCompatibleChatCompletions,
+  callOpenAiCompatibleResponses,
+  streamOpenAiCompatibleChatCompletions,
+  streamOpenAiCompatibleResponses,
+} from "@/lib/ai/openai-compatible/openai-compatible-client";
+import type {
+  buildUpstreamQueueKey,
+  resolveOpenAiCompatibleFeatureConfig,
+  resolvePreferredUpstreamModel,
+} from "@/lib/ai/openai-compatible/feature-config";
+import { searchBookmarks, type searchBooks } from "@/lib/search/searchers/dynamic-searchers";
+import type { searchBlogPostsServerSide } from "@/lib/blog/server-search";
+import type { searchTags } from "@/lib/search/searchers/tag-search";
+import type {
+  searchEducation,
+  searchExperience,
+  searchInvestments,
+  searchProjects,
+} from "@/lib/search/searchers/static-searchers";
+import type { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
+import type { searchThoughts } from "@/lib/search/searchers/thoughts-search";
 import type { ValidatedRequestContext } from "@/types/features/ai-chat";
-import type { OpenAiCompatibleChatMessage } from "@/types/schemas/ai-openai-compatible";
+import type {
+  OpenAiCompatibleChatCompletionsResponse,
+  OpenAiCompatibleChatMessage,
+} from "@/types/schemas/ai-openai-compatible";
 import type { AiChatModelStreamUpdate } from "@/types/schemas/ai-openai-compatible-client";
 
-export const mockCallOpenAiCompatibleChatCompletions = vi.fn().mockResolvedValue({
-  choices: [{ message: { content: "ok" } }],
-});
-export const mockCallOpenAiCompatibleResponses = vi.fn().mockResolvedValue({
-  id: "response_1",
-  output_text: "ok",
-  output: [],
-});
-export const mockStreamOpenAiCompatibleChatCompletions = vi.fn();
-export const mockStreamOpenAiCompatibleResponses = vi.fn();
+export const mockCallOpenAiCompatibleChatCompletions = vi
+  .fn<typeof callOpenAiCompatibleChatCompletions>()
+  .mockResolvedValue({
+    choices: [{ message: { role: "assistant", content: "ok" } }],
+  });
+export const mockCallOpenAiCompatibleResponses = vi
+  .fn<typeof callOpenAiCompatibleResponses>()
+  .mockResolvedValue({
+    id: "response_1",
+    output_text: "ok",
+    output: [],
+  });
+export const mockStreamOpenAiCompatibleChatCompletions =
+  vi.fn<typeof streamOpenAiCompatibleChatCompletions>();
+export const mockStreamOpenAiCompatibleResponses = vi.fn<typeof streamOpenAiCompatibleResponses>();
 const mockBuildChatMessages = vi
-  .fn()
+  .fn<typeof buildChatMessages>()
   .mockReturnValue([
     { role: "user", content: "search bookmarks" } satisfies OpenAiCompatibleChatMessage,
   ]);
-export const mockGetUpstreamRequestQueue = vi.fn().mockReturnValue({
-  add: vi.fn(),
-});
+export const mockGetUpstreamRequestQueue = vi
+  .fn<typeof getUpstreamRequestQueue>()
+  .mockImplementation((args) => new UpstreamRequestQueue(args));
 
 vi.mock("@/lib/ai/openai-compatible/openai-compatible-client", () => ({
   assertOpenAiCompatibleResponsesSucceeded: (response: {
@@ -40,34 +74,42 @@ vi.mock("@/lib/ai/openai-compatible/openai-compatible-client", () => ({
       { name: "OpenAiCompatibleResponsesFailureError", status: 502 },
     );
   },
-  callOpenAiCompatibleChatCompletions: (...args: unknown[]) =>
-    mockCallOpenAiCompatibleChatCompletions(...args),
-  callOpenAiCompatibleResponses: (...args: unknown[]) => mockCallOpenAiCompatibleResponses(...args),
-  streamOpenAiCompatibleChatCompletions: (...args: unknown[]) =>
-    mockStreamOpenAiCompatibleChatCompletions(...args),
-  streamOpenAiCompatibleResponses: (...args: unknown[]) =>
+  callOpenAiCompatibleChatCompletions: (
+    ...args: Parameters<typeof callOpenAiCompatibleChatCompletions>
+  ) => mockCallOpenAiCompatibleChatCompletions(...args),
+  callOpenAiCompatibleResponses: (...args: Parameters<typeof callOpenAiCompatibleResponses>) =>
+    mockCallOpenAiCompatibleResponses(...args),
+  streamOpenAiCompatibleChatCompletions: (
+    ...args: Parameters<typeof streamOpenAiCompatibleChatCompletions>
+  ) => mockStreamOpenAiCompatibleChatCompletions(...args),
+  streamOpenAiCompatibleResponses: (...args: Parameters<typeof streamOpenAiCompatibleResponses>) =>
     mockStreamOpenAiCompatibleResponses(...args),
 }));
 
 vi.mock("@/lib/ai/openai-compatible/chat-messages", () => ({
-  buildChatMessages: (...args: unknown[]) => mockBuildChatMessages(...args),
+  buildChatMessages: (...args: Parameters<typeof buildChatMessages>) =>
+    mockBuildChatMessages(...args),
 }));
 
-vi.mock("@/lib/ai/openai-compatible/upstream-request-queue", () => ({
-  getUpstreamRequestQueue: (...args: unknown[]) => mockGetUpstreamRequestQueue(...args),
+vi.mock("@/lib/ai/openai-compatible/upstream-request-queue", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ai/openai-compatible/upstream-request-queue")>()),
+  getUpstreamRequestQueue: (...args: Parameters<typeof getUpstreamRequestQueue>) =>
+    mockGetUpstreamRequestQueue(...args),
 }));
 
 vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
-  resolveOpenAiCompatibleFeatureConfig: vi.fn().mockReturnValue({
-    baseUrl: "https://example.com",
-    model: "qwen/qwen3-32b",
-    maxParallel: 1,
-  }),
-  resolvePreferredUpstreamModel: vi.fn().mockReturnValue({
+  resolveOpenAiCompatibleFeatureConfig: vi
+    .fn<typeof resolveOpenAiCompatibleFeatureConfig>()
+    .mockReturnValue({
+      baseUrl: "https://example.com",
+      model: "qwen/qwen3-32b",
+      maxParallel: 1,
+    }),
+  resolvePreferredUpstreamModel: vi.fn<typeof resolvePreferredUpstreamModel>().mockReturnValue({
     primaryModel: "qwen/qwen3-32b",
     fallbackModel: undefined,
   }),
-  buildUpstreamQueueKey: vi.fn(({ baseUrl, model, apiMode }) => {
+  buildUpstreamQueueKey: vi.fn<typeof buildUpstreamQueueKey>(({ baseUrl, model, apiMode }) => {
     const route = apiMode === "responses" ? "responses" : "chat/completions";
     const primaryModel = model.split(",")[0]?.trim() ?? model;
     return `${baseUrl}/v1/${route}::${primaryModel}`;
@@ -75,31 +117,31 @@ vi.mock("@/lib/ai/openai-compatible/feature-config", () => ({
 }));
 
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
-  searchBookmarks: vi.fn(),
-  searchBooks: vi.fn().mockResolvedValue([]),
+  searchBookmarks: vi.fn<typeof searchBookmarks>(),
+  searchBooks: vi.fn<typeof searchBooks>().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/blog/server-search", () => ({
-  searchBlogPostsServerSide: vi.fn().mockResolvedValue([]),
+  searchBlogPostsServerSide: vi.fn<typeof searchBlogPostsServerSide>().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/search/searchers/tag-search", () => ({
-  searchTags: vi.fn().mockResolvedValue([]),
+  searchTags: vi.fn<typeof searchTags>().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/search/searchers/static-searchers", () => ({
-  searchInvestments: vi.fn().mockResolvedValue([]),
-  searchExperience: vi.fn().mockResolvedValue([]),
-  searchEducation: vi.fn().mockResolvedValue([]),
-  searchProjects: vi.fn().mockResolvedValue([]),
+  searchInvestments: vi.fn<typeof searchInvestments>().mockResolvedValue([]),
+  searchExperience: vi.fn<typeof searchExperience>().mockResolvedValue([]),
+  searchEducation: vi.fn<typeof searchEducation>().mockResolvedValue([]),
+  searchProjects: vi.fn<typeof searchProjects>().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/search/searchers/ai-analysis-searcher", () => ({
-  searchAiAnalysis: vi.fn().mockResolvedValue([]),
+  searchAiAnalysis: vi.fn<typeof searchAiAnalysis>().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/search/searchers/thoughts-search", () => ({
-  searchThoughts: vi.fn().mockResolvedValue([]),
+  searchThoughts: vi.fn<typeof searchThoughts>().mockResolvedValue([]),
 }));
 
 export const mockedSearchBookmarks = vi.mocked(searchBookmarks);
@@ -130,11 +172,6 @@ export type PipelineOptions = {
   apiMode?: ApiMode;
   reasoningEffort?: ValidatedRequestContext["parsedBody"]["reasoning_effort"];
   responseFormat?: ValidatedRequestContext["parsedBody"]["response_format"];
-};
-
-type StreamHandlerArgs = {
-  onStart?: (meta: { id: string; model: string }) => void;
-  onDelta?: (delta: string) => void;
 };
 
 export function createValidatedContext(args?: PipelineOptions): ValidatedRequestContext {
@@ -179,32 +216,28 @@ export function mockSingleBookmarkSearchResult(): void {
 }
 
 function mockStreamDefaultChatResponse(): void {
-  mockStreamOpenAiCompatibleChatCompletions.mockImplementation(
-    ({ onStart, onDelta }: StreamHandlerArgs) => {
-      onStart?.({ id: "chatcmpl_1", model: streamModel });
-      onDelta?.("o");
-      onDelta?.("k");
-      return Promise.resolve({
-        id: "chatcmpl_1",
-        choices: [{ message: { role: "assistant", content: "ok" } }],
-      });
-    },
-  );
+  mockStreamOpenAiCompatibleChatCompletions.mockImplementation(({ onStart, onDelta }) => {
+    onStart?.({ id: "chatcmpl_1", model: streamModel });
+    onDelta?.("o");
+    onDelta?.("k");
+    return Promise.resolve({
+      id: "chatcmpl_1",
+      choices: [{ message: { role: "assistant", content: "ok" } }],
+    });
+  });
 }
 
 function mockStreamDefaultResponsesResponse(): void {
-  mockStreamOpenAiCompatibleResponses.mockImplementation(
-    ({ onStart, onDelta }: StreamHandlerArgs) => {
-      onStart?.({ id: "response_1", model: streamModel });
-      onDelta?.("o");
-      onDelta?.("k");
-      return Promise.resolve({
-        id: "response_1",
-        output_text: "ok",
-        output: [],
-      });
-    },
-  );
+  mockStreamOpenAiCompatibleResponses.mockImplementation(({ onStart, onDelta }) => {
+    onStart?.({ id: "response_1", model: streamModel });
+    onDelta?.("o");
+    onDelta?.("k");
+    return Promise.resolve({
+      id: "response_1",
+      output_text: "ok",
+      output: [],
+    });
+  });
 }
 
 export function resetPipelineMocks(): void {
@@ -276,17 +309,20 @@ export function buildSearchBookmarksToolCall(params?: {
   };
 }
 
+type ChatCompletionsAssistantMessage =
+  OpenAiCompatibleChatCompletionsResponse["choices"][number]["message"];
+
 export function mockChatToolCallThenContent(params: {
   finalContent: string;
   initialContent?: string | null;
   query?: string;
   maxResults?: number;
 }): void {
-  const firstMessageBase = {
+  const firstMessageBase: ChatCompletionsAssistantMessage = {
     role: "assistant",
     tool_calls: [buildSearchBookmarksToolCall(params)],
   };
-  const firstMessage =
+  const firstMessage: ChatCompletionsAssistantMessage =
     params.initialContent === undefined
       ? firstMessageBase
       : { ...firstMessageBase, content: params.initialContent };
@@ -309,29 +345,27 @@ export function mockStreamingSearchBookmarksToolCall(args: {
   const toolCallArgs =
     typeof args.maxResults === "number" ? { query, maxResults: args.maxResults } : { query };
 
-  mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(
-    ({ onStart }: StreamHandlerArgs) => {
-      onStart?.({ id: args.streamId, model: streamModel });
-      return Promise.resolve({
-        id: args.streamId,
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              tool_calls: [
-                {
-                  id: "tool-call-1",
-                  type: "function",
-                  function: {
-                    name: "search_bookmarks",
-                    arguments: JSON.stringify(toolCallArgs),
-                  },
+  mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(({ onStart }) => {
+    onStart?.({ id: args.streamId, model: streamModel });
+    return Promise.resolve({
+      id: args.streamId,
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            tool_calls: [
+              {
+                id: "tool-call-1",
+                type: "function",
+                function: {
+                  name: "search_bookmarks",
+                  arguments: JSON.stringify(toolCallArgs),
                 },
-              ],
-            },
+              },
+            ],
           },
-        ],
-      });
-    },
-  );
+        },
+      ],
+    });
+  });
 }

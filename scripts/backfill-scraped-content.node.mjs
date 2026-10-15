@@ -200,7 +200,6 @@ async function main() {
 
     // 4. Process each row
     let updated = 0;
-    let skipped = 0;
     let noHtml = 0;
     let unchanged = 0;
 
@@ -244,7 +243,6 @@ async function main() {
     console.log(`  ${DRY_RUN ? "Would update" : "Updated"}:  ${updated}`);
     console.log(`  Skipped (no HTML):      ${noHtml}`);
     console.log(`  Skipped (unchanged):    ${unchanged}`);
-    console.log(`  Skipped (already set):  ${skipped}`);
     console.log(`  Total processed:        ${rows.length}`);
   } finally {
     await sql.end();

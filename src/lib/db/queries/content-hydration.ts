@@ -76,7 +76,7 @@ async function hydrateBookmarks(entries: HydrationEntry[]): Promise<RelatedConte
       url: buildBookmarkPath(r.slug),
       score: score ?? 0,
       metadata: {
-        tags: extractTagNames(r.tags as Array<BookmarkTag | string> | null),
+        tags: extractTagNames(r.tags),
         domain: r.domain ?? undefined,
         date: r.dateBookmarked ?? undefined,
         imageUrl: resolveImageUrl(
@@ -120,7 +120,7 @@ async function hydrateBlogPosts(entries: HydrationEntry[]): Promise<RelatedConte
       } else if (r.coverImage.startsWith("/")) {
         // Local path without manifest entry — data integrity gap, not a runtime fallback
         console.warn(
-          `[content-hydration] Blog cover "${r.coverImage}" missing from CDN manifest for post ${r.id}. Run "bun scripts/sync-blog-cover-images.ts".`,
+          `[content-hydration] Blog cover "${r.coverImage}" missing from CDN manifest for post ${r.id}. Run "tsx scripts/sync-blog-cover-images.ts".`,
         );
         imageUrl = r.coverImage;
       } else {
@@ -243,8 +243,8 @@ async function hydrateBooks(entries: HydrationEntry[]): Promise<RelatedContentSu
     const metadata: RelatedContentMetadata = {
       tags: (r.genres as string[]) ?? [],
       imageUrl: resolveImageUrl(r.coverUrl ?? undefined),
-      authors: (r.authors as string[]) ?? undefined,
-      formats: (r.formats as string[]) ?? undefined,
+      authors: r.authors ?? undefined,
+      formats: r.formats ?? undefined,
     };
     return {
       type: "book" as const,
@@ -276,7 +276,7 @@ async function hydrateThoughts(entries: HydrationEntry[]): Promise<RelatedConten
   const scoreMap = new Map(entries.map((e) => [e.entityId, e.score]));
 
   return rows.map((r) => {
-    const createdAtMs = r.createdAt ? Number(r.createdAt) : null;
+    const createdAtMs = r.createdAt || null;
     const dateIso = createdAtMs ? new Date(createdAtMs).toISOString() : undefined;
     const metadata: RelatedContentMetadata = {
       tags: r.tags ?? [],

@@ -55,10 +55,10 @@ export type TrProps = React.DetailedHTMLProps<
   HTMLTableRowElement
 >;
 export type ThProps = React.DetailedHTMLProps<
-  React.ThHTMLAttributes<HTMLTableHeaderCellElement>,
-  HTMLTableHeaderCellElement
+  React.ThHTMLAttributes<HTMLTableCellElement>,
+  HTMLTableCellElement
 >;
 export type TdProps = React.DetailedHTMLProps<
-  React.TdHTMLAttributes<HTMLTableDataCellElement>,
-  HTMLTableDataCellElement
+  React.TdHTMLAttributes<HTMLTableCellElement>,
+  HTMLTableCellElement
 >;

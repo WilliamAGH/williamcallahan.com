@@ -117,7 +117,7 @@ export function LogoImage({
   src,
   width,
   height,
-  alt = "Company Logo",
+  alt,
   className = "",
   priority = false,
   needsInversion = false,

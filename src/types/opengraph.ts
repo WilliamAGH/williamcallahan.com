@@ -44,7 +44,7 @@ export interface OgResult extends OgFetchResult {
   /** A hash of the original URL */
   urlHash?: string;
   /** The error object, if one was thrown (may be OgError or plain object when loaded from S3) */
-  errorDetails?: OgError | unknown;
+  errorDetails?: unknown;
   /** A unique ID for the image asset in S3 */
   imageAssetId?: string;
   /** A unique ID for the screenshot asset in S3 */

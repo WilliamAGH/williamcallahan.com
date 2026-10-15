@@ -7,7 +7,7 @@ import type {
 import { requireEmbeddingSpaceIdForProviderModelId } from "@/lib/ai/embeddings/embedding-space-registry";
 
 const DEFAULT_BASE_URL = "https://api.llm-gateway.iocloudhost.net";
-const DEFAULT_MODEL = "qwen3.8-27b";
+const DEFAULT_MODEL = "qwen3.8-27b-self-hosted";
 const DEFAULT_MAX_PARALLEL = 1;
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-qwen3-embedding-4b";
 
@@ -19,7 +19,7 @@ function normalizeFeatureEnvKey(feature: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
-const baseUrlSchema = z.string().url();
+const baseUrlSchema = z.url();
 const modelSchema = z.string().min(1);
 const maxParallelSchema = z.number().int().min(1).max(20);
 

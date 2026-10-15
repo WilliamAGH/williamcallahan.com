@@ -171,19 +171,18 @@ of module-scope output decisions.
 
 ## Build and Test Runtime
 
-Next builds must run on the pinned Node runtime. Bun may orchestrate package scripts,
-but the Next CLI remains `node ./node_modules/next/dist/bin/next`; do not run the
-Next build on Bun or add a compatibility layer for timer behavior.
+Next builds run on the pinned Node runtime through `node ./node_modules/next/dist/bin/next`;
+do not add a compatibility layer for timer behavior.
 
 Before changing framework behavior:
 
 1. Inspect the installed Next, React, and Vitest sources that prove the claim.
 2. Fetch current official framework guidance through Context7 or the official docs.
 3. Map every affected route, metadata builder, test, and cache/invalidation consumer.
-4. Run `bun run validate`, then the smallest relevant `bun run test` command.
-5. Run `NODE_ENV=production bun run build` for build or rendering changes.
+4. Run `pnpm run validate`, then the smallest relevant `pnpm run test` command.
+5. Run `NODE_ENV=production pnpm run build` for build or rendering changes.
 
-Do not run `bun test` directly: it bypasses `config/vitest/`. Do not add polyfills,
+Run tests through `pnpm run test*` so `config/vitest/` loads. Do not add polyfills,
 global patches, or downgraded packages to conceal a Node or framework incompatibility.
 
 ## Image Optimization Contract
@@ -220,10 +219,10 @@ Framework changes need an evidence trail containing the installed-source path an
 official documentation lookup. Use these gates in order:
 
 ```bash
-bun run validate
-bun run test -- <focused test selector>
-NODE_ENV=production bun run build
-bun run deploy:verify
+pnpm run validate
+pnpm run test -- <focused test selector>
+NODE_ENV=production pnpm run build
+pnpm run deploy:verify
 ```
 
 For a web runtime update, also build the web image and inspect its node version as

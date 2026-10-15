@@ -8,6 +8,12 @@
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { writeContentGraphArtifacts } from "@/lib/db/mutations/content-graph";
 import type { MockedFunction } from "vitest";
+import type { listS3Objects } from "@/lib/s3/objects";
+import type { findSimilarByEntity } from "@/lib/db/queries/cross-domain-similarity";
+import type {
+  findSimilarByEmbedding,
+  rankEmbeddingCandidates,
+} from "@/lib/db/queries/embedding-similarity";
 import type { BlogPost } from "@/types/blog";
 import type { BookmarksIndex, UnifiedBookmark } from "@/types/schemas/bookmark";
 
@@ -22,30 +28,33 @@ vi.mock("@/lib/db/queries/bookmarks");
 vi.mock("@/lib/db/mutations/search-index-artifacts");
 vi.mock("@/lib/db/mutations/image-manifests");
 vi.mock("@/lib/s3/objects", () => ({
-  listS3Objects: vi.fn().mockResolvedValue([]),
+  listS3Objects: vi.fn<typeof listS3Objects>().mockResolvedValue([]),
 }));
 vi.mock("@/data/projects", () => ({
   projects: [],
 }));
 
 // Mock cross-domain similarity (pgvector queries) — fallback path
-const mockFindSimilarByEntity = vi.fn();
+const mockFindSimilarByEntity = vi.fn<typeof findSimilarByEntity>();
 vi.mock("@/lib/db/queries/cross-domain-similarity", () => ({
-  findSimilarByEntity: (...args: unknown[]) => mockFindSimilarByEntity(...args),
+  findSimilarByEntity: (...args: Parameters<typeof mockFindSimilarByEntity>) =>
+    mockFindSimilarByEntity(...args),
 }));
 
 // Mock embedding-based similarity — primary path
-const mockFindSimilarByEmbedding = vi.fn();
-const mockRankEmbeddingCandidates = vi.fn();
+const mockFindSimilarByEmbedding = vi.fn<typeof findSimilarByEmbedding>();
+const mockRankEmbeddingCandidates = vi.fn<typeof rankEmbeddingCandidates>();
 vi.mock("@/lib/db/queries/embedding-similarity", () => ({
-  findSimilarByEmbedding: (...args: unknown[]) => mockFindSimilarByEmbedding(...args),
-  rankEmbeddingCandidates: (...args: unknown[]) => mockRankEmbeddingCandidates(...args),
+  findSimilarByEmbedding: (...args: Parameters<typeof mockFindSimilarByEmbedding>) =>
+    mockFindSimilarByEmbedding(...args),
+  rankEmbeddingCandidates: (...args: Parameters<typeof mockRankEmbeddingCandidates>) =>
+    mockRankEmbeddingCandidates(...args),
 }));
 
 // Mock DB connection for direct SQL queries in buildContentGraph
-const mockDbExecute = vi.fn();
+const mockDbExecute = vi.fn<(query: unknown) => Promise<unknown[]>>();
 vi.mock("@/lib/db/connection", () => ({
-  db: { execute: (...args: unknown[]) => mockDbExecute(...args) },
+  db: { execute: (...args: Parameters<typeof mockDbExecute>) => mockDbExecute(...args) },
 }));
 
 // Mock drizzle-orm sql tagged template
@@ -159,7 +168,7 @@ describe("Content Graph Pre-computation", () => {
         .mockResolvedValueOnce(tagContentRows);
 
       // Mock findSimilarByEntity to return similarity candidates (replaces findSimilarByEmbedding)
-      mockFindSimilarByEntity.mockImplementation((options: { sourceId: string }) => {
+      mockFindSimilarByEntity.mockImplementation((options) => {
         if (options.sourceId === "b1") {
           return Promise.resolve([
             {
@@ -197,9 +206,8 @@ describe("Content Graph Pre-computation", () => {
       });
 
       // Mock rankEmbeddingCandidates to pass through candidates with scores
-      mockRankEmbeddingCandidates.mockImplementation(
-        ({ candidates }: { candidates: Array<{ similarity: number }> }) =>
-          candidates.map((c) => ({ ...c, score: c.similarity })),
+      mockRankEmbeddingCandidates.mockImplementation(({ candidates }) =>
+        candidates.map((c) => ({ ...c, score: c.similarity })),
       );
 
       // Mock blog posts and projects for metadata

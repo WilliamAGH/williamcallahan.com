@@ -1,5 +1,9 @@
 vi.mock("@/lib/data-access/github-public-api");
 
+import type * as GitHubApi from "@/lib/data-access/github-api";
+import type * as GitHubStorage from "@/lib/data-access/github-storage";
+import type * as HttpClient from "@/lib/utils/http-client";
+import type * as RateLimiter from "@/lib/rate-limiter";
 import type { GraphQLRepoNode } from "@/types/github";
 import {
   publicPriorYearCommitSummarySchema,
@@ -105,16 +109,20 @@ describe("GitHub data access", () => {
   describe("GitHub Repo Processor", () => {
     it("uses cached weekly stats when the live contributor API fails", async () => {
       vi.resetModules();
-      const readRepoWeeklyStatsRecord = vi.fn().mockResolvedValue({
-        repoOwnerLogin: "owner",
-        repoName: "repo",
-        lastFetched: "2026-06-09T00:00:00.000Z",
-        status: "complete",
-        stats: [{ w: Date.parse("2026-06-01T00:00:00.000Z") / 1000, a: 100, d: 40, c: 3 }],
-      });
-      const writeRepoWeeklyStatsRecord = vi.fn();
+      const readRepoWeeklyStatsRecord = vi
+        .fn<typeof GitHubStorage.readRepoWeeklyStatsRecord>()
+        .mockResolvedValue({
+          repoOwnerLogin: "owner",
+          repoName: "repo",
+          lastFetched: "2026-06-09T00:00:00.000Z",
+          status: "complete",
+          stats: [{ w: Date.parse("2026-06-01T00:00:00.000Z") / 1000, a: 100, d: 40, c: 3 }],
+        });
+      const writeRepoWeeklyStatsRecord = vi.fn<typeof GitHubStorage.writeRepoWeeklyStatsRecord>();
       vi.doMock("@/lib/data-access/github-api", () => ({
-        fetchContributorStats: vi.fn().mockRejectedValue(new Error("GitHub unavailable")),
+        fetchContributorStats: vi
+          .fn<typeof GitHubApi.fetchContributorStats>()
+          .mockRejectedValue(new Error("GitHub unavailable")),
         GitHubContributorStatsPendingError: class GitHubContributorStatsPendingError extends Error {},
         GitHubContributorStatsRateLimitError: class GitHubContributorStatsRateLimitError extends Error {},
       }));
@@ -159,15 +167,21 @@ describe("GitHub data access", () => {
       "replaces stale weekly stats when a successful response %s",
       async (_scenario, contributors) => {
         vi.resetModules();
-        const readRepoWeeklyStatsRecord = vi.fn().mockResolvedValue({
-          repoOwnerLogin: "owner",
-          repoName: "repo",
-          lastFetched: "2026-06-09T00:00:00.000Z",
-          status: "complete",
-          stats: [{ w: Date.parse("2026-06-01T00:00:00.000Z") / 1000, a: 100, d: 40, c: 3 }],
-        });
-        const writeRepoWeeklyStatsRecord = vi.fn().mockResolvedValue(true);
-        const fetchContributorStats = vi.fn().mockResolvedValue(contributors);
+        const readRepoWeeklyStatsRecord = vi
+          .fn<typeof GitHubStorage.readRepoWeeklyStatsRecord>()
+          .mockResolvedValue({
+            repoOwnerLogin: "owner",
+            repoName: "repo",
+            lastFetched: "2026-06-09T00:00:00.000Z",
+            status: "complete",
+            stats: [{ w: Date.parse("2026-06-01T00:00:00.000Z") / 1000, a: 100, d: 40, c: 3 }],
+          });
+        const writeRepoWeeklyStatsRecord = vi
+          .fn<typeof GitHubStorage.writeRepoWeeklyStatsRecord>()
+          .mockResolvedValue(true);
+        const fetchContributorStats = vi
+          .fn<typeof GitHubApi.fetchContributorStats>()
+          .mockResolvedValue(contributors);
         vi.doMock("@/lib/data-access/github-api", () => ({
           fetchContributorStats,
           GitHubContributorStatsPendingError: class GitHubContributorStatsPendingError extends Error {},
@@ -216,11 +230,15 @@ describe("GitHub data access", () => {
 
     it("treats a no-content contributor response as authoritative empty data", async () => {
       vi.resetModules();
-      const githubHttpClient = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+      const githubHttpClient = vi
+        .fn<typeof HttpClient.fetchWithTimeout>()
+        .mockResolvedValue(new Response(null, { status: 204 }));
       vi.doMock("@/lib/utils/http-client", () => ({
-        createRetryingFetch: vi.fn(() => githubHttpClient),
+        createRetryingFetch: vi.fn<typeof HttpClient.createRetryingFetch>(() => githubHttpClient),
       }));
-      vi.doMock("@/lib/rate-limiter", () => ({ waitForPermit: vi.fn() }));
+      vi.doMock("@/lib/rate-limiter", () => ({
+        waitForPermit: vi.fn<typeof RateLimiter.waitForPermit>(),
+      }));
 
       try {
         const { fetchContributorStats } = await import("@/lib/data-access/github-api");

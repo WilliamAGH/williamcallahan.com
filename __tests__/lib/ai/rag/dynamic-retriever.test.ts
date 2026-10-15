@@ -5,48 +5,74 @@
  * Uses mocked search functions to avoid actual database/S3 calls.
  */
 
-const { mockLoggerWarn } = vi.hoisted(() => ({ mockLoggerWarn: vi.fn() }));
+const { mockLoggerWarn } = vi.hoisted(() => ({ mockLoggerWarn: vi.fn<typeof logger.warn>() }));
 
 vi.mock("@/lib/utils/logger", () => ({
   default: {
-    info: vi.fn(),
+    info: vi.fn<typeof logger.info>(),
     warn: mockLoggerWarn,
   },
 }));
 
+import type logger from "@/lib/utils/logger";
+import type { searchBlogPostsServerSide } from "@/lib/blog/server-search";
+import type { searchTags } from "@/lib/search/searchers/tag-search";
+import type { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
+import type { searchThoughts } from "@/lib/search/searchers/thoughts-search";
 import { retrieveRelevantContent } from "@/lib/ai/rag/dynamic-retriever";
 import { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
 import { searchBookmarks, searchBooks } from "@/lib/search/searchers/dynamic-searchers";
-import { searchInvestments, searchProjects } from "@/lib/search/searchers/static-searchers";
+import {
+  searchInvestments,
+  searchProjects,
+  type searchEducation,
+  type searchExperience,
+} from "@/lib/search/searchers/static-searchers";
 
 // Mock buildQueryEmbedding so tests never hit the embedding endpoint and we can
 // assert it's invoked exactly once per retrieval (the fan-out dedup guarantee).
 vi.mock("@/lib/db/queries/query-embedding", () => ({
-  buildQueryEmbedding: vi.fn().mockResolvedValue(Array.from({ length: 2560 }, () => 0.1)),
+  buildQueryEmbedding: vi
+    .fn<typeof buildQueryEmbedding>()
+    .mockResolvedValue(Array.from({ length: 2560 }, () => 0.1)),
 }));
 
 // Mock all search functions
 vi.mock("@/lib/search/searchers/static-searchers", () => ({
-  searchProjects: vi
-    .fn()
-    .mockResolvedValue([
-      { title: "aVenture.vc", description: "Research platform", url: "/projects", score: 0.9 },
-    ]),
-  searchInvestments: vi.fn().mockResolvedValue([
+  searchProjects: vi.fn<typeof searchProjects>().mockResolvedValue([
     {
+      id: "p1",
+      type: "project",
+      title: "aVenture.vc",
+      description: "Research platform",
+      url: "/projects",
+      score: 0.9,
+    },
+  ]),
+  searchInvestments: vi.fn<typeof searchInvestments>().mockResolvedValue([
+    {
+      id: "i1",
+      type: "project",
       title: "TechStartup",
       description: "Seed investment",
       url: "/investments#tech",
       score: 0.85,
     },
   ]),
-  searchExperience: vi
-    .fn()
-    .mockResolvedValue([
-      { title: "Acme Corp", description: "Senior Engineer", url: "/experience#acme", score: 0.8 },
-    ]),
-  searchEducation: vi.fn().mockResolvedValue([
+  searchExperience: vi.fn<typeof searchExperience>().mockResolvedValue([
     {
+      id: "e1",
+      type: "project",
+      title: "Acme Corp",
+      description: "Senior Engineer",
+      url: "/experience#acme",
+      score: 0.8,
+    },
+  ]),
+  searchEducation: vi.fn<typeof searchEducation>().mockResolvedValue([
+    {
+      id: "ed1",
+      type: "page",
       title: "CFA Institute",
       description: "CFA Charterholder",
       url: "/education#cfa",
@@ -56,8 +82,10 @@ vi.mock("@/lib/search/searchers/static-searchers", () => ({
 }));
 
 vi.mock("@/lib/blog/server-search", () => ({
-  searchBlogPostsServerSide: vi.fn().mockResolvedValue([
+  searchBlogPostsServerSide: vi.fn<typeof searchBlogPostsServerSide>().mockResolvedValue([
     {
+      id: "b1",
+      type: "blog-post",
       title: "Building Terminal UIs",
       description: "How to build",
       url: "/blog/terminal",
@@ -67,13 +95,20 @@ vi.mock("@/lib/blog/server-search", () => ({
 }));
 
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
-  searchBooks: vi
-    .fn()
-    .mockResolvedValue([
-      { title: "Clean Code", description: "Robert Martin", url: "/books/clean-code", score: 0.75 },
-    ]),
-  searchBookmarks: vi.fn().mockResolvedValue([
+  searchBooks: vi.fn<typeof searchBooks>().mockResolvedValue([
     {
+      id: "bk1",
+      type: "book",
+      title: "Clean Code",
+      description: "Robert Martin",
+      url: "/books/clean-code",
+      score: 0.75,
+    },
+  ]),
+  searchBookmarks: vi.fn<typeof searchBookmarks>().mockResolvedValue([
+    {
+      id: "bm1",
+      type: "bookmark",
       title: "Useful Resource",
       description: "A bookmark",
       url: "/bookmarks/resource",
@@ -83,8 +118,10 @@ vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
 }));
 
 vi.mock("@/lib/search/searchers/tag-search", () => ({
-  searchTags: vi.fn().mockResolvedValue([
+  searchTags: vi.fn<typeof searchTags>().mockResolvedValue([
     {
+      id: "t1",
+      type: "tag",
       title: "[Blog] > [Tags] > TypeScript",
       description: "12 posts",
       url: "/blog/tags/typescript",
@@ -94,8 +131,10 @@ vi.mock("@/lib/search/searchers/tag-search", () => ({
 }));
 
 vi.mock("@/lib/search/searchers/ai-analysis-searcher", () => ({
-  searchAiAnalysis: vi.fn().mockResolvedValue([
+  searchAiAnalysis: vi.fn<typeof searchAiAnalysis>().mockResolvedValue([
     {
+      id: "a1",
+      type: "page",
       title: "[Books] > Clean Code > Summary",
       description: "AI-generated summary",
       url: "/books/clean-code#analysis",
@@ -105,8 +144,10 @@ vi.mock("@/lib/search/searchers/ai-analysis-searcher", () => ({
 }));
 
 vi.mock("@/lib/search/searchers/thoughts-search", () => ({
-  searchThoughts: vi.fn().mockResolvedValue([
+  searchThoughts: vi.fn<typeof searchThoughts>().mockResolvedValue([
     {
+      id: "th1",
+      type: "page",
       title: "Thoughts",
       description: "Notes & ruminations",
       url: "/thoughts",

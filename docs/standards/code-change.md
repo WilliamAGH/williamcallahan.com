@@ -45,7 +45,7 @@ If any bullet fails, create a new component/hook.
 3. **Pick the correct directory** (feature-first, colocation).
 4. **Name by role** (ban generic names; suffix declares meaning like `*Card`, `*List`, `*Form`) ([CC0g]).
 5. **Keep the file small** (stay comfortably under 500 LOC; split by concept early) ([LC0a]).
-6. **Verify** with repo-standard commands (`bun run lint`, `bun run type-check`).
+6. **Verify** with repo-standard commands (`pnpm run lint`, `pnpm run type-check`).
 
 ## Repository structure and naming (placement is part of the contract)
 
@@ -75,5 +75,5 @@ A file contains either:
 
 ## Verification gates (do not skip)
 
-- LOC enforcement: `bun run check:file-size` reports violations ([LC1c]).
-- Validation: `bun run validate` ([VR1c]).
+- LOC enforcement: `pnpm run check:file-size` reports violations ([LC1c]).
+- Validation: `pnpm run validate` ([VR1c]).

@@ -72,7 +72,7 @@ export interface LogoData {
 
 - Health: No specific endpoints
 - Tests: None found for experience domain
-- Ops: `bun run validate` for type checking
+- Ops: `pnpm run validate` for type checking
 
 ## Related Documentation
 

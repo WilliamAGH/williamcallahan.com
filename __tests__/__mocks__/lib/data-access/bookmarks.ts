@@ -43,16 +43,34 @@ const mockIndex = {
   checksum: "mock-checksum",
 };
 
+type MockBookmark = (typeof mockBookmarks)[number];
+type MockBookmarksIndex = typeof mockIndex;
+
+interface MockTagBookmarksResult {
+  bookmarks: MockBookmark[];
+  totalCount: number;
+  totalPages: number;
+  fromCache: boolean;
+}
+
 // Core data access functions
-export const getBookmarks = vi.fn(() => Promise.resolve(mockBookmarks));
-export const getBookmarkById = vi.fn((id: string) =>
+export const getBookmarks = vi.fn<() => Promise<MockBookmark[]>>(() =>
+  Promise.resolve(mockBookmarks),
+);
+export const getBookmarkById = vi.fn<(id: string) => Promise<MockBookmark | null>>((id) =>
   Promise.resolve(mockBookmarks.find((b) => b.id === id) ?? null),
 );
-export const getBookmarksPage = vi.fn(() => Promise.resolve(mockBookmarks));
-export const getBookmarksIndex = vi.fn(() => Promise.resolve(mockIndex));
+export const getBookmarksPage = vi.fn<(pageNumber: number) => Promise<MockBookmark[]>>(() =>
+  Promise.resolve(mockBookmarks),
+);
+export const getBookmarksIndex = vi.fn<() => Promise<MockBookmarksIndex>>(() =>
+  Promise.resolve(mockIndex),
+);
 
 // Tag-related functions
-export const getBookmarksByTag = vi.fn(() =>
+export const getBookmarksByTag = vi.fn<
+  (tagSlug: string, pageNumber?: number) => Promise<MockTagBookmarksResult>
+>(() =>
   Promise.resolve({
     bookmarks: mockBookmarks,
     totalCount: mockBookmarks.length,
@@ -60,18 +78,30 @@ export const getBookmarksByTag = vi.fn(() =>
     fromCache: false,
   }),
 );
-export const getTagBookmarksPage = vi.fn(() => Promise.resolve(mockBookmarks));
-export const getTagBookmarksIndex = vi.fn(() => Promise.resolve(mockIndex));
-export const listTagSlugs = vi.fn(() => Promise.resolve(["test", "mock", "vitest"]));
+export const getTagBookmarksPage = vi.fn<
+  (tagSlug: string, pageNumber: number) => Promise<MockBookmark[]>
+>(() => Promise.resolve(mockBookmarks));
+export const getTagBookmarksIndex = vi.fn<(tagSlug: string) => Promise<MockBookmarksIndex>>(() =>
+  Promise.resolve(mockIndex),
+);
+export const listTagSlugs = vi.fn<() => Promise<string[]>>(() =>
+  Promise.resolve(["test", "mock", "vitest"]),
+);
 
 // Cache invalidation functions
-export const invalidateBookmarksCache = vi.fn();
-export const invalidateBookmarksPageCache = vi.fn();
-export const invalidateBookmarksTagCache = vi.fn();
-export const invalidateTagCache = vi.fn();
-export const invalidateBookmarkCache = vi.fn();
+export const invalidateBookmarksCache = vi.fn<() => void>();
+export const invalidateBookmarksPageCache = vi.fn<(pageNumber: number) => void>();
+export const invalidateBookmarksTagCache = vi.fn<(tagSlug: string) => void>();
+export const invalidateTagCache = vi.fn<(tagSlug: string) => void>();
+export const invalidateBookmarkCache = vi.fn<() => void>();
 
 // Legacy/refresh functions
-export const setRefreshBookmarksCallback = vi.fn();
-export const refreshBookmarks = vi.fn(() => Promise.resolve(mockBookmarks));
-export const validateBookmarksDataset = vi.fn(() => ({ isValid: true, errors: [] }));
+export const setRefreshBookmarksCallback =
+  vi.fn<(callback: () => Promise<MockBookmark[] | null>) => void>();
+export const refreshBookmarks = vi.fn<() => Promise<MockBookmark[]>>(() =>
+  Promise.resolve(mockBookmarks),
+);
+export const validateBookmarksDataset = vi.fn<() => { isValid: boolean; errors: string[] }>(() => ({
+  isValid: true,
+  errors: [],
+}));

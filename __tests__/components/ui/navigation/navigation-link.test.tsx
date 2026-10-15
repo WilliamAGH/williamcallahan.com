@@ -3,6 +3,7 @@ import { NavigationLink } from "@/components/ui/navigation/navigation-link.clien
 // Import the REAL provider (hook is used internally by NavigationLink)
 import { TerminalProvider } from "@/components/ui/terminal/terminal-context.client";
 import { vi } from "vitest";
+import type { NavigationLinkProps } from "@/types/navigation";
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
@@ -82,7 +83,7 @@ describe("NavigationLink", () => {
   // context value provided by the real provider.
 
   it("calls onClick when clicked (and implicitly calls clearHistory)", () => {
-    const mockOnClick = vi.fn();
+    const mockOnClick = vi.fn<NonNullable<NavigationLinkProps["onClick"]>>();
     render(
       <TerminalProvider>
         {" "}

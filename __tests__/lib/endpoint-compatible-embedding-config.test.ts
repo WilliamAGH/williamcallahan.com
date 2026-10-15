@@ -80,7 +80,10 @@ describe("resolveDefaultEndpointCompatibleEmbeddingConfig", () => {
 describe("embedTextsWithEndpointCompatibleModel", () => {
   it("preserves OpenAI embedding response order by index", async () => {
     const requests: EndpointCompatibleEmbeddingsRequest[] = [];
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn<typeof fetch>(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get("X-Tier")).toBe("batch");
+      expect(headers.get("X-User-ID")).toBe("williamcallahan.com:embeddings:batch");
       const request = readEmbeddingRequest(init);
       requests.push(request);
       const data = request.input
@@ -98,6 +101,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["alpha", "beta"],
       tier: "batch",
+      workload: "williamcallahan.com:embeddings:batch",
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();
@@ -113,7 +117,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
 
   it("splits oversized logical inputs and pools chunk vectors", async () => {
     const requests: EndpointCompatibleEmbeddingsRequest[] = [];
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn<typeof fetch>(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const request = readEmbeddingRequest(init);
       requests.push(request);
       const vectors = [
@@ -134,6 +138,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["a".repeat(32_769), "short"],
       tier: "batch",
+      workload: "williamcallahan.com:embeddings:batch",
     });
 
     expect(requests[0]?.input).toHaveLength(3);
@@ -157,7 +162,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
 
   it("retries a transient endpoint timeout only when a retry policy is supplied", async () => {
     const fetchMock = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"))
       .mockResolvedValueOnce(
         Response.json({
@@ -172,6 +177,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
         config: embeddingConfig,
         input: ["alpha"],
         tier: "batch",
+        workload: "williamcallahan.com:embeddings:batch",
         retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 0 },
       }),
     ).resolves.toEqual([[1, 2]]);
@@ -182,7 +188,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
   it("honors Retry-After before retrying a rate-limited endpoint", async () => {
     vi.useFakeTimers();
     const fetchMock = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(
         new Response("capacity exhausted", {
           status: 429,
@@ -201,6 +207,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["alpha"],
       tier: "batch",
+      workload: "williamcallahan.com:embeddings:batch",
       retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 2_000 },
     });
     await vi.advanceTimersByTimeAsync(0);
@@ -216,7 +223,10 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
 
   it("returns bounded upstream context for a terminal HTTP error", async () => {
     const responseBody = `provider overload: ${"x".repeat(600)}`;
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(responseBody, { status: 400 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(new Response(responseBody, { status: 400 })),
+    );
 
     let thrown: unknown;
     try {
@@ -224,6 +234,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
         config: embeddingConfig,
         input: ["alpha"],
         tier: "batch",
+        workload: "williamcallahan.com:embeddings:batch",
       });
     } catch (error) {
       thrown = error;

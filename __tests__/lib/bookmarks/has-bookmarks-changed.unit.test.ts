@@ -1,37 +1,56 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import type {
+  BookmarkSlugMapping,
+  BookmarkSlugSource,
+  BookmarksIndex,
+  UnifiedBookmark,
+} from "@/types/schemas/bookmark";
+import type { getAllBookmarks, getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
+import type { rebuildBookmarkTaxonomyState } from "@/lib/db/mutations/bookmarks";
+import type {
+  backfillDueBookmarkEmbeddings,
+  writeBookmarkMasterFiles,
+} from "@/lib/bookmarks/persistence.server";
+import type { processBookmarksInBatches } from "@/lib/bookmarks/enrich-opengraph";
+import type { generateSlugMapping, saveSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 
-const mockGetBookmarksIndexFromDatabase = vi.fn();
-const mockGetAllBookmarks = vi.fn();
-const mockRebuildBookmarkTaxonomyState = vi.fn();
-const mockWriteBookmarkMasterFiles = vi.fn();
-const mockBackfillDueBookmarkEmbeddings = vi.fn();
-const mockProcessBookmarksInBatches = vi.fn();
-const mockSaveSlugMapping = vi.fn();
-const mockGenerateSlugMapping = vi.fn();
+const mockGetBookmarksIndexFromDatabase = vi.fn<typeof getBookmarksIndexFromDatabase>();
+const mockGetAllBookmarks = vi.fn<typeof getAllBookmarks>();
+const mockRebuildBookmarkTaxonomyState = vi.fn<typeof rebuildBookmarkTaxonomyState>();
+const mockWriteBookmarkMasterFiles = vi.fn<typeof writeBookmarkMasterFiles>();
+const mockBackfillDueBookmarkEmbeddings = vi.fn<typeof backfillDueBookmarkEmbeddings>();
+const mockProcessBookmarksInBatches = vi.fn<typeof processBookmarksInBatches>();
+const mockSaveSlugMapping = vi.fn<typeof saveSlugMapping>();
+const mockGenerateSlugMapping = vi.fn<typeof generateSlugMapping>();
 
 vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getBookmarksIndexFromDatabase: (...args: unknown[]) => mockGetBookmarksIndexFromDatabase(...args),
-  getAllBookmarks: (...args: unknown[]) => mockGetAllBookmarks(...args),
+  getBookmarksIndexFromDatabase: (...args: Parameters<typeof getBookmarksIndexFromDatabase>) =>
+    mockGetBookmarksIndexFromDatabase(...args),
+  getAllBookmarks: (...args: Parameters<typeof getAllBookmarks>) => mockGetAllBookmarks(...args),
 }));
 
 vi.mock("@/lib/db/mutations/bookmarks", () => ({
-  rebuildBookmarkTaxonomyState: (...args: unknown[]) => mockRebuildBookmarkTaxonomyState(...args),
+  rebuildBookmarkTaxonomyState: (...args: Parameters<typeof rebuildBookmarkTaxonomyState>) =>
+    mockRebuildBookmarkTaxonomyState(...args),
 }));
 
 vi.mock("@/lib/bookmarks/persistence.server", () => ({
-  backfillDueBookmarkEmbeddings: (...args: unknown[]) => mockBackfillDueBookmarkEmbeddings(...args),
-  writeBookmarkMasterFiles: (...args: unknown[]) => mockWriteBookmarkMasterFiles(...args),
+  backfillDueBookmarkEmbeddings: (...args: Parameters<typeof backfillDueBookmarkEmbeddings>) =>
+    mockBackfillDueBookmarkEmbeddings(...args),
+  writeBookmarkMasterFiles: (...args: Parameters<typeof writeBookmarkMasterFiles>) =>
+    mockWriteBookmarkMasterFiles(...args),
 }));
 
 vi.mock("@/lib/bookmarks/enrich-opengraph", () => ({
-  processBookmarksInBatches: (...args: unknown[]) => mockProcessBookmarksInBatches(...args),
+  processBookmarksInBatches: (...args: Parameters<typeof processBookmarksInBatches>) =>
+    mockProcessBookmarksInBatches(...args),
 }));
 
 vi.mock("@/lib/bookmarks/slug-manager", () => ({
-  saveSlugMapping: (...args: unknown[]) => mockSaveSlugMapping(...args),
-  generateSlugMapping: (...args: unknown[]) => mockGenerateSlugMapping(...args),
+  saveSlugMapping: (...args: Parameters<typeof saveSlugMapping>) => mockSaveSlugMapping(...args),
+  generateSlugMapping: (...args: Parameters<typeof generateSlugMapping>) =>
+    mockGenerateSlugMapping(...args),
 }));
 
 import * as bookmarksModule from "@/lib/bookmarks/refresh-logic.server";
@@ -47,23 +66,23 @@ function buildBookmark(id: string): UnifiedBookmark {
     tags: [],
     dateBookmarked: timestamp,
     sourceUpdatedAt: timestamp,
-  } as UnifiedBookmark;
+  };
 }
 
-function buildSlugMapping(bookmarks: UnifiedBookmark[]) {
+function buildSlugMapping(bookmarks: readonly BookmarkSlugSource[]): BookmarkSlugMapping {
   const slugs = Object.fromEntries(
     bookmarks.map((bookmark) => [
       bookmark.id,
       {
         id: bookmark.id,
-        slug: bookmark.slug,
+        slug: bookmark.slug ?? `bookmark-${bookmark.id}`,
         url: bookmark.url,
         title: bookmark.title,
       },
     ]),
   );
   const reverseMap = Object.fromEntries(
-    bookmarks.map((bookmark) => [bookmark.slug ?? "", bookmark.id]),
+    bookmarks.map((bookmark) => [bookmark.slug ?? `bookmark-${bookmark.id}`, bookmark.id]),
   );
 
   return {
@@ -73,6 +92,18 @@ function buildSlugMapping(bookmarks: UnifiedBookmark[]) {
     checksum: "slug-checksum",
     slugs,
     reverseMap,
+  };
+}
+
+function buildIndex(count: number, checksum: string): BookmarksIndex {
+  return {
+    count,
+    checksum,
+    totalPages: 0,
+    pageSize: 24,
+    lastModified: "2024-01-01T00:00:00.000Z",
+    lastFetchedAt: 0,
+    lastAttemptedAt: 0,
   };
 }
 
@@ -92,9 +123,7 @@ describe("refresh change-detection behavior (unit)", () => {
       Promise.resolve(bookmarks),
     );
     mockSaveSlugMapping.mockResolvedValue(undefined);
-    mockGenerateSlugMapping.mockImplementation((bookmarks: UnifiedBookmark[]) =>
-      buildSlugMapping(bookmarks),
-    );
+    mockGenerateSlugMapping.mockImplementation((bookmarks) => buildSlugMapping(bookmarks));
   });
 
   afterEach(() => {
@@ -105,10 +134,7 @@ describe("refresh change-detection behavior (unit)", () => {
   it("persists when no prior index-state exists", async () => {
     const dataset = [buildBookmark("a")];
 
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      count: 0,
-      checksum: "count:0",
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(buildIndex(0, "count:0"));
 
     bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
     bookmarksModule.initializeBookmarksDataAccess();
@@ -123,10 +149,7 @@ describe("refresh change-detection behavior (unit)", () => {
   it("returns the persisted slug reconciliation to refresh callers", async () => {
     const dataset = [buildBookmark("a")];
     const reconciled = [{ ...dataset[0], slug: "stable-bookmark-a" }];
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      count: 0,
-      checksum: "count:0",
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(buildIndex(0, "count:0"));
     mockWriteBookmarkMasterFiles.mockResolvedValue(reconciled);
 
     bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
@@ -139,10 +162,7 @@ describe("refresh change-detection behavior (unit)", () => {
   it("persists when bookmark count changes", async () => {
     const dataset = [buildBookmark("a"), buildBookmark("b"), buildBookmark("c")];
 
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      count: 5,
-      checksum: "old-checksum",
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(buildIndex(5, "old-checksum"));
 
     bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
     bookmarksModule.initializeBookmarksDataAccess();
@@ -157,10 +177,7 @@ describe("refresh change-detection behavior (unit)", () => {
   it("persists when checksum changes with equal count", async () => {
     const dataset = [buildBookmark("a"), buildBookmark("b")];
 
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      count: 2,
-      checksum: "different-checksum",
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(buildIndex(2, "different-checksum"));
 
     bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
     bookmarksModule.initializeBookmarksDataAccess();
@@ -175,10 +192,9 @@ describe("refresh change-detection behavior (unit)", () => {
   it("rebuilds index-state without full rewrite when dataset is unchanged", async () => {
     const dataset = [buildBookmark("a"), buildBookmark("b")];
 
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      count: 2,
-      checksum: calculateBookmarksChecksum(dataset),
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+      buildIndex(2, calculateBookmarksChecksum(dataset)),
+    );
 
     bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
     bookmarksModule.initializeBookmarksDataAccess();
@@ -195,10 +211,9 @@ describe("refresh change-detection behavior (unit)", () => {
   it("drains due embedding checkpoints when scheduler data is unchanged", async () => {
     const dataset = [buildBookmark("a"), buildBookmark("b")];
     process.env.IS_DATA_UPDATER = "true";
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      count: dataset.length,
-      checksum: calculateBookmarksChecksum(dataset),
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+      buildIndex(dataset.length, calculateBookmarksChecksum(dataset)),
+    );
 
     bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
     bookmarksModule.initializeBookmarksDataAccess();
@@ -214,10 +229,9 @@ describe("refresh change-detection behavior (unit)", () => {
   it("defaults to persist when index-state count is stale", async () => {
     const dataset = [buildBookmark("a")];
 
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue({
-      count: 2,
-      checksum: calculateBookmarksChecksum(dataset),
-    });
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+      buildIndex(2, calculateBookmarksChecksum(dataset)),
+    );
 
     bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(dataset));
     bookmarksModule.initializeBookmarksDataAccess();

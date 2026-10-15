@@ -134,12 +134,7 @@ export function RelatedContentFallback({
 }) {
   const skeletons = Array.from({ length: cardCount }, (_, index) => index);
   return (
-    <section
-      className={`related-content-section ${className}`}
-      aria-live="polite"
-      aria-busy="true"
-      role="status"
-    >
+    <section className={`related-content-section ${className}`} aria-live="polite" aria-busy="true">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {skeletons.map((key) => (

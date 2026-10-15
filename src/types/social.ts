@@ -25,7 +25,7 @@ export const SOCIAL_PLATFORMS = {
 // Zod schemas moved from lib/validators/social.ts
 export const SocialLinkSchema = z.object({
   platform: z.string().min(1, "Platform name cannot be empty."),
-  href: z.string().url("Invalid URL format."),
+  href: z.url("Invalid URL format."),
   label: z.string().min(1, "Label cannot be empty."),
   icon: z.unknown().optional(), // for React components
   emphasized: z.boolean().optional(),

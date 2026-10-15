@@ -8,19 +8,19 @@ import { parsePdfFromBuffer } from "@/lib/books/pdf-parser";
 import { parseEpubFromBuffer } from "@/lib/books/epub-parser";
 
 vi.mock("@/lib/s3/binary", () => ({
-  writeBinaryS3: vi.fn(),
+  writeBinaryS3: vi.fn<typeof writeBinaryS3>(),
 }));
 
 vi.mock("@/lib/s3/objects", () => ({
-  deleteFromS3: vi.fn(),
+  deleteFromS3: vi.fn<typeof deleteFromS3>(),
 }));
 
 vi.mock("@/lib/books/pdf-parser", () => ({
-  parsePdfFromBuffer: vi.fn(),
+  parsePdfFromBuffer: vi.fn<typeof parsePdfFromBuffer>(),
 }));
 
 vi.mock("@/lib/books/epub-parser", () => ({
-  parseEpubFromBuffer: vi.fn(),
+  parseEpubFromBuffer: vi.fn<typeof parseEpubFromBuffer>(),
 }));
 
 describe("Upload API", () => {

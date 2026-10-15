@@ -6,8 +6,11 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
+import type { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 
-const { mockEmbedTexts } = vi.hoisted(() => ({ mockEmbedTexts: vi.fn() }));
+const { mockEmbedTexts } = vi.hoisted(() => ({
+  mockEmbedTexts: vi.fn<typeof embedTextsWithEndpointCompatibleModel>(),
+}));
 vi.mock("@/lib/ai/openai-compatible/embeddings-client", () => ({
   embedTextsWithEndpointCompatibleModel: mockEmbedTexts,
 }));

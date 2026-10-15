@@ -5,24 +5,37 @@
  * (FTS + trigram + pgvector) via hybridSearchBooks.
  */
 
+import type MiniSearch from "minisearch";
+import type { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+import type {
+  hybridSearchBlogPosts,
+  hybridSearchBooks,
+} from "@/lib/db/queries/hybrid-search-books-blog";
+import type { envLogger } from "@/lib/utils/env-logger";
+import type { Book } from "@/types/schemas/book";
+
+/** The searcher's fallback reads only `search` from the books index. */
+type BooksSearchIndex = Pick<MiniSearch<Book>, "search">;
+
 // Mock query embedding (requires AI endpoint not available in tests)
 vi.mock("@/lib/db/queries/query-embedding", () => ({
-  buildQueryEmbedding: vi.fn().mockResolvedValue(undefined),
+  buildQueryEmbedding: vi.fn<typeof buildQueryEmbedding>().mockResolvedValue(undefined),
 }));
 
-const mockHybridSearchBooks = vi.fn();
+const mockHybridSearchBooks = vi.fn<typeof hybridSearchBooks>();
 vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
-  hybridSearchBooks: (...args: unknown[]) => mockHybridSearchBooks(...args),
-  hybridSearchBlogPosts: vi.fn().mockResolvedValue([]),
+  hybridSearchBooks: (...args: Parameters<typeof hybridSearchBooks>) =>
+    mockHybridSearchBooks(...args),
+  hybridSearchBlogPosts: vi.fn<typeof hybridSearchBlogPosts>().mockResolvedValue([]),
 }));
 
-const mockGetBooksIndex = vi.fn();
+const mockGetBooksIndex = vi.fn<() => Promise<BooksSearchIndex>>();
 vi.mock("@/lib/search/loaders/dynamic-content", () => ({
-  getBooksIndex: (...args: unknown[]) => mockGetBooksIndex(...args),
+  getBooksIndex: () => mockGetBooksIndex(),
 }));
 
 vi.mock("@/lib/utils/env-logger", () => ({
-  envLogger: { log: vi.fn() },
+  envLogger: { log: vi.fn<typeof envLogger.log>() },
 }));
 
 import { searchBooks } from "@/lib/search/searchers/dynamic-searchers";
@@ -151,12 +164,15 @@ describe("Books Search", () => {
     });
 
     it("should use indexed books fallback when hybrid search fails", async () => {
-      const search = vi.fn().mockReturnValue([
+      const search = vi.fn<BooksSearchIndex["search"]>().mockReturnValue([
         {
           id: "li_nodepatterns",
           title: "Node.js Patterns",
           authors: ["Mario Casciaro"],
           score: 0.5,
+          terms: ["node.js"],
+          queryTerms: ["node.js"],
+          match: { "node.js": ["title"] },
         },
       ]);
       mockHybridSearchBooks.mockRejectedValueOnce(new Error("relation missing"));

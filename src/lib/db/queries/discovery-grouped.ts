@@ -8,9 +8,7 @@ import { lightweightBookmarkColumns } from "@/lib/db/queries/bookmarks";
 import { loadCanonicalTagMaps } from "@/lib/db/queries/discovery-tag-taxonomy";
 import { findSimilarBookmarkIds } from "@/lib/db/queries/discovery-similarity";
 import { resolvePrimaryTag } from "@/lib/bookmarks/tag-resolver";
-import type { BookmarkLightweightSelect } from "@/types/db/bookmarks";
 import type {
-  BookmarkForDiscovery,
   DiscoverFeedContent,
   GroupOptions,
   RecentOptions,
@@ -276,7 +274,7 @@ export async function getDiscoveryGroupedBookmarks(
         query.where(gte(bookmarks.dateBookmarked, cutoffDate));
       }
 
-      return query.orderBy(desc(bookmarks.dateBookmarked)) as Promise<BookmarkLightweightSelect[]>;
+      return query.orderBy(desc(bookmarks.dateBookmarked));
     })(),
   ]);
 
@@ -288,7 +286,7 @@ export async function getDiscoveryGroupedBookmarks(
     const engagementSignal = engagementMap.get(row.id) ?? null;
     return {
       bookmark: mappedBookmark,
-      primaryTag: resolvePrimaryTag(mappedBookmark as BookmarkForDiscovery, taxonomyMaps),
+      primaryTag: resolvePrimaryTag(mappedBookmark, taxonomyMaps),
       discoveryScore: computeDiscoveryScore({
         baseRecencyScore: computeBaseRecencyScore(mappedBookmark.dateBookmarked),
         engagementSignal,

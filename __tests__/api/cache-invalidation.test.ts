@@ -12,20 +12,15 @@ import { RELATED_CONTENT_CACHE_TAG } from "@/config/related-content.config";
 import { githubActivityRefreshSuccessResponseSchema } from "@/types/schemas/github-storage";
 import { NextRequest } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
+import type { getBookmarksIndexFromDatabase } from "@/lib/db/queries/bookmarks";
+import type { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
+import type { DataFetchManager } from "@/lib/server/data-fetch-manager";
 
 vi.mock("next/cache");
-vi.mock("@/lib/cache", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/cache")>();
-  return {
-    ...actual,
-    invalidateBookmarksCache: vi.fn(),
-    invalidateAllCaches: vi.fn(),
-  };
-});
 
 vi.mock("@/lib/db/queries/bookmarks", () => {
   return {
-    getBookmarksIndexFromDatabase: vi.fn().mockResolvedValue({
+    getBookmarksIndexFromDatabase: vi.fn<typeof getBookmarksIndexFromDatabase>().mockResolvedValue({
       count: 10,
       totalPages: 1,
       pageSize: 24,
@@ -40,39 +35,21 @@ vi.mock("@/lib/db/queries/bookmarks", () => {
 
 vi.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
   return {
-    invalidateBookmarksCache: vi.fn().mockReturnValue({
-      success: true,
-      bookmarks: [],
-      count: 0,
-      lastRefresh: new Date().toISOString(),
-    }),
-  };
-});
-
-vi.mock("@/lib/bookmarks", () => {
-  return {
-    refreshBookmarksData: vi.fn().mockResolvedValue({
-      status: "COMPLETE_SUCCESS",
-      phases: {
-        primaryFetch: { status: "SUCCESS", recordCount: 10 },
-        s3Fallback: { status: "NOT_ATTEMPTED" },
-        finalOutcome: { status: "PRIMARY_SUCCESS", bookmarksServed: 10 },
-      },
-    }),
+    invalidateBookmarksCache: vi.fn<typeof invalidateBookmarksCache>(),
   };
 });
 
 vi.mock("@/lib/server/data-fetch-manager", () => {
   class MockDataFetchManager {
     fetchData = vi
-      .fn()
-      .mockResolvedValue([{ operation: "bookmarks", success: true, dataCount: 10 }]);
+      .fn<DataFetchManager["fetchData"]>()
+      .mockResolvedValue([{ operation: "bookmarks", success: true, itemsProcessed: 10 }]);
   }
   return { DataFetchManager: MockDataFetchManager };
 });
 
 vi.mock("@/lib/health/status-monitor.server", () => ({
-  getSystemMetrics: vi.fn(),
+  getSystemMetrics: vi.fn<typeof getSystemMetrics>(),
 }));
 
 const mockedGetSystemMetrics = getSystemMetrics as MockedFunction<typeof getSystemMetrics>;

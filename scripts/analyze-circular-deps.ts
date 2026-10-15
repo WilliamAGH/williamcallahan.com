@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 /**
  * Circular Dependency Analysis Tool
  *
@@ -235,7 +235,7 @@ class CircularDependencyAnalyzer {
       return lastPart ? lastPart.replace(/\.(ts|tsx)$/, "") : "";
     });
 
-    return `${shortNames.join(" → ")}`;
+    return shortNames.join(" → ");
   }
 
   private assessSeverity(chain: string[]): "high" | "medium" | "low" {

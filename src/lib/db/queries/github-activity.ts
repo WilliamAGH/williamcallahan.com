@@ -25,7 +25,7 @@ async function readPayload(
   executor: Pick<typeof db, "select">,
   dataType: (typeof GITHUB_ACTIVITY_DATA_TYPES)[number],
   qualifier: string = GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
-): Promise<unknown | null> {
+): Promise<unknown> {
   const rows = await executor
     .select({ payload: githubActivityStore.payload })
     .from(githubActivityStore)

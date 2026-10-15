@@ -61,6 +61,7 @@ export function NavigationLink({
       }, 500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [isNavigating]);
 
   // Handle responsive display classes based on responsive settings

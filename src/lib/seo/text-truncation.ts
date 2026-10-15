@@ -156,7 +156,7 @@ export function gradientTruncate(
   if (!text || typeof text !== "string") {
     return createResult({
       original: "",
-      text: String(text ?? ""),
+      text: "",
       wasTruncated: false,
       strategy: "none",
       originalLength: 0,

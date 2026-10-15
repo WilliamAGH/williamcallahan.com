@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 import type { SmokeTestEndpointOptions, TestResult } from "@/types/scripts";
 import { BLOG_RENDER_CANARIES } from "@/config/blog-render-canaries";
 import { bookmarkDiagnosticsResponseSchema, healthResponseSchema } from "@/types/schemas/api";
@@ -25,8 +25,8 @@ export async function validateAdvertisedJavaScript(
     responses.map(async (response) => ({ html: await response.text(), status: response.status })),
   );
   const samplePaths = samples.map((sample) =>
-    [...sample.html.matchAll(/src=["'](\/_next\/static\/[^"']+\.js[^"']*)["']/g)].flatMap((match) =>
-      match[1] === undefined ? [] : [match[1]],
+    [...sample.html.matchAll(/src=["'](\/_next\/static\/[^"']+\.js[^"']*)["']/g)].flatMap(
+      (match) => (match[1] === undefined ? [] : [match[1]]),
     ),
   );
   const scripts = [...new Set(samplePaths.flat())].map((path) => new URL(path, baseUrl));
@@ -156,7 +156,8 @@ class ProductionSmokeTests {
     path: string,
     options: SmokeTestEndpointOptions = {},
   ): Promise<void> {
-    return this.testEndpoint(name, path, options).then((result) => void this.results.push(result));
+    const result = await this.testEndpoint(name, path, options);
+    this.results.push(result);
   }
 
   async runCriticalPathTests(): Promise<void> {
@@ -329,7 +330,7 @@ if (import.meta.main) {
   const options = parseSmokeTestArguments(process.argv.slice(2));
   if (options === undefined) {
     console.error(
-      "Usage: bun scripts/smoke-test-production.ts <base-url> [auth-token] [--expected-release-id=<id>]",
+      "Usage: tsx scripts/smoke-test-production.ts <base-url> [auth-token] [--expected-release-id=<id>]",
     );
     process.exit(1);
   }

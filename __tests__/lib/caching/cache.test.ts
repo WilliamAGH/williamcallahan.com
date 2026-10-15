@@ -1,25 +1,37 @@
-const mockCacheTag = vi.fn();
-const mockCacheLife = vi.fn();
-const mockRevalidateTag = vi.fn();
-const mockPersistAnalysisToDb = vi.fn();
-const mockReadLatestAnalysis = vi.fn();
-const mockHasAnalysisInDb = vi.fn();
+import type { cacheLife, cacheTag, revalidateTag } from "next/cache";
+import type { persistAnalysisToDb } from "@/lib/db/mutations/ai-analysis";
+import type {
+  hasAnalysisInDb,
+  listAnalysisItemIdsFromDb,
+  listAnalysisVersionsFromDb,
+  readLatestAnalysis,
+} from "@/lib/db/queries/ai-analysis";
+
+const mockCacheTag = vi.fn<typeof cacheTag>();
+const mockCacheLife = vi.fn<(profile: string | Parameters<typeof cacheLife>[0]) => void>();
+const mockRevalidateTag = vi.fn<typeof revalidateTag>();
+const mockPersistAnalysisToDb = vi.fn<typeof persistAnalysisToDb>();
+const mockReadLatestAnalysis = vi.fn<typeof readLatestAnalysis>();
+const mockHasAnalysisInDb = vi.fn<typeof hasAnalysisInDb>();
 
 vi.mock("next/cache", () => ({
-  cacheTag: (...args: unknown[]) => mockCacheTag(...args),
-  cacheLife: (...args: unknown[]) => mockCacheLife(...args),
-  revalidateTag: (...args: unknown[]) => mockRevalidateTag(...args),
+  cacheTag: (...args: Parameters<typeof mockCacheTag>) => mockCacheTag(...args),
+  cacheLife: (...args: Parameters<typeof mockCacheLife>) => mockCacheLife(...args),
+  revalidateTag: (...args: Parameters<typeof mockRevalidateTag>) => mockRevalidateTag(...args),
 }));
 
 vi.mock("@/lib/db/mutations/ai-analysis", () => ({
-  persistAnalysisToDb: (...args: unknown[]) => mockPersistAnalysisToDb(...args),
+  persistAnalysisToDb: (...args: Parameters<typeof mockPersistAnalysisToDb>) =>
+    mockPersistAnalysisToDb(...args),
 }));
 
 vi.mock("@/lib/db/queries/ai-analysis", () => ({
-  readLatestAnalysis: (...args: unknown[]) => mockReadLatestAnalysis(...args),
-  hasAnalysisInDb: (...args: unknown[]) => mockHasAnalysisInDb(...args),
-  listAnalysisItemIdsFromDb: vi.fn(),
-  listAnalysisVersionsFromDb: vi.fn(),
+  readLatestAnalysis: (...args: Parameters<typeof mockReadLatestAnalysis>) =>
+    mockReadLatestAnalysis(...args),
+  hasAnalysisInDb: (...args: Parameters<typeof mockHasAnalysisInDb>) =>
+    mockHasAnalysisInDb(...args),
+  listAnalysisItemIdsFromDb: vi.fn<typeof listAnalysisItemIdsFromDb>(),
+  listAnalysisVersionsFromDb: vi.fn<typeof listAnalysisVersionsFromDb>(),
 }));
 
 import {
@@ -65,8 +77,8 @@ describe("lib/cache", () => {
 
   describe("withCacheFallback", () => {
     it("should return cached result when cache function succeeds", async () => {
-      const cachedFn = vi.fn().mockResolvedValue("cached result");
-      const fallbackFn = vi.fn().mockResolvedValue("fallback result");
+      const cachedFn = vi.fn<() => Promise<string>>().mockResolvedValue("cached result");
+      const fallbackFn = vi.fn<() => Promise<string>>().mockResolvedValue("fallback result");
 
       const result = await withCacheFallback(cachedFn, fallbackFn);
 
@@ -76,8 +88,8 @@ describe("lib/cache", () => {
     });
 
     it("should return fallback result when cache function fails", async () => {
-      const cachedFn = vi.fn().mockRejectedValue(new Error("Cache error"));
-      const fallbackFn = vi.fn().mockResolvedValue("fallback result");
+      const cachedFn = vi.fn<() => Promise<string>>().mockRejectedValue(new Error("Cache error"));
+      const fallbackFn = vi.fn<() => Promise<string>>().mockResolvedValue("fallback result");
 
       const result = await withCacheFallback(cachedFn, fallbackFn);
 
@@ -91,12 +103,12 @@ describe("lib/cache", () => {
       process.env.NEXT_PHASE = "phase-production-build";
       mockCacheTag.mockClear();
       mockCacheLife.mockClear();
-      const cachedFn = vi.fn(async () => {
+      const cachedFn = vi.fn<() => Promise<string>>(async () => {
         cacheContextGuards.cacheTag("BuildCache", "build-tag");
         cacheContextGuards.cacheLife("BuildCache", { revalidate: 120 });
         return "cached result";
       });
-      const fallbackFn = vi.fn().mockResolvedValue("fallback result");
+      const fallbackFn = vi.fn<() => Promise<string>>().mockResolvedValue("fallback result");
 
       try {
         const result = await withCacheFallback(cachedFn, fallbackFn);
@@ -255,8 +267,8 @@ describe("lib/cache", () => {
         throw new Error("Expected process.argv[0] to be set");
       }
       process.argv = [nodePath, "/app/node_modules/.bin/tsx", "scheduler/data-updater.ts"];
-      const cachedFn = vi.fn().mockResolvedValue("cached result");
-      const fallbackFn = vi.fn().mockResolvedValue("fallback result");
+      const cachedFn = vi.fn<() => Promise<string>>().mockResolvedValue("cached result");
+      const fallbackFn = vi.fn<() => Promise<string>>().mockResolvedValue("fallback result");
 
       try {
         const result = await withCacheFallback(cachedFn, fallbackFn);

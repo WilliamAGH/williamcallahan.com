@@ -1,11 +1,11 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 /**
  * Environment Validation Script
  *
  * Ensures environment is properly configured before builds and deployments.
  * This prevents environment drift for PostgreSQL-backed content pipelines.
  *
- * Run automatically before builds or manually with: bun scripts/validate-environment.ts
+ * Run automatically before builds or manually with: tsx scripts/validate-environment.ts
  */
 
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";

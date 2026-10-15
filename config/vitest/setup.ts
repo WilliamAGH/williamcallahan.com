@@ -47,7 +47,7 @@ vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
   return {
     ...actual,
-    cache: vi.fn((fn) => fn),
+    cache: vi.fn<typeof actual.cache>((fn) => fn),
   };
 });
 
@@ -65,25 +65,41 @@ if (typeof window !== "undefined") {
   // Mock window.matchMedia
   Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: vi.fn().mockImplementation((query) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(), // deprecated
-      removeListener: vi.fn(), // deprecated
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
+    value: vi
+      .fn<
+        (
+          query: string,
+        ) => Pick<
+          MediaQueryList,
+          | "matches"
+          | "media"
+          | "onchange"
+          | "addEventListener"
+          | "removeEventListener"
+          | "dispatchEvent"
+        >
+      >()
+      .mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn<MediaQueryList["addEventListener"]>(),
+        removeEventListener: vi.fn<MediaQueryList["removeEventListener"]>(),
+        dispatchEvent: vi.fn<MediaQueryList["dispatchEvent"]>(),
+      })),
   });
 
   // Mock window.scrollTo
-  window.scrollTo = vi.fn();
+  Object.defineProperty(window, "scrollTo", {
+    writable: true,
+    value: vi.fn<() => void>(),
+  });
 
   // Mock IntersectionObserver
   class MockIntersectionObserver implements IntersectionObserver {
     readonly root = null;
     readonly rootMargin = "";
+    readonly scrollMargin = "";
     readonly thresholds = [];
 
     disconnect(): void {
@@ -160,8 +176,8 @@ if (typeof window !== "undefined") {
   if (typeof navigator !== "undefined") {
     Object.defineProperty(navigator, "clipboard", {
       value: {
-        writeText: vi.fn(() => Promise.resolve()),
-        readText: vi.fn(() => Promise.resolve("")),
+        writeText: vi.fn<Clipboard["writeText"]>(() => Promise.resolve()),
+        readText: vi.fn<Clipboard["readText"]>(() => Promise.resolve("")),
       },
       writable: true,
     });

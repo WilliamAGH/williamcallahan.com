@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { TopicSection } from "./topic-section.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
+import { useMount } from "@/components/ui/theme/use-mount";
 import type { DiscoverFeedContent, DiscoverFeedProps } from "@/types/features/discovery";
 
 const DISCOVER_PRIORITY_ROW_IMAGE_COUNT = 4;
@@ -64,9 +65,10 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   const [pagination, setPagination] = useState(() => data.pagination);
   const [degradation, setDegradation] = useState(() => data.degradation);
   const [currentRecencyDays, setCurrentRecencyDays] = useState(90);
-  const [isAutoExpandAvailable, setIsAutoExpandAvailable] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const mounted = useMount();
+  const isAutoExpandAvailable = !mounted || typeof window.IntersectionObserver !== "undefined";
 
   const topicNavigation = useMemo(
     () =>
@@ -81,6 +83,15 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
   const canExpandWindow = !hasMorePages && currentRecencyDays < MAX_RECENCY_DAYS;
   const hasMoreTopicSections = hasMorePages || canExpandWindow;
   const canAutoLoadMore = hasMoreTopicSections && loadMoreError === null && isAutoExpandAvailable;
+  const degradationReasons =
+    !isAutoExpandAvailable && hasMoreTopicSections
+      ? Array.from(
+          new Set([
+            ...degradation.reasons,
+            "Infinite-scroll auto-expansion is unavailable in this browser.",
+          ]),
+        )
+      : degradation.reasons;
 
   const fetchGroupedDiscoverPage = useCallback(
     async (nextSectionPage: number, nextSectionsPerPage: number, recencyDays: number) => {
@@ -167,7 +178,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
       pagination.sectionPage !== 1 ||
       topicSections.length === 0
     ) {
-      return;
+      return undefined;
     }
 
     optimisticLoadStartedRef.current = true;
@@ -189,27 +200,11 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
 
   useEffect(() => {
     if (!canAutoLoadMore) {
-      return;
+      return undefined;
     }
-    if (typeof window !== "undefined" && typeof window.IntersectionObserver === "undefined") {
-      setIsAutoExpandAvailable(false);
-      setDegradation((current) => {
-        const mergedReasons = [
-          ...current.reasons,
-          "Infinite-scroll auto-expansion is unavailable in this browser.",
-        ];
-        const uniqueReasons = Array.from(new Set(mergedReasons));
-        return {
-          isDegraded: true,
-          reasons: uniqueReasons,
-        };
-      });
-      return;
-    }
-
     const target = sentinelRef.current;
     if (!target) {
-      return;
+      return undefined;
     }
 
     const observer = new IntersectionObserver(
@@ -248,9 +243,9 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
     if (top <= window.innerHeight) {
       void loadMoreTopicSections();
     }
-  }, [canAutoLoadMore, loadMoreTopicSections, topicSections.length]);
+  }, [canAutoLoadMore, loadMoreTopicSections]);
 
-  const isDegraded = degradation.isDegraded || degradation.reasons.length > 0;
+  const isDegraded = degradation.isDegraded || degradationReasons.length > 0;
 
   return (
     <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4">
@@ -281,7 +276,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
       {isDegraded && (
         <div className="mb-6 rounded-lg border border-amber-300/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
           <p className="font-medium">Discover feed is running in degraded mode.</p>
-          <p>{degradation.reasons.join(" ")}</p>
+          <p>{degradationReasons.join(" ")}</p>
         </div>
       )}
 
@@ -293,7 +288,9 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
             className="mt-3"
             size="sm"
             variant="secondary"
-            onClick={() => void loadMoreTopicSections()}
+            onClick={() => {
+              void loadMoreTopicSections();
+            }}
           >
             Retry loading
           </Button>
@@ -336,7 +333,13 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
 
       {!isAutoExpandAvailable && hasMoreTopicSections && !loadMoreError && (
         <div className="mt-5 flex justify-center">
-          <Button size="sm" variant="secondary" onClick={() => void loadMoreTopicSections()}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              void loadMoreTopicSections();
+            }}
+          >
             Load next bookmark sections
           </Button>
         </div>

@@ -6,27 +6,32 @@ import { POST as refreshBookmarksProduction } from "@/app/api/bookmarks/refresh-
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { bookmarkRefreshResponseSchema } from "@/types/schemas/bookmark";
 import { NextRequest } from "next/server";
+import type { getBookmarksIndex } from "@/lib/bookmarks/service.server";
+import type { isOperationAllowed } from "@/lib/rate-limiter";
+import type { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockedAuth = vi.hoisted(() => vi.fn((userId: string | null = null) => ({ userId })));
-const mockedGetBookmarksIndex = vi.hoisted(() => vi.fn());
-const mockedIsOperationAllowed = vi.hoisted(() => vi.fn());
+const mockedAuth = vi.hoisted(() =>
+  vi.fn<() => Promise<{ userId: string | null }>>(() => Promise.resolve({ userId: null })),
+);
+const mockedGetBookmarksIndex = vi.hoisted(() => vi.fn<typeof getBookmarksIndex>());
+const mockedIsOperationAllowed = vi.hoisted(() => vi.fn<typeof isOperationAllowed>());
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mockedAuth }));
 vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarksIndex: mockedGetBookmarksIndex,
 }));
 vi.mock("@/lib/db/connection", () => ({
-  resolveDatabaseAccessMode: vi.fn(),
+  resolveDatabaseAccessMode: vi.fn<typeof resolveDatabaseAccessMode>(),
 }));
 vi.mock("@/lib/rate-limiter", () => ({
   isOperationAllowed: mockedIsOperationAllowed,
 }));
 vi.mock("@/lib/server/data-fetch-manager", () => ({
-  DataFetchManager: vi.fn(),
+  DataFetchManager: vi.fn<typeof DataFetchManager>(),
 }));
 
-const relayFetch = vi.fn();
+const relayFetch = vi.fn<typeof fetch>();
 const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
 const internalErrorSentinel = "postgres://internal.example/private-bookmarks";
 
@@ -165,7 +170,7 @@ describe("production refresh relay routes", () => {
     vi.stubEnv("DEPLOYMENT_ENV", "development");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://dev.williamcallahan.com");
     vi.stubEnv("BOOKMARK_REFRESH_SECRET", "bookmark-refresh-secret");
-    mockedAuth.mockReturnValueOnce({ userId: "user_test" });
+    mockedAuth.mockResolvedValueOnce({ userId: "user_test" });
     relayFetch.mockResolvedValueOnce(
       new Response(
         JSON.stringify({

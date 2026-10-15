@@ -4,21 +4,24 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { Terminal } from "../../../../src/components/ui/terminal/terminal-implementation.client";
 import { TerminalProvider } from "../../../../src/components/ui/terminal/terminal-context.client";
 import { useRegisteredWindowState as useRegisteredWindowStateImported } from "../../../../src/lib/context/global-window-registry-context.client";
+import type { RegisteredWindowState } from "../../../../src/types/ui/window";
 
 vi.mock("../../../../src/components/ui/terminal/terminal-header", () => ({
   TerminalHeader: () => <div data-testid="mock-terminal-header" />,
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: vi.fn(() => ({ push: vi.fn() })),
-  usePathname: vi.fn(() => "/"),
+  useRouter: vi.fn<() => Pick<AppRouter, "push">>(() => ({ push: vi.fn<AppRouter["push"]>() })),
+  usePathname: vi.fn<(typeof import("next/navigation"))["usePathname"]>(() => "/"),
 }));
 
 vi.mock("../../../../src/lib/context/global-window-registry-context.client", () => ({
-  useRegisteredWindowState: vi.fn(),
+  useRegisteredWindowState: vi.fn<typeof useRegisteredWindowStateImported>(),
 }));
 
 import { useRouter as useRouterImported } from "next/navigation";
+
+type AppRouter = ReturnType<typeof useRouterImported>;
 
 const mockUseRegisteredWindowState = useRegisteredWindowStateImported as Mock;
 const mockUseRouter = useRouterImported as Mock;
@@ -34,13 +37,13 @@ const renderTerminal = () => {
 describe("Terminal Space Key Behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseRouter.mockReturnValue({ push: vi.fn() });
+    mockUseRouter.mockReturnValue({ push: vi.fn<AppRouter["push"]>() });
     mockUseRegisteredWindowState.mockReturnValue({
       windowState: "normal",
-      close: vi.fn(),
-      minimize: vi.fn(),
-      maximize: vi.fn(),
-      restore: vi.fn(),
+      close: vi.fn<RegisteredWindowState["close"]>(),
+      minimize: vi.fn<RegisteredWindowState["minimize"]>(),
+      maximize: vi.fn<RegisteredWindowState["maximize"]>(),
+      restore: vi.fn<RegisteredWindowState["restore"]>(),
     });
   });
 

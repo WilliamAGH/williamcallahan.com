@@ -110,41 +110,35 @@ const buildExperienceEntries = (): readonly CvExperienceEntry[] =>
 const buildProjectEntries = (): readonly CvProjectEntry[] =>
   validatedProjects
     .filter((project) => project.cvFeatured)
-    .map(
-      (project): CvProjectEntry => ({
-        id: project.id ?? project.name,
-        name: project.name,
-        description: project.description,
-        url: project.url,
-        tags: (project.tags ?? []).slice(0, 6),
-      }),
-    );
+    .map((project): CvProjectEntry => ({
+      id: project.id ?? project.name,
+      name: project.name,
+      description: project.description,
+      url: project.url,
+      tags: (project.tags ?? []).slice(0, 6),
+    }));
 
 const buildDegreeEntries = (): readonly CvDegreeEntry[] =>
   validatedEducationEntries
     .filter((degree) => degree.cvFeatured)
-    .map(
-      (degree): CvDegreeEntry => ({
-        id: degree.id,
-        institution: degree.institution,
-        degree: degree.degree,
-        location: degree.location,
-        year: String(degree.year),
-      }),
-    );
+    .map((degree): CvDegreeEntry => ({
+      id: degree.id,
+      institution: degree.institution,
+      degree: degree.degree,
+      location: degree.location,
+      year: String(degree.year),
+    }));
 
 const buildCertificationEntries = (): readonly CvCertificationEntry[] =>
   validatedCertifications
     .filter((certificationItem) => certificationItem.cvFeatured)
-    .map(
-      (certificationItem): CvCertificationEntry => ({
-        id: certificationItem.id,
-        name: certificationItem.name,
-        institution: certificationItem.institution,
-        year: String(certificationItem.year),
-        location: certificationItem.location,
-      }),
-    );
+    .map((certificationItem): CvCertificationEntry => ({
+      id: certificationItem.id,
+      name: certificationItem.name,
+      institution: certificationItem.institution,
+      year: String(certificationItem.year),
+      location: certificationItem.location,
+    }));
 
 const buildCourseGroups = (): readonly CvCourseGroup[] => {
   const featuredCourses = validatedRecentCourses.filter((course) => course.cvFeatured);

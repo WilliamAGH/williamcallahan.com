@@ -7,7 +7,7 @@
  */
 
 import type { Education } from "@/types/schemas/education";
-import type { JSX } from "react";
+import type { ComponentProps, JSX } from "react";
 import { EducationCardClient } from "./education-card.client";
 import { processEducationItem } from "@/lib/education-data-processor";
 
@@ -17,13 +17,13 @@ import { processEducationItem } from "@/lib/education-data-processor";
  * @returns {JSX.Element} Pre-rendered education card
  */
 export async function EducationCard(props: Education): Promise<JSX.Element> {
+  let education: ComponentProps<typeof EducationCardClient>["education"];
   try {
-    const educationWithLogo = await processEducationItem(props);
-    return <EducationCardClient education={educationWithLogo} />;
+    education = await processEducationItem(props);
   } catch (error) {
     console.error("Failed to process education item:", error);
     // Fallback to default logo data
-    const fallbackEducation = { ...props, logoData: { url: "", source: null } };
-    return <EducationCardClient education={fallbackEducation} />;
+    education = { ...props, logoData: { url: "", source: null } };
   }
+  return <EducationCardClient education={education} />;
 }

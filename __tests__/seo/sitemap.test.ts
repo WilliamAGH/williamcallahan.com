@@ -7,7 +7,12 @@
 import type { MockedFunction } from "vitest";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import { getBookmarksIndex, listBookmarkTagSlugs } from "@/lib/bookmarks/service.server";
+import {
+  getBookmarksIndex,
+  listBookmarkTagSlugs,
+  type getBookmarksPage,
+  type listCanonicalTagPageCounts,
+} from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { bookmarkDetailSlugSchema, bookmarkTagSchema } from "@/types/schemas/bookmark";
 import {
@@ -16,14 +21,14 @@ import {
 } from "@/lib/sitemap/bookmark-collectors";
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
-  getBookmarksIndex: vi.fn(),
-  getBookmarksPage: vi.fn(),
-  listBookmarkTagSlugs: vi.fn(),
-  listCanonicalTagPageCounts: vi.fn().mockResolvedValue([]),
+  getBookmarksIndex: vi.fn<typeof getBookmarksIndex>(),
+  getBookmarksPage: vi.fn<typeof getBookmarksPage>(),
+  listBookmarkTagSlugs: vi.fn<typeof listBookmarkTagSlugs>(),
+  listCanonicalTagPageCounts: vi.fn<typeof listCanonicalTagPageCounts>().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/bookmarks/slug-manager", () => ({
-  loadSlugMapping: vi.fn(),
+  loadSlugMapping: vi.fn<typeof loadSlugMapping>(),
 }));
 
 const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;

@@ -4,17 +4,24 @@ import { BookmarksWithOptions } from "@/components/features/bookmarks/bookmarks-
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { vi } from "vitest";
 import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
+import type { UsePaginationOptions, UsePaginationReturn } from "@/types/ui/pagination";
+import type { useRouter } from "next/navigation";
+
+type AppRouter = ReturnType<typeof useRouter>;
 
 // Mock next/navigation's router
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn<AppRouter["push"]>(), refresh: vi.fn<AppRouter["refresh"]>() }),
   usePathname: () => "/bookmarks",
   useSearchParams: () => new URLSearchParams(),
 }));
 
 // Mock the pagination hook
 const { mockUsePagination } = vi.hoisted(() => ({
-  mockUsePagination: vi.fn(),
+  mockUsePagination:
+    vi.fn<
+      (options: UsePaginationOptions<UnifiedBookmark>) => UsePaginationReturn<UnifiedBookmark>
+    >(),
 }));
 
 vi.mock("@/hooks/use-pagination", () => ({
@@ -45,7 +52,7 @@ describe("Search-mode client pagination", () => {
     // Mock the hook to return different values based on the current state
     let currentPage = 1;
 
-    const goToPageMock = vi.fn((page: number) => {
+    const goToPageMock = vi.fn<UsePaginationReturn<UnifiedBookmark>["goToPage"]>((page) => {
       currentPage = page;
     });
 
@@ -58,9 +65,9 @@ describe("Search-mode client pagination", () => {
       isLoadingMore: false,
       hasMore: false,
       error: undefined,
-      loadMore: vi.fn(),
+      loadMore: vi.fn<UsePaginationReturn<UnifiedBookmark>["loadMore"]>(),
       goToPage: goToPageMock,
-      mutate: vi.fn(),
+      mutate: vi.fn<UsePaginationReturn<UnifiedBookmark>["mutate"]>(),
     }));
   });
 

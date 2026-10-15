@@ -6,11 +6,7 @@
  */
 
 import { vi } from "vitest";
-import {
-  bookmarkUrlSchema,
-  type BookmarkContent,
-  type UnifiedBookmark,
-} from "../../../src/types/schemas/bookmark";
+import { bookmarkUrlSchema, type UnifiedBookmark } from "../../../src/types/schemas/bookmark";
 import { getDisplayHostname } from "@/lib/utils/url-utils";
 // Mock getBaseUrl at the top level with the correct path
 vi.mock("@/lib/utils/get-base-url", () => ({
@@ -47,7 +43,7 @@ const mockApiResponse: UnifiedBookmark[] = [
       author: "John Doe",
       publisher: "Example Blog",
       datePublished: "2022-12-15T00:00:00Z",
-    } as BookmarkContent,
+    },
     assets: [],
   },
   {
@@ -72,7 +68,7 @@ const mockApiResponse: UnifiedBookmark[] = [
       description: "Description placeholder",
       author: null,
       publisher: null,
-    } as BookmarkContent,
+    },
     assets: [],
   },
 ];
@@ -102,8 +98,10 @@ describe("Bookmarks Module (Simplified)", () => {
   beforeAll(() => {
     // Ensure fetch is defined on globalThis before tests run
     if (!globalThis.fetch) {
-      const fetchMock = Object.assign(vi.fn(), { preconnect: vi.fn() });
-      globalThis.fetch = fetchMock as unknown as typeof fetch;
+      const fetchMock = Object.assign(vi.fn<typeof fetch>(), {
+        preconnect: vi.fn<(url: string | URL) => void>(),
+      });
+      globalThis.fetch = fetchMock;
     }
   });
 

@@ -1,13 +1,15 @@
 /**
  * Tests for Rate Limiter
  */
+import type { getMonotonicTime } from "@/lib/utils";
+
 let mockedMonotonicNow = 0;
 
 vi.mock("@/lib/utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/utils")>();
   return {
     ...actual,
-    getMonotonicTime: vi.fn(() => mockedMonotonicNow),
+    getMonotonicTime: vi.fn<typeof getMonotonicTime>(() => mockedMonotonicNow),
   };
 });
 
@@ -232,7 +234,7 @@ describe("Rate Limiter", () => {
       const calls = setTimeoutSpy.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
       const last = calls.at(-1);
-      const lastCallWaitTime = Number(last?.[1] ?? 0);
+      const lastCallWaitTime = last?.[1] ?? 0;
       expect(lastCallWaitTime).toBeGreaterThan(1000); // Should wait more than 1 second
 
       // Clean up
@@ -314,8 +316,8 @@ describe("Rate Limiter", () => {
         .fill(null)
         .map(() => isOperationAllowed("concurrent-store", clientId, config));
 
-      const allowedCount = results.filter((result) => result === true).length;
-      const blockedCount = results.filter((result) => result === false).length;
+      const allowedCount = results.filter((result) => result).length;
+      const blockedCount = results.filter((result) => !result).length;
 
       expect(allowedCount).toBe(5);
       expect(blockedCount).toBe(5);

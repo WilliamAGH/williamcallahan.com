@@ -12,18 +12,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_RECIPROCAL_RANK_SCORE, RRF_K } from "@/lib/db/queries/hybrid-search-config";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
+import type { CachedAnalysis } from "@/types/ai-analysis";
+import type { searchBookmarks, searchBooks } from "@/lib/search/searchers/dynamic-searchers";
+import type { searchProjects } from "@/lib/search/searchers/static-searchers";
+
+/** The bookmarks overload of getCachedAnalysis, the only domain this searcher reads here. */
+type GetCachedBookmarkAnalysis = (
+  domain: "bookmarks",
+  id: string,
+) => Promise<CachedAnalysis<BookmarkAiAnalysisResponse> | null>;
 
 const { mockSearchBookmarks, mockGetCachedAnalysis } = vi.hoisted(() => ({
-  mockSearchBookmarks: vi.fn(),
-  mockGetCachedAnalysis: vi.fn(),
+  mockSearchBookmarks: vi.fn<typeof searchBookmarks>(),
+  mockGetCachedAnalysis: vi.fn<GetCachedBookmarkAnalysis>(),
 }));
 
 vi.mock("@/lib/search/searchers/dynamic-searchers", () => ({
   searchBookmarks: mockSearchBookmarks,
-  searchBooks: vi.fn().mockResolvedValue([]),
+  searchBooks: vi.fn<typeof searchBooks>().mockResolvedValue([]),
 }));
 vi.mock("@/lib/search/searchers/static-searchers", () => ({
-  searchProjects: vi.fn().mockResolvedValue([]),
+  searchProjects: vi.fn<typeof searchProjects>().mockResolvedValue([]),
 }));
 vi.mock("@/lib/ai-analysis/reader.server", () => ({
   getCachedAnalysis: mockGetCachedAnalysis,
@@ -34,6 +43,8 @@ import { searchAiAnalysis } from "@/lib/search/searchers/ai-analysis-searcher";
 const QUERY = "vector search";
 /** Weakest rank a semantic candidate can hold, so the weakest parent score. */
 const WEAKEST_PARENT_SCORE = 1 / (RRF_K + 50);
+
+const ANALYSIS_METADATA = { generatedAt: "2026-01-01T00:00:00.000Z", modelVersion: "v1" };
 
 /**
  * Only `summary` varies. Every other field is free of both query terms, so
@@ -77,9 +88,12 @@ describe("searchAiAnalysis", () => {
     mockGetCachedAnalysis.mockImplementation(async (_domain: string, id: string) =>
       id === "alpha"
         ? // both terms present, not as a phrase: graded 0.7
-          { analysis: analysisWithSummary("Search strategies for vector stores.") }
+          {
+            metadata: ANALYSIS_METADATA,
+            analysis: analysisWithSummary("Search strategies for vector stores."),
+          }
         : // exact phrase: graded 1.0, the better analysis match of the two
-          { analysis: analysisWithSummary("A vector search primer.") },
+          { metadata: ANALYSIS_METADATA, analysis: analysisWithSummary("A vector search primer.") },
     );
 
     const results = await searchAiAnalysis(QUERY);

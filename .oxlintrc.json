@@ -1,8 +1,8 @@
 {
-  "$schema": "../node_modules/oxlint/configuration_schema.json",
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
   "jsPlugins": [
     {
-      "specifier": "./oxlint/js-plugins/s3-no-hardcoded-images.mjs",
+      "specifier": "./config/oxlint/js-plugins/s3-no-hardcoded-images.mjs",
       "name": "s3"
     }
   ],
@@ -30,6 +30,8 @@
     "pedantic": "off"
   },
   "rules": {
+    "jsx-a11y/no-noninteractive-tabindex": ["error", { "roles": ["tabpanel", "region"] }],
+    "jsx-a11y/no-redundant-roles": ["error", { "section": ["region"] }],
     "default-param-last": "error",
     "eqeqeq": [
       "error",
@@ -151,7 +153,6 @@
     "react/no-array-index-key": "off",
     "react/no-children-prop": "error",
     "react/no-danger-with-children": "error",
-    "react/no-deprecated": "warn",
     "react/no-direct-mutation-state": "error",
     "react/no-find-dom-node": "error",
     "react/no-is-mounted": "error",
@@ -160,8 +161,6 @@
     "react/no-unescaped-entities": "warn",
     "react/no-unknown-property": ["error"],
     "react/no-unsafe": "warn",
-    "react/no-unused-state": "warn",
-    "react/prop-types": "off",
     "react/react-in-jsx-scope": "off",
     "react/require-render-return": "error",
     "react/rules-of-hooks": "error",
@@ -220,12 +219,6 @@
     "yoda": ["error", "never"]
   },
   "overrides": [
-    {
-      "files": ["**/*.{js,cjs,mjs}"],
-      "rules": {
-        "typescript/*": "off"
-      }
-    },
     {
       "files": ["config/**/*", "scripts/**/*"],
       "rules": {

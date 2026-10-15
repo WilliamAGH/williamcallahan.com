@@ -350,19 +350,19 @@ describe("Scheduler and data-updater flag consistency", () => {
   it("constructs the scheduler migration preflight client with required TLS", async () => {
     const fs = await import("node:fs/promises");
     const { tmpdir } = await import("node:os");
-    const { join, resolve } = await import("node:path");
-    const temporaryDirectory = await fs.mkdtemp(join(tmpdir(), "scheduler-preflight-"));
-    const packageDirectory = join(temporaryDirectory, "node_modules/postgres");
-    const capturePath = join(temporaryDirectory, "postgres-options.json");
+    const path = await import("node:path");
+    const temporaryDirectory = await fs.mkdtemp(path.join(tmpdir(), "scheduler-preflight-"));
+    const packageDirectory = path.join(temporaryDirectory, "node_modules/postgres");
+    const capturePath = path.join(temporaryDirectory, "postgres-options.json");
 
     try {
       await fs.mkdir(packageDirectory, { recursive: true });
       await fs.writeFile(
-        join(packageDirectory, "package.json"),
+        path.join(packageDirectory, "package.json"),
         '{"type":"module","exports":"./index.js"}',
       );
       await fs.writeFile(
-        join(packageDirectory, "index.js"),
+        path.join(packageDirectory, "index.js"),
         `import { writeFileSync } from "node:fs";
 export default function postgres(databaseUrl, options) { writeFileSync(process.env.POSTGRES_OPTIONS_CAPTURE_PATH, JSON.stringify({ databaseUrl, options })); const sql = async () => [{ present: true }]; sql.end = async () => {}; return sql; }`,
       );
@@ -373,7 +373,7 @@ export default function postgres(databaseUrl, options) { writeFileSync(process.e
           "-c",
           'source "$1"; require_embedding_failures_migration',
           "bash",
-          resolve("scripts/entrypoint-db-gate.sh"),
+          path.resolve("scripts/entrypoint-db-gate.sh"),
         ],
         {
           cwd: temporaryDirectory,

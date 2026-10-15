@@ -58,7 +58,7 @@ export function useEngagementTracker() {
       location.hostname !== PRODUCTION_HOSTNAME || navigator.doNotTrack === "1";
 
     if (trackingDisabledRef.current) {
-      return;
+      return undefined;
     }
 
     const intervalId = window.setInterval(flushImpressions, IMPRESSION_FLUSH_INTERVAL_MS);

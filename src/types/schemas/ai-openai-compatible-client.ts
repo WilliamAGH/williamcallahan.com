@@ -2,7 +2,7 @@ import { z } from "zod/v4";
 
 export const aiTokenResponseSchema = z.object({
   token: z.string().min(1),
-  expiresAt: z.string().datetime(),
+  expiresAt: z.iso.datetime(),
 });
 
 export type AiTokenResponse = z.infer<typeof aiTokenResponseSchema>;

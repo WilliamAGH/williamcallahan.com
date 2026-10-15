@@ -7,9 +7,10 @@
  * and accessibility support.
  */
 
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import { SelectionView } from "@/components/ui/terminal/selection-view.client";
 import type { SelectionEntry } from "@/types/terminal";
+import type { SelectionViewProps } from "@/types/ui/terminal";
 
 describe("SelectionView Component", () => {
   const mockItems: SelectionEntry[] = [
@@ -34,8 +35,8 @@ describe("SelectionView Component", () => {
   ];
 
   const mockHandlers = {
-    onSelectAction: vi.fn(),
-    onExitAction: vi.fn(),
+    onSelectAction: vi.fn<SelectionViewProps["onSelectAction"]>(),
+    onExitAction: vi.fn<SelectionViewProps["onExitAction"]>(),
   };
 
   beforeEach(() => {
@@ -55,15 +56,17 @@ describe("SelectionView Component", () => {
     expect(screen.getByText(/Use ↑↓ to navigate/)).toBeInTheDocument();
 
     // Check options
-    const options = screen.getAllByRole("option");
+    const options = within(screen.getByRole("list", { name: "Search results" })).getAllByRole(
+      "button",
+    );
     expect(options).toHaveLength(mockItems.length);
 
-    // Check first option is selected via aria-selected
-    expect(options[0]).toHaveAttribute("aria-selected", "true");
+    // Check first option is selected via aria-current
+    expect(options[0]).toHaveAttribute("aria-current", "true");
 
     // Check other options are not selected
-    expect(options[1]).toHaveAttribute("aria-selected", "false");
-    expect(options[2]).toHaveAttribute("aria-selected", "false");
+    expect(options[1]).not.toHaveAttribute("aria-current");
+    expect(options[2]).not.toHaveAttribute("aria-current");
   });
 
   it("handles keyboard navigation", () => {
@@ -75,31 +78,39 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const options = screen.getAllByRole("option");
+    const options = within(screen.getByRole("list", { name: "Search results" })).getAllByRole(
+      "button",
+    );
 
     // Initial state - first option selected
-    expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(options[0]).toHaveAttribute("aria-current", "true");
 
     // Navigate down
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "ArrowDown",
+      });
     });
-    expect(options[1]).toHaveAttribute("aria-selected", "true");
-    expect(options[0]).toHaveAttribute("aria-selected", "false");
+    expect(options[1]).toHaveAttribute("aria-current", "true");
+    expect(options[0]).not.toHaveAttribute("aria-current");
 
     // Navigate down again
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "ArrowDown",
+      });
     });
-    expect(options[2]).toHaveAttribute("aria-selected", "true");
-    expect(options[1]).toHaveAttribute("aria-selected", "false");
+    expect(options[2]).toHaveAttribute("aria-current", "true");
+    expect(options[1]).not.toHaveAttribute("aria-current");
 
     // Navigate up
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowUp" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "ArrowUp",
+      });
     });
-    expect(options[1]).toHaveAttribute("aria-selected", "true");
-    expect(options[2]).toHaveAttribute("aria-selected", "false");
+    expect(options[1]).toHaveAttribute("aria-current", "true");
+    expect(options[2]).not.toHaveAttribute("aria-current");
   });
 
   it("wraps around when navigating beyond bounds", () => {
@@ -111,28 +122,38 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const options = screen.getAllByRole("option");
+    const options = within(screen.getByRole("list", { name: "Search results" })).getAllByRole(
+      "button",
+    );
 
     // Try to navigate up from first option - should stay at first
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowUp" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "ArrowUp",
+      });
     });
-    expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(options[0]).toHaveAttribute("aria-current", "true");
 
     // Navigate down to last option
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "ArrowDown",
+      });
     });
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "ArrowDown",
+      });
     });
-    expect(options[2]).toHaveAttribute("aria-selected", "true");
+    expect(options[2]).toHaveAttribute("aria-current", "true");
 
     // Navigate down from last option - should stay at last
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "ArrowDown",
+      });
     });
-    expect(options[2]).toHaveAttribute("aria-selected", "true");
+    expect(options[2]).toHaveAttribute("aria-current", "true");
   });
 
   it("handles selection with Enter key", () => {
@@ -146,12 +167,16 @@ describe("SelectionView Component", () => {
 
     // Navigate to second option
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "ArrowDown",
+      });
     });
 
     // Select option
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "Enter" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "Enter",
+      });
     });
 
     expect(mockHandlers.onSelectAction).toHaveBeenCalledWith(mockItems[1]);
@@ -167,7 +192,9 @@ describe("SelectionView Component", () => {
     );
 
     act(() => {
-      fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
+      fireEvent.keyDown(screen.getByRole("toolbar", { name: "Terminal search results" }), {
+        key: "Escape",
+      });
     });
 
     expect(mockHandlers.onExitAction).toHaveBeenCalled();
@@ -182,7 +209,9 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const options = screen.getAllByRole("option");
+    const options = within(screen.getByRole("list", { name: "Search results" })).getAllByRole(
+      "button",
+    );
 
     // Click second option
     act(() => {
@@ -201,15 +230,17 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const options = screen.getAllByRole("option");
+    const options = within(screen.getByRole("list", { name: "Search results" })).getAllByRole(
+      "button",
+    );
 
     // Hover over second option
     act(() => {
       fireEvent.mouseEnter(options[1]);
     });
 
-    expect(options[1]).toHaveAttribute("aria-selected", "true");
-    expect(options[0]).toHaveAttribute("aria-selected", "false");
+    expect(options[1]).toHaveAttribute("aria-current", "true");
+    expect(options[0]).not.toHaveAttribute("aria-current");
   });
 
   it("shows keyboard navigation instructions", () => {
@@ -240,6 +271,6 @@ describe("SelectionView Component", () => {
     expect(screen.getByText(/Use ↑↓ to navigate/)).toBeInTheDocument();
 
     // But no options
-    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
   });
 });

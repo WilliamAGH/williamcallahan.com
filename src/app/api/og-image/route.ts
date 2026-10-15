@@ -107,15 +107,15 @@ export async function GET(request: NextRequest) {
 
     // Check if it's a relative asset URL like /api/assets/{id}
     if (url.startsWith("/api/assets/")) {
-      const assetId = url.replace("/api/assets/", "");
-      logger.info(`[OG-Image] Detected relative asset URL, extracting ID: ${assetId}`);
+      const relativeAssetId = url.replace("/api/assets/", "");
+      logger.info(`[OG-Image] Detected relative asset URL, extracting ID: ${relativeAssetId}`);
 
       // Validate it's a proper asset ID (UUID format with or without hyphens)
-      if (/^[a-f0-9-]{36}$/.test(assetId) || /^[a-f0-9]{32}$/.test(assetId)) {
+      if (/^[a-f0-9-]{36}$/.test(relativeAssetId) || /^[a-f0-9]{32}$/.test(relativeAssetId)) {
         // Always use API proxy to ensure correct content-type
         return NextResponse.redirect(new URL(url, baseUrl).toString(), { status: 302 });
       } else {
-        logger.warn(`[OG-Image] Invalid asset ID format in URL: ${assetId}`);
+        logger.warn(`[OG-Image] Invalid asset ID format in URL: ${relativeAssetId}`);
         const fallbackImage = getDomainFallbackImage("unknown");
         return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), { status: 302 });
       }

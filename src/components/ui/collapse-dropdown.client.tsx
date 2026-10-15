@@ -39,7 +39,7 @@ export function CollapseDropdown({
   // Effect handles registration/unregistration with context if available
   useEffect(() => {
     if (!registerDropdown || !unregisterDropdown || !providedId) {
-      return;
+      return undefined;
     }
 
     // TypeScript needs explicit type assertion here

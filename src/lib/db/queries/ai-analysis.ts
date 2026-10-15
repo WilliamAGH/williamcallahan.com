@@ -29,6 +29,10 @@ const schemaForDomain = (domain: AnalysisDomain) => {
       return persistedBookAnalysisSchema;
     case "projects":
       return persistedProjectAnalysisSchema;
+    default: {
+      const unhandledDomain: never = domain;
+      throw new Error(`Unhandled analysis domain: ${unhandledDomain}`);
+    }
   }
 };
 

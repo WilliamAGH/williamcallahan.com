@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 
 /**
  * Deployment Readiness Verification Script
@@ -217,13 +217,13 @@ class DeploymentVerifier {
       name: "Build Output",
       category: "Build",
       passed: buildExists,
-      message: buildExists ? "Build output exists" : "No build output found - run 'bun run build'",
+      message: buildExists ? "Build output exists" : "No build output found - run 'pnpm run build'",
       severity: "critical",
     });
 
     // Check for TypeScript errors
     try {
-      await execAsync("bun run type-check");
+      await execAsync("pnpm run type-check");
       this.addCheck({
         name: "TypeScript Validation",
         category: "Build",

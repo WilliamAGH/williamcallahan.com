@@ -10,7 +10,9 @@ vi.setConfig({ testTimeout: 60_000 });
 
 // Mock the S3 directory listing to avoid network latency/timeouts
 vi.mock("@/lib/s3/objects", () => ({
-  listS3Objects: vi.fn().mockResolvedValue([]),
+  listS3Objects: vi
+    .fn<(typeof import("@/lib/s3/objects"))["listS3Objects"]>()
+    .mockResolvedValue([]),
 }));
 
 import { renderToReadableStream } from "react-dom/server";

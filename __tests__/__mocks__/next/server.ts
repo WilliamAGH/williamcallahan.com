@@ -3,6 +3,7 @@
  */
 
 import { vi } from "vitest";
+import type * as NextServer from "next/server";
 
 interface CookieOptions {
   name?: string;
@@ -39,12 +40,9 @@ function makeCaseInsensitiveHeaders(initHeaders?: Record<string, string>): Map<s
   (headers as unknown as { set: (name: string, value: string) => void }).set = (
     name: string,
     value: string,
-  ) => originalSet(String(name).toLowerCase(), value);
+  ) => originalSet(name.toLowerCase(), value);
 
-  return headers as Map<string, string> & {
-    get: (name: string) => string | undefined;
-    set: (name: string, value: string) => void;
-  };
+  return headers;
 }
 
 function serializeCookie(cookie: CookieOptions): string {
@@ -148,8 +146,8 @@ export class NextResponse {
     return new TextEncoder().encode(text).buffer;
   }
 
-  static json<T>(
-    data: T,
+  static json(
+    data: unknown,
     init: { status?: number; headers?: Record<string, string> } = {},
   ): NextResponse {
     const response = new NextResponse(JSON.stringify(data), init);
@@ -176,4 +174,4 @@ export class NextResponse {
 }
 
 // Mock connection() - Next.js 16 function to ensure request-time execution
-export const connection = vi.fn(async (): Promise<void> => undefined);
+export const connection = vi.fn<typeof NextServer.connection>(async () => undefined);

@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 
 /**
  * Verify No 404s - Comprehensive Sitemap URL Validation
@@ -7,7 +7,7 @@
  * It's designed to catch any 404 regressions before deployment.
  *
  * Usage:
- *   bun scripts/verify-no-404s.ts [--local|--production|--dev]
+ *   tsx scripts/verify-no-404s.ts [--local|--production|--dev]
  *
  * Options:
  *   --local       Test against localhost:3000 (default)

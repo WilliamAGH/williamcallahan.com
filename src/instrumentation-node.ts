@@ -84,16 +84,6 @@ export async function register(): Promise<void> {
     );
   }
 
-  /** Load global Jina AI rate-limit store bootstrap **/
-  try {
-    const { loadRateLimitStore } = await import("@/lib/rate-limiter");
-    const { JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_STORE_KEY } =
-      await import("@/lib/constants");
-    await loadRateLimitStore(JINA_FETCH_STORE_NAME, JINA_FETCH_RATE_LIMIT_STORE_KEY);
-  } catch (err) {
-    console.warn("[Instrumentation] Unable to load Jina rate-limit store bootstrap:", err);
-  }
-
   /**
    * Dev-only console noise filter for server warnings produced by Next.js
    * Example: "⚠ You are using an experimental edge runtime, the API might change."

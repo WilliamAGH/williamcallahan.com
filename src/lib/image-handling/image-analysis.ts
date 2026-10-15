@@ -103,7 +103,7 @@ export function analyzeImagePatterns(buffer: Buffer): {
   colorUniformity: number;
 } {
   // Calculate entropy
-  const entropy = calculateEntropy(buffer.slice(0, 2048));
+  const entropy = calculateEntropy(buffer.subarray(0, 2048));
 
   // Analyze byte patterns
   const patterns = analyzeBytePatterns(buffer);
@@ -158,7 +158,7 @@ function analyzeBytePatterns(buffer: Buffer): {
   compressionEstimate: number;
   dominantByte: number;
 } {
-  const sample = buffer.slice(0, Math.min(4096, buffer.length));
+  const sample = buffer.subarray(0, Math.min(4096, buffer.length));
   const byteCounts: number[] = Array.from({ length: 256 }, () => 0);
 
   for (const byte of sample) {

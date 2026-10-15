@@ -299,25 +299,17 @@ describe("Book Transforms", () => {
     });
 
     it("throws on non-404 responses", async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: "Server Error",
-        headers: new Headers(),
-        json: vi.fn(),
-      }) as unknown as typeof fetch;
+      globalThis.fetch = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(null, { status: 500, statusText: "Server Error" }));
 
       await expect(fetchBookById("book-500")).rejects.toThrow("AudioBookShelf API error");
     });
 
     it("returns null on 404 responses", async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        statusText: "Not Found",
-        headers: new Headers(),
-        json: vi.fn(),
-      }) as unknown as typeof fetch;
+      globalThis.fetch = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(null, { status: 404, statusText: "Not Found" }));
 
       await expect(fetchBookById("book-404")).resolves.toBeNull();
     });

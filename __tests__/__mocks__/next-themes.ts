@@ -3,10 +3,11 @@
  */
 import { vi } from "vitest";
 import type { ReactNode } from "react";
+import type { UseThemeProps } from "next-themes";
 
 export const useTheme = () => ({
   theme: "light",
-  setTheme: vi.fn(),
+  setTheme: vi.fn<UseThemeProps["setTheme"]>(),
   resolvedTheme: "light",
   themes: ["light", "dark"],
   systemTheme: "light",

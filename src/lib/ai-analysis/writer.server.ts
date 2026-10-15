@@ -12,6 +12,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { assertServerOnly } from "@/lib/utils/ensure-server-only";
 import { buildAnalysisCacheTags, buildAnalysisVersionsCacheTags } from "./paths";
 import type { AnalysisDomain, PersistAnalysisOptions } from "@/types/ai-analysis";
+import type { AnyAnalysisResponse } from "@/types/search";
 
 assertServerOnly();
 
@@ -49,10 +50,10 @@ const revalidateAnalysisCache = (domain: AnalysisDomain, id: string): void => {
  * });
  * ```
  */
-export async function persistAnalysis<T>(
+export async function persistAnalysis(
   domain: AnalysisDomain,
   id: string,
-  analysis: T,
+  analysis: AnyAnalysisResponse,
   options?: PersistAnalysisOptions,
 ): Promise<void> {
   try {
@@ -78,25 +79,4 @@ export async function persistAnalysis<T>(
     );
     throw error;
   }
-}
-
-/**
- * Update only the latest analysis without creating a new version.
- * Useful for minor updates that don't warrant a full version.
- *
- * @param domain - The analysis domain
- * @param id - The item ID
- * @param analysis - The updated analysis data
- * @param options - Optional persistence options
- */
-export async function updateLatestAnalysis<T>(
-  domain: AnalysisDomain,
-  id: string,
-  analysis: T,
-  options?: Omit<PersistAnalysisOptions, "skipVersioning">,
-): Promise<void> {
-  return persistAnalysis(domain, id, analysis, {
-    ...options,
-    skipVersioning: true,
-  });
 }
