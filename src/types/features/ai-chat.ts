@@ -107,6 +107,7 @@ export type ToolDispatchResult = {
  *  Model params (temperature, topP, maxTokens, reasoningEffort) are always
  *  resolved by `resolveModelParams()` so they are non-optional here. */
 export type UpstreamTurnParams = {
+  feature: AiFeatureIdentifier;
   turnConfig: { model: string; baseUrl: string; apiKey: string | undefined };
   signal: AbortSignal;
   toolChoice: "required" | "auto" | undefined;
@@ -140,7 +141,7 @@ export type AnalysisFeatureId = Exclude<AiFeatureIdentifier, "terminal_chat">;
 
 /** Configuration bag passed to createUpstreamRunner */
 export type UpstreamRunnerConfig = {
-  feature: string;
+  feature: AiFeatureIdentifier;
   apiMode: AiUpstreamApiMode;
   messages: OpenAiCompatibleChatMessage[];
   parsedBody: ValidatedRequestContext["parsedBody"];

@@ -20,9 +20,12 @@ export const requestBodySchema = z
     system: z.string().min(1).optional(),
     temperature: z.number().min(0).max(2).optional(),
     top_p: z.number().min(0).max(1).optional(),
-    reasoning_effort: reasoningEffortSchema.nullable().optional(),
-    response_format: openAiCompatibleResponseFormatSchema.optional(),
-    apiMode: aiUpstreamApiModeSchema.optional(),
+    reasoning_effort: z
+      .lazy(() => reasoningEffortSchema)
+      .nullable()
+      .optional(),
+    response_format: z.lazy(() => openAiCompatibleResponseFormatSchema).optional(),
+    apiMode: z.lazy(() => aiUpstreamApiModeSchema).optional(),
     conversationId: z.uuid().optional(),
     priority: z.number().int().min(-100).max(100).optional(),
     messages: z

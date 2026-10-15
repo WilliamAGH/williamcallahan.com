@@ -1,5 +1,7 @@
 import { z } from "zod/v4";
 import { embeddingSpaceIdSchema } from "@/types/schemas/embedding-space";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
+import { CONTENT_EMBEDDING_DOMAINS } from "@/types/db/embeddings";
 
 export const aiUpstreamApiModeSchema = z.enum(["chat_completions", "responses"]);
 export type AiUpstreamApiMode = z.infer<typeof aiUpstreamApiModeSchema>;
@@ -30,12 +32,26 @@ export type OpenAiCompatibleTier = z.infer<typeof openAiCompatibleTierSchema>;
  * header. The tier remains a separate routing header; these labels are the
  * source and operation dimensions used for cost attribution.
  */
-export const openAiCompatibleWorkloadSchema = z.enum([
-  "williamcallahan.com:chat-completions:live",
-  "williamcallahan.com:embeddings:live",
-  "williamcallahan.com:embeddings:batch",
-  "williamcallahan.com:chat-completions:batch",
-]);
+export const queryEmbeddingPurposeSchema = z.enum([...CONTENT_EMBEDDING_DOMAINS, "all", "rag"]);
+export type QueryEmbeddingPurpose = z.infer<typeof queryEmbeddingPurposeSchema>;
+
+// ai-chat also consumes the wire schemas below; defer feature access until parsing.
+export const openAiCompatibleWorkloadSchema = z.lazy(() =>
+  z.union([
+    z.templateLiteral(["williamcallahan.com:", aiFeatureIdentifierSchema, ":live"]),
+    z.templateLiteral([
+      "williamcallahan.com:",
+      queryEmbeddingPurposeSchema,
+      "SearchEmbedding:live",
+    ]),
+    z.templateLiteral([
+      "williamcallahan.com:",
+      z.enum(CONTENT_EMBEDDING_DOMAINS),
+      "IndexEmbedding:batch",
+    ]),
+    z.literal("williamcallahan.com:bookmarkTagAliases:batch"),
+  ]),
+);
 export type OpenAiCompatibleWorkload = z.infer<typeof openAiCompatibleWorkloadSchema>;
 
 const openAiCompatibleToolCallSchema = z.object({

@@ -371,7 +371,7 @@ async function main() {
     apiKey: modelConfig.apiKey,
     baseURL: modelConfig.baseUrl,
     defaultHeaders: {
-      "X-User-ID": "williamcallahan.com:chat-completions:batch",
+      "X-User-ID": "williamcallahan.com:bookmarkTagAliases:batch",
     },
     timeout: DEFAULT_TIMEOUT_MS,
     maxRetries: 1,

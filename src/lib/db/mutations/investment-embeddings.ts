@@ -149,7 +149,7 @@ export async function backfillInvestmentEmbeddings(
       config,
       input: inputs,
       tier: "batch",
-      workload: "williamcallahan.com:embeddings:batch",
+      workload: "williamcallahan.com:investmentIndexEmbedding:batch",
     });
     if (embeddings.length !== rows.length) {
       throw new Error(

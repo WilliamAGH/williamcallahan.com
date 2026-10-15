@@ -63,7 +63,7 @@ export async function executeChatCompletionsTurn(
     request,
     signal,
     tier: "production-a" as const,
-    workload: "williamcallahan.com:chat-completions:live" as const,
+    workload: `williamcallahan.com:${params.feature}:live` as const,
   };
 
   let startMeta: { id: string; model: string } | null = null;
@@ -175,7 +175,7 @@ export async function executeResponsesTurn(
     request,
     signal,
     tier: "production-a" as const,
-    workload: "williamcallahan.com:chat-completions:live" as const,
+    workload: `williamcallahan.com:${params.feature}:live` as const,
   };
 
   let startMeta: { id: string; model: string } | null = null;

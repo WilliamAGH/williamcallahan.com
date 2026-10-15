@@ -96,7 +96,7 @@ async function tryHybridSearch(query: string): Promise<BookmarkFtsSearchHit[] | 
           config,
           input: [query],
           tier: "production-z",
-          workload: "williamcallahan.com:embeddings:live",
+          workload: "williamcallahan.com:bookmarkSearchEmbedding:live",
           timeoutMs: 1_500,
         });
         const vec = vectors[0];
