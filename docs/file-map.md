@@ -350,7 +350,7 @@ File/Path Functionality Description
   - [x] `use-fix-svg-transforms.ts` `image-handling` - Hook to fix SVG transform issues
   - [x] `use-isomorphic-layout-effect.ts` `hooks` - Isomorphic layout effect hook
   - [x] `use-logo.ts` `image-handling` - Hook for using logos
-  - [x] `use-pagination.ts` `bookmarks` - Generic SWR infinite pagination hook with discover/latest mode support
+  - [x] `use-pagination.ts` `bookmarks` - SWR page-key ownership with seeded first-page content and discover/latest mode support
   - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
 - [x] **image-handling/**

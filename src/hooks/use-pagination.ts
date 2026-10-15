@@ -45,11 +45,6 @@ export function usePagination<T>({
     const page = pageIndex + 1;
     if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
 
-    // Do not fetch if we have initial data for the first page.
-    if (pageIndex === 0 && initialData && initialData.length > 0) {
-      return null;
-    }
-
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),

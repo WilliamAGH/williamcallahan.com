@@ -176,12 +176,13 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const gridBookmarks = feedMode === "discover" ? displayedBookmarks.slice(3) : displayedBookmarks;
 
   useEffect(() => {
+    if (!useUrlPagination) return;
     const match = /\/page\/(\d+)/.exec(pathname);
     const pageFromPath = match ? Number(match[1]) : 1;
     if (!Number.isNaN(pageFromPath) && pageFromPath !== currentPage) {
       goToPage(pageFromPath);
     }
-  }, [pathname, goToPage, currentPage]);
+  }, [pathname, goToPage, currentPage, useUrlPagination]);
 
   const paginationProps = {
     currentPage,

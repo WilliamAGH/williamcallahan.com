@@ -178,6 +178,7 @@ deployments remain read-only and do not send engagement requests.
 - **Efficient Loading**: 24 items per page, served from PostgreSQL pagination + RSC cache
 - **Dual Modes**: Tag pagination controls or infinite scroll where explicitly enabled
 - **Callback controls**: The selected page updates immediately; `isLoading` owns the loading indicator and disabled state. Navigation schedules no cosmetic state-reset timer after unmount.
+- **Seeded pages**: Server-provided bookmarks seed SWR without disabling its first-page key, so later pages can load. Only URL pagination synchronizes the current page from the pathname; root callback pagination keeps its selected page.
 - **SEO Optimized**: Canonical tag pagination URLs in sitemap generation
 
 ### Tag System
