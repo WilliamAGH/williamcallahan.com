@@ -9,16 +9,6 @@
  * 2. Image normalization
  * 3. Perceptual hash generation
  * 4. Hash comparison
- *
- * @example
- * ```typescript
- * // Compare two images
- * const similar = await compareImages(logo1Buffer, logo2Buffer);
- *
- * if (similar) {
- *   console.log('Images are perceptually similar');
- * }
- * ```
  */
 
 /**
@@ -45,17 +35,6 @@ const MEDIUM_COMPRESSION_THRESHOLD = 0.5;
 
 /** Byte histogram size */
 const BYTE_RANGE = 256;
-
-/**
- * Custom error class for image comparison errors
- * @class
- */
-export class ImageCompareError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ImageCompareError";
-  }
-}
 
 /**
  * Generate a comprehensive signature for an image
@@ -213,24 +192,4 @@ function cosineSimilarity(vec1: number[], vec2: number[]): number {
   const mag2 = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
 
   return mag1 > 0 && mag2 > 0 ? dot / (mag1 * mag2) : 0;
-}
-
-/**
- * Compares two images to determine if they're perceptually similar
- * @param {Buffer} image1 - First image buffer
- * @param {Buffer} image2 - Second image buffer
- * @param {number} threshold - Similarity threshold (0-1, default 0.9)
- * @returns {Promise<boolean>} True if images are perceptually similar
- */
-export async function compareImages(img1: Buffer, img2: Buffer, threshold = 0.9): Promise<boolean> {
-  try {
-    const sig1 = await generateImageSignature(img1);
-    const sig2 = await generateImageSignature(img2);
-    const similarity = compareSignatures(sig1, sig2);
-    return similarity >= threshold;
-  } catch {
-    // Fallback to exact match
-    const hash = (b: Buffer) => createHash("sha256").update(b).digest("hex");
-    return hash(img1) === hash(img2);
-  }
 }

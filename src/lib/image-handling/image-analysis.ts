@@ -13,11 +13,8 @@
  * // Analyze a logo
  * const analysis = await analyzeLogo(imageBuffer);
  *
- * // Check if inversion is needed
- * const needsInversion = await doesLogoNeedInversion(imageBuffer, isDarkTheme);
- *
- * // Invert colors while preserving transparency
- * const inverted = await invertLogo(imageBuffer);
+ * // Derive theme inversion decisions
+ * const inversion = await analyzeLogoInversion(imageBuffer);
  * ```
  */
 
@@ -51,17 +48,6 @@ const GLOBE_SIZE_TOLERANCE = 512;
 /** Placeholder detection thresholds */
 const MIN_BYTES_PER_PIXEL = 0.1;
 const MAX_PLACEHOLDER_SIZE = 32;
-
-/**
- * Custom error class for image analysis errors
- * @class
- */
-export class ImageAnalysisError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ImageAnalysisError";
-  }
-}
 
 /**
  * Lightweight logo analysis with entropy and pattern detection
@@ -214,46 +200,6 @@ function detectGlobePattern(
   );
 
   return (likelyBlue || goodCompression) && typicalGlobeSizes;
-}
-
-/**
- * Logo inversion is intentionally not implemented at the buffer level.
- * Instead, we rely on CSS filters for theme-based inversion which is:
- * 1. More performant (browser-optimized)
- * 2. Preserves image quality
- * 3. Works consistently across all formats
- * 4. Allows user preference overrides
- *
- * Use the `needsInversion` flag to apply CSS filter: invert(1) in dark mode
- */
-export async function invertLogo(buffer: Buffer): Promise<Buffer> {
-  // Intentionally return original buffer
-  // Actual inversion should be done via CSS filters
-  await Promise.resolve();
-  return buffer;
-}
-
-export async function doesLogoNeedInversion(
-  buffer: Buffer,
-  isDarkTheme: boolean,
-): Promise<boolean> {
-  try {
-    const analysis = await analyzeLogo(buffer);
-
-    // In dark theme, invert logos that are predominantly dark
-    if (isDarkTheme) {
-      // If average brightness is low (dark logo), it needs inversion
-      return analysis.averageBrightness < DARK_THRESHOLD;
-    } else {
-      // In light theme, invert logos that are predominantly light
-      // This is less common but handles white logos on transparent backgrounds
-      return analysis.averageBrightness > BRIGHT_THRESHOLD;
-    }
-  } catch (error) {
-    console.error("[doesLogoNeedInversion] Analysis failed:", error);
-    // Default to inverting in dark theme for safety
-    return isDarkTheme;
-  }
 }
 
 /** Derive a logo's {@link LogoInversion} decisions (normalized brightness, dark/light inversion needs) from its raw analysis. */
