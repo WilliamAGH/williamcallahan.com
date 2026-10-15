@@ -23,7 +23,7 @@ import type {
   ValidatedRequestContext,
 } from "@/types/features/ai-chat";
 import type { AiUpstreamApiMode } from "@/types/schemas/ai-openai-compatible";
-import type { AiFeatureIdentifier } from "@/types/schemas/ai-chat";
+import type { AiFeatureIdentifier } from "@/types/schemas/ai-feature";
 import { getForcedToolName } from "./tool-registry";
 import {
   resolveFeatureSystemPrompt,

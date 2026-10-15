@@ -15,7 +15,7 @@ import {
   streamModel,
   type EventPayload,
 } from "./upstream-pipeline-test-harness";
-import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
 import {
   executeChatCompletionsTurn,
   executeResponsesTurn,

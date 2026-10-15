@@ -163,3 +163,4 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 ### Provider Localization Note
 
 - TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for resilience. See "Provider Location & Resilience" in [terminal.md](../features/terminal.md) for details and guarantees.
+- `/src/types/schemas/ai-feature.ts` - AI feature identifiers shared by request validation, logging, and gateway workload attribution

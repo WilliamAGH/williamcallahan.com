@@ -1,10 +1,7 @@
 import type { NextRequest } from "next/server";
 import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
-import type {
-  AiFeatureIdentifier,
-  ParsedRequestBody,
-  SearchToolResult,
-} from "@/types/schemas/ai-chat";
+import type { ParsedRequestBody, SearchToolResult } from "@/types/schemas/ai-chat";
+import type { AiFeatureIdentifier } from "@/types/schemas/ai-feature";
 import type {
   AiUpstreamApiMode,
   OpenAiCompatibleChatMessage,

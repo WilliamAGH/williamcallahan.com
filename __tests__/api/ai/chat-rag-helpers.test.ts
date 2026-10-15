@@ -11,7 +11,7 @@ import { persistAnalysis as writeAnalysis } from "@/lib/ai-analysis/writer.serve
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { isOperationAllowed } from "@/lib/rate-limiter";
-import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
 import type { envLogger } from "@/lib/utils/env-logger";
 
 vi.mock("@/lib/ai/rag", () => ({

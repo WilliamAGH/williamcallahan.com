@@ -3,7 +3,7 @@ import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/utils/api-utils";
 import logger from "@/lib/utils/logger";
-import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
 import { validateRequest, buildRagContextForChat } from "./chat-helpers";
 import { buildChatPipeline } from "./upstream-pipeline";
 import { createSseStreamResponse } from "./sse-stream";
