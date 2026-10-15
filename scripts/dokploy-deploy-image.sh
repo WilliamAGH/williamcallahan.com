@@ -37,7 +37,8 @@ current_source="$(jq -r '.sourceType' <<<"${application}")"
 labels_swarm="$(jq -c '.labelsSwarm // {}' <<<"${application}")"
 # Dokploy resolves ${DOKPLOY_SOURCE_REVISION} only for Git sources and refuses it on an image deploy.
 target_labels="$(jq -c --arg sha "${GITHUB_SHA:?}" \
-  'with_entries(if .value == "${DOKPLOY_SOURCE_REVISION}" then .value = $sha else . end)' <<<"${labels_swarm}")"
+  '. + {"otel.service.version": $sha}
+   | with_entries(if .value == "${DOKPLOY_SOURCE_REVISION}" then .value = $sha else . end)' <<<"${labels_swarm}")"
 current_auto_deploy="$(jq -r '.autoDeploy' <<<"${application}")"
 echo "Dokploy application: sourceType=${current_source} dockerImage=${current_image:-<none>}"
 
@@ -52,7 +53,7 @@ fi
 # The first run converts a native Git build to an image source and turns off the
 # Git push trigger, which would otherwise queue a second deployment per push;
 # later runs only swap the digest. expectedDockerImage rejects a concurrent writer.
-if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" || "${current_auto_deploy}" != "false" ]]; then
+if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" || "${current_auto_deploy}" != "false" || "${labels_swarm}" != "${target_labels}" ]]; then
   # Dokploy requires the expected image and labels together, with replacements.
   update_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg expected "${current_image}" \
     --argjson labels "${labels_swarm}" --argjson target "${target_labels}" \

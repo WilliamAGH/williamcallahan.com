@@ -155,9 +155,12 @@ export function categorizeError(error: unknown, domain?: string): ErrorCategory 
   }
 
   const message = error.message.toLowerCase();
+  const causeCode =
+    error.cause instanceof Error && "code" in error.cause ? error.cause.code : undefined;
 
   // Network-related errors
   if (
+    causeCode === "UND_ERR_SOCKET" ||
     message.includes("econnreset") ||
     message.includes("econnrefused") ||
     message.includes("etimedout") ||

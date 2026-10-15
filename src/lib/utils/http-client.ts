@@ -12,6 +12,7 @@ import type { FetchOptions } from "@/types/http";
 import { logoUrlSchema, openGraphUrlSchema } from "@/types/schemas/url";
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"] as const;
 
 function stripQueryAndHash(url: string): string {
   try {
@@ -194,6 +195,10 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
       }
 
       redirectCount += 1;
+      if (new URL(redirectUrl).origin !== new URL(requestUrl).origin) {
+        // Native fetch drops credentials on a cross-origin redirect; manual redirects must too
+        CREDENTIAL_HEADERS.forEach((headerName) => requestHeaders.delete(headerName));
+      }
       requestUrl = redirectUrl;
     }
   } catch (error) {

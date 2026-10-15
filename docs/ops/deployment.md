@@ -123,6 +123,8 @@ image, so ARM64 hosts need this publisher.
 - Each platform builds natively (`ubuntu-24.04`, `ubuntu-24.04-arm`) and pushes by digest;
   `publish_and_deploy` joins the digests with `docker buildx imagetools create` and tags
   `<branch>-<sha>` plus `<branch>`.
+- Every platform image carries `org.opencontainers.image.revision=<github.sha>`; the deploy
+  script refreshes `otel.service.version` to that commit while preserving other application labels.
 - A push to `dev` deploys the web image to the GitHub `development` environment; a push to
   `main` deploys web and scheduler to `production`. `DOKPLOY_APPLICATION_ID` (and, in
   production, `DOKPLOY_SCHEDULER_APPLICATION_ID`) are GitHub environment variables.

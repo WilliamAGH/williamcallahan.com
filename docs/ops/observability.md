@@ -175,7 +175,6 @@ The system provides multiple layers of observability and resilience:
 ### MEDIUM Priority Issues
 
 1. **Ambiguous Error Handling**
-   - `lib/image-handling/image-compare.ts` falls back to hash equality when signature generation fails
    - `lib/utils/retry.ts` returns null on failure, losing error context
    - **Fix**: Throw errors to distinguish from legitimate false results
 

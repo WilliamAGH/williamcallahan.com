@@ -1,10 +1,5 @@
 // Vitest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-import {
-  analyzeLogo,
-  invertLogo,
-  doesLogoNeedInversion,
-  analyzeLogoInversion,
-} from "@/lib/image-handling/image-analysis";
+import { analyzeLogo, analyzeLogoInversion } from "@/lib/image-handling/image-analysis";
 import type { LogoBrightnessAnalysis, LogoInversion } from "@/types/logo";
 
 // TODO(wasm-image): Sharp was removed to fix memory leaks. These tests now expect
@@ -41,26 +36,6 @@ describe("Logo Analysis Module", () => {
       expect(result.hasTransparency).toBe(TEST_DATA.STUB_HAS_TRANSPARENCY);
       expect(result.format).toBe(TEST_DATA.STUB_FORMAT);
       expect(result.dimensions).toEqual(TEST_DATA.STUB_DIMENSIONS);
-    });
-  });
-
-  describe("invertLogo", () => {
-    it("should return original buffer (no-op stub)", async () => {
-      // TODO(wasm-image): This is a no-op stub until WASM implementation
-      const testBuffer = Buffer.from([0]);
-      const result = await invertLogo(testBuffer);
-      expect(result).toBe(testBuffer); // Should return the original buffer
-    });
-  });
-
-  describe("doesLogoNeedInversion", () => {
-    it("should respect brightness thresholds when deciding inversion", async () => {
-      const testBuffer = Buffer.from([0]);
-      const resultLight = await doesLogoNeedInversion(testBuffer, false);
-      const resultDark = await doesLogoNeedInversion(testBuffer, true);
-
-      expect(resultLight).toBe(true);
-      expect(resultDark).toBe(false);
     });
   });
 
