@@ -72,14 +72,14 @@ function buildApiBaseUrl(baseUrl) {
   return url.toString();
 }
 
-async function embedTexts(apiBaseUrl, apiKey, model, input, timeoutMs) {
+async function embedTexts(apiBaseUrl, apiKey, model, input, timeoutMs, domain) {
   const res = await fetch(`${apiBaseUrl}/embeddings`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "X-Tier": "batch",
-      "X-User-ID": "williamcallahan.com:embeddings:batch",
+      "X-User-ID": `williamcallahan.com:${domain}IndexEmbedding:batch`,
     },
     body: JSON.stringify({ model, input }),
     signal: AbortSignal.timeout(timeoutMs),
@@ -156,7 +156,7 @@ async function backfillLoop(
       processed += rows.length;
       continue;
     }
-    const embeddings = await embedTexts(apiBaseUrl, apiKey, model, texts, timeoutMs);
+    const embeddings = await embedTexts(apiBaseUrl, apiKey, model, texts, timeoutMs, cfg.domain);
     processed += rows.length;
     if (dry) {
       console.log(`${P} ${cfg.label}: dry-run processed=${processed}/${total}`);

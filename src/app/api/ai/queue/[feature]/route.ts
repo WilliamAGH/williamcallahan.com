@@ -8,7 +8,7 @@ import {
 } from "@/lib/ai/openai-compatible/feature-config";
 import { getUpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import { NO_STORE_HEADERS, preventCaching, requireCloudflareHeaders } from "@/lib/utils/api-utils";
-import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-chat";
+import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
 import { aiUpstreamApiModeSchema } from "@/types/schemas/ai-openai-compatible";
 
 /**

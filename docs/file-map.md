@@ -124,6 +124,7 @@ File/Path Functionality Description
   - [x] `json-ld.tsx` `seo` - JSON-LD structured data component
   - [x] `opengraph-logo.tsx` `seo` - OpenGraph logo meta tag component
 - [~] **ui/**
+  - [x] `pagination-control.client.tsx` `bookmarks` - Callback pagination with immediate selection and caller-owned loading
   - [x] **terminal/**
     - [x] `terminal-implementation.client.tsx` `terminal` - Terminal core UI implementation
     - [x] `terminal-header.tsx` `terminal` - Header UI with window controls & title
@@ -226,6 +227,7 @@ File/Path Functionality Description
 - [x] `bookmarks.{client,server}.ts` `json-handling` - Helper functions for bookmarks
 - [x] `bookmarks.ts` `json-handling` - Core bookmarks logic
 - [x] `bookmarks/enrichment-hydration.ts` `bookmarks` - Merges prior persisted enrichment into refreshed datasets; pending Karakeep image-upgrade predicate
+- [x] `bookmarks/enrich-opengraph.ts` `bookmarks` - OpenGraph enrichment and bounded Karakeep asset downloads with one retry
 - [x] `cache.ts` `caching` - Next.js cache guard, tag revalidation, and immediate tag expiration utilities
 - [x] `constants.ts` `overview` - Project-wide constants
 - [x] `education-data-processor.ts` `education` - Utilities for education logos and data
@@ -348,7 +350,7 @@ File/Path Functionality Description
   - [x] `use-fix-svg-transforms.ts` `image-handling` - Hook to fix SVG transform issues
   - [x] `use-isomorphic-layout-effect.ts` `hooks` - Isomorphic layout effect hook
   - [x] `use-logo.ts` `image-handling` - Hook for using logos
-  - [x] `use-pagination.ts` `bookmarks` - Generic SWR infinite pagination hook with discover/latest mode support
+  - [x] `use-pagination.ts` `bookmarks` - SWR page-key ownership with seeded first-page content and discover/latest mode support
   - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
 - [x] **image-handling/**
@@ -463,6 +465,7 @@ File/Path Functionality Description
 - [x] **db/**
   - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmark row/insert type exports for DB modules
 - [ ] **schemas/**
+  - [x] `ai-feature.ts` `ai-shared-services` - Canonical AI feature identifiers for request validation, logging, and workload attribution
   - [x] `api.ts` `log-error-debug-handling` - Canonical Zod schemas for API errors, client-error telemetry, and shared route response contracts
   - [x] `blog-frontmatter.ts` `blog` - Zod single owner of MDX frontmatter and `blogSlugSchema`; runtime MDX and Node seed ingestion parse through it
   - [x] `github-storage.ts` `github-activity` - Canonical persisted and public GitHub activity schemas, projections, and write intents

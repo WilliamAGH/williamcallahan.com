@@ -65,6 +65,28 @@ describe("OpenGraph URL security", () => {
       fetchSpy.mockRestore();
     }
   });
+
+  it.each([
+    ["https://example.com/moved", "Bearer secret"],
+    ["https://cdn.example.net/moved", null],
+  ])("sends Authorization to a redirect at %s as %s", async (location, expectedAuthorization) => {
+    const sentAuthorization: Array<string | null> = [];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      sentAuthorization.push(new Headers(init?.headers).get("authorization"));
+      return sentAuthorization.length === 1
+        ? new Response(null, { status: 302, headers: { Location: location } })
+        : new Response("ok", { status: 200 });
+    });
+
+    try {
+      await fetchWithTimeout("https://example.com/start", {
+        headers: { Authorization: "Bearer secret" },
+      });
+      expect(sentAuthorization).toEqual(["Bearer secret", expectedAuthorization]);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });
 
 describe("OpenGraph Metadata", () => {

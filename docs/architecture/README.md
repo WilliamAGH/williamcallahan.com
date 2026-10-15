@@ -63,6 +63,9 @@ Example schemas:
 - The canonical S3 retry scope and durability contract is [`s3-storage.md`](s3-storage.md); CDN usage remains explicit at call sites.
 - Runtime JSON persistence is PostgreSQL-backed across all environments via domain tables (`github_activity_store`, `content_graph_artifacts`, `search_index_artifacts`, `books_latest`/`books_snapshots`, etc.); the legacy `lib/s3/json.ts` layer has been removed.
 - Bookmark runtime reads and bookmark/index/tag writes are PostgreSQL-only; S3 is reserved for binary assets (see `bookmarks.md`).
+- Karakeep asset downloads retry the complete bounded transfer through the existing HTTP and retry owners (see `features/bookmarks.md`).
+- Callback pagination uses the caller's loading state and leaves no navigation timer after unmount (see `features/bookmarks.md`).
+- Seeded bookmark pagination retains SWR page keys; pathname synchronization belongs only to URL pagination (see `features/bookmarks.md`).
 - PostgreSQL bookmark runtime modules live under `src/lib/db/` and now manage `bookmarks`, `bookmark_tag_links`, `bookmarks_tags`, `bookmarks_tags_links`, `bookmark_index_state`, and `bookmark_tag_index_state` through Drizzle query/mutation modules.
 - Books use a PostgreSQL-first architecture: `lib/books/generate.ts` consolidates ABS data + manual enrichments + AI summaries into versioned `books_snapshots` rows with `books_latest` pointer updates; runtime reads come from DB-backed books queries, never calling ABS directly at request time. The scheduler container first runs `node --run update-data` to bootstrap its canonical default dataset and revalidates affected web caches before cron; the recurring `--books` job runs daily at 6 AM PT with cache invalidation through `/api/revalidate/books`.
 - GitHub activity orchestration is split across dedicated data-access modules for repo stats, commit counts, CSV repair, and summary persistence (see `features/github-activity.md`).
@@ -163,3 +166,4 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 ### Provider Localization Note
 
 - TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for resilience. See "Provider Location & Resilience" in [terminal.md](../features/terminal.md) for details and guarantees.
+- `/src/types/schemas/ai-feature.ts` - AI feature identifiers shared by request validation, logging, and gateway workload attribution

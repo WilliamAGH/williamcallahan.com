@@ -179,7 +179,7 @@ describe("RAG Dynamic Retriever", () => {
       // failed all of them and RAG came back empty exactly when the fallback
       // should have carried it.
       vi.mocked(buildQueryEmbedding).mockImplementationOnce(
-        async (_query, _logContext, _context, timeoutMs) => {
+        async (_query, _logContext, _purpose, _context, timeoutMs) => {
           await new Promise((resolve) => setTimeout(resolve, timeoutMs ?? 0));
           return undefined;
         },

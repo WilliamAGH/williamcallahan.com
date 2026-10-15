@@ -36,7 +36,12 @@ export async function searchInvestments(
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchInvestments]", context);
+  const embedding = await buildQueryEmbedding(
+    sanitizedQuery,
+    "[searchInvestments]",
+    "investment",
+    context,
+  );
   const rows = await hybridSearchInvestments({
     query: sanitizedQuery,
     embedding,
@@ -102,7 +107,12 @@ export async function searchProjects(
   const sanitizedQuery = sanitizeSearchQuery(query);
   if (!sanitizedQuery) return [];
 
-  const embedding = await buildQueryEmbedding(sanitizedQuery, "[searchProjects]", context);
+  const embedding = await buildQueryEmbedding(
+    sanitizedQuery,
+    "[searchProjects]",
+    "project",
+    context,
+  );
   const rows = await hybridSearchProjects({
     query: sanitizedQuery,
     embedding,

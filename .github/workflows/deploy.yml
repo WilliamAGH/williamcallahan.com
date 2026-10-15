@@ -148,6 +148,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: ${{ steps.build_config.outputs.build_args }}
           secret-files: ${{ steps.build_config.outputs.secret_files }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,scope=${{ matrix.image }}-${{ env.PLATFORM_PAIR }},mode=max

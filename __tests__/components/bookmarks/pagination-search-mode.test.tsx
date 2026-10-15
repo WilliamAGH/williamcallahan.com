@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { SWRConfig } from "swr";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
 import { BookmarksWithOptions } from "@/components/features/bookmarks/bookmarks-with-options.client";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
@@ -73,6 +74,73 @@ describe("Search-mode client pagination", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("navigates seeded latest-feed pages and returns to the first page", async () => {
+    const { usePagination: useRealPagination } =
+      await vi.importActual<typeof import("@/hooks/use-pagination")>("@/hooks/use-pagination");
+    mockUsePagination.mockImplementation(useRealPagination);
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (request) => {
+      const requestedUrl =
+        typeof request === "string" ? request : request instanceof URL ? request.href : request.url;
+      const page = Number(new URL(requestedUrl, "http://localhost").searchParams.get("page"));
+      return Response.json({
+        data: mockBookmarks.slice((page - 1) * 24, page * 24),
+        meta: {
+          pagination: {
+            page,
+            limit: 24,
+            total: mockBookmarks.length,
+            totalPages: 3,
+            hasNext: page < 3,
+            hasPrev: page > 1,
+          },
+        },
+      });
+    });
+
+    render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <BookmarksWithPagination
+          bookmarks={mockBookmarks.slice(0, 24)}
+          initialBookmarks={mockBookmarks.slice(0, 24)}
+          enableInfiniteScroll={false}
+          showFilterBar={false}
+          feedMode="latest"
+          initialPage={1}
+          itemsPerPage={24}
+          totalPages={3}
+          totalCount={mockBookmarks.length}
+          baseUrl="/bookmarks"
+        />
+      </SWRConfig>,
+    );
+
+    expect(screen.getByRole("heading", { name: "AI Post 0" })).toBeInTheDocument();
+    const [nextPageButton] = screen.getAllByRole("button", { name: "Go to next page" });
+    if (!nextPageButton) throw new Error("Expected latest-feed pagination");
+    fireEvent.click(nextPageButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "AI Post 24" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "AI Post 0" })).not.toBeInTheDocument();
+      expect(screen.getByText("Showing 25-48 of 66 bookmarks")).toBeInTheDocument();
+    });
+    expect(screen.getAllByRole("button", { current: "page" })).toHaveLength(2);
+    for (const currentPageButton of screen.getAllByRole("button", { current: "page" })) {
+      expect(currentPageButton).toHaveTextContent("2");
+    }
+
+    const [previousPageButton] = screen.getAllByRole("button", { name: "Go to previous page" });
+    if (!previousPageButton) throw new Error("Expected previous-page navigation");
+    fireEvent.click(previousPageButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "AI Post 0" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "AI Post 24" })).not.toBeInTheDocument();
+      expect(screen.getByText("Showing 1-24 of 66 bookmarks")).toBeInTheDocument();
+    });
   });
 
   it("renders bookmarks and displays pagination info", async () => {

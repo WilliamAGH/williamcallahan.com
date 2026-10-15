@@ -5,9 +5,12 @@ import {
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import {
   endpointCompatibleEmbeddingsRequestSchema,
+  openAiCompatibleWorkloadSchema,
+  queryEmbeddingPurposeSchema,
   type EndpointCompatibleEmbeddingConfig,
   type EndpointCompatibleEmbeddingsRequest,
 } from "@/types/schemas/ai-openai-compatible";
+import { CONTENT_EMBEDDING_DOMAINS } from "@/types/db/embeddings";
 
 const embeddingConfig: EndpointCompatibleEmbeddingConfig = {
   model: "text-embedding-qwen3-embedding-4b",
@@ -78,12 +81,59 @@ describe("resolveDefaultEndpointCompatibleEmbeddingConfig", () => {
 });
 
 describe("embedTextsWithEndpointCompatibleModel", () => {
+  it.each([
+    ...queryEmbeddingPurposeSchema.options.map(
+      (purpose) => `williamcallahan.com:${purpose}SearchEmbedding:live` as const,
+    ),
+    ...CONTENT_EMBEDDING_DOMAINS.map(
+      (domain) => `williamcallahan.com:${domain}IndexEmbedding:batch` as const,
+    ),
+  ])("sends the semantic embedding workload %s over HTTP", async (workload) => {
+    const parsedWorkload = openAiCompatibleWorkloadSchema.parse(workload);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_request, init) => {
+        expect(new Headers(init?.headers).get("X-User-ID")).toBe(workload);
+        return Response.json({
+          object: "list",
+          data: [{ object: "embedding", embedding: [1, 2], index: 0 }],
+        });
+      }),
+    );
+    await expect(
+      embedTextsWithEndpointCompatibleModel({
+        config: embeddingConfig,
+        input: ["semantic purpose"],
+        tier: workload.endsWith(":batch") ? "batch" : "production-z",
+        workload: parsedWorkload,
+      }),
+    ).resolves.toEqual([[1, 2]]);
+  });
+
+  it.each([
+    "chat-completions:live",
+    "embeddings:live",
+    "embeddings:batch",
+    "chat-completions:batch",
+    "unknown:live",
+  ])("rejects generic or unknown workload %s", (suffix) => {
+    expect(openAiCompatibleWorkloadSchema.safeParse(`williamcallahan.com:${suffix}`).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts the bookmark tag alias job", () => {
+    expect(
+      openAiCompatibleWorkloadSchema.parse("williamcallahan.com:bookmarkTagAliases:batch"),
+    ).toBe("williamcallahan.com:bookmarkTagAliases:batch");
+  });
+
   it("preserves OpenAI embedding response order by index", async () => {
     const requests: EndpointCompatibleEmbeddingsRequest[] = [];
     const fetchMock = vi.fn<typeof fetch>(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const headers = new Headers(init?.headers);
       expect(headers.get("X-Tier")).toBe("batch");
-      expect(headers.get("X-User-ID")).toBe("williamcallahan.com:embeddings:batch");
+      expect(headers.get("X-User-ID")).toBe("williamcallahan.com:bookmarkIndexEmbedding:batch");
       const request = readEmbeddingRequest(init);
       requests.push(request);
       const data = request.input
@@ -101,7 +151,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["alpha", "beta"],
       tier: "batch",
-      workload: "williamcallahan.com:embeddings:batch",
+      workload: "williamcallahan.com:bookmarkIndexEmbedding:batch",
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();
@@ -138,7 +188,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["a".repeat(32_769), "short"],
       tier: "batch",
-      workload: "williamcallahan.com:embeddings:batch",
+      workload: "williamcallahan.com:bookmarkIndexEmbedding:batch",
     });
 
     expect(requests[0]?.input).toHaveLength(3);
@@ -177,7 +227,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
         config: embeddingConfig,
         input: ["alpha"],
         tier: "batch",
-        workload: "williamcallahan.com:embeddings:batch",
+        workload: "williamcallahan.com:bookmarkIndexEmbedding:batch",
         retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 0 },
       }),
     ).resolves.toEqual([[1, 2]]);
@@ -207,7 +257,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       config: embeddingConfig,
       input: ["alpha"],
       tier: "batch",
-      workload: "williamcallahan.com:embeddings:batch",
+      workload: "williamcallahan.com:bookmarkIndexEmbedding:batch",
       retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 2_000 },
     });
     await vi.advanceTimersByTimeAsync(0);
@@ -234,7 +284,7 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
         config: embeddingConfig,
         input: ["alpha"],
         tier: "batch",
-        workload: "williamcallahan.com:embeddings:batch",
+        workload: "williamcallahan.com:bookmarkIndexEmbedding:batch",
       });
     } catch (error) {
       thrown = error;

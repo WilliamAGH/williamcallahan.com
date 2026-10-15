@@ -1,8 +1,29 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { clearBlogSlugMemos, getAllPostsMeta, getPostMetaBySlug } from "@/lib/blog";
+import { invalidateBlogCache, invalidateBlogPostCache } from "@/lib/blog/mdx";
 import type {
   hybridSearchBlogPosts,
   hybridSearchBooks,
 } from "@/lib/db/queries/hybrid-search-books-blog";
 import type { buildQueryEmbedding } from "@/lib/db/queries/query-embedding";
+
+const fixtureRoot = await vi.hoisted(async () => {
+  const filesystem = await import("node:fs/promises");
+  const operatingSystem = await import("node:os");
+  const paths = await import("node:path");
+  return filesystem.mkdtemp(paths.join(operatingSystem.tmpdir(), "blog-cache-"));
+});
+
+vi.mock("@/lib/blog/validation", async (importOriginal) => {
+  // Initialize the real filesystem/index owner against an isolated content root.
+  const cwd = vi.spyOn(process, "cwd").mockReturnValue(fixtureRoot);
+  try {
+    return await importOriginal<typeof import("@/lib/blog/validation")>();
+  } finally {
+    cwd.mockRestore();
+  }
+});
 
 vi.mock("@/lib/data-access/opengraph");
 vi.mock("@/lib/db/queries/hybrid-search-books-blog", () => ({
@@ -37,15 +58,46 @@ describe("Cache Invalidation Functions", () => {
   });
 
   describe("Blog Cache", () => {
-    it("invalidates cached blog posts", async () => {
-      const { getAllPosts } = await import("@/lib/blog");
-      const blogModule = await import("@/lib/blog/mdx");
-      const posts = await getAllPosts();
+    afterAll(async () => {
+      clearBlogSlugMemos();
+      await fs.rm(fixtureRoot, { recursive: true });
+    });
 
-      expect(posts.length).toBeGreaterThan(0);
-      expect(() => blogModule.invalidateBlogCache()).not.toThrow();
-      expect(() => blogModule.invalidateBlogPostCache("test-slug")).not.toThrow();
-      await expect(getAllPosts()).resolves.toHaveLength(posts.length);
+    it("returns changed content after clearing cached blog posts", async () => {
+      const postsDirectory = path.join(fixtureRoot, "data/blog/posts");
+      const postPath = path.join(postsDirectory, "cache-contract.mdx");
+      const originalSource = `---
+slug: cache-contract
+title: Original title
+author: william-callahan
+publishedAt: 2026-01-01
+excerpt: Cache invalidation fixture.
+tags: [Testing]
+---
+Original content.
+`;
+      await fs.mkdir(postsDirectory, { recursive: true });
+      await fs.writeFile(postPath, originalSource);
+
+      await expect(getAllPostsMeta()).resolves.toMatchObject([{ title: "Original title" }]);
+      await expect(getPostMetaBySlug("cache-contract")).resolves.toMatchObject({
+        title: "Original title",
+      });
+
+      await fs.writeFile(postPath, originalSource.replace("Original title", "Updated title"));
+      await expect(getPostMetaBySlug("cache-contract")).resolves.toMatchObject({
+        title: "Original title",
+      });
+
+      // Match the admin cache-clear operation: Next tags plus process memos.
+      invalidateBlogCache();
+      invalidateBlogPostCache("cache-contract");
+      clearBlogSlugMemos();
+
+      await expect(getPostMetaBySlug("cache-contract")).resolves.toMatchObject({
+        title: "Updated title",
+      });
+      await expect(getAllPostsMeta()).resolves.toMatchObject([{ title: "Updated title" }]);
     });
   });
 });

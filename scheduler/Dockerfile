@@ -76,10 +76,6 @@ ENV CONTAINER=true
 ENV XDG_CACHE_HOME=/home/nextjs/.cache
 ENV SCHEDULER_HEARTBEAT_FILE=/tmp/scheduler-heartbeat
 
-ARG GIT_SHA=unknown
-ENV GIT_SHA=${GIT_SHA}
-LABEL org.opencontainers.image.revision=$GIT_SHA
-
 # Dependencies and generated artifacts from the deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/generated ./generated

@@ -9,6 +9,7 @@
  */
 
 import type { QueryEmbeddingContext } from "@/types/search";
+import type { QueryEmbeddingPurpose } from "@/types/schemas/ai-openai-compatible";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
 import { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
@@ -35,6 +36,7 @@ const QUERY_EMBEDDING_TIMEOUT_MS = 4_000;
 export async function buildQueryEmbedding(
   query: string,
   logContext: string,
+  purpose: QueryEmbeddingPurpose,
   context?: QueryEmbeddingContext,
   timeoutMs: number = QUERY_EMBEDDING_TIMEOUT_MS,
 ): Promise<number[] | undefined> {
@@ -62,7 +64,7 @@ export async function buildQueryEmbedding(
       config: embeddingConfig,
       input: [query],
       tier: "production-z",
-      workload: "williamcallahan.com:embeddings:live",
+      workload: `williamcallahan.com:${purpose}SearchEmbedding:live`,
       timeoutMs,
     });
     const vector = vectors[0];

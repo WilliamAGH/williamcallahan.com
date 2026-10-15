@@ -152,7 +152,7 @@ export async function GET(
         case "analysis":
           // Three parent searches share one query embedding.
           return searchAiAnalysis(query, {
-            precomputed: await buildQueryEmbedding(query, "[search/analysis]"),
+            precomputed: await buildQueryEmbedding(query, "[search/analysis]", "ai_analysis"),
           });
         default:
           return [];

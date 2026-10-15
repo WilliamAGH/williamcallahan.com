@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
       // Embed the query once; every searcher reuses the vector instead of racing
       // nine embedding calls against the per-call timeout.
       const context = needsEmbedding
-        ? { precomputed: await buildQueryEmbedding(query, "[search/all]") }
+        ? { precomputed: await buildQueryEmbedding(query, "[search/all]", "all") }
         : {};
       // Only run searches for requested scopes (or all if no scope specified)
       // Each search is wrapped with a timeout to prevent slow sources from blocking

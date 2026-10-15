@@ -72,6 +72,7 @@ Enrichment-owned columns are listed once in `BOOKMARK_ENRICHMENT_FIELDS` (`lib/d
 - **Refresh gate** (`lib/bookmarks/refresh-helpers.ts`): the raw-API checksum is computed with the same canonical `calculateBookmarksChecksum`; in data-updater mode the cached short-circuit is bypassed while any bookmark still needs its Karakeep asset upgraded to an S3 CDN URL (`needsKarakeepImageUpgrade`).
 - **Scheduled refresh operation** (`lib/bookmarks/data-fetch-refresh.server.ts`): compares against PostgreSQL without triggering an external read, then performs the explicit Karakeep refresh and returns the batch-operation summary.
 - **Runtime split**: only the data updater (`IS_DATA_UPDATER=true`) downloads Karakeep assets and persists them to S3; the web runtime keeps the relative `/api/assets/<id>` proxy URL (never passed to `persistImageToS3`, which rejects app-relative URLs) until the next updater run upgrades it.
+- **Asset downloads**: `fetchKarakeepImage()` retries one transient failure across headers and body transfer. Each attempt retains its deadline through body consumption; exhaustion emits one final error line with the underlying cause.
 
 ### Backfill Scripts
 
@@ -176,6 +177,8 @@ deployments remain read-only and do not send engagement requests.
 - **Tag Pages**: URL-based pagination remains on `/bookmarks/tags/[tagSlug]/page/[n]`
 - **Efficient Loading**: 24 items per page, served from PostgreSQL pagination + RSC cache
 - **Dual Modes**: Tag pagination controls or infinite scroll where explicitly enabled
+- **Callback controls**: The selected page updates immediately; `isLoading` owns the loading indicator and disabled state. Navigation schedules no cosmetic state-reset timer after unmount.
+- **Seeded pages**: Server-provided bookmarks seed SWR without disabling its first-page key, so later pages can load. Only URL pagination synchronizes the current page from the pathname; root callback pagination keeps its selected page.
 - **SEO Optimized**: Canonical tag pagination URLs in sitemap generation
 
 ### Tag System

@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
 import type { embedTextsWithEndpointCompatibleModel } from "@/lib/ai/openai-compatible/embeddings-client";
+import { queryEmbeddingPurposeSchema } from "@/types/schemas/ai-openai-compatible";
 
 const { mockEmbedTexts } = vi.hoisted(() => ({
   mockEmbedTexts: vi.fn<typeof embedTextsWithEndpointCompatibleModel>(),
@@ -33,22 +34,33 @@ describe("buildQueryEmbedding", () => {
     mockEmbedTexts.mockResolvedValue([vector]);
   });
 
-  it("returns the precomputed vector without calling the endpoint", async () => {
-    await expect(buildQueryEmbedding("postgres", "[test]", { precomputed: vector })).resolves.toBe(
-      vector,
+  it.each(queryEmbeddingPurposeSchema.options)("retains the caller purpose %s", async (purpose) => {
+    await expect(buildQueryEmbedding("postgres", "[test]", purpose)).resolves.toEqual(vector);
+    expect(mockEmbedTexts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workload: `williamcallahan.com:${purpose}SearchEmbedding:live`,
+        tier: "production-z",
+        timeoutMs: 4_000,
+      }),
     );
+  });
+
+  it("returns the precomputed vector without calling the endpoint", async () => {
+    await expect(
+      buildQueryEmbedding("postgres", "[test]", "bookmark", { precomputed: vector }),
+    ).resolves.toBe(vector);
     expect(mockEmbedTexts).not.toHaveBeenCalled();
   });
 
   it("stays keyword-only for every domain when the request-level embedding is absent", async () => {
     await expect(
-      buildQueryEmbedding("postgres", "[test]", { precomputed: undefined }),
+      buildQueryEmbedding("postgres", "[test]", "bookmark", { precomputed: undefined }),
     ).resolves.toBeUndefined();
     expect(mockEmbedTexts).not.toHaveBeenCalled();
   });
 
   it("embeds the query once when no context is supplied", async () => {
-    await expect(buildQueryEmbedding("postgres", "[test]")).resolves.toEqual(vector);
+    await expect(buildQueryEmbedding("postgres", "[test]", "bookmark")).resolves.toEqual(vector);
     expect(mockEmbedTexts).toHaveBeenCalledTimes(1);
     expect(mockEmbedTexts).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 4_000 }));
   });
@@ -57,9 +69,9 @@ describe("buildQueryEmbedding", () => {
     // RAG awaits this before its scope searches, so its own per-scope budget has
     // to cap the embedding too or the advertised latency is exceeded before any
     // scope timeout applies.
-    await expect(buildQueryEmbedding("postgres", "[test]", undefined, 3_000)).resolves.toEqual(
-      vector,
-    );
+    await expect(
+      buildQueryEmbedding("postgres", "[test]", "bookmark", undefined, 3_000),
+    ).resolves.toEqual(vector);
     expect(mockEmbedTexts).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 3_000 }));
   });
 });
