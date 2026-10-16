@@ -145,11 +145,11 @@ Dokploy project `BMXTsKla8_lsB6n63EqFT`, production environment
 | Web         | `bUgv7h_BN9tuULqqZjmRp` | `main`     | 2        | 10 GiB memory limit, 8 GiB reservation, no CPU limit or CPU reservation  |
 | Scheduler   | `OUteyEQrGINFHwCyYMVUa` | `main`     | 1        | 1 CPU limit, 3 GiB memory limit, 512 MiB reservation, no CPU reservation |
 
-Both use the native GitHub push trigger, build on Dokploy server `haiku-5`
-(`9nmaEL2XqWCSYUjB7p83V`), and publish through the hosted Nexus registry before
+Both use the native GitHub push trigger, build on Dokploy build server
+`9nmaEL2XqWCSYUjB7p83V`, and publish through the hosted Nexus registry before
 Swarm placement. Only nodes labeled `williamcallahan.com.production=true` are
-eligible; `MaxReplicas: 1` keeps the two web replicas split across `haiku-0` and
-`haiku-5`. Updates and rollbacks are `stop-first`, so the pair never requests a
+eligible; `MaxReplicas: 1` keeps the two web replicas on two different labeled
+nodes. Updates and rollbacks are `stop-first`, so the pair never requests a
 third temporary slot.
 
 `infisical-wc-prod` (`DmhmwE6WCLgWnnieZuPso`) is the production configuration
