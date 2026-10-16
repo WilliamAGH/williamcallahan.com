@@ -7,11 +7,7 @@
 
 import { readImageManifest } from "@/lib/db/queries/image-manifests";
 import { cacheContextGuards } from "@/lib/cache";
-import {
-  imageManifestSchema,
-  logoManifestSchema,
-  type LogoManifest,
-} from "@/types/schemas/image-manifest";
+import { logoManifestSchema, type LogoManifest } from "@/types/schemas/image-manifest";
 
 // Runtime-safe wrappers for experimental cache APIs
 const safeCacheLife = (
@@ -30,28 +26,6 @@ const safeCacheLife = (
 const safeCacheTag = (...tags: string[]): void => {
   cacheContextGuards.cacheTag("ImageManifest", ...tags);
 };
-
-/**
- * Load all manifests with caching
- */
-export async function loadManifestsWithCache() {
-  "use cache";
-
-  safeCacheLife("days");
-  safeCacheTag("image-manifests");
-
-  const [rawLogos, rawOpengraph, rawBlog] = await Promise.all([
-    readImageManifest("logos"),
-    readImageManifest("opengraph"),
-    readImageManifest("blog"),
-  ]);
-
-  return {
-    logos: logoManifestSchema.parse(rawLogos ?? {}),
-    opengraph: imageManifestSchema.parse(rawOpengraph ?? []),
-    blog: imageManifestSchema.parse(rawBlog ?? []),
-  };
-}
 
 /**
  * Load logo manifest with caching
