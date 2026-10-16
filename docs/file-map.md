@@ -221,7 +221,6 @@ File/Path Functionality Description
   - [ ] `unified-ai-service.ts` `ai-shared-services` - Main AI service singleton
   - [ ] `unified-search-service.ts` `ai-shared-services` - Main search service singleton
   - [ ] `types.ts` `ai-shared-services` - Shared type definitions
-- [x] `async-job-queue.ts` `bookmarks` - Asynchronous job queue implementation
 - [ ] `async-operations-monitor.ts` `instrumentation-monitoring` - Global async operations tracker & timeout guard
 - [x] `blog.ts` `blog` - Blog data helper functions
 - [x] `bookmarks.{client,server}.ts` `json-handling` - Helper functions for bookmarks
