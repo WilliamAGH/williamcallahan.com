@@ -123,13 +123,6 @@ export interface RequestContext {
   metadata?: Record<string, unknown>;
 }
 
-// =============================================================================
-// ASYNC OPERATIONS & JOB QUEUE - Infrastructure for background processing
-// =============================================================================
-
-/** A function that can be executed as a job in the async queue */
-export type Job = () => Promise<void> | void;
-
 /**
  * S3 error shape - AWS SDK errors include metadata with HTTP status codes.
  * Used for type-safe error handling across S3 operations.
