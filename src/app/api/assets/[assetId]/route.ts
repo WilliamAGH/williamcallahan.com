@@ -38,6 +38,8 @@ import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 const CDN_FETCH_TIMEOUT_MS = 15_000; // 15s — shorter than Karakeep's 30s
+// Response headers must leave within this budget; Cloudflare drops the request at 100s
+const UPSTREAM_DEADLINE_MS = 30_000;
 const DEFAULT_BOOKMARKS_API_URL = "https://bookmark.iocloudhost.net/api/v1";
 
 const getS3Context = () => {
@@ -266,6 +268,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ assetId: string }> },
 ) {
+  const deadlineAt = Date.now() + UPSTREAM_DEADLINE_MS;
   const { assetId } = await params;
 
   console.log(`[Assets API] Request for assetId: ${assetId}`);
@@ -332,11 +335,11 @@ export async function GET(
       Accept: "*/*",
     };
 
-    // One upstream GET with a 30s fetch-level abort, callable again for the one bounded retry
+    // One upstream GET aborted at the route deadline, callable again for the one bounded retry
     // the streaming path allows when the upstream stalls before yielding its first byte.
     const fetchUpstream = async (): Promise<Response> => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), Math.max(0, deadlineAt - Date.now()));
       try {
         return await fetch(assetUrl, {
           headers: fetchHeaders,
@@ -350,11 +353,10 @@ export async function GET(
 
     let response: Response;
     try {
-      // Fetch the asset from the external service
       response = await fetchUpstream();
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        console.error(`[Assets API] Timeout fetching asset ${assetId} after 30 seconds`);
+        console.error(`[Assets API] Timeout fetching asset ${assetId} at the route deadline`);
         return NextResponse.json(
           {
             error: "Asset fetch timed out",
@@ -386,7 +388,6 @@ export async function GET(
       );
     }
 
-    // Get the content type from the response
     let contentType = response.headers.get("content-type") || "application/octet-stream";
     let upstreamBody: ReadableStream<Uint8Array> | null = response.body;
     const sizeError = await rejectOversizedAsset(response, upstreamBody, assetId);
@@ -399,14 +400,15 @@ export async function GET(
       // Hold the response until the upstream body yields its first byte: a stall
       // before any data would truncate an admitted 200, so the upstream request is
       // retried once inside; a stall after the first byte still errors to the client.
-      const opened = await streamBodyAfterFirstByte(
-        response,
-        fetchUpstream,
+      const opened = await streamBodyAfterFirstByte(response, {
+        refetch: fetchUpstream,
         assetId,
-        (message) => console.error(`[Assets API] ${message}`),
-        request.signal,
-      );
+        deadlineAt,
+        log: (message) => console.error(`[Assets API] ${message}`),
+        signal: request.signal,
+      });
       if (!opened.ok) {
+        console.error(`[Assets API] Asset ${assetId} failed: ${opened.status} ${opened.error}`);
         return NextResponse.json({ error: opened.error, assetId }, { status: opened.status });
       }
       response = opened.response;

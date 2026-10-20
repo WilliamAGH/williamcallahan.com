@@ -6,6 +6,8 @@
 import logger from "./logger";
 
 const ASSET_STREAM_TIMEOUT_MS = 20_000; // 20 seconds
+// Short enough that a stalled first read still leaves the retry room inside the caller's deadline
+const FIRST_BYTE_TIMEOUT_MS = 10_000;
 const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 
 /**
@@ -14,7 +16,10 @@ const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 export async function readWithTimeout<T>(
   promise: Promise<T>,
   assetId: string,
-  signal?: AbortSignal,
+  {
+    signal,
+    timeoutMs = ASSET_STREAM_TIMEOUT_MS,
+  }: { signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer: { id?: ReturnType<typeof setTimeout> } = {};
@@ -29,7 +34,7 @@ export async function readWithTimeout<T>(
     timer.id = setTimeout(() => {
       cleanup();
       reject(new Error(`Read timeout exceeded for asset ${assetId}`));
-    }, ASSET_STREAM_TIMEOUT_MS);
+    }, timeoutMs);
     signal?.addEventListener("abort", onAbort, { once: true });
     if (signal?.aborted) {
       onAbort();
@@ -111,15 +116,25 @@ export function createMonitoredStream(
 /**
  * Opens an upstream response body only after its first byte arrives.
  * A stall before the first byte would otherwise truncate an admitted
- * response, so the upstream request is retried once through `refetch`;
+ * response, so the upstream request is retried once through `refetch`
+ * when one first-byte wait still fits before `deadlineAt` (epoch ms);
  * a stall after the first byte is left for stream consumers to surface.
  */
 export async function streamBodyAfterFirstByte(
   response: Response,
-  refetch: () => Promise<Response>,
-  assetId: string,
-  onRetry?: (message: string) => void,
-  signal?: AbortSignal,
+  {
+    refetch,
+    assetId,
+    deadlineAt,
+    log,
+    signal,
+  }: {
+    refetch: () => Promise<Response>;
+    assetId: string;
+    deadlineAt: number;
+    log: (message: string) => void;
+    signal?: AbortSignal;
+  },
 ): Promise<
   | { ok: true; body: ReadableStream<Uint8Array>; response: Response }
   | { ok: false; status: number; error: string }
@@ -128,10 +143,17 @@ export async function streamBodyAfterFirstByte(
     return { ok: false, status: 502, error: "Failed to read asset" };
   }
 
+  const readFirstByte = (source: ReadableStreamDefaultReader<Uint8Array>) =>
+    readWithTimeout(source.read(), assetId, {
+      signal,
+      timeoutMs: Math.max(0, Math.min(FIRST_BYTE_TIMEOUT_MS, deadlineAt - Date.now())),
+    });
+  const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
   let reader = response.body.getReader();
   let head: ReadableStreamReadResult<Uint8Array>;
   try {
-    head = await readWithTimeout(reader.read(), assetId, signal);
+    head = await readFirstByte(reader);
   } catch (headError) {
     try {
       await reader.cancel();
@@ -142,16 +164,20 @@ export async function streamBodyAfterFirstByte(
     if (signal?.aborted) {
       return { ok: false, status: 504, error: "Asset fetch timed out" };
     }
-    onRetry?.(
-      `First-byte stall for asset ${assetId}; retrying upstream once: ${
-        headError instanceof Error ? headError.message : String(headError)
-      }`,
-    );
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs < FIRST_BYTE_TIMEOUT_MS) {
+      log(
+        `First-byte stall for asset ${assetId} with ${remainingMs}ms left before the deadline; not retrying: ${errorText(headError)}`,
+      );
+      return { ok: false, status: 504, error: "Asset fetch timed out" };
+    }
+    log(`First-byte stall for asset ${assetId}; retrying upstream once: ${errorText(headError)}`);
 
     let retryResponse: Response;
     try {
       retryResponse = await refetch();
     } catch (refetchError) {
+      log(`Retry fetch failed for asset ${assetId}: ${errorText(refetchError)}`);
       const timedOut = refetchError instanceof Error && refetchError.name === "AbortError";
       return {
         ok: false,
@@ -169,8 +195,9 @@ export async function streamBodyAfterFirstByte(
     response = retryResponse;
     reader = retryResponse.body.getReader();
     try {
-      head = await readWithTimeout(reader.read(), assetId, signal);
-    } catch {
+      head = await readFirstByte(reader);
+    } catch (retryHeadError) {
+      log(`Retry first-byte stall for asset ${assetId}: ${errorText(retryHeadError)}`);
       try {
         await reader.cancel();
       } catch (cancelErr) {

@@ -237,8 +237,12 @@ describe("streamBodyAfterFirstByte retry cleanup", () => {
       const refetch = vi.fn<() => Promise<Response>>(() => Promise.resolve(retryResponse));
       const resultPromise = streamBodyAfterFirstByte(
         new Response(new ReadableStream<Uint8Array>()),
-        refetch,
-        "retry-cleanup-asset",
+        {
+          refetch,
+          assetId: "retry-cleanup-asset",
+          deadlineAt: Date.now() + 30_000,
+          log: vi.fn<(message: string) => void>(),
+        },
       );
 
       await vi.advanceTimersByTimeAsync(20_000);
@@ -350,6 +354,41 @@ describe("assets route first-byte retry", () => {
       assetId,
     });
     expect(cancel).toHaveBeenCalledTimes(1);
+    expect(persistAsset).not.toHaveBeenCalled();
+  });
+
+  it("answers 504 by the 30s deadline without retrying when late headers leave no room", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(
+              new Response(new ReadableStream<Uint8Array>(), {
+                headers: { "content-type": "image/png" },
+              }),
+            );
+          }, 25_000);
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    let completed = false;
+    const pending = GET(new NextRequest(assetUrl), { params: Promise.resolve({ assetId }) }).then(
+      (response) => {
+        completed = true;
+        return response;
+      },
+    );
+
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(completed).toBe(false);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(completed).toBe(true);
+    const response = await pending;
+    expect(response.status).toBe(504);
+    await expect(response.json()).resolves.toEqual({ error: "Asset fetch timed out", assetId });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(persistAsset).not.toHaveBeenCalled();
   });
 
