@@ -91,6 +91,100 @@ export function createMonitoredStream(
 }
 
 /**
+ * Opens an upstream response body only after its first byte arrives.
+ * A stall before the first byte would otherwise truncate an admitted
+ * response, so the upstream request is retried once through `refetch`;
+ * a stall after the first byte is left for stream consumers to surface.
+ */
+export async function streamBodyAfterFirstByte(
+  response: Response,
+  refetch: () => Promise<Response>,
+  assetId: string,
+  onRetry?: (message: string) => void,
+): Promise<
+  { ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number; error: string }
+> {
+  if (!response.body) {
+    return { ok: false, status: 502, error: "Failed to read asset" };
+  }
+
+  let reader = response.body.getReader();
+  let head: ReadableStreamReadResult<Uint8Array>;
+  try {
+    head = await readWithTimeout(reader.read(), assetId);
+  } catch (headError) {
+    onRetry?.(
+      `First-byte stall for asset ${assetId}; retrying upstream once: ${
+        headError instanceof Error ? headError.message : String(headError)
+      }`,
+    );
+    try {
+      await reader.cancel();
+    } catch (cancelErr) {
+      // Source already failed; nothing left to release
+      logger.debug(`[stream-utils] Cancel failed for ${assetId}:`, cancelErr);
+    }
+
+    let retryResponse: Response;
+    try {
+      retryResponse = await refetch();
+    } catch (refetchError) {
+      const timedOut = refetchError instanceof Error && refetchError.name === "AbortError";
+      return {
+        ok: false,
+        status: timedOut ? 504 : 502,
+        error: timedOut ? "Asset fetch timed out" : "Failed to fetch asset",
+      };
+    }
+    if (!retryResponse.ok) {
+      return { ok: false, status: retryResponse.status, error: "Failed to fetch asset" };
+    }
+    if (!retryResponse.body) {
+      return { ok: false, status: 502, error: "Failed to read asset" };
+    }
+    reader = retryResponse.body.getReader();
+    try {
+      head = await readWithTimeout(reader.read(), assetId);
+    } catch {
+      try {
+        await reader.cancel();
+      } catch (cancelErr) {
+        logger.debug(`[stream-utils] Cancel failed for ${assetId}:`, cancelErr);
+      }
+      return { ok: false, status: 504, error: "Asset fetch timed out" };
+    }
+  }
+
+  // Replay the buffered first chunk ahead of the live reader so downstream
+  // tee() and monitored consumers still see the complete body.
+  let headValue: Uint8Array | undefined = head.done ? undefined : head.value;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (headValue !== undefined) {
+        const value = headValue;
+        headValue = undefined;
+        controller.enqueue(value);
+        return;
+      }
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.close();
+        return;
+      }
+      if (value) {
+        controller.enqueue(value);
+      }
+    },
+    cancel(reason) {
+      reader.cancel(reason).catch((err) => {
+        logger.debug(`[stream-utils] Cancel in cleanup failed for ${assetId}:`, err);
+      });
+    },
+  });
+  return { ok: true, body };
+}
+
+/**
  * Buffers a stream with size and timeout limits
  */
 export async function streamToBufferWithLimits(

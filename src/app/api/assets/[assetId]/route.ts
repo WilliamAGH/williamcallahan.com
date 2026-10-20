@@ -28,7 +28,11 @@ import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/conte
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { assetIdSchema } from "@/types/schemas/url";
 import { IMAGE_SECURITY_HEADERS, IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
-import { createMonitoredStream, streamToBufferWithLimits } from "@/lib/utils/stream-utils";
+import {
+  createMonitoredStream,
+  streamBodyAfterFirstByte,
+  streamToBufferWithLimits,
+} from "@/lib/utils/stream-utils";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { isS3NotFound } from "@/lib/utils/s3-error-guards";
 
@@ -298,10 +302,6 @@ export async function GET(
     // Construct the asset URL for the external service (non-versioned asset endpoint)
     const assetUrl = `${baseUrl}/api/assets/${assetId}`;
 
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
     // Prepare headers for external request
     const fetchHeaders = {
       Authorization: `Bearer ${bearerToken}`,
@@ -309,18 +309,27 @@ export async function GET(
       Accept: "*/*",
     };
 
+    // One upstream GET with a 30s fetch-level abort, callable again for the one bounded retry
+    // the streaming path allows when the upstream stalls before yielding its first byte.
+    const fetchUpstream = async (): Promise<Response> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      try {
+        return await fetch(assetUrl, {
+          headers: fetchHeaders,
+          method: "GET",
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
     let response: Response;
     try {
       // Fetch the asset from the external service
-      response = await fetch(assetUrl, {
-        headers: fetchHeaders,
-        method: "GET",
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+      response = await fetchUpstream();
     } catch (error) {
-      clearTimeout(timeoutId);
-
       if (error instanceof Error && error.name === "AbortError") {
         console.error(`[Assets API] Timeout fetching asset ${assetId} after 30 seconds`);
         return NextResponse.json(
@@ -383,18 +392,16 @@ export async function GET(
 
     // STEP 3: For images, stream to the client and optionally persist to S3
     if (contentType.startsWith("image/")) {
-      const upstreamBody = response.body;
-
-      if (!upstreamBody) {
-        console.error(`[Assets API] No response body when fetching asset ${assetId}`);
-        return NextResponse.json(
-          {
-            error: "Failed to read asset",
-            assetId,
-          },
-          { status: 502 },
-        );
+      // Hold the response until the upstream body yields its first byte: a stall
+      // before any data would truncate an admitted 200, so the upstream request is
+      // retried once inside; a stall after the first byte still errors to the client.
+      const opened = await streamBodyAfterFirstByte(response, fetchUpstream, assetId, (message) =>
+        console.error(`[Assets API] ${message}`),
+      );
+      if (!opened.ok) {
+        return NextResponse.json({ error: opened.error, assetId }, { status: opened.status });
       }
+      const upstreamBody = opened.body;
 
       let canPersistToS3 = false;
       try {
