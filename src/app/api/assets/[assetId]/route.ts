@@ -388,7 +388,7 @@ export async function GET(
 
     // Get the content type from the response
     let contentType = response.headers.get("content-type") || "application/octet-stream";
-    let upstreamBody = response.body;
+    let upstreamBody: ReadableStream<Uint8Array> | null = response.body;
     const sizeError = await rejectOversizedAsset(response, upstreamBody, assetId);
     if (sizeError) {
       return sizeError;
