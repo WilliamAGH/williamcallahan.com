@@ -11,20 +11,38 @@ const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB limit
 /**
  * Wraps a promise with a timeout
  */
-export async function readWithTimeout<T>(promise: Promise<T>, assetId: string): Promise<T> {
+export async function readWithTimeout<T>(
+  promise: Promise<T>,
+  assetId: string,
+  signal?: AbortSignal,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
+    const timer: { id?: ReturnType<typeof setTimeout> } = {};
+    const onAbort = () => {
+      clearTimeout(timer.id);
+      reject(new DOMException("The operation was aborted", "AbortError"));
+    };
+    const cleanup = () => {
+      clearTimeout(timer.id);
+      signal?.removeEventListener("abort", onAbort);
+    };
+    timer.id = setTimeout(() => {
+      cleanup();
       reject(new Error(`Read timeout exceeded for asset ${assetId}`));
     }, ASSET_STREAM_TIMEOUT_MS);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) {
+      onAbort();
+    }
 
     promise
       .then((result) => {
-        clearTimeout(timeoutId);
+        cleanup();
         resolve(result);
         return null;
       })
       .catch((error) => {
-        clearTimeout(timeoutId);
+        cleanup();
         reject(error instanceof Error ? error : new Error(String(error)));
       });
   });
@@ -101,8 +119,10 @@ export async function streamBodyAfterFirstByte(
   refetch: () => Promise<Response>,
   assetId: string,
   onRetry?: (message: string) => void,
+  signal?: AbortSignal,
 ): Promise<
-  { ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number; error: string }
+  | { ok: true; body: ReadableStream<Uint8Array>; response: Response }
+  | { ok: false; status: number; error: string }
 > {
   if (!response.body) {
     return { ok: false, status: 502, error: "Failed to read asset" };
@@ -111,19 +131,22 @@ export async function streamBodyAfterFirstByte(
   let reader = response.body.getReader();
   let head: ReadableStreamReadResult<Uint8Array>;
   try {
-    head = await readWithTimeout(reader.read(), assetId);
+    head = await readWithTimeout(reader.read(), assetId, signal);
   } catch (headError) {
-    onRetry?.(
-      `First-byte stall for asset ${assetId}; retrying upstream once: ${
-        headError instanceof Error ? headError.message : String(headError)
-      }`,
-    );
     try {
       await reader.cancel();
     } catch (cancelErr) {
       // Source already failed; nothing left to release
       logger.debug(`[stream-utils] Cancel failed for ${assetId}:`, cancelErr);
     }
+    if (signal?.aborted) {
+      return { ok: false, status: 504, error: "Asset fetch timed out" };
+    }
+    onRetry?.(
+      `First-byte stall for asset ${assetId}; retrying upstream once: ${
+        headError instanceof Error ? headError.message : String(headError)
+      }`,
+    );
 
     let retryResponse: Response;
     try {
@@ -137,14 +160,16 @@ export async function streamBodyAfterFirstByte(
       };
     }
     if (!retryResponse.ok) {
+      await retryResponse.body?.cancel();
       return { ok: false, status: retryResponse.status, error: "Failed to fetch asset" };
     }
     if (!retryResponse.body) {
       return { ok: false, status: 502, error: "Failed to read asset" };
     }
+    response = retryResponse;
     reader = retryResponse.body.getReader();
     try {
-      head = await readWithTimeout(reader.read(), assetId);
+      head = await readWithTimeout(reader.read(), assetId, signal);
     } catch {
       try {
         await reader.cancel();
@@ -181,7 +206,7 @@ export async function streamBodyAfterFirstByte(
       });
     },
   });
-  return { ok: true, body };
+  return { ok: true, body, response };
 }
 
 /**

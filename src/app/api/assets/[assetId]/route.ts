@@ -56,6 +56,29 @@ const getS3Context = () => {
  */
 const ongoingS3Writes = new Set<string>();
 
+async function rejectOversizedAsset(
+  response: Response,
+  body: ReadableStream<Uint8Array> | null,
+  assetId: string,
+): Promise<NextResponse | null> {
+  const contentLength = Number(response.headers.get("content-length"));
+  if (!Number.isFinite(contentLength) || contentLength <= MAX_ASSET_SIZE_BYTES) {
+    return null;
+  }
+  console.error(
+    `[Assets API] Asset ${assetId} rejected: content-length ${contentLength} exceeds ${MAX_ASSET_SIZE_BYTES} byte limit`,
+  );
+  try {
+    await body?.cancel();
+  } catch {
+    // ignore cancel failures
+  }
+  return NextResponse.json(
+    { error: "Asset exceeds maximum allowed size", assetId },
+    { status: 413 },
+  );
+}
+
 function getAssetBaseUrl(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
@@ -240,7 +263,7 @@ async function saveAssetToS3(
  * @returns Image response or error
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ assetId: string }> },
 ) {
   const { assetId } = await params;
@@ -318,7 +341,7 @@ export async function GET(
         return await fetch(assetUrl, {
           headers: fetchHeaders,
           method: "GET",
-          signal: controller.signal,
+          signal: AbortSignal.any([controller.signal, request.signal]),
         });
       } finally {
         clearTimeout(timeoutId);
@@ -364,30 +387,11 @@ export async function GET(
     }
 
     // Get the content type from the response
-    const contentType = response.headers.get("content-type") || "application/octet-stream";
-    const contentLengthHeader = response.headers.get("content-length");
-
-    if (contentLengthHeader) {
-      const contentLength = Number(contentLengthHeader);
-      if (Number.isFinite(contentLength) && contentLength > MAX_ASSET_SIZE_BYTES) {
-        console.error(
-          `[Assets API] Asset ${assetId} rejected: content-length ${contentLength} exceeds ${MAX_ASSET_SIZE_BYTES} byte limit`,
-        );
-        if (response.body) {
-          try {
-            await response.body.cancel();
-          } catch {
-            // ignore cancel failures
-          }
-        }
-        return NextResponse.json(
-          {
-            error: "Asset exceeds maximum allowed size",
-            assetId,
-          },
-          { status: 413 },
-        );
-      }
+    let contentType = response.headers.get("content-type") || "application/octet-stream";
+    let upstreamBody = response.body;
+    const sizeError = await rejectOversizedAsset(response, upstreamBody, assetId);
+    if (sizeError) {
+      return sizeError;
     }
 
     // STEP 3: For images, stream to the client and optionally persist to S3
@@ -395,14 +399,26 @@ export async function GET(
       // Hold the response until the upstream body yields its first byte: a stall
       // before any data would truncate an admitted 200, so the upstream request is
       // retried once inside; a stall after the first byte still errors to the client.
-      const opened = await streamBodyAfterFirstByte(response, fetchUpstream, assetId, (message) =>
-        console.error(`[Assets API] ${message}`),
+      const opened = await streamBodyAfterFirstByte(
+        response,
+        fetchUpstream,
+        assetId,
+        (message) => console.error(`[Assets API] ${message}`),
+        request.signal,
       );
       if (!opened.ok) {
         return NextResponse.json({ error: opened.error, assetId }, { status: opened.status });
       }
-      const upstreamBody = opened.body;
+      response = opened.response;
+      upstreamBody = opened.body;
+      contentType = response.headers.get("content-type") || "application/octet-stream";
+      const retrySizeError = await rejectOversizedAsset(response, upstreamBody, assetId);
+      if (retrySizeError) {
+        return retrySizeError;
+      }
+    }
 
+    if (contentType.startsWith("image/") && upstreamBody) {
       let canPersistToS3 = false;
       try {
         getS3Context();
@@ -433,7 +449,7 @@ export async function GET(
       }
 
       return new NextResponse(monitoredStream, {
-        status: 200,
+        status: response.status,
         headers: {
           "Content-Type": contentType,
           "Cache-Control": "public, max-age=31536000, immutable",
@@ -444,7 +460,7 @@ export async function GET(
     }
 
     // For non-images stream the upstream body directly
-    if (!response.body) {
+    if (!upstreamBody) {
       console.error(`[Assets API] No response body for non-image asset ${assetId}`);
       return NextResponse.json(
         {
@@ -455,8 +471,8 @@ export async function GET(
       );
     }
 
-    return new NextResponse(response.body, {
-      status: 200,
+    return new NextResponse(upstreamBody, {
+      status: response.status,
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
