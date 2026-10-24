@@ -70,14 +70,6 @@ if (process.env.NODE_ENV === "production") {
       // Session replay for debugging user interactions leading to errors
       Sentry.replayIntegration(),
 
-      // Filter errors originating exclusively from third-party code (browser extensions, injected scripts)
-      // Uses stack frame analysis with applicationKey from bundler plugin for robust detection
-      // Defense-in-depth: works alongside beforeSend pattern matching below
-      Sentry.thirdPartyErrorFilterIntegration({
-        filterKeys: ["williamcallahan-com"],
-        behaviour: "drop-error-if-exclusively-contains-third-party-frames",
-      }),
-
       // Format Zod validation errors for better readability in Sentry
       // Flattens nested paths and provides structured issue display
       Sentry.zodErrorsIntegration({

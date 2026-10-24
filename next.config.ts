@@ -248,7 +248,7 @@ function createNextConfig(releaseId: string | null) {
       proxyClientMaxBodySize: "100mb",
       serverActions: { bodySizeLimit: "100mb" },
       preloadEntriesOnStart: false,
-      serverSourceMaps: false,
+      serverSourceMaps: true,
       optimizePackageImports:
         process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
       optimizeCss: true,
@@ -312,7 +312,6 @@ function createSentryWebpackPluginOptions(releaseId: string | null) {
     org: "williamcallahan-com",
     project: "williamcallahan-com",
     authToken: process.env.SENTRY_AUTH_TOKEN,
-    applicationKey: "williamcallahan-com",
     // Webpack (dev) would wrap every server component in a Sentry scope whose UUID
     // breaks cacheComponents prerendering; Turbopack never wraps them.
     autoInstrumentAppDirectory: false,
