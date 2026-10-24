@@ -1,6 +1,6 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PHASE_PRODUCTION_SERVER } from "next/constants";
@@ -9,6 +9,15 @@ import packageJson from "./package.json" with { type: "json" };
 import { parseS3Endpoint } from "./src/types/schemas/s3-config";
 
 const VALID_DEPLOYMENT_ID = /^[A-Za-z0-9_-]+$/;
+
+// Turbopack resolves modules and runs webpack loaders (Sentry's, @svgr) only inside its root, and pnpm's
+// global virtual store sits outside the project, so the root is the closest directory holding both.
+function resolveTurbopackRoot(): string {
+  const packageStoreDir = realpathSync("node_modules/next");
+  let root = process.cwd();
+  while (path.relative(root, packageStoreDir).startsWith("..")) root = path.dirname(root);
+  return root;
+}
 
 function requireUrlSafeReleaseId(value: string, source: string): string {
   if (!VALID_DEPLOYMENT_ID.test(value)) {
@@ -180,8 +189,7 @@ function createNextConfig(releaseId: string | null) {
         headers: PUBLIC_ASSET_CACHE_HEADERS,
       }));
     },
-    // `next build --webpack`: Turbopack runs webpack loaders (Sentry's, @svgr) only on files inside the
-    // project, and pnpm's global virtual store sits outside it.
+    // `next dev --webpack` (pnpm-workspace.yaml); production builds use Turbopack.
     webpack: (webpackConfig, { nextRuntime }) => {
       webpackConfig.module.rules.push({ test: /\.svg$/i, use: ["@svgr/webpack"] });
       if (nextRuntime === "edge" || nextRuntime === undefined) {
@@ -192,6 +200,7 @@ function createNextConfig(releaseId: string | null) {
       return webpackConfig;
     },
     turbopack: {
+      root: resolveTurbopackRoot(),
       rules: { "*.svg": { loaders: ["@svgr/webpack"], as: "*.js" } },
       resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],
       resolveAlias: {
@@ -306,8 +315,8 @@ function createSentryWebpackPluginOptions(releaseId: string | null) {
     authToken: process.env.SENTRY_AUTH_TOKEN,
     useRunAfterProductionCompileHook: false,
     applicationKey: "williamcallahan-com",
-    // The webpack build would wrap every server component in a Sentry scope whose UUID
-    // breaks cacheComponents prerendering; Turbopack builds never wrapped them.
+    // Webpack (dev) would wrap every server component in a Sentry scope whose UUID
+    // breaks cacheComponents prerendering; Turbopack never wraps them.
     autoInstrumentAppDirectory: false,
     ...(releaseId ? { release: { name: releaseId, deploy: { env: process.env.NODE_ENV } } } : {}),
     dryRun: process.env.NODE_ENV === "development",
