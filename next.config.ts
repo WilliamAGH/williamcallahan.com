@@ -312,7 +312,6 @@ function createSentryWebpackPluginOptions(releaseId: string | null) {
     org: "williamcallahan-com",
     project: "williamcallahan-com",
     authToken: process.env.SENTRY_AUTH_TOKEN,
-    applicationKey: "williamcallahan-com",
     // Webpack (dev) would wrap every server component in a Sentry scope whose UUID
     // breaks cacheComponents prerendering; Turbopack never wraps them.
     autoInstrumentAppDirectory: false,
