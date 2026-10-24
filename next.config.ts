@@ -248,7 +248,7 @@ function createNextConfig(releaseId: string | null) {
       proxyClientMaxBodySize: "100mb",
       serverActions: { bodySizeLimit: "100mb" },
       preloadEntriesOnStart: false,
-      serverSourceMaps: false,
+      serverSourceMaps: true,
       optimizePackageImports:
         process.env.NODE_ENV === "production" ? ["lucide-react", "@sentry/nextjs"] : [],
       optimizeCss: true,
