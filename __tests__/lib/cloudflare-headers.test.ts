@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { requireCloudflareHeaders } from "@/lib/utils/api-utils";
 import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-utils";
 import { GET as getIp } from "@/app/api/ip/route";
@@ -229,6 +229,7 @@ describe("Cloudflare header enforcement", () => {
       // Path-aware on purpose: a mock that answers for any path would stay green if
       // the runtime were pointed back at .next/BUILD_ID.
       vi.doMock("node:fs", () => ({
+        realpathSync,
         readFileSync: (filePath: unknown) =>
           String(filePath).endsWith(".next/RELEASE_ID")
             ? `${expectedReleaseId}\n`

@@ -1,8 +1,8 @@
 packages:
   - .
 
-# One machine-wide virtual store. Next builds and dev run on webpack (`--webpack`), because Turbopack
-# runs webpack loaders only on files inside the project and this store sits outside it.
+# One machine-wide virtual store. It sits outside the project, so next.config.ts widens `turbopack.root`
+# to reach it for Turbopack builds; `next dev` runs on webpack (`--webpack`).
 # The Docker image ships node_modules, so its install sets pnpm_config_virtual_store_type=project.
 virtualStoreType: global
 
