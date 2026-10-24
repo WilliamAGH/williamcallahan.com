@@ -234,7 +234,6 @@ function createNextConfig(releaseId: string | null) {
     // AGENTS.md is the repository's only agent rule source; Next 16.4 would append its own block on every dev run.
     agentRules: false,
     reactStrictMode: true,
-    productionBrowserSourceMaps: false,
     cacheComponents: true,
     serverExternalPackages: [
       "@chroma-core/default-embed",
@@ -313,7 +312,6 @@ function createSentryWebpackPluginOptions(releaseId: string | null) {
     org: "williamcallahan-com",
     project: "williamcallahan-com",
     authToken: process.env.SENTRY_AUTH_TOKEN,
-    useRunAfterProductionCompileHook: false,
     applicationKey: "williamcallahan-com",
     // Webpack (dev) would wrap every server component in a Sentry scope whose UUID
     // breaks cacheComponents prerendering; Turbopack never wraps them.
