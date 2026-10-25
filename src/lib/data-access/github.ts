@@ -6,7 +6,6 @@
  * - github-storage.ts: PostgreSQL-backed activity record operations
  * - github-processing.ts: Data processing and aggregation
  * - github-repo-stats.ts: Per-repository stats processing
- * - github-commit-counts.ts: Commit count aggregation
  * - github-contributions.ts: Contribution calendar handling
  * - github-csv-repair.ts: CSV integrity checks and repair
  * - github-activity-summaries.ts: Summary persistence
@@ -19,7 +18,7 @@ import {
   type GitHubActivityApiResponse,
   type GitHubActivitySegment,
 } from "@/types/schemas/github-storage";
-import { getTrailingYearDate, startOfDay, endOfDay } from "@/lib/utils/date-format";
+import { getTrailingYearDate, endOfDay } from "@/lib/utils/date-format";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 
 // Import from specialized modules
@@ -32,12 +31,14 @@ import {
 import { writeGitHubActivityRefreshRecord } from "./github-storage";
 import { createGitHubActivitySummary } from "./github-activity-summaries";
 import { detectAndRepairCsvFiles } from "./github-csv-repair";
-import { calculateAllTimeCommitCount } from "./github-commit-counts";
 import { processRepositoryStats } from "./github-repo-stats";
 import { GITHUB_REFRESH_RATE_LIMIT_CONFIG } from "@/lib/constants";
 
 import { calculateAggregatedWeeklyActivity, createEmptyCategoryStats } from "./github-processing";
-import { fetchTrailingYearContributionCalendar } from "./github-contributions";
+import {
+  fetchTrailingYearContributionCalendar,
+  fetchHistoricalContributionTotal,
+} from "./github-contributions";
 import { GitHubActivityRefreshPreservedError } from "./github-refresh-outcome";
 
 // Configuration
@@ -104,15 +105,28 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   console.log(
     `[DataAccess/GitHub] Fetching list of contributed repositories and user ID for ${GITHUB_REPO_OWNER} via GraphQL API...`,
   );
-  const { userId: githubUserId, repositories: uniqueRepoArray } =
-    await fetchContributedRepositories(GITHUB_REPO_OWNER);
+  const { repositories: uniqueRepoArray } = await fetchContributedRepositories(GITHUB_REPO_OWNER);
 
-  if (uniqueRepoArray.length === 0) {
+  const trailingYearFromDate = getTrailingYearDate(now);
+  const { totalContributions: yearTotalContributions, contributionDays } =
+    await fetchTrailingYearContributionCalendar({
+      githubRepoOwner: GITHUB_REPO_OWNER,
+      fromDate: trailingYearFromDate,
+      toDate: endOfDay(now),
+    });
+  const historicalContributions = await fetchHistoricalContributionTotal(
+    GITHUB_REPO_OWNER,
+    trailingYearFromDate,
+  );
+  const lifetimeContributions = yearTotalContributions + historicalContributions;
+
+  if (uniqueRepoArray.length === 0 && lifetimeContributions === 0) {
     console.warn("[DataAccess/GitHub] No non-forked repositories contributed to found for user.");
     const emptyActivityData: GitHubActivitySegment = {
       source: "api",
       data: [],
       totalContributions: 0,
+      contributionCountSource: "github-calendar",
       linesAdded: 0,
       linesRemoved: 0,
       dataComplete: true,
@@ -143,10 +157,6 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   }
 
   console.log("[DataAccess/GitHub] Calculating trailing year stats...");
-  const trailingYearFromDate = getTrailingYearDate(now);
-  const gqlFromDate = startOfDay(trailingYearFromDate);
-  const gqlToDate = endOfDay(now);
-
   const {
     yearLinesAdded,
     yearLinesRemoved,
@@ -167,42 +177,21 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     console.warn(`[DataAccess/GitHub] Failed to process ${failedRepoCount} repositories`);
   }
 
-  const allTimeTotalCommits = await calculateAllTimeCommitCount({
-    repos: uniqueRepoArray,
-    githubRepoOwner: GITHUB_REPO_OWNER,
-    githubUserId,
-  });
-
-  const {
-    totalContributions: yearTotalCommits,
-    contributionDays: trailingYearContributionsCalendar,
-  } = await fetchTrailingYearContributionCalendar({
-    githubRepoOwner: GITHUB_REPO_OWNER,
-    fromDate: gqlFromDate,
-    toDate: gqlToDate,
-  });
-
   const trailingYearData: GitHubActivitySegment = {
     source: "api",
-    data: trailingYearContributionsCalendar,
-    totalContributions: yearTotalCommits,
+    data: contributionDays,
+    totalContributions: yearTotalContributions,
+    contributionCountSource: "github-calendar",
     linesAdded: yearLinesAdded,
     linesRemoved: yearLinesRemoved,
     dataComplete: allTimeOverallDataComplete,
   };
 
   console.log(
-    `[DataAccess/GitHub] All-time stats calculated in-memory: Commits=${allTimeTotalCommits}, Added=${allTimeLinesAdded}, Removed=${allTimeLinesRemoved}, Complete=${allTimeOverallDataComplete}`,
+    `[DataAccess/GitHub] All-time stats calculated in-memory: Contributions=${lifetimeContributions}, Added=${allTimeLinesAdded}, Removed=${allTimeLinesRemoved}, Complete=${allTimeOverallDataComplete}`,
   );
 
   // Consistency checks for all-time vs. trailing year
-  if (allTimeTotalCommits < yearTotalCommits) {
-    console.warn(
-      `[DataAccess/GitHub] Critical inconsistency detected: All-time commits (${allTimeTotalCommits}) less than trailing year commits (${yearTotalCommits}). This may indicate an issue with historical data aggregation if all-time is genuinely lower than a single year's recent activity.`,
-    );
-    // No longer "correcting" allTimeTotalCommits to yearTotalCommits here, as all-time is now derived from its own full dataset processing.
-    // The warning is important if this condition occurs.
-  }
   if (allTimeLinesAdded < yearLinesAdded) {
     console.warn(
       `[DataAccess/GitHub] Inconsistency detected: All-time lines added (${allTimeLinesAdded}) less than trailing year (${yearLinesAdded}). This might be valid if historical data had net negative contributions over time but recent year was very positive. Verifying logic.`,
@@ -214,18 +203,25 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     );
   }
 
-  const lifetimeContributionEstimate = yearTotalCommits + priorYearCommitStats.totalCommits;
-
   const allTimeData: GitHubActivitySegment = {
     source: "api", // Source is 'api' because it's processed from API/database cache.
     data: [], // All-time data typically doesn't include the daily calendar view
-    totalContributions: lifetimeContributionEstimate,
+    totalContributions: lifetimeContributions,
+    contributionCountSource: "github-calendar",
     linesAdded: allTimeLinesAdded,
     linesRemoved: allTimeLinesRemoved,
     dataComplete: allTimeOverallDataComplete,
     allPriorYearCommits: priorYearCommitStats,
   };
 
+  const aggregate = await calculateAggregatedWeeklyActivity(
+    uniqueRepoArray.map((repository) => repository.nameWithOwner),
+  );
+  if (aggregate === null) {
+    throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
+  }
+  trailingYearData.dataComplete &&= aggregate.overallDataComplete;
+  allTimeData.dataComplete &&= aggregate.overallDataComplete;
   const combinedActivityData: GitHubActivityApiResponse = {
     trailingYearData,
     cumulativeAllTimeData: allTimeData,
@@ -235,12 +231,6 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     totalRepositoriesContributedTo: uniqueRepoArray.length,
     linesOfCodeByCategory: allTimeCategoryStats,
   });
-  const aggregate = await calculateAggregatedWeeklyActivity(
-    uniqueRepoArray.map((repository) => repository.nameWithOwner),
-  );
-  if (aggregate === null) {
-    throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
-  }
   const refreshWritten = await writeGitHubActivityRefreshRecord(
     combinedActivityData,
     summary,

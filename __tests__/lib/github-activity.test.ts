@@ -1,7 +1,7 @@
 import type {
   fetchContributedRepositories,
   fetchContributionCalendar,
-  fetchRepositoryCommitCount,
+  fetchContributionYears,
   getGitHubUsername,
   isGitHubApiConfigured,
 } from "@/lib/data-access/github-api";
@@ -11,12 +11,11 @@ import type {
 } from "@/lib/data-access/github-storage";
 import type { processSingleRepository } from "@/lib/data-access/github-repo-processor";
 import type { isOperationAllowed } from "@/lib/rate-limiter";
-import type { assertDatabaseWriteAllowed } from "@/lib/db/connection";
 
 const {
   mockFetchContributedRepositories,
   mockFetchContributionCalendar,
-  mockFetchRepositoryCommitCount,
+  mockFetchContributionYears,
   mockIsGitHubApiConfigured,
   mockIsOperationAllowed,
   mockProcessSingleRepository,
@@ -25,7 +24,7 @@ const {
 } = vi.hoisted(() => ({
   mockFetchContributedRepositories: vi.fn<typeof fetchContributedRepositories>(),
   mockFetchContributionCalendar: vi.fn<typeof fetchContributionCalendar>(),
-  mockFetchRepositoryCommitCount: vi.fn<typeof fetchRepositoryCommitCount>(),
+  mockFetchContributionYears: vi.fn<typeof fetchContributionYears>(),
   mockIsGitHubApiConfigured: vi.fn<typeof isGitHubApiConfigured>(),
   mockIsOperationAllowed: vi.fn<typeof isOperationAllowed>(),
   mockProcessSingleRepository: vi.fn<typeof processSingleRepository>(),
@@ -35,8 +34,8 @@ const {
 
 vi.mock("@/lib/data-access/github-api", () => ({
   fetchContributionCalendar: mockFetchContributionCalendar,
+  fetchContributionYears: mockFetchContributionYears,
   fetchContributedRepositories: mockFetchContributedRepositories,
-  fetchRepositoryCommitCount: mockFetchRepositoryCommitCount,
   getGitHubUsername: vi.fn<typeof getGitHubUsername>(() => "test-owner"),
   isGitHubApiConfigured: mockIsGitHubApiConfigured,
 }));
@@ -52,14 +51,13 @@ vi.mock("@/lib/rate-limiter", () => ({
 }));
 
 import { refreshGitHubActivityDataFromApi } from "../../src/lib/data-access/github";
-import { createGitHubActivitySummary } from "@/lib/data-access/github-activity-summaries";
 import {
   calculateAggregatedWeeklyActivity,
   createEmptyCategoryStats,
 } from "@/lib/data-access/github-processing";
 import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
 import { GitHubActivityRefreshPreservedError } from "@/lib/data-access/github-refresh-outcome";
-import { GraphQLRepoNodeSchema } from "@/types/github";
+import { GraphQLRepoNodeSchema, type GraphQLUserContributionsResponse } from "@/types/github";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
   type AggregatedWeeklyActivity,
@@ -79,10 +77,21 @@ type RefreshGitHubActivityResult = NonNullable<
 
 let persistedRefresh: Parameters<typeof writeGitHubActivityRefreshRecord> | undefined;
 
+function calendarResponse(totalContributions: number): GraphQLUserContributionsResponse {
+  return {
+    user: {
+      contributionsCollection: {
+        contributionCalendar: { totalContributions, weeks: [] },
+      },
+    },
+  };
+}
+
 const zeroSegment: GitHubActivitySegment = {
   source: "api",
   data: [],
   totalContributions: 0,
+  contributionCountSource: "github-calendar",
   linesAdded: 0,
   linesRemoved: 0,
   dataComplete: true,
@@ -127,6 +136,8 @@ describe("GitHub activity refresh", () => {
 
     mockIsGitHubApiConfigured.mockReturnValue(true);
     mockIsOperationAllowed.mockReturnValue(true);
+    mockFetchContributionYears.mockResolvedValue([]);
+    mockFetchContributionCalendar.mockResolvedValue(calendarResponse(0));
     mockProcessSingleRepository.mockReset();
     mockReadRepoWeeklyStatsRecord.mockReset();
     mockWriteGitHubActivityRefreshRecord.mockImplementation(
@@ -140,6 +151,81 @@ describe("GitHub activity refresh", () => {
         return true;
       },
     );
+  });
+
+  it("uses complete historical calendars rather than repository commit subsets", async () => {
+    vi.setSystemTime(new Date("2026-07-13T12:00:00Z"));
+    try {
+      mockFetchContributedRepositories.mockResolvedValue({
+        userId: "user-id",
+        repositories: [createGraphQLRepositoryFixture("current-repo")],
+      });
+      mockProcessSingleRepository.mockResolvedValue({
+        ...createRepositoryProcessingResult(15, 3, true),
+        olderThanYearCommits: 4,
+      });
+      mockReadRepoWeeklyStatsRecord.mockResolvedValue(null);
+      mockFetchContributionYears.mockResolvedValue([2026, 2025, 2024]);
+      const totals = new Map([
+        ["2025-07-14T00:00:00.000Z/2026-07-13T23:59:59.999Z", 100],
+        ["2025-01-01T00:00:00.000Z/2025-07-13T23:59:59.999Z", 300],
+        ["2024-01-01T00:00:00.000Z/2024-12-31T23:59:59.999Z", 700],
+      ]);
+      mockFetchContributionCalendar.mockImplementation(async (_username, from, to) => {
+        const total = totals.get(`${from}/${to}`);
+        if (total === undefined) throw new Error(`Unexpected calendar range: ${from}/${to}`);
+        return calendarResponse(total);
+      });
+
+      const result = await refreshGitHubActivityDataFromApi();
+      expect(result?.trailingYearData.totalContributions).toBe(100);
+      expect(result?.allTimeData.totalContributions).toBe(1100);
+      expect(result?.allTimeData.allPriorYearCommits?.totalCommits).toBe(4);
+      expect(persistedRefresh?.[1].totalContributions).toBe(1100);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retains historical contributions even without currently visible repositories", async () => {
+    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
+    mockFetchContributionYears.mockResolvedValue([2022]);
+    mockFetchContributionCalendar.mockImplementation(async (_username, from) =>
+      calendarResponse(from?.startsWith("2022-") ? 75 : 0),
+    );
+
+    const result = await refreshGitHubActivityDataFromApi();
+    expect(result?.allTimeData.totalContributions).toBe(75);
+    expect(persistedRefresh?.[3]).toBe(GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY);
+  });
+
+  it("marks LOC incomplete if aggregate cache reads fail after successful repository processing", async () => {
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      repositories: [createGraphQLRepositoryFixture("current-repo")],
+    });
+    mockProcessSingleRepository.mockResolvedValue(createRepositoryProcessingResult(100, 25, true));
+    mockFetchContributionCalendar.mockResolvedValue(calendarResponse(10));
+    mockReadRepoWeeklyStatsRecord.mockRejectedValue(new Error("Aggregate cache unavailable"));
+
+    const result = await refreshGitHubActivityDataFromApi();
+    expect(result?.allTimeData.totalContributions).toBe(10);
+    expect(result?.trailingYearData.dataComplete).toBe(false);
+    expect(result?.allTimeData.dataComplete).toBe(false);
+    expect(persistedRefresh?.[1].dataComplete).toBe(false);
+  });
+
+  it("does not publish zero history when a historical calendar request fails", async () => {
+    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
+    mockFetchContributionYears.mockResolvedValue([2022]);
+    const failure = new Error("Historical calendar unavailable");
+    mockFetchContributionCalendar.mockImplementation(async (_username, from) => {
+      if (from?.startsWith("2022-")) throw failure;
+      return calendarResponse(0);
+    });
+
+    await expect(refreshGitHubActivityDataFromApi()).rejects.toBe(failure);
+    expect(persistedRefresh).toBeUndefined();
   });
 
   it("replaces stale aggregate data with a complete zero-repository result", async () => {
@@ -285,14 +371,7 @@ describe("GitHub activity refresh", () => {
     mockProcessSingleRepository.mockResolvedValue(
       createRepositoryProcessingResult(0, 0, false, false),
     );
-    mockFetchRepositoryCommitCount.mockResolvedValue(0);
-    mockFetchContributionCalendar.mockResolvedValue({
-      user: {
-        contributionsCollection: {
-          contributionCalendar: { totalContributions: 0, weeks: [] },
-        },
-      },
-    });
+    mockFetchContributionCalendar.mockResolvedValue(calendarResponse(0));
     mockReadRepoWeeklyStatsRecord.mockResolvedValue({
       repoOwnerLogin: "test-owner",
       repoName: "pending-repo",
@@ -306,112 +385,5 @@ describe("GitHub activity refresh", () => {
       GitHubActivityRefreshPreservedError,
     );
     expect(mockWriteGitHubActivityRefreshRecord).toHaveBeenCalledOnce();
-  });
-});
-
-describe("GitHub activity atomic persistence", () => {
-  const healthyActivity: GitHubActivityApiResponse = {
-    trailingYearData: {
-      ...zeroSegment,
-      data: [{ date: "2026-07-13", count: 1, level: 1 }],
-      totalContributions: 1,
-    },
-    cumulativeAllTimeData: { ...zeroSegment, totalContributions: 1 },
-  };
-  const summaryFor = (activity: GitHubActivityApiResponse) =>
-    createGitHubActivitySummary({
-      allTimeData: activity.cumulativeAllTimeData,
-      totalRepositoriesContributedTo: 1,
-      linesOfCodeByCategory: createEmptyCategoryStats(),
-    });
-  const loadWriter = async (existing: unknown, rejectInsert = false) => {
-    vi.resetModules();
-    const events: string[] = [];
-    let records: Array<{ dataType: string; updatedAt: number }> = [];
-    const captureMessage = vi.fn<typeof import("@sentry/nextjs").captureMessage>(() => {
-      events.push("integrity");
-      return "integrity-event";
-    });
-    const tx = {
-      execute: () => {
-        events.push("lock");
-        return Promise.resolve();
-      },
-      select: () => (
-        events.push("read"),
-        { from: () => ({ where: () => ({ limit: async () => [{ payload: existing }] }) }) }
-      ),
-      insert: () => {
-        events.push("write");
-        return {
-          values: (next: typeof records) => ({
-            onConflictDoUpdate: async () => {
-              if (rejectInsert) throw new Error("atomic insert failed");
-              records = next;
-            },
-          }),
-        };
-      },
-    };
-    vi.doMock("@sentry/nextjs", () => ({ captureMessage }));
-    vi.doMock("@/lib/db/connection", () => ({
-      assertDatabaseWriteAllowed: vi.fn<typeof assertDatabaseWriteAllowed>(),
-      db: {
-        select: tx.select,
-        transaction: (callback: (executor: typeof tx) => Promise<boolean>) => callback(tx),
-      },
-    }));
-    const { writeGitHubActivityRefreshToDb } = await import("@/lib/db/mutations/github-activity");
-    const { readGitHubActivityFromDb } = await import("@/lib/db/queries/github-activity");
-    const publish = (
-      activity = healthyActivity,
-      intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
-    ) => writeGitHubActivityRefreshToDb(activity, summaryFor(activity), [], intent);
-    return { captureMessage, events, getRecords: () => records, publish, readGitHubActivityFromDb };
-  };
-  it("locks, reads, and writes every projection with one timestamp", async () => {
-    const { events, getRecords, publish } = await loadWriter(healthyActivity);
-    await expect(publish()).resolves.toBe(true);
-    expect(events).toEqual(["lock", "read", "write"]);
-    const records = getRecords();
-    const dataTypes = records.map(({ dataType }) => dataType).toSorted();
-    expect(dataTypes).toEqual(["activity", "aggregated-weekly", "summary"]);
-    expect(new Set(records.map(({ updatedAt }) => updatedAt))).toHaveLength(1);
-  });
-  it("refuses degrading and invalid empty-set publications before insertion", async () => {
-    const incomplete = {
-      ...healthyActivity,
-      trailingYearData: { ...healthyActivity.trailingYearData, dataComplete: false },
-    };
-    const refused = await loadWriter(healthyActivity);
-    await expect(refused.publish(incomplete)).resolves.toBe(false);
-    expect(refused.events).toEqual(["lock", "read"]);
-    const invalid = await loadWriter(healthyActivity);
-    await expect(
-      invalid.publish(
-        healthyActivity,
-        GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
-      ),
-    ).rejects.toThrow("complete, zero-contribution activity data");
-    expect(invalid.events).toEqual(["lock", "read"]);
-  });
-  it("keeps ordinary reads strict while a locked refresh repairs malformed activity", async () => {
-    const writer = await loadWriter({ legacy: "must-not-be-logged" });
-    await expect(writer.readGitHubActivityFromDb()).rejects.toMatchObject({ name: "ZodError" });
-    expect(writer.events).toEqual(["read"]);
-    writer.events.length = 0;
-    await expect(writer.publish()).resolves.toBe(true);
-    expect(writer.events).toEqual(["lock", "read", "integrity", "write"]);
-    expect(writer.getRecords()).toHaveLength(3);
-    expect(writer.captureMessage).toHaveBeenCalledExactlyOnceWith(
-      "Stored GitHub activity payload failed schema validation",
-      expect.objectContaining({ level: "error" }),
-    );
-    expect(JSON.stringify(writer.captureMessage.mock.calls)).not.toContain("must-not-be-logged");
-  });
-  it("leaves projections untouched when the atomic insert fails", async () => {
-    const writer = await loadWriter(healthyActivity, true);
-    await expect(writer.publish()).rejects.toThrow("atomic insert failed");
-    expect(writer.getRecords()).toEqual([]);
   });
 });

@@ -26,11 +26,12 @@ export function formatPacificDateTime(date: Date = new Date()): string {
 
 /**
  * Get date for trailing year calculations
- * Returns a date exactly 365 days before the given date
+ * First of 365 UTC calendar days, including the given day.
  */
 export function getTrailingYearDate(fromDate: Date = new Date()): Date {
   const trailingDate = new Date(fromDate);
-  trailingDate.setDate(fromDate.getDate() - 365);
+  trailingDate.setUTCDate(fromDate.getUTCDate() - 364);
+  trailingDate.setUTCHours(0, 0, 0, 0);
   return trailingDate;
 }
 

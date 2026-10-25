@@ -46,7 +46,6 @@ const GitHubActivity = () => {
   const trailingYearData = activity?.trailingYearData;
   const allTimeStats = activity?.allTimeStats;
   const activityData = trailingYearData ? toCalendarActivity(trailingYearData.data) : [];
-  const priorYearCommits = activity?.priorYearCommits;
   const lifetimeContributionTotal = allTimeStats?.totalContributions;
 
   // Callback ref: measures whenever the calendar container mounts (it renders only after loading)
@@ -206,11 +205,14 @@ const GitHubActivity = () => {
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
               Lifetime contributions:{" "}
               <span className="font-semibold">{lifetimeContributionTotal.toLocaleString()}</span>
-              {priorYearCommits && trailingYearData && (
+              {trailingYearData && allTimeStats?.contributionCountSource === "github-calendar" && (
                 <span className="text-gray-500 dark:text-gray-400">
                   {" "}
-                  (Prior years: {priorYearCommits.totalCommits.toLocaleString()} + Trailing year:{" "}
-                  {trailingYearData.totalContributions.toLocaleString()})
+                  (Earlier contributions:{" "}
+                  {(
+                    lifetimeContributionTotal - trailingYearData.totalContributions
+                  ).toLocaleString()}{" "}
+                  + Trailing year: {trailingYearData.totalContributions.toLocaleString()})
                 </span>
               )}
             </div>
@@ -228,6 +230,15 @@ const GitHubActivity = () => {
               />
             </div>
           )}
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Contributions follow GitHub’s calendar, including commits, issues, pull requests and
+            reviews.
+            {allTimeStats?.contributionCountSource !== "github-calendar" &&
+              " Historical totals await a calendar refresh."}
+            {trailingYearData &&
+              !trailingYearData.dataComplete &&
+              " Line-of-code statistics are incomplete."}
+          </p>
         </>
       )}
     </div>

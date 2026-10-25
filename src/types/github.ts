@@ -36,6 +36,10 @@ export const GitHubGraphQLContributionResponseSchema = z.object({
       id: z.string().optional(), // User's Node ID
       repositoriesContributedTo: z.object({
         nodes: z.array(GraphQLRepoNodeSchema),
+        pageInfo: z.object({
+          hasNextPage: z.boolean(),
+          endCursor: z.string().nullable(),
+        }),
       }),
     })
     .nullable(),
@@ -45,42 +49,13 @@ export type GitHubGraphQLContributionResponse = z.infer<
   typeof GitHubGraphQLContributionResponseSchema
 >;
 
-// Schema for GraphQL commit history response
-export const GraphQLCommitHistoryResponseSchema = z.object({
-  repository: z
-    .object({
-      object: z
-        .object({
-          history: z
-            .object({
-              totalCount: z.number(),
-            })
-            .optional(),
-        })
-        .nullable(),
-    })
-    .nullable(),
+export const GraphQLContributionYearsResponseSchema = z.object({
+  user: z.object({
+    contributionsCollection: z.object({
+      contributionYears: z.array(z.number().int().positive()),
+    }),
+  }),
 });
-
-export type GraphQLCommitHistoryResponse = z.infer<typeof GraphQLCommitHistoryResponseSchema>;
-
-// Schema for REST API commit response
-export const CommitSchema = z.object({
-  sha: z.string(),
-  commit: z
-    .object({
-      author: z.object({
-        name: z.string(),
-        email: z.string(),
-        date: z.string(),
-      }),
-      message: z.string(),
-    })
-    .optional(),
-});
-
-export const CommitResponseSchema = z.array(CommitSchema);
-export type CommitResponse = z.infer<typeof CommitResponseSchema>;
 
 /**
  * Schema for GitHub author
@@ -97,7 +72,7 @@ export type GithubAuthor = z.infer<typeof GithubAuthorSchema>;
  * Schema for contributor stats entry from GitHub API
  */
 export const GithubContributorStatsEntrySchema = z.object({
-  author: GithubAuthorSchema,
+  author: GithubAuthorSchema.nullable(),
   weeks: z.array(repoRawWeeklyStatSchema),
   total: z.number().optional(), // Total commits for this contributor in this repo
 });

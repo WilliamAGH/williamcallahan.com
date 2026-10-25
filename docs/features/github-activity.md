@@ -51,9 +51,15 @@ GitHub APIs -> Refresh jobs / authorized POST -> PostgreSQL github_activity_stor
 
 A hybrid approach is used to gather comprehensive data:
 
-- **GraphQL API**: Efficiently fetches user-level aggregated data, such as the contribution calendar and total commit counts.
+- **GraphQL API**: Contribution totals come exclusively from GitHub's contribution calendar, including the private contribution counts GitHub makes visible to the configured token. The trailing calendar contains 365 UTC dates including today. `contributionYears` discovers history; disjoint calendar-year queries cover every earlier date, including leap years and the partial year ending immediately before the trailing calendar. Lifetime is the sum of these same-metric periods, not a repository commit estimate. Contributions include commits, issues, pull requests and reviews; they are not raw commits across all branches.
 - **REST API**: Used for granular, repository-specific data like contributor stats and language breakdowns.
 - **Repository-weekly repair**: Normalizes an in-memory CSV serialization of PostgreSQL repository-weekly records, compares its PostgreSQL checksum, and persists the repaired record. When no record exists, it fetches GitHub contributor data and creates the PostgreSQL record.
+
+Repository discovery follows every GraphQL cursor page but remains limited to repositories GitHub exposes as recently contributed to. It supports LOC statistics, never lifetime contribution counts. `allPriorYearCommits`/public `priorYearCommits` remains a limited repository-weekly commit breakdown, not the historical contribution total; weeks can straddle the calendar boundary. The UI's earlier-contribution subtotal is lifetime minus trailing contributions, displayed only for `contributionCountSource = "github-calendar"` records. Legacy records are replaced by the next successful refresh, with no schema migration.
+
+A missing/failed current calendar, year inventory, or historical calendar aborts publication rather than recording a zero. An empty repository list does not erase historical calendar activity. Fully fetched calendar counts carry `contributionCountSource = "github-calendar"` and can publish even when independent LOC collection is incomplete; `dataComplete` continues to describe repository-stat completeness, which the UI discloses. Anonymous (`author: null`) contributor entries are skipped without discarding other contributors. Failed repository batches mark LOC statistics incomplete. Repository identifiers remain excluded from public responses.
+
+When repository statistics or the subsequent weekly-aggregate reads are incomplete, publication retains the previous coherent LOC snapshot (activity fields, summary/category metrics, and weekly aggregate) under the same transaction lock while updating calendar counts. These retained LOC figures remain explicitly incomplete until a complete repository refresh replaces them. This avoids erasing good statistics when a renamed repository has no cache under its new name and GitHub's stats endpoint is pending.
 
 ## Storage Model
 
@@ -67,7 +73,7 @@ Canonical runtime records live in PostgreSQL table `github_activity_store`:
 
 No active GitHub runtime or repair path falls back to S3. If historical GitHub CSV artifacts are retained, they are legacy migration or archival material only.
 
-A confirmed empty current repository set is intentionally persisted as complete zero activity and an empty weekly aggregate, replacing prior healthy aggregates rather than retaining stale repository data. This requires the canonical explicit replacement intent; nonzero or incomplete payloads are rejected. Each accepted refresh commits its activity, all-time summary, and weekly aggregate in one database transaction, so a refusal or persistence failure leaves all three prior records intact.
+A confirmed empty current repository set **and zero current/historical calendar contributions** is intentionally persisted as complete zero activity and an empty weekly aggregate. This requires the canonical explicit replacement intent; nonzero or incomplete payloads are rejected. Each accepted refresh commits its activity, all-time summary, and weekly aggregate in one database transaction, so a calendar failure, refusal, or persistence failure leaves all three prior records intact.
 
 ## Scheduled Data Refresh
 
@@ -96,10 +102,8 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
   - Exposes activity metadata for public refresh timestamps
 - **`src/lib/data-access/github-repo-stats.ts`**
   - Batch processes repository stats with PostgreSQL cache recovery and category aggregation
-- **`src/lib/data-access/github-commit-counts.ts`**
-  - Computes all-time commit totals (GraphQL with REST fallback)
 - **`src/lib/data-access/github-contributions.ts`**
-  - Fetches and flattens the contribution calendar
+  - Fetches the trailing calendar and sums all earlier contribution-year calendars
 - **`src/lib/data-access/github-csv-repair.ts`**
   - PostgreSQL repository-weekly integrity checks, checksum comparison, and repair workflow
 - **`src/lib/data-access/github-activity-summaries.ts`**

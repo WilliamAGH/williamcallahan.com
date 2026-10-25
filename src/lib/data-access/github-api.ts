@@ -20,7 +20,7 @@ import { retryWithOptions, RETRY_CONFIGS, delay } from "@/lib/utils/retry";
 import {
   GitHubGraphQLContributionResponseSchema,
   GraphQLUserContributionsResponseSchema,
-  GraphQLCommitHistoryResponseSchema,
+  GraphQLContributionYearsResponseSchema,
   ContributorStatsResponseSchema,
   type GraphQLRepoNode,
   type GraphQLUserContributionsResponse,
@@ -83,38 +83,65 @@ export async function fetchContributedRepositories(username: string): Promise<{
   userId: string;
   repositories: GraphQLRepoNode[];
 }> {
-  await waitForPermit("github-graphql", "contributed-repos", GITHUB_API_RATE_LIMIT_CONFIG);
-
   const client = getGitHubGraphQLClient();
-  const rawResponse = await client.query(
-    `
-    query($username: String!) {
+  const repositories = new Map<string, GraphQLRepoNode>();
+  let cursor: string | null = null;
+  let userId: string;
+  do {
+    await waitForPermit("github-graphql", "contributed-repos", GITHUB_API_RATE_LIMIT_CONFIG);
+    const rawResponse = await client.query(
+      `
+    query($username: String!, $cursor: String) {
       user(login: $username) {
         id
         repositoriesContributedTo(
           first: 100,
+          after: $cursor,
           contributionTypes: [COMMIT],
           includeUserRepositories: true,
           orderBy: { field: PUSHED_AT, direction: DESC }
         ) {
           nodes { id name owner { login } nameWithOwner isFork isPrivate }
+          pageInfo { hasNextPage endCursor }
         }
       }
     }
     `,
+      { username, cursor },
+    );
+
+    const response = GitHubGraphQLContributionResponseSchema.parse(rawResponse);
+    const { user } = response;
+
+    if (!user?.id) {
+      throw new Error(`Failed to fetch user ID for ${username}`);
+    }
+
+    userId = user.id;
+    for (const repo of user.repositoriesContributedTo.nodes) {
+      if (!repo.isFork) repositories.set(repo.id, repo);
+    }
+    const { hasNextPage, endCursor } = user.repositoriesContributedTo.pageInfo;
+    if (hasNextPage && (!endCursor || endCursor === cursor)) {
+      throw new Error("GitHub repository pagination did not advance");
+    }
+    cursor = hasNextPage ? endCursor : null;
+  } while (cursor);
+
+  return { userId, repositories: [...repositories.values()] };
+}
+
+/** Discover every contribution year, independently of repository visibility. */
+export async function fetchContributionYears(username: string): Promise<number[]> {
+  await waitForPermit("github-graphql", "contribution-years", GITHUB_API_RATE_LIMIT_CONFIG);
+  const response = await getGitHubGraphQLClient().query(
+    `query($username: String!) {
+      user(login: $username) { contributionsCollection { contributionYears } }
+    }`,
     { username },
   );
-
-  const response = GitHubGraphQLContributionResponseSchema.parse(rawResponse);
-  const { user } = response;
-
-  if (!user?.id) {
-    throw new Error(`Failed to fetch user ID for ${username}`);
-  }
-
-  const repositories = (user.repositoriesContributedTo?.nodes || []).filter((repo) => !repo.isFork);
-
-  return { userId: user.id, repositories };
+  return GraphQLContributionYearsResponseSchema.parse(response).user.contributionsCollection
+    .contributionYears;
 }
 
 /**
@@ -151,38 +178,6 @@ export async function fetchContributionCalendar(
   );
 
   return GraphQLUserContributionsResponseSchema.parse(rawResponse);
-}
-
-/**
- * Fetch commit count for a repository
- */
-export async function fetchRepositoryCommitCount(
-  owner: string,
-  name: string,
-  authorId: string,
-): Promise<number> {
-  await waitForPermit("github-graphql", "commit-count", GITHUB_API_RATE_LIMIT_CONFIG);
-
-  const client = getGitHubGraphQLClient();
-  const rawResponse = await client.query(
-    `
-    query($owner: String!, $name: String!, $authorId: ID!) {
-      repository(owner: $owner, name: $name) {
-        object(expression: "HEAD") {
-          ... on Commit {
-            history(author: { id: $authorId }) {
-              totalCount
-            }
-          }
-        }
-      }
-    }
-    `,
-    { owner, name, authorId },
-  );
-
-  const response = GraphQLCommitHistoryResponseSchema.parse(rawResponse);
-  return response.repository?.object?.history?.totalCount || 0;
 }
 
 /**
@@ -273,14 +268,6 @@ export function isGitHubApiConfigured(): boolean {
  */
 export function getGitHubUsername(): string {
   return GITHUB_REPO_OWNER;
-}
-
-/**
- * Get GitHub API token from environment
- * @see {@link src/lib/data-access/github-api.ts} - Single source of truth for GitHub auth
- */
-export function getGitHubApiToken(): string | undefined {
-  return GITHUB_API_TOKEN;
 }
 
 /**
