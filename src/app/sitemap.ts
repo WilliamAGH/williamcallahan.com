@@ -17,9 +17,13 @@
  * (see Dockerfile line ~293). Moving or renaming this file requires updating
  * both the Dockerfile and the importing scripts.
  *
- * @see {@link "../lib/sitemap/bookmark-collectors"} - Bookmark & tag collectors
- * @see {@link "../lib/sitemap/content-collectors"} - Book & thought collectors
- * @see {@link "../lib/sitemap/blog-collector"} - Blog post & tag collector
+ * The sitemap lists only pages meant for search: static pages, project detail
+ * pages, blog posts and thoughts. Bookmark, bookmark tag, blog tag and book
+ * pages carry `noindex, follow` (`lib/seo/search-exclusion`) and stay out.
+ *
+ * @see {@link "../lib/sitemap/bookmark-collectors"} - Bookmark listing last-modified time
+ * @see {@link "../lib/sitemap/content-collectors"} - Thought collector
+ * @see {@link "../lib/sitemap/blog-collector"} - Blog post collector
  * @see {@link "../lib/sitemap/constants"} - Shared sitemap constants
  * @see {@link "../lib/sitemap/date-utils"} - Date parsing utilities
  */
@@ -34,10 +38,7 @@ import { PAGE_METADATA, metadata as siteMetadata } from "@/data/metadata";
 import { updatedAt as projectsUpdatedAt, projects } from "@/data/projects";
 
 import { collectBlogSitemapData } from "@/lib/sitemap/blog-collector";
-import {
-  collectBookmarkSitemapData,
-  collectTagSitemapData,
-} from "@/lib/sitemap/bookmark-collectors";
+import { collectBookmarksLastModified } from "@/lib/sitemap/bookmark-collectors";
 import { getAllProjectSlugs } from "@/lib/projects/slug-helpers";
 import {
   BOOK_PRIORITY,
@@ -52,10 +53,7 @@ import {
   STATIC_PRIORITY_STANDARD,
   THOUGHT_PRIORITY,
 } from "@/lib/sitemap/constants";
-import {
-  collectBookSitemapData,
-  collectThoughtSitemapData,
-} from "@/lib/sitemap/content-collectors";
+import { collectThoughtSitemapData } from "@/lib/sitemap/content-collectors";
 import { getLatestDate, getSafeDate, isTestEnvironment } from "@/lib/sitemap/date-utils";
 
 let runtimeSitemapCache: {
@@ -67,11 +65,9 @@ let inFlightSitemapBuild: Promise<MetadataRoute.Sitemap> | null = null;
 const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
   const siteUrl = siteMetadata.site.url;
 
-  const [blogData, bookmarkData, tagData, bookData, thoughtData] = await Promise.all([
+  const [blogData, bookmarksLastModified, thoughtData] = await Promise.all([
     collectBlogSitemapData(siteUrl),
-    collectBookmarkSitemapData(siteUrl),
-    collectTagSitemapData(siteUrl),
-    collectBookSitemapData(siteUrl),
+    collectBookmarksLastModified(),
     collectThoughtSitemapData(siteUrl),
   ]);
 
@@ -108,7 +104,7 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
       priority: STATIC_PRIORITY_LOW,
       lastModified: getLatestDate(
         getSafeDate(PAGE_METADATA.bookmarks?.dateModified),
-        bookmarkData.latestBookmarkUpdateTime,
+        bookmarksLastModified,
       ),
     },
     "/blog": {
@@ -120,10 +116,7 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     },
     "/books": {
       priority: BOOK_PRIORITY,
-      lastModified: getLatestDate(
-        getSafeDate(PAGE_METADATA.books?.dateModified),
-        bookData.latestBookUpdateTime,
-      ),
+      lastModified: getSafeDate(PAGE_METADATA.books?.dateModified),
     },
     "/thoughts": {
       priority: THOUGHT_PRIORITY,
@@ -138,14 +131,15 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     },
   } as const;
 
-  const staticEntries: MetadataRoute.Sitemap = Object.entries(staticPages).map(
-    ([route, { priority, lastModified }]) => ({
+  // An empty thoughts listing is a thin page; list it once a thought is published.
+  const staticEntries: MetadataRoute.Sitemap = Object.entries(staticPages)
+    .filter(([route]) => route !== "/thoughts" || thoughtData.entries.length > 0)
+    .map(([route, { priority, lastModified }]) => ({
       url: `${siteUrl}${route}`,
       lastModified,
       changeFrequency: STATIC_CHANGE_FREQUENCY,
       priority,
-    }),
-  );
+    }));
 
   // --- Project detail entries (canonical /projects/[slug] pages) ---
   // Query-variant URLs (/projects?tag=...) canonicalize to /projects and must
@@ -164,12 +158,7 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     ...staticEntries,
     ...projectDetailEntries,
     ...blogData.blogPostEntries,
-    ...blogData.blogTagEntries,
-    ...bookData.entries,
     ...thoughtData.entries,
-    ...bookmarkData.entries,
-    ...tagData.tagEntries,
-    ...tagData.paginatedTagEntries,
   ];
 };
 
