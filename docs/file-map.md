@@ -38,7 +38,7 @@ File/Path Functionality Description
   - [x] **bookmarks/**
     - [x] `bookmark-ai-analysis.client.tsx` `bookmarks` - AI analysis component for bookmarks with SSR cache support
     - [x] `bookmark-card.client.tsx` `bookmarks` - Bookmark card UI (2025-06: unified OG images)
-    - [x] `bookmark-pagination-nav.client.tsx` `bookmarks` - Pagination navigation controls
+    - [x] `bookmark-pagination-nav.client.tsx` `bookmarks` - Native Latest-feed pagination anchors with callback enhancement; tag URL/callback controls
     - [x] `bookmark-refresh-alerts.client.tsx` `bookmarks` - Refresh status alerts
     - [x] `bookmarks-client-with-window.tsx` `bookmarks` - Bookmarks window entrypoint; derives feed mode from URL
     - [x] `bookmarks-paginated.client.tsx` `bookmarks` - Pagination/options routing wrapper
@@ -106,7 +106,9 @@ File/Path Functionality Description
     - [x] `index.ts` `projects` - Removed; import projects components from concrete files
     - [x] `project-ai-analysis.client.tsx` `projects` - AI analysis component for projects with SSR cache support
     - [x] `project-card.client.tsx` `projects` - Individual project cards; disable detail-link prefetch and fall back safely when CDN config is missing
-    - [x] `project-detail.tsx` `projects` - Project detail view with AI analysis integration
+    - [x] `project-detail.tsx` `projects` - Server-owned project text, description, and links; optional analysis under Suspense
+    - [x] `project-detail-analysis.server.tsx` `projects` - Isolated optional cached-analysis read and analysis UI handoff
+    - [x] `project-detail-image.client.tsx` `projects` - Image-only parallax enhancement around server-provided children
     - [x] `project-tags.client.tsx` `projects` - Project tag filter UI
     - [x] `projects-list.client.tsx` `projects` - List all projects; exports the ProjectsListServer alias consumed by ProjectsWindow
     - [x] `projects-window.client.tsx` `projects` - Projects window wrapper
@@ -115,15 +117,16 @@ File/Path Functionality Description
     - [x] `contact.client.tsx` `social-links` - Contact form
     - [x] `index.ts` `social-links` - Removed; import social components from concrete files
     - [x] `social-card-effects.client.tsx` `social-links` - Handles social card hover effects
-    - [x] `social-card.client.tsx` `social-links` - Individual social link card
+    - [x] `social-card.client.tsx` `social-links` - Individual social link card with native initial HTML, without a mount timer gate
     - [x] `social-list.client.tsx` `social-links` - List of social links
-    - [x] `social-window.client.tsx` `social-links` - Wrapper window for social links
+    - [x] `social-window.client.tsx` `social-links` - Social window renders its normal initial state before effect-based registration
 - [x] **seo/**
   - [x] `index.ts` `seo` - Removed; import SEO components from concrete files
   - [x] `json-ld.tsx` `seo` - JSON-LD structured data component
   - [x] `opengraph-logo.tsx` `seo` - OpenGraph logo meta tag component
 - [~] **ui/**
   - [x] `pagination-control.client.tsx` `bookmarks` - Callback pagination with immediate selection and caller-owned loading
+  - [x] `pagination-control-url.client.tsx` `bookmarks` - Native pagination links with optional explicit href builder and callback enhancement
   - [x] **terminal/**
     - [x] `terminal-implementation.client.tsx` `terminal` - Terminal core UI implementation
     - [x] `terminal-header.tsx` `terminal` - Header UI with window controls & title
@@ -224,7 +227,7 @@ File/Path Functionality Description
 - [x] `blog.ts` `blog` - Blog data helper functions
 - [x] `bookmarks.{client,server}.ts` `json-handling` - Helper functions for bookmarks
 - [x] `bookmarks.ts` `json-handling` - Core bookmarks logic
-- [x] `bookmarks/enrichment-hydration.ts` `bookmarks` - Merges prior persisted enrichment into refreshed datasets; pending Karakeep image-upgrade predicate
+- [x] `bookmarks/enrichment-hydration.ts` `bookmarks` - Preserves healthy prior enrichment, rejects challenge archives, and retains healthy article data during blocked recaptures
 - [x] `bookmarks/enrich-opengraph.ts` `bookmarks` - OpenGraph enrichment and bounded Karakeep asset downloads with one retry
 - [x] `cache.ts` `caching` - Next.js cache guard, tag revalidation, and immediate tag expiration utilities
 - [x] `constants.ts` `overview` - Project-wide constants
@@ -256,11 +259,12 @@ File/Path Functionality Description
   - [x] `data-fetch-refresh.server.ts` `bookmarks` - Scheduled bookmark refresh operation, DB-only comparison, and observable result summary
   - [x] `index.ts` `bookmarks` - Removed; import bookmark library modules directly
   - [x] `bookmark-helpers.ts` `bookmarks` - Canonical bookmark detail-path construction and card-image selection
+  - [x] `content-dates.ts` `bookmarks` - Meaningful bookmark/member freshness from content dates, excluding operational timestamps
   - [x] `scraped-content.ts` `bookmarks` - Normalizes Karakeep HTML into clean plain-text bookmark content for persistence/embeddings
   - [x] `slug-helpers.ts` `bookmarks` - Indexed slug and bookmark-ID resolution
   - [x] **analysis/**
     - [x] `build-prompt.ts` `bookmarks` - LLM prompt builder for bookmark analysis
-    - [x] `extract-context.ts` `bookmarks` - Context extraction for bookmark analysis
+    - [x] `extract-context.ts` `bookmarks` - Analysis context and blocked-without-retrieved-body availability predicate
 - [x] **books/**
   - [x] `audiobookshelf.server.ts` `books` - AudioBookShelf API integration (used by generation scripts)
   - [x] `books-data-access.server.ts` `books` - PostgreSQL-backed book data reader (runtime, replaces ABS for web requests)
@@ -303,6 +307,7 @@ File/Path Functionality Description
   - [x] **db/**
   - [x] `connection.ts` `data-access` - Drizzle PostgreSQL client bootstrap with strict `DATABASE_URL` guard
   - [x] `bookmark-record-mapper.ts` `bookmarks` - Row/insert mapping helpers between Drizzle bookmark records and `UnifiedBookmark`
+  - [x] `bookmark-tag-aliases.mjs` `bookmarks` - Shared terminal/cycle-safe alias SQL for runtime taxonomy and scoped Node repair
   - [x] **schema/**
     - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmarks table definition with generated FTS vector plus trigram/HNSW indexes
     - [x] `bookmark-taxonomy.ts` `bookmarks` - Drizzle tag-link and bookmark/tag index-state tables plus `bookmarks_tags` + `bookmarks_tags_links` (primary/alias tag canonicalization)
@@ -316,7 +321,7 @@ File/Path Functionality Description
     - [x] `content-embeddings.ts` `bookmarks` - Content embeddings and deferred upstream-failure checkpoint tables for pgvector cosine ANN (Qwen3-Embedding-4B, 2560-d halfvec)
     - [x] `image-manifests.ts` `image-handling` - Image manifests keyed by type (logos/opengraph/blog)
   - [x] **queries/**
-    - [x] `bookmarks.ts` `bookmarks` - Bookmark read queries (all/page/by-id/count/FTS/tag pages/global index/per-tag index/tag slug listing)
+    - [x] `bookmarks.ts` `bookmarks` - Bookmark reads, compact sitemap slug/date projection, canonical tag counts/pages and member-derived dates
     - [x] `discovery-scores.ts` `bookmarks` - Discovery score computation and ranked bookmark retrieval (recency-primary + engagement)
     - [x] `embedding-similarity.ts` `bookmarks` - Pgvector cosine ANN search and blended ranking for related content
     - [x] `cross-domain-similarity.ts` `bookmarks` - Cross-domain similarity queries (fallback path for tag co-occurrence)
@@ -332,7 +337,7 @@ File/Path Functionality Description
     - [x] `image-manifests.ts` `image-handling` - Image manifest read queries by type
     - [x] `search-index-artifacts.ts` `search` - Search index artifact reads from PostgreSQL
   - [x] **mutations/**
-    - [x] `bookmarks.ts` `bookmarks` - Bookmark upsert/delete mutations plus taxonomy/index-state rebuilds for PostgreSQL persistence
+    - [x] `bookmarks.ts` `bookmarks` - Bookmark upserts with blocked-capture NULL clearing, content-dated index rebuilds, and alias-identity preservation
     - [x] `bookmark-embeddings.ts` `bookmarks` - Bookmark embedding backfill/update mutations for `qwen_4b_fp16_embedding` via endpoint-compatible Qwen embeddings
     - [x] `github-activity.ts` `github-activity` - GitHub activity/summary/repo-weekly/aggregated upserts and guarded writes
     - [x] `content-graph.ts` `search` - Content-graph artifact upserts for related-content precomputation
@@ -381,6 +386,7 @@ File/Path Functionality Description
   - [x] `fallback.ts` `opengraph` - Unified fallback logic for images and metadata
   - [x] `persistence.ts` `opengraph` - Background image persistence to S3
   - [x] `fetch.ts` `opengraph` - External HTML fetching with retry and circuit breaking
+  - [x] `validation.ts` `opengraph` - OG validation and shared `isAccessChallenge` publisher-verification detector
 - [x] **projects/**
   - [x] `slug-helpers.ts` `projects` - Project slug generation and lookup
   - [x] **analysis/**
@@ -401,7 +407,7 @@ File/Path Functionality Description
   - [x] `not-found-metadata.ts` `seo` - Noindex metadata for failed dynamic-entity lookups (no self-canonical)
   - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
-  - [x] `schema.ts` `seo` - Schema.org generation helpers
+  - [x] `schema.ts` `seo` - Schema.org graphs with actual collection members or omitted lists, bookmark-item detail entities, and no fabricated profile statistics
   - [x] `text-truncation.ts` `seo` - Smart text truncation utilities
   - [x] `utils.ts` `seo` - SEO utility functions
 - [x] **server/**
@@ -416,13 +422,14 @@ File/Path Functionality Description
     - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
 - [x] **sitemap/**
   - [x] `blog-collector.ts` `seo` - Asynchronous projection of canonical `getAllPostsMeta()` inventory into blog post/tag sitemap entries
-  - [x] `bookmark-collectors.ts` `seo` - Bookmark and bookmark-tag sitemap entry collectors (slug mapping + paginated fallback)
+  - [x] `bookmark-collectors.ts` `seo` - Compact bookmark slug/date projection and canonical member-dated tag/page sitemap entries
   - [x] `constants.ts` `seo` - Shared sitemap constants (change frequencies, priorities, cache TTL)
   - [x] `content-collectors.ts` `seo` - Book and thought sitemap entry collectors
-  - [x] `date-utils.ts` `seo` - Date parsing, path sanitization, and test-environment detection for sitemap modules
+  - [x] `date-utils.ts` `seo` - Sitemap path sanitization, error handling, and test-environment detection; no date compatibility exports
 - [x] **utils/**
   - [x] `api-sanitization.ts` `rate-limit-and-sanitize` - API input/output sanitization
   - [x] `debug.ts` `log-error-debug-handling` - Debugging utilities
+  - [x] `date-format.ts` `seo` - Generic content-date parsing/comparison and Pacific-time display formatting
   - [x] `domain-utils.ts` `bookmarks` - Domain and URL utilities
   - [x] `ensure-server-only.ts` `overview` - Ensures a module is only run on the server
   - [x] `formatters.ts` `string-manipulation` - Data formatting functions
@@ -638,12 +645,14 @@ File/Path Functionality Description
   - [x] `[slug]/page.tsx` `blog` - Blog post page
   - [x] `tags/[tagSlug]/page.tsx` `blog` - Blog tag page
 - [x] **bookmarks/**
-  - [x] `page.tsx` `bookmarks` - Main page for the bookmarks section
+  - [x] `page.tsx` `bookmarks` - Discover hub and server-sliced Latest query pagination with page-aware canonical/not-found metadata
   - [x] `loading.tsx` `bookmarks` - Loading UI for the bookmarks section
   - [x] `error.tsx` `log-error-debug-handling` - Error UI for the bookmarks section
   - [x] `[slug]/page.tsx` `bookmarks` - Individual bookmark detail page
   - [x] `domain/[domainSlug]/page.tsx` `bookmarks` - Legacy domain redirector page
   - [x] `tags/[tagSlug]/page.tsx` `bookmarks` - Bookmarks by tag page
+- [x] **books/**
+  - [x] `[book-slug]/page.tsx` `books` - Book detail route with generated canonical metadata and permanent alias redirects
 - [x] **contact/**
   - [x] `page.tsx` `contact` - Contact page (ISR)
 - [x] **education/**
@@ -656,6 +665,7 @@ File/Path Functionality Description
   - [x] `page.tsx` `investments` - Investments page (ISR)
 - [x] **projects/**
   - [x] `page.tsx` `projects` - Projects page (ISR) with defensive CDN screenshot schema generation (no render throw on missing CDN config)
+  - [x] `[slug]/page.tsx` `projects` - Server-owned project detail shell without an optional analysis read above essential content
 - [ ] **sentry-example-page/**
   - [x] `page.tsx` `log-error-debug-handling` - Sentry example page
 
@@ -671,8 +681,9 @@ File/Path Functionality Description
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
 - [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Force-refresh repository stats through the shared validated contributor fetch; preserve existing rows on unavailable data
 - [x] `lib/with-database.node.mjs` `db` - Shared Node-script bootstrap: registers `tsx/esm/api`, runs a task against the TypeScript database owners, closes the shared connection; used by every seed, backfill, and gate script
+- [x] `lib/bookmark-tag-alias-plan.mjs` `bookmarks` - Whole-proposal cycle rejection/terminal flattening, serialized writer locks, and scoped read-only-first cycle repair
 - [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for bookmark rows of the unified `embeddings` table; runs through `withDatabase` and delegates to the canonical `backfillBookmarkEmbeddings` owner so batching, embedding-text contract, and `embedding_failures` checkpointing are not restated
-- [x] `ingest-bookmark-tag-aliases.node.mjs` `bookmarks` - Node runtime LLM-driven tag alias ingestion using bookmark tag context + embedding-nearest related bookmarks; writes to `bookmarks_tags` + `bookmarks_tags_links`
+- [x] `ingest-bookmark-tag-aliases.node.mjs` `bookmarks` - Node alias ingestion plus no-AI `--repair-cycles=canonical-slug,...`; repair defaults read-only, production-only `--apply` retains identities/member links
 - [x] `backfill-scraped-content.node.mjs` `bookmarks` - Node runtime backfill for `scraped_content_text` column from Karakeep `content.htmlContent` via HTML-to-plain-text conversion
 - [x] `backfill-computed-fields.node.mjs` `bookmarks` - Node runtime backfill for `word_count` and `reading_time` derived from `scraped_content_text` (whitespace split, 200 WPM)
 - [x] `backfill-og-metadata.node.mjs` `bookmarks` - Node runtime backfill for `og_title`, `og_description`, `og_image` by fetching bookmark URLs and parsing `<meta property="og:*">` tags
@@ -683,7 +694,8 @@ File/Path Functionality Description
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
 - [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `scheduler/data-updater.ts`
 - [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
-- [x] `smoke-test-production.ts` `deployment` - Production route, blog-render, release-identity, and Cloudflare cache smoke checks; accepts pnpm's forwarded `--` separator
+- [x] `native-content-smoke.ts` `seo` - Parses actual heading/description/anchor markup for project/contact smoke checks, not Flight strings
+- [x] `smoke-test-production.ts` `deployment` - Production route, blog/native-content, release-identity, and Cloudflare cache smoke checks; accepts pnpm's forwarded `--` separator
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
 - [x] `entrypoint.sh` `deployment` - Web container entrypoint (DB gate + Next.js server only)
@@ -750,6 +762,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 - [x] **e2e/**
   - [x] `blog-render.spec.ts` `blog` - Chromium route-layer checks for the shared blog render canaries, including declared interactions and browser failures
+  - [x] `native-content.spec.ts` `seo` - No-JavaScript project/contact DOM checks with desktop and crawler user agents
+  - [x] `seo-output.spec.ts` `seo` - Missing/draft-only blog tag not-found/noindex output and published-tag canonical/link checks
   - [x] `github-activity.spec.ts` `github-activity` - Real calendar desktop labels and mobile heatmap rendering at the route boundary
 - [x] \***\*tests**/\*\*
   - [x] `README.md` `project-mgmt` - Tests documentation
@@ -804,6 +818,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
         - [x] `terminalSelectionView.test.tsx` `terminal` - Terminal selection view tests
   - [x] **lib/**
     - [x] `books/generate.test.ts` `books` - Original ABS failures, successful-empty libraries, and preservation of published book data
+    - [x] `books/slug-helpers.test.ts` `books` - Canonical book slug generation and legacy alias ID extraction
     - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
     - [x] `ai-harmony-sanitizer.test.ts` `ai-shared-services` - Marker-based Harmony channel-control sanitation coverage
     - [x] `ai-openai-compatible-client-timeout.test.ts` `ai-shared-services` - Cached-client request-policy coverage for non-stream, Chat stream, and Responses stream calls
@@ -845,6 +860,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
       - [x] `static-context.test.ts` `ai-shared-services` - RAG static context tests
     - [x] `utils/limit-by-type-total.test.ts` `utils` - Per-type and global limit utility tests
     - [x] **seo/**
+      - [x] `schema.test.ts` `seo` - Actual/omitted collection membership, bookmark-item graphs, and absent fabricated profile counters
       - [x] `metadata.test.ts` `seo` - SEO metadata tests
       - [x] `opengraph.test.ts` `seo` - OpenGraph metadata tests
       - [x] `utils.test.ts` `seo` - SEO utility tests
@@ -861,6 +877,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `update-s3.smoke.test.ts` `batch-fetch-update` - Scheduler/data-updater flag consistency and scheduler entrypoint bootstrap ordering
   - [x] **scripts/**
     - [x] `blog-render-smoke.test.ts` `blog` - Outcome tests for the shared production blog-render HTML validator
+    - [x] `native-content-smoke.test.ts` `seo` - Native project/contact markup accepted; Flight-only content rejected
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
     - [x] `update-data.smoke.test.ts` `batch-fetch-update` - Data updater smoke tests
 - [x] `tsconfig.json` `testing-config` - TypeScript config for Vitest tests

@@ -76,6 +76,8 @@ All SEO images defined in `data/metadata.ts` via `SEO_IMAGES` constant:
   - Automatic `@graph` relationship linking
   - Date/time formatting for search engines
   - Author and publisher entity deduplication
+  - Collection `ItemList` members come only from explicit actual items; omit the list when unavailable, never derive members from breadcrumbs
+  - Profile graphs do not fabricate interaction statistics; individual bookmark detail graphs use `bookmark-item`, not a collection
 
 - **`types/seo/schema.ts`** (234 lines): Schema.org type definitions
   - Comprehensive interfaces for all entity types
@@ -271,10 +273,11 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 - **`app/robots.ts`**: Dynamically generates the `robots.txt` file using a server-side route handler
   - Production: Allows all crawlers, blocks sensitive paths (`/api/`, `/debug/`)
   - Non-production: Blocks all crawlers to prevent indexing of staging sites
-- **`app/sitemap.ts`**: Dynamically generates the `sitemap.xml` file at build time
+- **`app/sitemap.ts`**: Cache Components orchestrator for domain sitemap collectors
   - Includes: Blog posts, tags, bookmarks, static pages
   - Priorities: Home (1.0), Investments/Projects (0.9), Experience/Education (0.8), Blog/Bookmarks (0.7)
   - Uses trimmed, validated frontmatter slugs for blog URLs and frontmatter dates for `lastModified` when available
+  - Bookmark entries use compact DB slug/date projections; canonical tag dates derive from their members, not fetch/attempt or index-rebuild timestamps
 
 #### Automated Submission
 
@@ -362,12 +365,26 @@ The `app/sitemap.ts` file aggregates content from multiple sources:
 2. **Project Detail Pages**: `/projects/[slug]` entries derived via `getAllProjectSlugs()` (`src/lib/projects/slug-helpers.ts`), matching the route's canonical slugs; query-variant URLs (`/projects?tag=...`) canonicalize to `/projects` and are excluded
 3. **Blog Posts**: `src/lib/sitemap/blog-collector.ts` projects the canonical inventory from `getAllPostsMeta()`, so sitemap URLs use the same frontmatter slugs as blog routes and static params
 4. **Blog Tags**: Dynamically generated from unique post tags
-5. **Bookmarks**: Retrieved from cache or API with domain groupings
-6. **Bookmark Tags**: Extracted from bookmark metadata
+5. **Bookmarks**: `getBookmarkSitemapRowsFromDatabase()` projects only slug and content-date fields; no global-index date mapping or full-page fallback
+6. **Bookmark Tags**: Shared terminal/cycle-safe alias resolution (`src/lib/db/bookmark-tag-aliases.mjs`) folds members into canonical tags; one grouped query supplies page counts and member-derived dates
    - Main tag pages: `/bookmarks/tags/[tagSlug]`
    - Paginated tag pages: `/bookmarks/tags/[tagSlug]/page/[n]`
 7. **Paginated Pages**:
    - Tag-filtered pages: `/bookmarks/tags/[tagSlug]/page/[n]`
+
+Bookmark freshness belongs to `src/lib/bookmarks/content-dates.ts`: the latest valid
+`modifiedAt`, `dateCreated`, or `dateBookmarked`. Generic `getSafeDate`/`getLatestDate`
+belong to `src/lib/utils/date-format.ts`; `lib/sitemap/date-utils.ts` retains sitemap
+path/error handling, not date compatibility exports. Missing content dates do not
+become “now” merely because a fetch or index rebuild ran.
+
+### Canonical Routes and Native Content
+
+- Latest bookmarks render the requested `/bookmarks?feed=latest&page=N` slice with native anchors. Pages above 1 self-canonicalize with that query; page 1 canonicalizes to `/bookmarks`. Invalid/out-of-range Latest pages return not-found/noindex metadata. Discover retains full topic counts for “See all” and links to Latest.
+- Book aliases permanently redirect to the slug generated from the resolved book; metadata uses that same canonical slug. Unknown and draft-only blog tags use `notFound()` and noindex metadata without a self-canonical. This does not change direct draft-article visibility (see [`blog.md`](blog.md#notes)).
+- Project text and destination links stay server-owned, outside optional short-lived analysis reads; contact windows/cards render normal initial HTML without effect-mount gates. Keep Cache Components and metadata streaming (see [`nextjs-framework.md`](../standards/nextjs-framework.md#essential-html-and-optional-short-lived-caches)).
+- `isAccessChallenge()` (`lib/opengraph/validation.ts`) rejects publisher verification screens as article/OG content. Blocked captures remain honest saved links; healthy prior archives are preserved, while blocked sources without retrieved bodies suppress cached article-analysis UI (see [`bookmarks.md`](bookmarks.md#enrichment-preservation-contract)).
+- `e2e/native-content.spec.ts` checks no-JavaScript project/contact DOM; `e2e/seo-output.spec.ts` checks missing/draft-only versus published blog tags. The existing production smoke calls `scripts/native-content-smoke.ts` to validate actual headings, descriptions, and anchors, not strings inside Flight scripts.
 
 ### URL Construction
 
