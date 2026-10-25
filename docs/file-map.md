@@ -402,6 +402,7 @@ File/Path Functionality Description
   - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
   - [x] `schema.ts` `seo` - Schema.org generation helpers
+  - [x] `search-exclusion.ts` `seo` - `noindex, follow` directive for bookmark, tag and book pages kept out of search
   - [x] `text-truncation.ts` `seo` - Smart text truncation utilities
   - [x] `utils.ts` `seo` - SEO utility functions
 - [x] **server/**

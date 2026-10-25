@@ -13,6 +13,7 @@ import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.serve
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { SEARCH_EXCLUDED_ROBOTS } from "@/lib/seo/search-exclusion";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -86,13 +87,13 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   const [tagSlug, page, pageNumberStr] = slug;
 
   if (!tagSlug) {
-    return getStaticPageMetadata("/bookmarks", "bookmarks");
+    return { ...getStaticPageMetadata("/bookmarks", "bookmarks"), robots: SEARCH_EXCLUDED_ROBOTS };
   }
 
   const pageNumber = parsePageParam(page, pageNumberStr);
   const tagState = await resolveTagSlugState(tagSlug);
   if (!tagState.canonicalTagName) {
-    return getStaticPageMetadata("/bookmarks", "bookmarks");
+    return { ...getStaticPageMetadata("/bookmarks", "bookmarks"), robots: SEARCH_EXCLUDED_ROBOTS };
   }
   const activeTagSlug = tagState.canonicalSlug;
 
@@ -113,6 +114,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     return {
       ...getStaticPageMetadata(path, "bookmarks"),
       title: "No Bookmarks Found For This Tag",
+      robots: SEARCH_EXCLUDED_ROBOTS,
     };
   }
 
@@ -160,6 +162,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     alternates: {
       canonical: ensureAbsoluteUrl(path),
     },
+    robots: SEARCH_EXCLUDED_ROBOTS,
   };
 }
 

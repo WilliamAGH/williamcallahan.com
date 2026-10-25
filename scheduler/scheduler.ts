@@ -294,24 +294,6 @@ const scheduleCronJob = (
         if (revalidationTarget) {
           void invalidateWebCache(name, revalidationTarget);
         }
-
-        if (name === "Bookmarks") {
-          console.log(`[Scheduler] [${name}] Submitting sitemap...`);
-          const sitemapProcess = spawn("node", ["--run", "submit-sitemap"], {
-            env: process.env,
-            stdio: "inherit",
-          });
-          sitemapProcess.on("error", (err) => {
-            console.warn(`[Scheduler] [${name}] Sitemap submission failed to start:`, err);
-          });
-          sitemapProcess.on("close", (sitemapCode) => {
-            if (sitemapCode !== 0) {
-              console.warn(
-                `[Scheduler] [${name}] Sitemap submission exited with code ${sitemapCode}`,
-              );
-            }
-          });
-        }
       });
     }, jitter);
     pendingJitterTimers.add(jitterTimer);
