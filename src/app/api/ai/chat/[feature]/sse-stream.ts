@@ -11,8 +11,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import type { SseStreamConfig } from "@/types/features/ai-chat";
-import { persistFinishedAnalysis } from "./analysis-persistence";
+import type { SseStreamConfig, SseStreamResult } from "@/types/features/ai-chat";
 import { logSuccessfulChat, logFailedChat } from "./chat-helpers";
 import { isAbortError, resolveErrorResponse } from "./upstream-error";
 
@@ -22,9 +21,10 @@ export function formatSseEvent(args: { event: string; data: unknown }): string {
 }
 
 /**
- * Create and return an SSE streaming response
+ * Create the SSE streaming response and expose the run's completion, which can
+ * settle after the response (and the client connection) has closed.
  */
-export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
+export function createSseStreamResponse(config: SseStreamConfig): SseStreamResult {
   const {
     request,
     queue,
@@ -34,9 +34,10 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
     ragContextStatus,
     runUpstream,
     upstreamAbort,
-    analysisTarget,
+    finishAfterDisconnect,
   } = config;
   const encoder = new TextEncoder();
+  let completion: Promise<string | null> = Promise.resolve(null);
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -99,9 +100,8 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
       // upstream has started, an analysis keeps running (holding its queue slot)
       // so its validated result is persisted; other features stop with the client.
       let upstreamStarted = false;
-      const finishesWithoutClient = analysisTarget !== null;
       const abortUpstreamOnDisconnect = () => {
-        if (finishesWithoutClient && upstreamStarted) return;
+        if (finishAfterDisconnect && upstreamStarted) return;
         upstreamAbort.abort();
       };
       if (request.signal.aborted) abortUpstreamOnDisconnect();
@@ -113,12 +113,17 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         run: () => {
           upstreamStarted = true;
           return runUpstream((event) => {
-            if (!safeSend(event.event, event.data) && !finishesWithoutClient) {
+            if (!safeSend(event.event, event.data) && !finishAfterDisconnect) {
               throw new DOMException("Client disconnected", "AbortError");
             }
           });
         },
       });
+
+      completion = task.result.then(
+        (assistantMessage) => assistantMessage,
+        () => null,
+      );
 
       const initialPosition = queue.getPosition(task.id);
       safeSend("queued", initialPosition);
@@ -162,12 +167,11 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
         });
 
       void task.result
-        .then(async (assistantMessage) => {
+        .then((assistantMessage) => {
           const durationMs = Date.now() - startTime;
           const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
 
           logSuccessfulChat(logContext, assistantMessage, durationMs, queueWaitMs);
-          if (analysisTarget) await persistFinishedAnalysis(analysisTarget, assistantMessage);
 
           if (
             !safeSend("done", {
@@ -228,5 +232,5 @@ export function createSseStreamResponse(config: SseStreamConfig): NextResponse {
     "X-Accel-Buffering": "no",
   };
 
-  return new NextResponse(stream, { status: 200, headers });
+  return { response: new NextResponse(stream, { status: 200, headers }), completion };
 }

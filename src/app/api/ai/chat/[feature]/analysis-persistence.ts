@@ -1,5 +1,7 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
+import { after } from "next/server";
 import { persistAnalysis } from "@/lib/ai-analysis/writer.server";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import logger from "@/lib/utils/logger";
@@ -17,12 +19,29 @@ export function resolveAnalysisPersistTarget(
 }
 
 /**
- * Persist an analysis the upstream runner already validated (`validateAnalysisOutput`
- * returns the schema output serialized), so a visitor who leaves mid-stream does not
- * discard a finished generation. A failed write is logged, never surfaced as a
- * generation failure: the caller already holds a valid analysis.
+ * Persist a finished analysis once its run completes, even after the viewer left.
+ *
+ * The write runs inside `after()` because the SSE run outlives the route handler:
+ * Next flushes `revalidateTag` calls only when the handler returns or inside an
+ * `after()` callback (`withExecuteRevalidates`), so a write made from the stream
+ * itself would leave the analysis cache serving the previous record.
  */
-export async function persistFinishedAnalysis(
+export function persistAnalysisAfterResponse(
+  target: AnalysisPersistTarget,
+  completion: Promise<string | null>,
+): void {
+  after(async () => {
+    const validatedText = await completion;
+    if (validatedText !== null) await persistFinishedAnalysis(target, validatedText);
+  });
+}
+
+/**
+ * The upstream runner already validated the text (`validateAnalysisOutput` returns
+ * the schema output serialized). A failed write is reported, never surfaced as a
+ * generation failure: the viewer, if still present, already holds a valid analysis.
+ */
+async function persistFinishedAnalysis(
   target: AnalysisPersistTarget,
   validatedText: string,
 ): Promise<void> {
@@ -45,6 +64,10 @@ export async function persistFinishedAnalysis(
     logger.error("[AI Analysis] Failed to persist finished analysis", {
       ...logContext,
       error: error instanceof Error ? error.message : String(error),
+    });
+    Sentry.captureException(error, {
+      extra: logContext,
+      tags: { feature: "ai-analysis-persist" },
     });
   }
 }

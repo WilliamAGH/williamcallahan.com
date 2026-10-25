@@ -7,7 +7,7 @@ import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
 import { validateRequest, buildRagContextForChat } from "./chat-helpers";
 import { buildChatPipeline } from "./upstream-pipeline";
 import { createSseStreamResponse } from "./sse-stream";
-import { resolveAnalysisPersistTarget } from "./analysis-persistence";
+import { persistAnalysisAfterResponse, resolveAnalysisPersistTarget } from "./analysis-persistence";
 
 export async function POST(
   request: NextRequest,
@@ -35,13 +35,16 @@ export async function POST(
     const upstreamAbort = new AbortController();
     const pipeline = buildChatPipeline({ feature, ctx, ragResult, signal: upstreamAbort.signal });
 
-    const response = createSseStreamResponse({
+    const analysisTarget = resolveAnalysisPersistTarget(feature, ctx.parsedBody);
+
+    const { response, completion } = createSseStreamResponse({
       request,
       ...pipeline,
       ragContextStatus: ragResult.status,
       upstreamAbort,
-      analysisTarget: resolveAnalysisPersistTarget(feature, ctx.parsedBody),
+      finishAfterDisconnect: analysisTarget !== null,
     });
+    if (analysisTarget) persistAnalysisAfterResponse(analysisTarget, completion);
     return response;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);

@@ -1,20 +1,65 @@
 /**
- * A started analysis generation outlives the browser that requested it: the SSE
- * handler finishes the upstream run and persists the validated result even when the
- * client disconnects mid-stream, while a request still waiting in the queue is dropped.
+ * A started analysis generation outlives the browser that requested it: once the
+ * client disconnects mid-stream, the run still finishes, the analysis becomes
+ * readable through the reader path, and its cache tags are revalidated inside an
+ * `after()` callback (the only post-response scope where Next flushes them). A
+ * request still waiting in the queue is dropped.
  */
 
+import type { after as nextAfter } from "next/server";
 import { NextRequest } from "next/server";
+import type { revalidateTag } from "next/cache";
+import { persistAnalysisAfterResponse } from "@/app/api/ai/chat/[feature]/analysis-persistence";
 import { createSseStreamResponse } from "@/app/api/ai/chat/[feature]/sse-stream";
-import { persistAnalysis } from "@/lib/ai-analysis/writer.server";
+import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
+import { buildAnalysisCacheTags } from "@/lib/ai-analysis/paths";
 import { logChatMessage } from "@/lib/ai/openai-compatible/chat-message-logger";
-import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
+import type { persistAnalysisToDb } from "@/lib/db/mutations/ai-analysis";
+import type { readLatestAnalysis } from "@/lib/db/queries/ai-analysis";
+import { resolveDatabaseAccessMode } from "@/lib/db/connection";
+import type { CachedAnalysis } from "@/types/ai-analysis";
 import type { ChatLogContext } from "@/types/features/ai-chat";
 import type { AiChatModelStreamUpdate } from "@/types/schemas/ai-openai-compatible-client";
 
-vi.mock("@/lib/ai-analysis/writer.server", () => ({
-  persistAnalysis: vi.fn<typeof persistAnalysis>().mockResolvedValue(undefined),
+/** In-memory stand-in for the ai_analysis_latest table. */
+const analysisRows = new Map<string, CachedAnalysis<unknown>>();
+/** Next runs `after()` callbacks once the response closes; this collects them. */
+const afterCallbacks: Array<() => Promise<unknown>> = [];
+let insideAfterCallback = false;
+const tagsRevalidatedInsideAfter: string[] = [];
+const tagsRevalidatedOutsideAfter: string[] = [];
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: ((task: () => Promise<unknown>) => {
+    afterCallbacks.push(task);
+  }) as typeof nextAfter,
+}));
+vi.mock("next/cache", () => ({
+  cacheTag: vi.fn<() => void>(),
+  cacheLife: vi.fn<() => void>(),
+  revalidateTag: ((tag: string) => {
+    (insideAfterCallback ? tagsRevalidatedInsideAfter : tagsRevalidatedOutsideAfter).push(tag);
+  }) as typeof revalidateTag,
+}));
+vi.mock("@/lib/db/mutations/ai-analysis", () => ({
+  persistAnalysisToDb: ((domain, entityId, analysis) => {
+    analysisRows.set(`${domain}/${entityId}`, {
+      metadata: { generatedAt: new Date().toISOString(), modelVersion: "v1" },
+      analysis,
+    });
+    return Promise.resolve();
+  }) as typeof persistAnalysisToDb,
+}));
+vi.mock("@/lib/db/queries/ai-analysis", () => ({
+  readLatestAnalysis: ((domain, entityId) =>
+    Promise.resolve(
+      analysisRows.get(`${domain}/${entityId}`) ?? null,
+    )) as typeof readLatestAnalysis,
+  hasAnalysisInDb: vi.fn<() => Promise<boolean>>(),
+  listAnalysisItemIdsFromDb: vi.fn<() => Promise<string[]>>(),
+  listAnalysisVersionsFromDb: vi.fn<() => Promise<[]>>(),
 }));
 vi.mock("@/lib/db/connection", () => ({
   resolveDatabaseAccessMode: vi.fn<typeof resolveDatabaseAccessMode>().mockReturnValue({
@@ -27,7 +72,14 @@ vi.mock("@/lib/ai/openai-compatible/chat-message-logger", () => ({
   logChatMessage: vi.fn<typeof logChatMessage>(),
 }));
 
-const mockedPersistAnalysis = vi.mocked(persistAnalysis);
+async function runAfterCallbacks(): Promise<void> {
+  insideAfterCallback = true;
+  try {
+    for (const callback of afterCallbacks.splice(0)) await callback();
+  } finally {
+    insideAfterCallback = false;
+  }
+}
 
 const bookmarkAnalysis = {
   summary: "Useful technical resource for practical implementation decisions.",
@@ -58,12 +110,12 @@ function createGate(): { promise: Promise<void>; open: () => void } {
   return { promise, open };
 }
 
-function startAnalysisStream(args: {
+/** Mirrors the chat route: stream the run, then persist its completion via `after()`. */
+function startAnalysisRequest(args: {
   queue: UpstreamRequestQueue;
   runUpstream: (onStreamEvent?: (event: AiChatModelStreamUpdate) => void) => Promise<string>;
 }) {
   const browser = new AbortController();
-  const upstreamAbort = new AbortController();
   // The test environment's Request drops `init.signal`; pin the browser's connection signal.
   const request = Object.defineProperty(
     new NextRequest("https://williamcallahan.com/api/ai/chat/bookmark-analysis", {
@@ -72,7 +124,7 @@ function startAnalysisStream(args: {
     "signal",
     { value: browser.signal },
   );
-  const response = createSseStreamResponse({
+  const { response, completion } = createSseStreamResponse({
     request,
     queue: args.queue,
     priority: 0,
@@ -80,28 +132,29 @@ function startAnalysisStream(args: {
     logContext,
     ragContextStatus: "not_applicable",
     runUpstream: args.runUpstream,
-    upstreamAbort,
-    analysisTarget: { feature: "bookmark-analysis", entityId: "bookmark-1" },
+    upstreamAbort: new AbortController(),
+    finishAfterDisconnect: true,
   });
-  return { browser, upstreamAbort, response };
+  persistAnalysisAfterResponse(
+    { feature: "bookmark-analysis", entityId: "bookmark-1" },
+    completion,
+  );
+  return { browser, response };
 }
 
 describe("AI analysis generation after client disconnect", () => {
   beforeEach(() => {
-    mockedPersistAnalysis.mockClear();
+    analysisRows.clear();
+    afterCallbacks.length = 0;
+    tagsRevalidatedInsideAfter.length = 0;
+    tagsRevalidatedOutsideAfter.length = 0;
   });
 
-  it("persists the validated analysis when the browser leaves after output started", async () => {
+  it("makes the analysis readable and flushes its cache tags after the browser leaves mid-stream", async () => {
     const outputStarted = createGate();
     const releaseCompletion = createGate();
-    const persisted = createGate();
-    mockedPersistAnalysis.mockImplementationOnce(() => {
-      persisted.open();
-      return Promise.resolve();
-    });
-
     const queue = new UpstreamRequestQueue({ key: "finish-after-disconnect", maxParallel: 1 });
-    const { browser, upstreamAbort, response } = startAnalysisStream({
+    const { browser, response } = startAnalysisRequest({
       queue,
       runUpstream: async (onStreamEvent) => {
         onStreamEvent?.({ event: "message_delta", data: { delta: '{"summary":' } });
@@ -119,17 +172,17 @@ describe("AI analysis generation after client disconnect", () => {
     await reader.cancel();
     browser.abort();
 
-    expect(upstreamAbort.signal.aborted).toBe(false);
-    expect(queue.snapshot.running).toBe(1);
-
+    // The connection closed, so Next starts the after() callbacks while the run continues.
+    const afterPhase = runAfterCallbacks();
     releaseCompletion.open();
-    await persisted.promise;
+    await afterPhase;
 
-    expect(mockedPersistAnalysis).toHaveBeenCalledWith(
-      "bookmarks",
-      "bookmark-1",
-      expect.objectContaining({ summary: bookmarkAnalysis.summary }),
+    const stored = await getCachedAnalysis("bookmarks", "bookmark-1");
+    expect(stored?.analysis).toEqual(bookmarkAnalysis);
+    expect(tagsRevalidatedInsideAfter).toEqual(
+      expect.arrayContaining(buildAnalysisCacheTags("bookmarks", "bookmark-1")),
     );
+    expect(tagsRevalidatedOutsideAfter).toEqual([]);
   });
 
   it("drops a still-queued analysis when the browser leaves before it starts", async () => {
@@ -144,15 +197,15 @@ describe("AI analysis generation after client disconnect", () => {
     });
 
     const runQueued = vi.fn<() => Promise<string>>().mockResolvedValue("{}");
-    const { browser, upstreamAbort } = startAnalysisStream({ queue, runUpstream: runQueued });
+    const { browser } = startAnalysisRequest({ queue, runUpstream: runQueued });
 
     browser.abort();
+    await runAfterCallbacks();
     releaseBlocker.open();
     await blocker.result;
 
-    expect(upstreamAbort.signal.aborted).toBe(true);
-    expect(queue.snapshot.pending).toBe(0);
     expect(runQueued).not.toHaveBeenCalled();
-    expect(mockedPersistAnalysis).not.toHaveBeenCalled();
+    expect(await getCachedAnalysis("bookmarks", "bookmark-1")).toBeNull();
+    expect(queue.snapshot.pending).toBe(0);
   });
 });
