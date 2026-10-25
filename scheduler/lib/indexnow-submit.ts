@@ -11,6 +11,11 @@ import logger from "../../src/lib/utils/logger";
 
 const LOG_PREFIX = "[IndexNow]";
 
+// IndexNow announces recently added or updated URLs; resubmitting unchanged URLs is discouraged
+// (https://www.indexnow.org/faq). Submission runs once per scheduler start, which is once per
+// deploy, so a URL modified within the last day is announced only by that day's deploys.
+const RECENT_CHANGE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): Promise<boolean> {
   try {
     const keyRes = await fetch(keyLocationUrl, { method: "GET" });
@@ -72,7 +77,18 @@ export async function submitToIndexNow(
 
   try {
     const sitemapData = await sitemap();
-    const urlList = sitemapData.map((u) => u.url);
+    const changedSince = Date.now() - RECENT_CHANGE_WINDOW_MS;
+    const urlList = sitemapData
+      .filter(
+        (entry) =>
+          entry.lastModified !== undefined &&
+          new Date(entry.lastModified).getTime() >= changedSince,
+      )
+      .map((entry) => entry.url);
+    if (urlList.length === 0) {
+      console.info(`${LOG_PREFIX} No sitemap URL changed in the last day; nothing to submit.`);
+      return;
+    }
 
     // Build payload per IndexNow spec
     const payload: Record<string, unknown> = {
