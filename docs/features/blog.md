@@ -42,8 +42,9 @@ The "blog" functionality encompasses components and utilities that manage the di
 
 ## Notes
 
-- Draft frontmatter excludes posts from production inventories and their sitemap projection;
-  direct slug lookups intentionally remain available. A draft is not a private or unindexed page.
+- Draft frontmatter excludes posts from production blog listings and their sitemap projection;
+  direct slug lookups, site-search ingestion, and RAG inventories still include drafts. A draft
+  is not a private or unindexed page.
 - `data/blog/posts/automated-sitemap-submissions-bing-google.mdx` distinguishes Google sitemap
   submission, Bing sitemap registration, and IndexNow changed-URL notifications; its examples
   are API helpers, not the repository scheduler's CLI contract.
