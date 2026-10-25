@@ -1,5 +1,9 @@
 # Project Architecture Entrypoint
 
+Image deployment and scheduler dependency configuration live in `docs/ops/deployment.md`;
+`__tests__/scripts/dokploy-deploy-image.test.ts` exercises the actual shell/API boundary so
+runtime-reference changes cannot silently reuse an earlier failed deployment.
+
 This document serves as the master index for all architectural documentation in the repository. It provides a high-level overview of each defined "functionality," its core objective, and direct links to its detailed documentation and visual diagrams.
 
 **Start here** to understand the structure and responsibilities of different parts of the application.
