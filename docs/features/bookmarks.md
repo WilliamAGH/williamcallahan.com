@@ -67,7 +67,7 @@ Derived columns are computed during normalization (`lib/bookmarks/normalize.ts`)
 
 Enrichment-owned columns are listed once in `BOOKMARK_ENRICHMENT_FIELDS` (`lib/db/bookmark-record-mapper.ts`); all consumers bind that list:
 
-- **Upsert** (`lib/db/mutations/bookmarks.ts`): normal partial refreshes use `COALESCE(excluded.col, bookmarks.col)`. Blocked captures instead persist explicit NULL enrichment after normalization/hydration has selected any healthy archive to retain; stale challenge fields must not be resurrected.
+- **Upsert** (`lib/db/mutations/bookmarks.ts`): preservation uses existing rows inside the locked write transaction. Healthy fields hydrate partial captures; proven challenge fields do not. The resulting explicit NULLs remain NULL rather than resurrecting rejected content. A failed archive read aborts the write.
 - **Hydration** (`lib/bookmarks/enrichment-hydration.ts`): freshly normalized Karakeep payloads are merged with prior persisted rows before enrichment, so unchanged bookmarks skip image work and partial refreshes carry enrichment forward.
 - **Refresh gate** (`lib/bookmarks/refresh-helpers.ts`): the raw-API checksum is computed with the same canonical `calculateBookmarksChecksum`; in data-updater mode the cached short-circuit is bypassed while any bookmark still needs its Karakeep asset upgraded to an S3 CDN URL (`needsKarakeepImageUpgrade`).
 - **Scheduled refresh operation** (`lib/bookmarks/data-fetch-refresh.server.ts`): compares against PostgreSQL without triggering an external read, then performs the explicit Karakeep refresh through `service.server.ts` and returns the batch-operation summary. Refresh coalescing and locking belong to the bookmark service, not a separate job queue.
@@ -140,7 +140,7 @@ The discovery feed ranks bookmarks by blended engagement and recency signals rat
 **Feed Modes** (`?feed=discover|latest`):
 
 - **Discover** (default): Recency-primary ranking (82% recency + 18% engagement). Client-side SWR fetch with `fallbackData: undefined` triggers a loading skeleton while the API returns engagement-ranked results. Falls back to latest order when discovery scores are unavailable.
-- **Latest**: `/bookmarks?feed=latest&page=N` renders the requested chronological slice using server-provided `initialData` via SWR `fallbackData`, with native pagination anchors and callback enhancement. Pages above 1 self-canonicalize with that query; page 1 canonicalizes to `/bookmarks`. Invalid/out-of-range Latest pages use `notFound()` and noindex metadata.
+- **Latest**: `/bookmarks?feed=latest&page=N` renders the requested chronological slice using server-provided `initialData` via SWR `fallbackData`, with native pagination navigation so the address, history and server selection agree. Pages above 1 self-canonicalize with that query; page 1 canonicalizes to `/bookmarks`. Invalid/out-of-range Latest pages use `notFound()` and noindex metadata.
 - **Discover navigation**: Topic deduplication retains full `totalCount` values for “See all” links, and the feed exposes a native Latest link.
 
 **Data Flow**:

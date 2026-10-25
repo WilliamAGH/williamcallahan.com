@@ -55,16 +55,8 @@ export function hydrateEnrichment(
 export async function hydrateEnrichmentFromDatabase(
   bookmarks: UnifiedBookmark[],
 ): Promise<UnifiedBookmark[]> {
-  try {
-    const { getAllBookmarks } = await import("@/lib/db/queries/bookmarks");
-    return hydrateEnrichment(bookmarks, await getAllBookmarks());
-  } catch (error) {
-    console.warn(
-      "[refreshBookmarksData] Prior enrichment unavailable; continuing with raw dataset:",
-      String(error),
-    );
-    return bookmarks;
-  }
+  const { getAllBookmarks } = await import("@/lib/db/queries/bookmarks");
+  return hydrateEnrichment(bookmarks, await getAllBookmarks());
 }
 
 /**

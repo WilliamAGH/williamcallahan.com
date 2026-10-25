@@ -38,7 +38,7 @@ File/Path Functionality Description
   - [x] **bookmarks/**
     - [x] `bookmark-ai-analysis.client.tsx` `bookmarks` - AI analysis component for bookmarks with SSR cache support
     - [x] `bookmark-card.client.tsx` `bookmarks` - Bookmark card UI (2025-06: unified OG images)
-    - [x] `bookmark-pagination-nav.client.tsx` `bookmarks` - Native Latest-feed pagination anchors with callback enhancement; tag URL/callback controls
+    - [x] `bookmark-pagination-nav.client.tsx` `bookmarks` - Native Latest-feed pagination navigation; tag URL/callback controls
     - [x] `bookmark-refresh-alerts.client.tsx` `bookmarks` - Refresh status alerts
     - [x] `bookmarks-client-with-window.tsx` `bookmarks` - Bookmarks window entrypoint; derives feed mode from URL
     - [x] `bookmarks-paginated.client.tsx` `bookmarks` - Pagination/options routing wrapper
@@ -126,7 +126,7 @@ File/Path Functionality Description
   - [x] `opengraph-logo.tsx` `seo` - OpenGraph logo meta tag component
 - [~] **ui/**
   - [x] `pagination-control.client.tsx` `bookmarks` - Callback pagination with immediate selection and caller-owned loading
-  - [x] `pagination-control-url.client.tsx` `bookmarks` - Native pagination links with optional explicit href builder and callback enhancement
+  - [x] `pagination-control-url.client.tsx` `bookmarks` - Native pagination navigation with optional explicit href builder
   - [x] **terminal/**
     - [x] `terminal-implementation.client.tsx` `terminal` - Terminal core UI implementation
     - [x] `terminal-header.tsx` `terminal` - Header UI with window controls & title

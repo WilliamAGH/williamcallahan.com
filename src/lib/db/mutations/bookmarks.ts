@@ -1,12 +1,13 @@
-import { and, eq, notInArray, sql, type SQL } from "drizzle-orm";
-import type { PgColumn, PgUpdateSetSource } from "drizzle-orm/pg-core";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
 import { getLatestBookmarkLastModified } from "@/lib/bookmarks/content-dates";
 import {
-  BOOKMARK_ENRICHMENT_FIELDS,
+  mapBookmarkSelectsToUnifiedBookmarks,
   mapUnifiedBookmarksToBookmarkInserts,
 } from "@/lib/db/bookmark-record-mapper";
+import { hydrateEnrichment } from "@/lib/bookmarks/enrichment-hydration";
 import { applySlugMapping, reconcileSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
@@ -34,29 +35,12 @@ const UPSERT_RETRY_DELAY_MS = 500;
 
 type BookmarkWriteExecutor = Pick<typeof db, "delete" | "insert">;
 
-/**
- * Enrichment-owned columns ([BOOKMARK_ENRICHMENT_FIELDS]) are produced by
- * OpenGraph/logo/computed-field pipelines, not by the Karakeep source
- * payload. A refresh that carries no enrichment must not erase previously
- * persisted values, so on conflict these columns keep the stored value
- * whenever the incoming one is NULL. Blocked captures instead own their
- * explicit nulls: normalization/hydration has already selected any healthy
- * archived data to retain, and COALESCE must not resurrect challenge content.
- */
-const preserveEnrichment = (column: PgColumn): SQL =>
-  sql`case when excluded.content->>'crawlStatus' = 'blocked'
-    then excluded.${sql.identifier(column.name)}
-    else coalesce(excluded.${sql.identifier(column.name)}, ${column}) end`;
-
+/** The locked write transaction hydrates healthy fields before building this update. */
 export const buildBookmarkConflictUpdate = ({
   id: _id,
   ...updatableFields
 }: BookmarkInsert): PgUpdateSetSource<typeof bookmarks> => {
-  const set: PgUpdateSetSource<typeof bookmarks> = { ...updatableFields };
-  for (const field of BOOKMARK_ENRICHMENT_FIELDS) {
-    set[field] = preserveEnrichment(bookmarks[field]);
-  }
-  return set;
+  return updatableFields;
 };
 
 const buildBookmarkIndexStatePayload = (
@@ -310,6 +294,20 @@ async function writeUnifiedBookmarks(
         const persistedSlugs = await getSlugMappingRowsFromDatabase(tx);
         const mapping = reconcileSlugMapping(bookmarksData, persistedSlugs);
         const reconciledBookmarks = applySlugMapping(bookmarksData, mapping);
+        // Preservation and rejection must use the same locked snapshot as the write.
+        // If this read fails, no update can erase an archive or revive rejected data.
+        if (reconciledBookmarks.length > 0) {
+          const priorRows = await tx
+            .select()
+            .from(bookmarks)
+            .where(
+              inArray(
+                bookmarks.id,
+                reconciledBookmarks.map((bookmark) => bookmark.id),
+              ),
+            );
+          hydrateEnrichment(reconciledBookmarks, mapBookmarkSelectsToUnifiedBookmarks(priorRows));
+        }
         const inserts = mapUnifiedBookmarksToBookmarkInserts(reconciledBookmarks);
 
         await upsertBookmarks(tx, inserts);

@@ -1,7 +1,7 @@
 /**
  * Bookmark Pagination Navigation
  *
- * Renders crawlable feed links with callback enhancement, or the existing
+ * Renders crawlable feed links with native navigation, or the existing
  * URL-based and callback-based controls for other bookmark views.
  *
  * @module components/features/bookmarks/bookmark-pagination-nav.client
@@ -49,7 +49,6 @@ export const BookmarkPaginationNav: React.FC<{
           isLoading={isLoading}
           baseUrl={baseUrl}
           getPageHref={getPageHref}
-          onPageChange={getPageHref ? onPageChange : undefined}
           showPageInfo={getPageHref ? false : undefined}
         />
       ) : (
