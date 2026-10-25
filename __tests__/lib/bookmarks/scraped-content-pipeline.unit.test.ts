@@ -5,6 +5,7 @@ import {
   fetchAllPagesFromApi,
 } from "@/lib/bookmarks/refresh-helpers";
 import { normalizeBookmark, normalizeBookmarks } from "@/lib/bookmarks/normalize";
+import { normalizeBookmarkTag } from "@/lib/bookmarks/utils";
 import type { RawApiBookmark } from "@/types/schemas/bookmark";
 
 function makeRawBookmark(id: string, htmlContent: string | null): RawApiBookmark {
@@ -89,6 +90,23 @@ describe("Scraped content pipeline", () => {
     expect(normalizeBookmark(rawBookmark, 0)?.tags).toEqual([
       { id: "tag-ai-ml", name: "AI & ML", slug: "ai-and-ml", attachedBy: "user" },
     ]);
+  });
+
+  it("canonicalizes string tags and replaces stale persisted tag slugs", () => {
+    expect(normalizeBookmarkTag("AI & ML")).toEqual({
+      id: "AI & ML",
+      name: "AI & ML",
+      slug: "ai-and-ml",
+      color: undefined,
+    });
+    expect(
+      normalizeBookmarkTag({
+        id: "tag-ai-ml",
+        name: "AI & ML",
+        slug: "ai-&-ml",
+        color: "blue",
+      }),
+    ).toEqual({ id: "tag-ai-ml", name: "AI & ML", slug: "ai-and-ml", color: "blue" });
   });
 
   it("drops raw bookmarks with an empty source URL before persistence", () => {

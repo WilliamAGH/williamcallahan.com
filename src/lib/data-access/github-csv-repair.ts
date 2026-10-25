@@ -129,11 +129,16 @@ async function updateRepoChecksum(
   }
 }
 
-async function repairFromApi(repoOwner: string, repoName: string): Promise<boolean> {
+async function repairFromApi(
+  repoOwner: string,
+  repoName: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
   let contributorStats: GithubContributorStatsEntry[];
   try {
-    contributorStats = await fetchContributorStats(repoOwner, repoName, GITHUB_REPO_OWNER);
+    contributorStats = await fetchContributorStats(repoOwner, repoName, GITHUB_REPO_OWNER, signal);
   } catch (error: unknown) {
+    signal?.throwIfAborted();
     if (error instanceof GitHubContributorStatsPendingError) {
       console.info(`[GitHub-CSV] Stats generating for ${repoOwner}/${repoName}`);
     } else if (error instanceof GitHubContributorStatsRateLimitError) {
@@ -161,6 +166,7 @@ async function repairFromApi(repoOwner: string, repoName: string): Promise<boole
   }
 
   const nowIso = new Date().toISOString();
+  signal?.throwIfAborted();
   await writeRepoWeeklyStatsRecord(repoOwner, repoName, {
     repoOwnerLogin: repoOwner,
     repoName,
@@ -172,7 +178,8 @@ async function repairFromApi(repoOwner: string, repoName: string): Promise<boole
   return true;
 }
 
-export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
+export async function detectAndRepairCsvFiles(signal?: AbortSignal): Promise<CsvRepairResult> {
+  signal?.throwIfAborted();
   console.log("[GitHub-CSV] Running repo weekly stats integrity check and repair...");
 
   if (!isGitHubApiConfigured()) {
@@ -188,9 +195,10 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
 
   let repoList: GraphQLRepoNode[] = [];
   try {
-    const { repositories } = await fetchContributedRepositories(GITHUB_REPO_OWNER);
+    const { repositories } = await fetchContributedRepositories(GITHUB_REPO_OWNER, signal);
     repoList = repositories;
   } catch (error: unknown) {
+    signal?.throwIfAborted();
     const categorized = createCategorizedError(error, "github");
     console.error("[GitHub-CSV] Failed to fetch repository list:", categorized.message);
     return {
@@ -210,11 +218,13 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
   const checksumCircuit = createChecksumCircuit();
 
   for (const repo of repoList) {
+    signal?.throwIfAborted();
     const repoOwner = repo.owner.login;
     const repoName = repo.name;
 
     try {
       const cache = await readRepoWeeklyStatsRecord(repoOwner, repoName);
+      signal?.throwIfAborted();
 
       if (cache && cache.stats.length > 0) {
         const csvString = generateGitHubStatsCSV(cache.stats);
@@ -225,6 +235,7 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
           csvString,
           checksumCircuit,
         );
+        signal?.throwIfAborted();
 
         if (checksumError) {
           checksumFailureCount++;
@@ -265,7 +276,7 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
         console.log(
           `[GitHub-CSV] No existing repo weekly stats for ${repoOwner}/${repoName}, fetching from API`,
         );
-        const success = await repairFromApi(repoOwner, repoName);
+        const success = await repairFromApi(repoOwner, repoName, signal);
         if (success) {
           repairedCount++;
         } else {
@@ -273,6 +284,7 @@ export async function detectAndRepairCsvFiles(): Promise<CsvRepairResult> {
         }
       }
     } catch (error: unknown) {
+      signal?.throwIfAborted();
       const categorized = createCategorizedError(error, "github");
       console.error(`[GitHub-CSV] Error processing ${repoOwner}/${repoName}:`, categorized.message);
       failedCount++;

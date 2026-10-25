@@ -85,9 +85,3 @@ export const PROMPT_LEAKAGE_PATTERNS = [
   "json5",
   String.raw`<\/`,
 ] as const;
-
-export const ANALYSIS_LENGTH_LIMITS = {
-  stringField: 320,
-  listItem: 180,
-  detailField: 140,
-} as const;

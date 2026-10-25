@@ -191,10 +191,12 @@ export function repairCsvData(
  */
 export async function calculateAggregatedWeeklyActivity(
   currentRepoStatIdentifiers: readonly string[],
+  signal?: AbortSignal,
 ): Promise<{
   aggregatedActivity: AggregatedWeeklyActivity[];
   overallDataComplete: boolean;
 } | null> {
+  signal?.throwIfAborted();
   if (process.env.DRY_RUN === "true") {
     debug(
       "[DataAccess/GitHub-Store] DRY RUN mode: skipping aggregated weekly activity calculation.",
@@ -216,6 +218,7 @@ export async function calculateAggregatedWeeklyActivity(
     return { aggregatedActivity: [], overallDataComplete: true }; // No files means data is "complete" in terms of processing what's there
   }
   for (const identifier of repoStatIdentifiers) {
+    signal?.throwIfAborted();
     try {
       const [owner, ...repoParts] = identifier.split("/");
       const repo = repoParts.join("/");
@@ -227,6 +230,7 @@ export async function calculateAggregatedWeeklyActivity(
         continue;
       }
       const cache = await readRepoWeeklyStatsRecord(owner, repo);
+      signal?.throwIfAborted();
       if (!cache) {
         debug(
           `[DataAccess/GitHub-Store] Aggregation: Missing DB cache for ${identifier}, skipping.`,
@@ -256,6 +260,7 @@ export async function calculateAggregatedWeeklyActivity(
         }
       }
     } catch (err: unknown) {
+      signal?.throwIfAborted();
       debug(
         `[DataAccess/GitHub-Store] Aggregation: Error reading ${identifier}, skipping.`,
         err instanceof Error ? err.message : String(err),

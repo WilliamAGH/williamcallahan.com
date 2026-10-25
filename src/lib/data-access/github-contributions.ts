@@ -123,19 +123,23 @@ export function calculateContributionSummary(
 /**
  * Fetch and flatten trailing-year contribution calendar via GraphQL
  */
-export async function fetchTrailingYearContributionCalendar({
-  githubRepoOwner,
-  fromDate,
-  toDate,
-}: {
-  githubRepoOwner: string;
-  fromDate: Date;
-  toDate: Date;
-}): Promise<{ totalContributions: number; contributionDays: ContributionDay[] }> {
+export async function fetchTrailingYearContributionCalendar(
+  {
+    githubRepoOwner,
+    fromDate,
+    toDate,
+  }: {
+    githubRepoOwner: string;
+    fromDate: Date;
+    toDate: Date;
+  },
+  signal?: AbortSignal,
+): Promise<{ totalContributions: number; contributionDays: ContributionDay[] }> {
   const response = await fetchContributionCalendar(
     githubRepoOwner,
     fromDate.toISOString(),
     toDate.toISOString(),
+    signal,
   );
   if (!response.user)
     throw new Error(`GitHub contribution calendar unavailable for ${githubRepoOwner}`);
@@ -152,11 +156,13 @@ export async function fetchTrailingYearContributionCalendar({
 export async function fetchHistoricalContributionTotal(
   username: string,
   before: Date,
+  signal?: AbortSignal,
 ): Promise<number> {
-  const years = await fetchContributionYears(username);
+  const years = await fetchContributionYears(username, signal);
   const historicalEnd = before.getTime() - 1;
   let total = 0;
   for (const year of new Set(years)) {
+    signal?.throwIfAborted();
     const start = Date.UTC(year, 0, 1);
     if (start > historicalEnd) continue;
     const end = Math.min(Date.UTC(year + 1, 0, 1) - 1, historicalEnd);
@@ -164,6 +170,7 @@ export async function fetchHistoricalContributionTotal(
       username,
       new Date(start).toISOString(),
       new Date(end).toISOString(),
+      signal,
     );
     if (!response.user) throw new Error(`GitHub historical calendar unavailable for ${username}`);
     total += response.user.contributionsCollection.contributionCalendar.totalContributions;

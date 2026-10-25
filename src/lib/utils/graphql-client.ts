@@ -65,7 +65,7 @@ export class GraphQLClient {
    * Execute a GraphQL query/mutation
    */
   async request<T = unknown>(request: GraphQLRequest): Promise<GraphQLResponse<T>> {
-    const { query, variables, operationName } = request;
+    const { query, variables, operationName, signal } = request;
 
     if (this.config.debug) {
       debugLog(`GraphQL Request to ${this.config.endpoint}`, "info", { operationName, variables });
@@ -84,6 +84,7 @@ export class GraphQLClient {
           operationName,
         }),
         timeout: this.config.timeout,
+        signal,
       });
 
       if (response.errors && response.errors.length > 0) {
@@ -110,8 +111,12 @@ export class GraphQLClient {
   /**
    * Execute a GraphQL query
    */
-  async query<T = unknown>(query: string, variables?: Record<string, unknown>): Promise<T> {
-    const response = await this.request<T>({ query, variables });
+  async query<T = unknown>(
+    query: string,
+    variables?: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    const response = await this.request<T>({ query, variables, signal });
     if (!response.data) {
       throw new Error("No data returned from GraphQL query");
     }

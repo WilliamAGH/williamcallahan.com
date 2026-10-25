@@ -87,11 +87,24 @@ async function loadWriter(
   const publish = (
     activity = healthyActivity,
     intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
-  ) => writeGitHubActivityRefreshToDb(activity, summaryFor(activity), [], intent);
+    signal?: AbortSignal,
+  ) => writeGitHubActivityRefreshToDb(activity, summaryFor(activity), [], intent, signal);
   return { captureMessage, events, getRecords: () => records, publish, readGitHubActivityFromDb };
 }
 
 describe("GitHub activity atomic persistence", () => {
+  it("does not start publication when the collection deadline has expired", async () => {
+    const writer = await loadWriter(healthyActivity);
+    const controller = new AbortController();
+    const deadline = new Error("collection deadline");
+    controller.abort(deadline);
+    await expect(writer.publish(healthyActivity, undefined, controller.signal)).rejects.toBe(
+      deadline,
+    );
+    expect(writer.events).toEqual([]);
+    expect(writer.getRecords()).toEqual([]);
+  });
+
   it("locks, reads, and writes every projection with one timestamp", async () => {
     const { events, getRecords, publish } = await loadWriter(healthyActivity);
     await expect(publish()).resolves.toBe(true);

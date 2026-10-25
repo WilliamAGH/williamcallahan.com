@@ -13,7 +13,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { fetchBooks } from "@/lib/books/audiobookshelf.server";
+import { fetchBooksWithFallback } from "@/lib/books/audiobookshelf.server";
 import { buildDirectCoverUrl } from "@/lib/books/transforms";
 import { applyBookCoverBlurs } from "@/lib/books/image-utils.server";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
@@ -53,7 +53,17 @@ export async function generateBooksDataset(
   try {
     // Step 1: Fetch books from AudioBookShelf
     logger.info("[BooksGenerator] Fetching books from AudioBookShelf...");
-    const books: Book[] = await fetchBooks();
+    const result = await fetchBooksWithFallback({ allowStale: false });
+    if (result.error) {
+      // The ABS owner logged the source failure. Keep the previous dataset untouched.
+      return {
+        success: false,
+        operation: "books",
+        error: result.error.message,
+        duration: (getMonotonicTime() - startTime) / 1000,
+      };
+    }
+    const books: Book[] = result.books;
     logger.info(`[BooksGenerator] Fetched ${books.length} books`);
 
     if (books.length === 0) {

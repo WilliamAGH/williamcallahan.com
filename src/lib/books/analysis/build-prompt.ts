@@ -7,6 +7,7 @@
  */
 
 import type { BookAnalysisContext } from "@/types/book-ai-analysis";
+import { ANALYSIS_LENGTH_INSTRUCTIONS } from "@/types/schemas/ai-analysis-common";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System Prompt
@@ -86,8 +87,9 @@ export function buildBookAnalysisUserPrompt(context: BookAnalysisContext): strin
   // Response format section
   sections.push("");
   sections.push("EXPECTED JSON RESPONSE:");
+  sections.push(ANALYSIS_LENGTH_INSTRUCTIONS);
   sections.push(`{
-  "summary": "2-3 sentence overview of the book's content and significance",
+  "summary": "a concise overview of the book's content and significance within the character budget",
   "category": "primary genre/category (e.g., 'Business Strategy', 'Science Fiction', 'Technical Reference')",
   "keyThemes": ["3-5 key themes, ideas, or takeaways from the book"],
   "idealReader": "description of who would benefit most from reading this book",

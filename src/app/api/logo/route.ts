@@ -11,13 +11,13 @@
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
-import { preventCaching } from "@/lib/utils/api-utils";
+import { createErrorResponse, NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
-import { IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { parseS3Key } from "@/lib/utils/hash-utils";
+import { createLogoImageResponse } from "@/lib/image-handling/logo-response.server";
 
 /**
  * GET handler for logo fetching
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const forceRefresh = searchParams.get("forceRefresh") === "true";
 
   if (!website && !company) {
-    return NextResponse.json({ error: "Website or company name required" }, { status: 400 });
+    return createErrorResponse("Website or company name required", 400);
   }
 
   try {
@@ -70,17 +70,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (website) {
       const resolved = resolveDomainInput(website);
       if (!resolved) {
-        return NextResponse.json({ error: "Website must include a valid domain" }, { status: 400 });
+        return createErrorResponse("Website must include a valid domain", 400);
       }
       domain = resolved;
     } else if (company) {
       const resolved = resolveDomainInput(company);
       if (!resolved) {
-        return NextResponse.json(
-          {
-            error: "Company fallback requires a domain (e.g., example.com) or a website parameter",
-          },
-          { status: 400 },
+        return createErrorResponse(
+          "Company fallback requires a domain (e.g., example.com) or a website parameter",
+          400,
         );
       }
       domain = resolved;
@@ -98,52 +96,36 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return new NextResponse(null, {
         status: 404,
         headers: {
-          "Cache-Control": "public, max-age=3600",
+          ...NO_STORE_HEADERS,
           "x-logo-error": error,
           "x-logo-domain": domain,
         },
       });
     }
 
-    // Redirect to CDN if available
-    if (logoMeta.cdnUrl) {
-      logger.debug(`[Logo API] Redirecting logo for ${domain} to CDN: ${logoMeta.cdnUrl}`);
-      return NextResponse.redirect(logoMeta.cdnUrl, {
-        status: 301,
-        headers: {
-          "Cache-Control": "public, max-age=31536000, immutable",
-          ...IMAGE_CDN_CACHE_HEADERS,
-        },
-      });
-    }
-
+    let logoUrl = logoMeta.cdnUrl;
     // If a valid S3 key exists but cdnUrl is missing, construct a URL directly.
-    if (logoMeta.s3Key) {
+    if (!logoUrl && logoMeta.s3Key) {
       try {
-        const cdnUrl = buildCdnUrl(logoMeta.s3Key, getCdnConfigFromEnv());
-        logger.debug(`[Logo API] Reconstructing CDN/S3 URL for ${domain}: ${cdnUrl}`);
-        return NextResponse.redirect(cdnUrl, {
-          status: 301,
-          headers: {
-            "Cache-Control": "public, max-age=31536000, immutable",
-            ...IMAGE_CDN_CACHE_HEADERS,
-          },
-        });
+        logoUrl = buildCdnUrl(logoMeta.s3Key, getCdnConfigFromEnv());
       } catch (e) {
         logger.warn(`[Logo API] Failed to build CDN URL for ${domain}:`, e);
       }
     }
 
     // Final fallback – return placeholder rather than 404 to avoid broken icons
-    logger.error(`[Logo API] No content available for logo of domain: ${domain}`);
-    return NextResponse.redirect(getStaticImageUrl("/images/opengraph-placeholder.png"), 302);
+    if (!logoUrl) {
+      logger.error(`[Logo API] No content available for logo of domain: ${domain}`);
+      logoUrl = getStaticImageUrl("/images/opengraph-placeholder.png");
+    }
+    return await createLogoImageResponse(logoUrl, domain);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Logo API] Unexpected error:", errorMessage);
     return new NextResponse(null, {
       status: 500,
       headers: {
-        "Cache-Control": "public, max-age=300", // Cache errors for 5 minutes
+        ...NO_STORE_HEADERS,
         "x-logo-error": "Internal server error",
       },
     });

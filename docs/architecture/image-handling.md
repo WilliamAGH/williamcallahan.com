@@ -66,6 +66,12 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 5. `image-analysis.ts` / `image-compare.ts` flag globe icons, `FailureTracker` tracks domains via `LOGO_BLOCKLIST_STORE_KEY` on repeated failures.
 6. Result is persisted/streamed to S3, CDN URL returned, placeholder fallback used only if every source fails.
 
+`/api/logo` and `/api/logo/invert` share `lib/image-handling/logo-response.server.ts` to stream
+validated first-party CDN image bytes with a bounded fetch, rather than redirecting: Next's
+internal optimizer does not follow a local route's redirect. Only successful
+images receive immutable caching. The proxy leaves optimizer caching to Next, and Cloudflare
+image rules exclude 4xx/5xx responses from edge storage.
+
 > **Logo `<Image>` behavior:** Whenever the resolved `src` points at `/api/cache/images`, `<LogoImage>` sets `unoptimized` so Next.js skips the built-in optimizer. The proxy already resizes/streams logo bytes. `/api/assets` is **not** bypassed — it streams raw bytes that benefit from Next.js optimization (WebP/AVIF conversion, responsive srcset). See `shouldBypassOptimizer` in `cdn-utils.ts`.
 
 ### Bookmark Cards & Sharing Links
@@ -170,7 +176,8 @@ Keep this document synchronized with real code: every new image entry point, val
 | `/api/twitter-image/[...path]`                           | N/A (local API route)         | **Yes**        | Yes (responsive) / Recommended (fixed) | No Next.js optimization  |
 | `/api/assets/[assetId]` (Karakeep proxy)                 | N/A (local API route)         | **No**         | Yes (responsive)                       | Next.js `/_next/image`   |
 | Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Yes (responsive) / Recommended (fixed) | Next.js                  |
-| `/api/logo`, `/api/og-image`                             | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
+| `/api/logo`                                             | Direct image bytes            | **No**         | Yes (responsive) / Recommended (fixed) | Next.js optimizer        |
+| `/api/og-image`                                         | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
 | Tracking pixels (`<noscript>` analytics)                 | **Direct external URL**       | N/A            | N/A                                    | None (use plain `<img>`) |
 
 ### Why This Matters

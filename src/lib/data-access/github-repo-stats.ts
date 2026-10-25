@@ -3,9 +3,9 @@
  * @module data-access/github-repo-stats
  */
 
-import { BatchProcessor } from "@/lib/batch-processing";
 import { categorizeRepository, createEmptyCategoryStats } from "./github-processing";
 import { processSingleRepository } from "./github-repo-processor";
+import { waitForGitHubRetry } from "./github-refresh-budget";
 import type { GraphQLRepoNode } from "@/types/github";
 import type { GitHubActivitySummary, PriorYearCommitSummary } from "@/types/schemas/github-storage";
 import type {
@@ -111,51 +111,45 @@ function aggregateResults(repoResults: RepoWithResult[]): RepoProcessingResult {
   };
 }
 
-export async function processRepositoryStats({
-  repos,
-  githubRepoOwner,
-  trailingYearFromDate,
-  now,
-}: RepoProcessingInput): Promise<RepoProcessingResult> {
+export async function processRepositoryStats(
+  { repos, githubRepoOwner, trailingYearFromDate, now }: RepoProcessingInput,
+  signal?: AbortSignal,
+): Promise<RepoProcessingResult> {
   const successfulResults: RepoWithResult[] = [];
-
-  const repoProcessor = new BatchProcessor<GraphQLRepoNode, SingleRepoProcessingResult>(
-    "github-repo-stats",
-    async (repo) =>
-      processSingleRepository({
+  let failedRepoCount = 0;
+  for (let offset = 0; offset < repos.length; offset += CONCURRENT_REPO_LIMIT) {
+    signal?.throwIfAborted();
+    const batch = repos.slice(offset, offset + CONCURRENT_REPO_LIMIT);
+    // Drain every active request on cancellation before returning or starting another batch.
+    const results = await Promise.allSettled(
+      batch.map(async (repo) => ({
         repo,
-        githubRepoOwner,
-        trailingYearFromDate,
-        now,
-      }),
-    {
-      batchSize: CONCURRENT_REPO_LIMIT,
-      timeout: 300000,
-      onProgress: (current, total, failed) => {
-        console.log(
-          `[DataAccess/GitHub] Processing repositories: ${current}/${total} (${failed} failed)`,
-        );
-      },
-    },
-  );
-
-  const batchResults = await repoProcessor.processBatch(repos);
-
-  // Collect successful results with their repos
-  for (const [repo, result] of batchResults.successful.entries()) {
-    successfulResults.push({ repo, result });
+        result: await processSingleRepository(
+          { repo, githubRepoOwner, trailingYearFromDate, now },
+          signal,
+        ),
+      })),
+    );
+    signal?.throwIfAborted();
+    for (const result of results) {
+      if (result.status === "fulfilled") successfulResults.push(result.value);
+      else failedRepoCount++;
+    }
+    console.log(
+      `[DataAccess/GitHub] Processing repositories: ${Math.min(offset + batch.length, repos.length)}/${repos.length} (${failedRepoCount} failed)`,
+    );
+    if (offset + batch.length < repos.length) await waitForGitHubRetry(500, signal);
   }
 
   const aggregated = aggregateResults(successfulResults);
 
-  if (batchResults.failed.size > 0) {
-    console.warn(`[DataAccess/GitHub] Failed to process ${batchResults.failed.size} repositories`);
+  if (failedRepoCount > 0) {
+    console.warn(`[DataAccess/GitHub] Failed to process ${failedRepoCount} repositories`);
   }
 
   return {
     ...aggregated,
-    allTimeOverallDataComplete:
-      aggregated.allTimeOverallDataComplete && batchResults.failed.size === 0,
-    failedRepoCount: batchResults.failed.size,
+    allTimeOverallDataComplete: aggregated.allTimeOverallDataComplete && failedRepoCount === 0,
+    failedRepoCount,
   };
 }

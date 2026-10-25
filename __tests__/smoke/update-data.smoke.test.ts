@@ -188,7 +188,7 @@ describe("GitHub stats updater log severity", () => {
 
       expect(result.scannedRepos).toBe(1);
       expect(result.failedRepairs).toBe(1);
-      expect(fetchContributorStats).toHaveBeenCalledWith("owner", "repo", "owner");
+      expect(fetchContributorStats).toHaveBeenCalledWith("owner", "repo", "owner", undefined);
       expect(infoSpy).toHaveBeenCalledWith("[GitHub-CSV] Stats generating for owner/repo");
       expect(warnSpy).not.toHaveBeenCalledWith(
         expect.stringContaining("[GitHub-CSV] Invalid stats"),

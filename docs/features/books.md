@@ -2,6 +2,15 @@
 
 Personal reading list sourced from AudioBookShelf and other metadata providers.
 
+## Refresh failure contract
+
+`fetchBooksWithFallback` and `fetchBookListItemsWithFallback` preserve the original upstream
+`error` alongside graceful unavailable results. Their strict array wrappers reject that error;
+refresh and index builders must never persist an unavailable library as an empty success.
+`generateBooksDataset` requests fresh data and leaves the published snapshot untouched when
+the source fails. A successful, genuinely empty library remains a valid no-op. The existing
+levelled logger retains source error names/messages without dumping request credentials.
+
 ## Schema
 
 **Schema Location:** `types/schemas/book.ts`

@@ -7,6 +7,7 @@
  */
 
 import type { BookmarkAnalysisContext } from "@/types/bookmark-ai-analysis";
+import { ANALYSIS_LENGTH_INSTRUCTIONS } from "@/types/schemas/ai-analysis-common";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System Prompt
@@ -76,8 +77,9 @@ export function buildBookmarkAnalysisUserPrompt(context: BookmarkAnalysisContext
   // Response format section
   sections.push("");
   sections.push("EXPECTED JSON RESPONSE:");
+  sections.push(ANALYSIS_LENGTH_INSTRUCTIONS);
   sections.push(`{
-  "summary": "2-3 sentence overview of what this content is about",
+  "summary": "a concise overview of what this content is about within the character budget",
   "category": "a concise category label appropriate to the content (e.g., 'Python Library', 'Recipe', 'Research Paper', 'Design Tool', 'Travel Guide', 'Album Review')",
   "highlights": ["3-5 key points, notable aspects, or main takeaways"],
   "contextualDetails": {

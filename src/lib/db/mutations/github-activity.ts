@@ -136,11 +136,15 @@ export async function writeGitHubActivityRefreshToDb(
   summary: GitHubActivitySummary,
   aggregatedActivity: AggregatedWeeklyActivity[],
   intent: GitHubActivityWriteIntent,
+  signal?: AbortSignal,
 ): Promise<boolean> {
   assertDatabaseWriteAllowed("writeGitHubActivityRefreshToDb");
+  signal?.throwIfAborted();
   const published = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${GITHUB_ACTIVITY_REFRESH_LOCK}))`);
+    signal?.throwIfAborted();
     const existingActivity = await readGitHubActivityRefreshPreconditionFromDb(tx);
+    signal?.throwIfAborted();
     if (!canPublishGitHubActivity(activity, intent, existingActivity)) {
       return false;
     }
@@ -172,6 +176,7 @@ export async function writeGitHubActivityRefreshToDb(
     }
 
     const updatedAt = Date.now();
+    signal?.throwIfAborted();
     await tx
       .insert(githubActivityStore)
       .values([
@@ -198,6 +203,7 @@ export async function writeGitHubActivityRefreshToDb(
         target: [githubActivityStore.dataType, githubActivityStore.qualifier],
         set: { payload: sql`excluded.payload`, updatedAt },
       });
+    signal?.throwIfAborted();
     return true;
   });
   if (published) {

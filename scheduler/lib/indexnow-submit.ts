@@ -7,6 +7,7 @@
  */
 
 import sitemap from "../../src/app/sitemap";
+import logger from "../../src/lib/utils/logger";
 
 const LOG_PREFIX = "[IndexNow]";
 
@@ -16,14 +17,14 @@ async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): P
     const body = await keyRes.text();
 
     if (!keyRes.ok) {
-      console.error(
+      logger.error(
         `${LOG_PREFIX} keyLocation ${keyLocationUrl} returned HTTP ${keyRes.status}. Aborting submission.`,
       );
       return false;
     }
 
     if (body.trim() !== expectedKey) {
-      console.error(
+      logger.error(
         `${LOG_PREFIX} keyLocation file content mismatch. Expected '${expectedKey}', got '${body.trim()}'. Aborting submission.`,
       );
       return false;
@@ -31,7 +32,7 @@ async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): P
 
     return true;
   } catch (error_) {
-    console.error(`${LOG_PREFIX} Failed to verify keyLocation (${keyLocationUrl}):`, error_);
+    logger.error(`${LOG_PREFIX} Failed to verify keyLocation (${keyLocationUrl}):`, error_);
     // RC1a: error logged; false is the documented contract for callers
   }
   return false;
@@ -56,7 +57,7 @@ export async function submitToIndexNow(
     return;
   }
   if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
-    console.error(
+    logger.error(
       `${LOG_PREFIX} Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.`,
     );
     return;
@@ -112,11 +113,9 @@ export async function submitToIndexNow(
       console.info(`${LOG_PREFIX} Payload accepted. Submitted ${urlList.length} URLs`);
     } else {
       const bodyText = await res.text().catch(() => "<body unavailable>");
-      console.error(
-        `${LOG_PREFIX} Submission failed. Status: ${res.status}. Response: ${bodyText}`,
-      );
+      logger.error(`${LOG_PREFIX} Submission failed. Status: ${res.status}. Response: ${bodyText}`);
     }
   } catch (err) {
-    console.error(`${LOG_PREFIX} Error while submitting payload:`, err);
+    logger.error(`${LOG_PREFIX} Error while submitting payload:`, err);
   }
 }

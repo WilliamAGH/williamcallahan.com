@@ -31,6 +31,27 @@ afterAll(() => {
 });
 
 describe("OpenGraph URL security", () => {
+  it("preserves cancellation after a request has started instead of reporting a timeout", async () => {
+    const controller = new AbortController();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Request aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    try {
+      const request = fetchWithTimeout("https://example.com", { signal: controller.signal });
+      controller.abort();
+      await expect(request).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it.each(["https://example.com", "http://127.0.0.1", "javascript:alert(1)"])(
     "projects the canonical schema for %s",
     (url) => expect(validateOgUrl(url)).toBe(openGraphUrlSchema.safeParse(url).success),

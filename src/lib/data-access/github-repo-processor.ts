@@ -34,8 +34,9 @@ async function fetchRepoStats(
   repoOwner: string,
   repoName: string,
   githubRepoOwner: string,
+  signal?: AbortSignal,
 ): Promise<{ stats: RepoRawWeeklyStat[]; status: RepoWeeklyStatCache["status"] }> {
-  const contributors = await fetchContributorStats(repoOwner, repoName, githubRepoOwner);
+  const contributors = await fetchContributorStats(repoOwner, repoName, githubRepoOwner, signal);
   const ownerStats = filterContributorStats(contributors, githubRepoOwner);
 
   if (!ownerStats?.weeks?.length) {
@@ -93,12 +94,11 @@ function accumulateWeeklyStats(
   return { yearAdded, yearRemoved, olderCommits, olderAdded, olderRemoved };
 }
 
-export async function processSingleRepository({
-  repo,
-  githubRepoOwner,
-  trailingYearFromDate,
-  now,
-}: SingleRepoProcessingInput): Promise<SingleRepoProcessingResult> {
+export async function processSingleRepository(
+  { repo, githubRepoOwner, trailingYearFromDate, now }: SingleRepoProcessingInput,
+  signal?: AbortSignal,
+): Promise<SingleRepoProcessingResult> {
+  signal?.throwIfAborted();
   const repoOwner = repo.owner.login;
   const repoName = repo.name;
 
@@ -107,7 +107,7 @@ export async function processSingleRepository({
   let dataComplete = true;
 
   try {
-    const result = await fetchRepoStats(repoOwner, repoName, githubRepoOwner);
+    const result = await fetchRepoStats(repoOwner, repoName, githubRepoOwner, signal);
     stats = result.stats;
     status = result.status;
 
@@ -116,6 +116,7 @@ export async function processSingleRepository({
       dataComplete = false;
     } else {
       const validStats = filterValidStats(stats);
+      signal?.throwIfAborted();
       await writeRepoWeeklyStatsRecord(repoOwner, repoName, {
         repoOwnerLogin: repoOwner,
         repoName,
@@ -125,6 +126,7 @@ export async function processSingleRepository({
       });
     }
   } catch (error: unknown) {
+    signal?.throwIfAborted();
     if (error instanceof GitHubContributorStatsPendingError) {
       status = "pending_202_from_api";
       dataComplete = false;
@@ -142,6 +144,7 @@ export async function processSingleRepository({
     const dbCache = await loadCachedRepoStats(repoOwner, repoName);
     if (dbCache) stats = dbCache;
   }
+  signal?.throwIfAborted();
 
   const accumulated = accumulateWeeklyStats(stats, trailingYearFromDate, now);
   const hasAllTimeData = stats.length > 0;

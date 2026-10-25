@@ -57,6 +57,7 @@ import {
 } from "@/lib/data-access/github-processing";
 import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
 import { GitHubActivityRefreshPreservedError } from "@/lib/data-access/github-refresh-outcome";
+import { GITHUB_ACTIVITY_TOTAL_BUDGET_MS } from "@/lib/data-access/github-refresh-budget";
 import { GraphQLRepoNodeSchema, type GraphQLUserContributionsResponse } from "@/types/github";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
@@ -136,6 +137,11 @@ describe("GitHub activity refresh", () => {
 
     mockIsGitHubApiConfigured.mockReturnValue(true);
     mockIsOperationAllowed.mockReturnValue(true);
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      repositories: [],
+      dataComplete: true,
+    });
     mockFetchContributionYears.mockResolvedValue([]);
     mockFetchContributionCalendar.mockResolvedValue(calendarResponse(0));
     mockProcessSingleRepository.mockReset();
@@ -151,6 +157,98 @@ describe("GitHub activity refresh", () => {
         return true;
       },
     );
+  });
+
+  it("expires one total budget, drains collection and never publishes afterwards", async () => {
+    let active = false;
+    mockFetchContributedRepositories.mockImplementation(
+      (_owner, signal) =>
+        new Promise((_resolve, reject) => {
+          if (!signal) throw new Error("Expected total-budget signal");
+          active = true;
+          signal.addEventListener(
+            "abort",
+            () => {
+              active = false;
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+        }),
+    );
+    vi.useFakeTimers();
+    try {
+      const failure = refreshGitHubActivityDataFromApi().catch((error) => error);
+      await vi.advanceTimersByTimeAsync(GITHUB_ACTIVITY_TOTAL_BUDGET_MS - 1);
+      expect(active).toBe(true);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await failure).toMatchObject({ reason: "refresh-deadline" });
+      expect(active).toBe(false);
+      expect(persistedRefresh).toBeUndefined();
+      expect(mockFetchContributionCalendar).not.toHaveBeenCalled();
+      expect(mockWriteGitHubActivityRefreshRecord).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("drains the active repository batch on abort and never starts the next batch", async () => {
+    const controller = new AbortController();
+    const abort = new Error("cancelled collection");
+    const repositories = Array.from({ length: 6 }, (_value, i) =>
+      createGraphQLRepositoryFixture(`repo-${i}`),
+    );
+    let active = 0;
+    mockProcessSingleRepository.mockImplementation(
+      (_input, signal) =>
+        new Promise((_resolve, reject) => {
+          if (!signal) throw new Error("Expected repository cancellation signal");
+          active++;
+          signal.addEventListener(
+            "abort",
+            () => {
+              active--;
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+        }),
+    );
+    const result = processRepositoryStats(
+      {
+        repos: repositories,
+        githubRepoOwner: "owner",
+        trailingYearFromDate: new Date(),
+        now: new Date(),
+      },
+      controller.signal,
+    );
+    expect(active).toBe(5);
+    controller.abort(abort);
+    await expect(result).rejects.toBe(abort);
+    expect(active).toBe(0);
+    expect(mockProcessSingleRepository).toHaveBeenCalledTimes(5);
+  });
+
+  it("drains the first aggregate read on abort without querying later repos or publishing", async () => {
+    const controller = new AbortController();
+    const deadline = new Error("collection deadline");
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      dataComplete: true,
+      repositories: [
+        createGraphQLRepositoryFixture("first"),
+        createGraphQLRepositoryFixture("later"),
+      ],
+    });
+    mockProcessSingleRepository.mockResolvedValue(createRepositoryProcessingResult(10, 1, true));
+    mockReadRepoWeeklyStatsRecord.mockImplementation(async () => {
+      controller.abort(deadline);
+      return null;
+    });
+    await expect(refreshGitHubActivityDataFromApi(controller.signal)).rejects.toBe(deadline);
+    expect(mockReadRepoWeeklyStatsRecord).toHaveBeenCalledExactlyOnceWith("test-owner", "first");
+    expect(mockWriteGitHubActivityRefreshRecord).not.toHaveBeenCalled();
   });
 
   it("uses complete historical calendars rather than repository commit subsets", async () => {
@@ -189,11 +287,6 @@ describe("GitHub activity refresh", () => {
   });
 
   it("retains historical contributions even without currently visible repositories", async () => {
-    mockFetchContributedRepositories.mockResolvedValue({
-      userId: "user-id",
-      repositories: [],
-      dataComplete: true,
-    });
     mockFetchContributionYears.mockResolvedValue([2022]);
     mockFetchContributionCalendar.mockImplementation(async (_username, from) =>
       calendarResponse(from?.startsWith("2022-") ? 75 : 0),
@@ -236,11 +329,6 @@ describe("GitHub activity refresh", () => {
   });
 
   it("does not publish zero history when a historical calendar request fails", async () => {
-    mockFetchContributedRepositories.mockResolvedValue({
-      userId: "user-id",
-      repositories: [],
-      dataComplete: true,
-    });
     mockFetchContributionYears.mockResolvedValue([2022]);
     const failure = new Error("Historical calendar unavailable");
     mockFetchContributionCalendar.mockImplementation(async (_username, from) => {
@@ -257,12 +345,6 @@ describe("GitHub activity refresh", () => {
       trailingYearData: zeroSegment,
       allTimeData: zeroSegment,
     };
-    mockFetchContributedRepositories.mockResolvedValue({
-      userId: "user-id",
-      repositories: [],
-      dataComplete: true,
-    });
-
     await expect(refreshGitHubActivityDataFromApi()).resolves.toEqual(expectedResult);
     if (persistedRefresh === undefined) {
       throw new Error("The zero-repository refresh was not persisted.");
@@ -286,11 +368,6 @@ describe("GitHub activity refresh", () => {
   });
 
   it("classifies an empty-set write refusal as preserved", async () => {
-    mockFetchContributedRepositories.mockResolvedValue({
-      userId: "user-id",
-      repositories: [],
-      dataComplete: true,
-    });
     mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toBeInstanceOf(
@@ -302,11 +379,6 @@ describe("GitHub activity refresh", () => {
 
   it("propagates an empty-set persistence failure unchanged", async () => {
     const persistenceFailure = new Error("GitHub activity persistence unavailable");
-    mockFetchContributedRepositories.mockResolvedValue({
-      userId: "user-id",
-      repositories: [],
-      dataComplete: true,
-    });
     mockWriteGitHubActivityRefreshRecord.mockRejectedValue(persistenceFailure);
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toBe(persistenceFailure);
@@ -331,11 +403,6 @@ describe("GitHub activity refresh", () => {
 
   it("does not persist a partial refresh in dry-run mode", async () => {
     process.env.DRY_RUN = "true";
-    mockFetchContributedRepositories.mockResolvedValue({
-      userId: "user-id",
-      repositories: [],
-      dataComplete: true,
-    });
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
       "skipped aggregate calculation in dry-run mode",

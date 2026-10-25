@@ -10,9 +10,12 @@ import { filterContributorStats } from "@/lib/data-access/github-processing";
 import { getTrailingYearDate } from "@/lib/utils/date-format";
 
 vi.hoisted(() => vi.stubEnv("GITHUB_TOKEN", "test-token"));
-vi.mock("@/lib/rate-limiter", () => ({ waitForPermit: async () => undefined }));
+vi.mock("@/lib/rate-limiter", () => ({ isOperationAllowed: () => true }));
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 afterAll(() => vi.unstubAllEnvs());
 
 describe("GitHub upstream contracts", () => {
@@ -255,6 +258,13 @@ describe("GitHub upstream contracts", () => {
     await expect(fetchContributorStats("owner", "large-repo", "owner")).resolves.toEqual(
       contributors,
     );
+    expect(upstream).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry or classify schema failures as transient", async () => {
+    const upstream = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: { user: {} } }));
+    vi.stubGlobal("fetch", upstream);
+    await expect(fetchContributionYears("owner")).rejects.toMatchObject({ name: "ZodError" });
     expect(upstream).toHaveBeenCalledOnce();
   });
 

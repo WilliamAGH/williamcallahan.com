@@ -20,7 +20,6 @@ import { buildCspHeader } from "@/lib/middleware/csp-header";
 import { NextResponse, type NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
 import { getClientIp, shouldApplyHtmlCachePolicy } from "@/lib/utils/request-utils";
-import { IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
 import type { ClerkMiddlewareAuth } from "@clerk/nextjs/server";
 import type { ProxyFunction } from "@/types/middleware";
 
@@ -124,8 +123,7 @@ function setCacheHeaders(response: NextResponse, url: string, isDev: boolean): v
   }
 
   if (url.includes("/_next/image")) {
-    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-    for (const [h, v] of Object.entries(IMAGE_CDN_CACHE_HEADERS)) response.headers.set(h, v);
+    // Next's optimizer owns success caching; a proxy cannot know its eventual status.
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
     return;

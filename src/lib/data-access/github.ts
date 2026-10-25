@@ -40,6 +40,7 @@ import {
   fetchHistoricalContributionTotal,
 } from "./github-contributions";
 import { GitHubActivityRefreshPreservedError } from "./github-refresh-outcome";
+import { createGitHubRefreshBudget } from "./github-refresh-budget";
 
 // Configuration
 const GITHUB_REPO_OWNER = getGitHubUsername();
@@ -63,10 +64,21 @@ const GITHUB_REPO_OWNER = getGitHubUsername();
  *
  * @returns A promise that resolves to an object containing `trailingYearData` and `allTimeData`, or `null` if the refresh fails
  */
-export async function refreshGitHubActivityDataFromApi(): Promise<{
+export async function refreshGitHubActivityDataFromApi(signal?: AbortSignal) {
+  if (signal) return collectGitHubActivity(signal);
+  const budget = createGitHubRefreshBudget();
+  try {
+    return await collectGitHubActivity(budget.signal);
+  } finally {
+    budget.dispose();
+  }
+}
+
+async function collectGitHubActivity(signal: AbortSignal): Promise<{
   trailingYearData: GitHubActivitySegment;
   allTimeData: GitHubActivitySegment;
 } | null> {
+  signal.throwIfAborted();
   console.log(
     "[DataAccess/GitHub:refreshGitHubActivity] Attempting to refresh GitHub activity data from API...",
   );
@@ -93,8 +105,9 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       "[DataAccess/GitHub] Running CSV repair before data refresh to ensure complete data",
     );
     try {
-      await detectAndRepairCsvFiles();
+      await detectAndRepairCsvFiles(signal);
     } catch (repairError) {
+      signal.throwIfAborted();
       console.warn(
         "[DataAccess/GitHub] CSV repair before refresh failed but continuing with refresh:",
         repairError,
@@ -106,19 +119,25 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     `[DataAccess/GitHub] Fetching list of contributed repositories and user ID for ${GITHUB_REPO_OWNER} via GraphQL API...`,
   );
   const { repositories: uniqueRepoArray, dataComplete: inventoryComplete } =
-    await fetchContributedRepositories(GITHUB_REPO_OWNER);
+    await fetchContributedRepositories(GITHUB_REPO_OWNER, signal);
+  signal.throwIfAborted();
 
   const trailingYearFromDate = getTrailingYearDate(now);
   const { totalContributions: yearTotalContributions, contributionDays } =
-    await fetchTrailingYearContributionCalendar({
-      githubRepoOwner: GITHUB_REPO_OWNER,
-      fromDate: trailingYearFromDate,
-      toDate: endOfDay(now),
-    });
+    await fetchTrailingYearContributionCalendar(
+      {
+        githubRepoOwner: GITHUB_REPO_OWNER,
+        fromDate: trailingYearFromDate,
+        toDate: endOfDay(now),
+      },
+      signal,
+    );
   const historicalContributions = await fetchHistoricalContributionTotal(
     GITHUB_REPO_OWNER,
     trailingYearFromDate,
+    signal,
   );
+  signal.throwIfAborted();
   const lifetimeContributions = yearTotalContributions + historicalContributions;
 
   if (inventoryComplete && uniqueRepoArray.length === 0 && lifetimeContributions === 0) {
@@ -141,7 +160,8 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       totalRepositoriesContributedTo: 0,
       linesOfCodeByCategory: createEmptyCategoryStats(),
     });
-    const aggregate = await calculateAggregatedWeeklyActivity([]);
+    const aggregate = await calculateAggregatedWeeklyActivity([], signal);
+    signal.throwIfAborted();
     if (aggregate === null) {
       throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
     }
@@ -150,6 +170,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       summary,
       aggregate.aggregatedActivity,
       GITHUB_ACTIVITY_WRITE_INTENTS.REPLACE_EMPTY_CURRENT_REPOSITORY_SET,
+      signal,
     );
     if (!refreshWritten) {
       throw new GitHubActivityRefreshPreservedError();
@@ -167,12 +188,16 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     allTimeOverallDataComplete,
     allTimeCategoryStats,
     failedRepoCount,
-  } = await processRepositoryStats({
-    repos: uniqueRepoArray,
-    githubRepoOwner: GITHUB_REPO_OWNER,
-    trailingYearFromDate,
-    now,
-  });
+  } = await processRepositoryStats(
+    {
+      repos: uniqueRepoArray,
+      githubRepoOwner: GITHUB_REPO_OWNER,
+      trailingYearFromDate,
+      now,
+    },
+    signal,
+  );
+  signal.throwIfAborted();
 
   if (failedRepoCount > 0) {
     console.warn(`[DataAccess/GitHub] Failed to process ${failedRepoCount} repositories`);
@@ -217,7 +242,9 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   const aggregate = await calculateAggregatedWeeklyActivity(
     uniqueRepoArray.map((repository) => repository.nameWithOwner),
+    signal,
   );
+  signal.throwIfAborted();
   if (aggregate === null) {
     throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
   }
@@ -236,6 +263,8 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     combinedActivityData,
     summary,
     aggregate.aggregatedActivity,
+    GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+    signal,
   );
   if (!refreshWritten) {
     throw new GitHubActivityRefreshPreservedError();

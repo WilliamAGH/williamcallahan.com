@@ -234,10 +234,10 @@ describe("GitHub data access", () => {
         .fn<typeof HttpClient.fetchWithTimeout>()
         .mockResolvedValue(new Response(null, { status: 204 }));
       vi.doMock("@/lib/utils/http-client", () => ({
-        createRetryingFetch: vi.fn<typeof HttpClient.createRetryingFetch>(() => githubHttpClient),
+        fetchWithTimeout: githubHttpClient,
       }));
       vi.doMock("@/lib/rate-limiter", () => ({
-        waitForPermit: vi.fn<typeof RateLimiter.waitForPermit>(),
+        isOperationAllowed: vi.fn<typeof RateLimiter.isOperationAllowed>(() => true),
       }));
 
       try {

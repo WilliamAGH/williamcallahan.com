@@ -1,10 +1,13 @@
 import "server-only";
 
 import { jsonrepair } from "jsonrepair";
+import {
+  ANALYSIS_LENGTH_INSTRUCTIONS,
+  ANALYSIS_LENGTH_LIMITS,
+} from "@/types/schemas/ai-analysis-common";
 import type { AnalysisFeatureId } from "@/types/features/ai-chat";
 import {
   ANALYSIS_FIELD_CONFIG,
-  ANALYSIS_LENGTH_LIMITS,
   ANALYSIS_SCHEMA_BY_FEATURE,
   PROMPT_LEAKAGE_PATTERNS,
 } from "./analysis-output-config";
@@ -285,6 +288,7 @@ export function buildAnalysisRepairPrompt(
   const requiredFields = ANALYSIS_FIELD_CONFIG[feature].requiredFields.join(", ");
   return `Rewrite your previous answer as valid JSON only.
 Required top-level fields: ${requiredFields}.
+${ANALYSIS_LENGTH_INSTRUCTIONS}
 Validation error: ${validationReason}
 Do not include markdown fences, commentary, placeholders, or trailing text.
 Do not use ellipses like "..." or empty strings for required fields.

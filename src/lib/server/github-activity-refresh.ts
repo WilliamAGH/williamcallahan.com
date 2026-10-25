@@ -1,18 +1,36 @@
 import * as Sentry from "@sentry/nextjs";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
+import { readGitHubActivityRecord } from "@/lib/data-access/github-storage";
 import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { getMonotonicTime } from "@/lib/utils";
 import logger from "@/lib/utils/logger";
-import { retryWithThrow } from "@/lib/utils/retry";
+import {
+  createGitHubRefreshBudget,
+  GitHubRefreshDeadlineError,
+  retryGitHubOperation,
+} from "@/lib/data-access/github-refresh-budget";
 import type { DataFetchOperationSummary } from "@/types/lib";
 import {
   GITHUB_ACTIVITY_PRESERVED_DATA_RETRY,
   GitHubActivityRefreshPreservedError,
+  GitHubUpstreamUnavailableError,
 } from "@/lib/data-access/github-refresh-outcome";
 
 const OPERATION = "github-activity";
 
-export async function runGitHubActivityRefresh(): Promise<DataFetchOperationSummary> {
+type GitHubActivityRefreshSummary = DataFetchOperationSummary &
+  (
+    | {
+        degraded: true;
+        reason:
+          | GitHubActivityRefreshPreservedError["reason"]
+          | GitHubUpstreamUnavailableError["reason"]
+          | GitHubRefreshDeadlineError["reason"];
+      }
+    | { degraded?: false; reason?: never }
+  );
+
+export async function runGitHubActivityRefresh(): Promise<GitHubActivityRefreshSummary> {
   const startTime = getMonotonicTime();
   const databaseAccess = resolveDatabaseAccessMode();
 
@@ -30,11 +48,12 @@ export async function runGitHubActivityRefresh(): Promise<DataFetchOperationSumm
   }
 
   logger.info("[DataFetchManager] Starting GitHub activity fetch...");
+  const budget = createGitHubRefreshBudget();
 
   try {
-    const refreshed = await retryWithThrow(
+    const refreshed = await retryGitHubOperation(
       async () => {
-        const result = await refreshGitHubActivityDataFromApi();
+        const result = await refreshGitHubActivityDataFromApi(budget.signal);
         if (!result) {
           throw new Error("GitHub activity refresh returned null");
         }
@@ -53,6 +72,7 @@ export async function runGitHubActivityRefresh(): Promise<DataFetchOperationSumm
           }
         },
       },
+      budget.signal,
     );
 
     logger.info(
@@ -88,11 +108,40 @@ export async function runGitHubActivityRefresh(): Promise<DataFetchOperationSumm
         success: true,
         operation: OPERATION,
         itemsProcessed: 0,
+        degraded: true,
+        reason: error.reason,
         duration: (getMonotonicTime() - startTime) / 1000,
       };
     }
 
-    const capturedError = error instanceof Error ? error : new Error(String(error));
+    let failure = error;
+    if (
+      error instanceof GitHubUpstreamUnavailableError ||
+      error instanceof GitHubRefreshDeadlineError
+    ) {
+      try {
+        // This read validates the persisted payload. No cache or timestamp is rewritten.
+        const retained = await readGitHubActivityRecord();
+        if (retained) {
+          logger.warn("[DataFetchManager] GitHub refresh degraded; retaining prior activity", {
+            degraded: true,
+            reason: error.reason,
+          });
+          return {
+            success: true,
+            operation: OPERATION,
+            itemsProcessed: 0,
+            degraded: true,
+            reason: error.reason,
+            duration: (getMonotonicTime() - startTime) / 1000,
+          };
+        }
+      } catch (retainedReadError) {
+        failure = retainedReadError;
+      }
+    }
+
+    const capturedError = failure instanceof Error ? failure : new Error(String(failure));
     Sentry.captureException?.(capturedError);
     logger.error("[DataFetchManager] GitHub activity fetch failed:", capturedError);
     return {
@@ -101,5 +150,7 @@ export async function runGitHubActivityRefresh(): Promise<DataFetchOperationSumm
       error: capturedError.message,
       duration: (getMonotonicTime() - startTime) / 1000,
     };
+  } finally {
+    budget.dispose();
   }
 }

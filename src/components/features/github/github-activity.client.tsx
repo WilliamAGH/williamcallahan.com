@@ -40,6 +40,7 @@ const GitHubActivity = () => {
   const { resolvedTheme } = useTheme();
   const [activity, setActivity] = useState<UserActivityView | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [canMeasureSvgText, setCanMeasureSvgText] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchInitiatedRef = useRef(false);
@@ -51,6 +52,11 @@ const GitHubActivity = () => {
   // Callback ref: measures whenever the calendar container mounts (it renders only after loading)
   const observeContainerWidth = useCallback((container: HTMLDivElement) => {
     setIsMobile(container.clientWidth < SM_BREAKPOINT);
+    // Weekday labels require SVG text measurement; the heatmap itself does not.
+    setCanMeasureSvgText(
+      typeof SVGGraphicsElement !== "undefined" &&
+        typeof SVGGraphicsElement.prototype.getBBox === "function",
+    );
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setIsMobile(entry.contentRect.width < SM_BREAKPOINT);
     });
@@ -165,7 +171,7 @@ const GitHubActivity = () => {
                 blockRadius={isMobile ? 2 : 0}
                 fontSize={isMobile ? 11 : 14}
                 hideTotalCount
-                showWeekdayLabels={!isMobile}
+                showWeekdayLabels={!isMobile && canMeasureSvgText}
               />
             </div>
           )}
