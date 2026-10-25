@@ -7,8 +7,7 @@
  * @module lib/bookmarks/bookmark-helpers
  */
 
-import type { UnifiedBookmark, BookmarkContent } from "@/types/schemas/bookmark";
-import type { ValidatedKarakeepImageFallback } from "@/types/seo/opengraph";
+import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 import { getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
 
@@ -130,34 +129,4 @@ export function selectBestImage(
   // NEVER use content.imageUrl - it's typically just a logo/favicon, not suitable for cards
 
   return noImageResult;
-}
-
-/**
- * Creates a Karakeep fallback object for OpenGraph data fetching
- *
- * @param content The bookmark content object
- * @param baseUrl The Karakeep API base URL
- * @param idempotencyKey Optional unique key for idempotent storage (e.g., bookmark ID)
- * @returns ValidatedKarakeepImageFallback object for OpenGraph fallback
- */
-export function createKarakeepFallback(
-  content: BookmarkContent | undefined,
-  baseUrl = "",
-  idempotencyKey?: string,
-): ValidatedKarakeepImageFallback {
-  if (!content) {
-    return {
-      karakeepBaseUrl: baseUrl,
-      idempotencyKey: idempotencyKey || undefined,
-    };
-  }
-
-  return {
-    imageUrl: typeof content.imageUrl === "string" ? content.imageUrl : null,
-    imageAssetId: typeof content.imageAssetId === "string" ? content.imageAssetId : null,
-    screenshotAssetId:
-      typeof content.screenshotAssetId === "string" ? content.screenshotAssetId : null,
-    karakeepBaseUrl: baseUrl,
-    idempotencyKey: idempotencyKey || undefined,
-  };
 }
