@@ -42,6 +42,12 @@ The "blog" functionality encompasses components and utilities that manage the di
 
 ## Notes
 
+- Draft frontmatter excludes posts from production blog listings and their sitemap projection;
+  direct slug lookups, site-search ingestion, and RAG inventories still include drafts. A draft
+  is not a private or unindexed page.
+- `data/blog/posts/automated-sitemap-submissions-bing-google.mdx` distinguishes Google sitemap
+  submission, Bing sitemap registration, and IndexNow changed-URL notifications; its examples
+  are API helpers, not the repository scheduler's CLI contract.
 - The blog functionality is designed for performance with server-side rendering and ISR, combined with client-side interactivity for a seamless user experience.
 - Individual blog detail routes (`app/blog/[slug]/page.tsx`) provide `generateStaticParams()` from `getAllPostsMeta()` so slugs are prerendered during `next build`. `RelatedContent` uses the shared `related-content` cache tag inside its `<Suspense>` boundary, so prerendered recommendations stay stable during hydration and remain explicitly invalidatable.
 - The blog detail page owns a server-rendered article shell; only interactive author, image, and MDX leaves cross client boundaries, preventing PPR hydration of the full streamed article subtree.
