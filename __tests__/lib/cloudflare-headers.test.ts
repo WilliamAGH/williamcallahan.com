@@ -235,7 +235,9 @@ describe("Cloudflare header enforcement", () => {
       clearDeploymentId();
       vi.stubEnv("NODE_ENV", "production");
       const expectedReleaseId = "image_commit-123";
-      const gitProbe = vi.fn<typeof execFileSync>(() => execFileSync("git-missing"));
+      const gitProbe = vi.fn<() => never>(() => {
+        throw new Error("Git must not be probed");
+      });
       vi.doMock("node:child_process", () => ({ execFileSync: gitProbe }));
       // Path-aware on purpose: a mock that answers for any path would stay green if
       // the runtime were pointed back at .next/BUILD_ID.

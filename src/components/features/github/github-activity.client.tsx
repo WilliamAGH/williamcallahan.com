@@ -52,11 +52,9 @@ const GitHubActivity = () => {
   // Callback ref: measures whenever the calendar container mounts (it renders only after loading)
   const observeContainerWidth = useCallback((container: HTMLDivElement) => {
     setIsMobile(container.clientWidth < SM_BREAKPOINT);
-    // Weekday labels require SVG text measurement; the heatmap itself does not.
-    setCanMeasureSvgText(
-      typeof SVGGraphicsElement !== "undefined" &&
-        typeof SVGGraphicsElement.prototype.getBBox === "function",
-    );
+    // Match the dependency's actual text-node API, not an unrelated global prototype.
+    const svgText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    setCanMeasureSvgText(typeof svgText.getBBox === "function");
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setIsMobile(entry.contentRect.width < SM_BREAKPOINT);
     });
