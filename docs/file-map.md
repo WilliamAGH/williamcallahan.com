@@ -853,7 +853,6 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `blog-render-smoke.test.ts` `blog` - Outcome tests for the shared production blog-render HTML validator
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
     - [x] `update-data.smoke.test.ts` `batch-fetch-update` - Data updater smoke tests
-  - [x] **setup/**
 - [x] `tsconfig.json` `testing-config` - TypeScript config for Vitest tests
 
 ## Mocks Directory
