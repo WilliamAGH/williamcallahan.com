@@ -77,18 +77,9 @@ export function createMonitoredStream(
         if (value) {
           processedBytes += value.byteLength;
           if (processedBytes > MAX_ASSET_SIZE_BYTES) {
-            const sizeError = new Error(
+            throw new Error(
               `Image too large: ${processedBytes} bytes exceeds ${MAX_ASSET_SIZE_BYTES} byte limit for asset ${assetId}`,
             );
-            onViolation?.(sizeError);
-            try {
-              await reader.cancel(sizeError);
-            } catch (cancelErr) {
-              // Cancel can fail if stream already closed - log for debugging
-              logger.debug(`[stream-utils] Cancel failed for ${assetId}:`, cancelErr);
-            }
-            controller.error(sizeError);
-            return;
           }
 
           controller.enqueue(value);
@@ -96,13 +87,12 @@ export function createMonitoredStream(
       } catch (error) {
         const normalizedError = error instanceof Error ? error : new Error(String(error));
         onViolation?.(normalizedError);
-        try {
-          await reader.cancel(normalizedError);
-        } catch (cancelErr) {
+        controller.error(normalizedError);
+        // A tee branch's cancellation waits for its sibling, not for error delivery.
+        void reader.cancel(normalizedError).catch((cancelErr: unknown) => {
           // Cancel can fail if stream already closed - log for debugging
           logger.debug(`[stream-utils] Cancel failed:`, cancelErr);
-        }
-        controller.error(normalizedError);
+        });
       }
     },
     cancel(reason) {
@@ -260,20 +250,18 @@ export async function streamToBufferWithLimits(
 
       totalSize += value.byteLength;
       if (totalSize > MAX_ASSET_SIZE_BYTES) {
-        const sizeError = new Error(
+        throw new Error(
           `Image too large: ${totalSize} bytes exceeds ${MAX_ASSET_SIZE_BYTES} byte limit for asset ${assetId}`,
         );
-        try {
-          await reader.cancel(sizeError);
-        } catch (cancelErr) {
-          // Cancel can fail if stream already closed - log for debugging
-          logger.debug(`[stream-utils] Cancel failed for ${assetId}:`, cancelErr);
-        }
-        throw sizeError;
       }
 
       chunks.push(value);
     }
+  } catch (error) {
+    void reader.cancel(error).catch((cancelErr: unknown) => {
+      logger.debug(`[stream-utils] Cancel failed for ${assetId}:`, cancelErr);
+    });
+    throw error;
   } finally {
     reader.releaseLock();
   }

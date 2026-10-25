@@ -681,7 +681,7 @@ File/Path Functionality Description
 - [x] `migrate-s3-data-to-pg.node.mjs` `data-access` - Node runtime S3 JSON to PostgreSQL migration for all domain tables (json_documents, content_graph, image_manifests, github, books, opengraph, ai_analysis)
 - [x] `populate-volumes.ts` `batch-fetch-update` - Removed; replaced by `scheduler/data-updater.ts`
 - [x] `refresh-opengraph-images.ts` `opengraph` - Script to refresh OpenGraph images and metadata
-- [x] `smoke-test-production.ts` `deployment` - Production route, blog-render, release-identity, and Cloudflare cache smoke checks
+- [x] `smoke-test-production.ts` `deployment` - Production route, blog-render, release-identity, and Cloudflare cache smoke checks; accepts pnpm's forwarded `--` separator
 - [x] `generate-books.ts` `books` - CLI wrapper for books dataset generation (delegates to lib/books/generate.ts)
 - [x] `validate-opengraph-clear-cache.ts` `seo` - Script to validate and clear social media caches
 - [x] `entrypoint.sh` `deployment` - Web container entrypoint (DB gate + Next.js server only)
