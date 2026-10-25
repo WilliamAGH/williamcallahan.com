@@ -80,28 +80,3 @@ export const persistedProjectAnalysisSchema = createPersistedAnalysisSchema(
 );
 
 export type PersistedProjectAnalysis = z.infer<typeof persistedProjectAnalysisSchema>;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Request Schema for API Endpoint
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Request body schema for persisting analysis via API.
- * Client sends the analysis; server adds metadata.
- */
-export const persistAnalysisRequestSchema = z.object({
-  /** The analysis data to persist */
-  analysis: z.record(z.string(), z.unknown()),
-  /** Optional model version override (defaults to "v1") */
-  modelVersion: z.string().min(1).optional(),
-});
-
-export type PersistAnalysisRequest = z.infer<typeof persistAnalysisRequestSchema>;
-
-/** Successful persistence endpoint result, including intentional read-only skips. */
-export const persistAnalysisSuccessResponseSchema = z.object({
-  success: z.literal(true),
-  persisted: z.boolean(),
-});
-
-export type PersistAnalysisSuccessResponse = z.infer<typeof persistAnalysisSuccessResponseSchema>;

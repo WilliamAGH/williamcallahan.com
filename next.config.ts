@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { PHASE_PRODUCTION_SERVER } from "next/constants";
 import type { RemotePattern } from "next/dist/shared/lib/image-config";
+import { HTML_LIMITED_BOT_UA_RE } from "next/dist/shared/lib/router/utils/html-bots";
 import packageJson from "./package.json" with { type: "json" };
 import { parseS3Endpoint } from "./src/types/schemas/s3-config";
 
@@ -201,6 +202,8 @@ function createNextConfig(releaseId: string | null) {
           source: "/_next/static/media/:path*",
           headers: [{ key: "Access-Control-Allow-Origin", value: "*" }],
         },
+        // Crawlers read the sitemap; Google had indexed it as a search result.
+        { source: "/sitemap.xml", headers: [{ key: "X-Robots-Tag", value: "noindex" }] },
       ];
     },
     // `next dev --webpack` (pnpm-workspace.yaml); production builds use Turbopack.
@@ -268,6 +271,10 @@ function createNextConfig(releaseId: string | null) {
     reactStrictMode: true,
     cacheComponents: true,
     partialPrefetching: false,
+    // Next streams metadata into <body> for Googlebot because it renders JavaScript, but Google
+    // ignores a rel=canonical outside <head>. Extending (the option replaces) Next's own list gives
+    // Googlebot the same blocking <head> metadata that Bingbot already receives.
+    htmlLimitedBots: new RegExp(`${HTML_LIMITED_BOT_UA_RE.source}|Googlebot`, "i"),
     serverExternalPackages: [
       "@chroma-core/default-embed",
       "chromadb",

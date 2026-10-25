@@ -6,8 +6,6 @@
  * error handling, and test-environment detection.
  */
 
-import type { UnifiedBookmark } from "@/types/schemas/bookmark";
-
 /**
  * Strip non-printable-ASCII characters from a URL path segment.
  */
@@ -47,18 +45,6 @@ export const getLatestDate = (...dates: (Date | undefined)[]): Date | undefined 
     }
     return latest;
   }, undefined);
-
-/**
- * Resolve the most recent modification date for a bookmark from its date fields.
- */
-export const resolveBookmarkLastModified = (
-  bookmark: Pick<UnifiedBookmark, "modifiedAt" | "dateCreated" | "dateBookmarked">,
-): Date | undefined =>
-  getLatestDate(
-    getSafeDate(bookmark.modifiedAt),
-    getSafeDate(bookmark.dateCreated),
-    getSafeDate(bookmark.dateBookmarked),
-  );
 
 /**
  * Whether the current process is running inside a test harness.

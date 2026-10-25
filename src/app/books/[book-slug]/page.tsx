@@ -30,6 +30,8 @@ import { extractBookIdFromSlug, findBookBySlug } from "@/lib/books/slug-helpers"
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
+import { SEARCH_EXCLUDED_ROBOTS } from "@/lib/seo/search-exclusion";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -80,11 +82,7 @@ export async function generateMetadata({
   const { book } = await getBookBySlug(slug, { includeBlurPlaceholders: false });
 
   if (!book) {
-    return {
-      ...getStaticPageMetadata(path, "books"),
-      title: "Book Not Found",
-      description: "The requested book could not be found.",
-    };
+    return getNotFoundMetadata("Book");
   }
 
   const baseMetadata = getStaticPageMetadata(path, "books");
@@ -136,6 +134,7 @@ export async function generateMetadata({
     alternates: {
       canonical: ensureAbsoluteUrl(path),
     },
+    robots: SEARCH_EXCLUDED_ROBOTS,
   };
 }
 

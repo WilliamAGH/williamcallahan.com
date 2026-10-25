@@ -32,7 +32,6 @@ import type { AnalysisRenderHelpers } from "@/types/ai-analysis";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AI_FEATURE_NAME = "project-analysis";
-const PERSISTENCE_KEY = "projects";
 
 const LOADING_MESSAGES = [
   "Analyzing project architecture...",
@@ -188,7 +187,6 @@ export function ProjectAiAnalysis({
       entity={project}
       entityId={project.id}
       featureName={AI_FEATURE_NAME}
-      persistenceKey={PERSISTENCE_KEY}
       loadingMessages={LOADING_MESSAGES}
       extractContext={extractProjectAnalysisContext}
       buildSystemPrompt={buildProjectAnalysisSystemPrompt}

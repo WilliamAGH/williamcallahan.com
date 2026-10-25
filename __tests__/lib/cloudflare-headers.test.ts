@@ -313,7 +313,8 @@ describe("Cloudflare header enforcement", () => {
         "/apple-touch-icon.png",
         "/apple-touch-icon-precomposed.png",
       ];
-      expect(headerRules).toHaveLength(publicAssetSources.length + 1);
+      // Beyond the public assets: the font CORS rule and the sitemap's noindex rule.
+      expect(headerRules).toHaveLength(publicAssetSources.length + 2);
       for (const source of publicAssetSources) {
         const rule = headerRules.find((entry) => entry.source === source);
         if (!rule) throw new Error(`missing cache header rule for ${source}`);
@@ -332,6 +333,14 @@ describe("Cloudflare header enforcement", () => {
       const fontRule = headerRules.find((entry) => entry.source === "/_next/static/media/:path*");
       expect(fontRule?.headers).toEqual([{ key: "Access-Control-Allow-Origin", value: "*" }]);
       expect(nextConfig.images?.path).toBe("https://williamcallahan.com/_next/image");
+    });
+    it("keeps the sitemap itself out of search results", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_DEPLOYMENT_ID", "release_2026-08-21");
+      const nextConfig = await loadNextConfig();
+      const headerRules = await nextConfig.headers();
+      const sitemapRule = headerRules.find((entry) => entry.source === "/sitemap.xml");
+      expect(sitemapRule?.headers).toEqual([{ key: "X-Robots-Tag", value: "noindex" }]);
     });
     it("guards public asset and feed paths against edge-stored error responses", () => {
       interface CacheRule {

@@ -1,4 +1,4 @@
-import type { NextRequest } from "next/server";
+import type { NextRequest, NextResponse } from "next/server";
 import type { UpstreamRequestQueue } from "@/lib/ai/openai-compatible/upstream-request-queue";
 import type { ParsedRequestBody, SearchToolResult } from "@/types/schemas/ai-chat";
 import type { AiFeatureIdentifier } from "@/types/schemas/ai-feature";
@@ -58,6 +58,22 @@ export type SseStreamConfig = {
   logContext: ChatLogContext;
   ragContextStatus: RagContextStatus;
   runUpstream: (onStreamEvent?: (event: AiChatModelStreamUpdate) => void) => Promise<string>;
+  /** Aborts the queued or running upstream request; also wired into `runUpstream`. */
+  upstreamAbort: AbortController;
+  /** Analysis requests: once the upstream has started, a client disconnect no longer stops it. */
+  finishAfterDisconnect: boolean;
+};
+
+/** The SSE response plus the run's outcome: its final message, or null on failure or abort. */
+export type SseStreamResult = {
+  response: NextResponse;
+  completion: Promise<string | null>;
+};
+
+/** The analysis feature and entity a server-finished generation persists to. */
+export type AnalysisPersistTarget = {
+  feature: AnalysisFeatureId;
+  entityId: string;
 };
 
 /** Pipeline result containing everything needed to dispatch an AI chat request */
