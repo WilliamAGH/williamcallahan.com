@@ -282,7 +282,7 @@ describe("Cloudflare header enforcement", () => {
         "/apple-touch-icon.png",
         "/apple-touch-icon-precomposed.png",
       ];
-      expect(headerRules).toHaveLength(publicAssetSources.length);
+      expect(headerRules).toHaveLength(publicAssetSources.length + 1);
       for (const source of publicAssetSources) {
         const rule = headerRules.find((entry) => entry.source === source);
         if (!rule) throw new Error(`missing cache header rule for ${source}`);
@@ -291,6 +291,16 @@ describe("Cloudflare header enforcement", () => {
         expect(headers["Cache-Control"]).not.toContain("immutable");
         expect(headers["CDN-Cache-Control"]).toBe("public, max-age=86400");
       }
+    });
+    it("lets a copy of the page rendered from another origin load fonts and images", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_DEPLOYMENT_ID", "release_2026-08-21");
+      vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://williamcallahan.com");
+      const nextConfig = await loadNextConfig();
+      const headerRules = await nextConfig.headers();
+      const fontRule = headerRules.find((entry) => entry.source === "/_next/static/media/:path*");
+      expect(fontRule?.headers).toEqual([{ key: "Access-Control-Allow-Origin", value: "*" }]);
+      expect(nextConfig.images?.path).toBe("https://williamcallahan.com/_next/image");
     });
     it("guards public asset and feed paths against edge-stored error responses", () => {
       interface CacheRule {
