@@ -6,11 +6,8 @@
  * and tags. Follows the BookmarkDetail pattern for consistent UX.
  */
 
-"use client";
-
-import { useMemo, type ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
 import type { ProjectDetailProps } from "@/types/features/projects";
 import {
   Globe,
@@ -27,7 +24,8 @@ import { safeExternalHref, getDisplayHostname } from "@/lib/utils/url-utils";
 import { buildCdnUrl, getCdnConfigFromEnv, getOptimizedImageSrc } from "@/lib/utils/cdn-utils";
 import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { RegistryLinks } from "@/components/ui/registry-links.client";
-import { ProjectAiAnalysis } from "./project-ai-analysis.client";
+import { ProjectDetailAnalysis } from "./project-detail-analysis.server";
+import { ProjectDetailImage } from "./project-detail-image.client";
 
 /**
  * Check if URL is internal (starts with /)
@@ -73,38 +71,26 @@ function SmartLink({
   );
 }
 
-export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
-  const { scrollY } = useScroll();
-
-  // Subtle parallax for image
-  const imageY = useTransform(scrollY, [0, 300], [0, -20]);
-
+export function ProjectDetail({ project }: ProjectDetailProps) {
   // Extract domain for display
-  const domain = useMemo(() => getDisplayHostname(project.url), [project.url]);
+  const domain = getDisplayHostname(project.url);
 
   // Check if URL is internal
-  const isInternal = useMemo(() => isInternalUrl(project.url), [project.url]);
+  const isInternal = isInternalUrl(project.url);
 
   // Sanitize URL using the shared utility
-  const safeUrl = useMemo(() => {
-    if (isInternal) {
-      return project.url;
-    }
-    return safeExternalHref(project.url);
-  }, [project.url, isInternal]);
+  const safeUrl = isInternal ? project.url : safeExternalHref(project.url);
 
   // Transform imageKey (S3 path) to CDN URL for Next.js Image
-  const imageUrl = useMemo(() => {
-    if (!project.imageKey) return null;
-    let resolvedUrl: string | undefined;
+  let imageUrl: string | undefined;
+  if (project.imageKey) {
     try {
       const cdnUrl = buildCdnUrl(project.imageKey, getCdnConfigFromEnv());
-      resolvedUrl = getOptimizedImageSrc(cdnUrl);
+      imageUrl = getOptimizedImageSrc(cdnUrl);
     } catch (error) {
       console.warn(`[ProjectDetail] Failed to resolve image URL for "${project.name}".`, error);
     }
-    return resolvedUrl ?? null;
-  }, [project.imageKey, project.name]);
+  }
 
   return (
     <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
@@ -162,69 +148,47 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Featured Image - Full width at top of content */}
             {imageUrl && (
-              <motion.div
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="mb-6 sm:mb-8"
-              >
-                <div className="relative group">
-                  <motion.div
-                    style={{ y: imageY }}
-                    className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm"
+              <ProjectDetailImage>
+                <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full">
+                  <OptimizedCardImage
+                    src={imageUrl}
+                    alt={`Screenshot of ${project.name}`}
+                    preload
+                    fit="contain"
+                    className="!transition-none"
+                  />
+                  {/* Hover overlay */}
+                  <SmartLink
+                    href={safeUrl ?? "/projects"}
+                    isInternal={isInternal}
+                    className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center"
+                    ariaLabel={
+                      isInternal ? `View ${project.name}` : `View ${project.name} on ${domain}`
+                    }
                   >
-                    <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full">
-                      <OptimizedCardImage
-                        src={imageUrl}
-                        alt={`Screenshot of ${project.name}`}
-                        preload
-                        fit="contain"
-                        className="!transition-none"
-                      />
-                      {/* Hover overlay */}
-                      <SmartLink
-                        href={safeUrl ?? "/projects"}
-                        isInternal={isInternal}
-                        className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center"
-                        ariaLabel={
-                          isInternal ? `View ${project.name}` : `View ${project.name} on ${domain}`
-                        }
-                      >
-                        <div className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ArrowUpRight className="w-5 h-5" />
-                        </div>
-                      </SmartLink>
+                    <div className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ArrowUpRight className="w-5 h-5" />
                     </div>
-                  </motion.div>
+                  </SmartLink>
                 </div>
-              </motion.div>
+              </ProjectDetailImage>
             )}
 
             {/* Description Box */}
             {project.description && (
-              <motion.section
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1, duration: 0.5 }}
-                className="p-4 sm:p-5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
+              <section className="p-4 sm:p-5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 sm:mb-3">
                   About
                 </h2>
                 <div className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300">
                   <p>{project.description}</p>
                 </div>
-              </motion.section>
+              </section>
             )}
 
             {/* Note/Disclaimer */}
             {project.note && (
-              <motion.section
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-                className="p-4 sm:p-5 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800"
-              >
+              <section className="p-4 sm:p-5 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2 sm:mb-3 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" />
                   Note
@@ -232,15 +196,13 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
                 <p className="text-sm sm:text-base leading-relaxed text-amber-900 dark:text-amber-100">
                   {project.note}
                 </p>
-              </motion.section>
+              </section>
             )}
 
             {/* AI Analysis */}
-            <ProjectAiAnalysis
-              project={project}
-              initialAnalysis={cachedAnalysis}
-              defaultCollapsed
-            />
+            <Suspense fallback={null}>
+              <ProjectDetailAnalysis project={project} />
+            </Suspense>
 
             {/* If no content is available, show a placeholder */}
             {!project.description && !imageUrl && (
@@ -256,11 +218,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
           <div className="space-y-4 lg:space-y-6">
             {/* Tech Stack */}
             {project.techStack && project.techStack.length > 0 && (
-              <motion.section
-                initial={false}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-              >
+              <section>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 sm:mb-3 flex items-center gap-1.5">
                   <Code2 className="w-3.5 h-3.5" />
                   Tech Stack
@@ -275,16 +233,12 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
                     </span>
                   ))}
                 </div>
-              </motion.section>
+              </section>
             )}
 
             {/* Tags */}
             {project.tags && project.tags.length > 0 && (
-              <motion.section
-                initial={false}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5, duration: 0.5 }}
-              >
+              <section>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 sm:mb-3 flex items-center gap-1.5">
                   <Tag className="w-3.5 h-3.5" />
                   Tags
@@ -300,16 +254,11 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
                     </Link>
                   ))}
                 </div>
-              </motion.section>
+              </section>
             )}
 
             {/* Action Buttons */}
-            <motion.div
-              initial={false}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6, duration: 0.5 }}
-              className="space-y-2 sm:space-y-3"
-            >
+            <div className="space-y-2 sm:space-y-3">
               <SmartLink
                 href={safeUrl ?? "/projects"}
                 isInternal={isInternal}
@@ -341,7 +290,7 @@ export function ProjectDetail({ project, cachedAnalysis }: ProjectDetailProps) {
                 <FolderKanban className="w-4 h-4" />
                 <span>All Projects</span>
               </Link>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>

@@ -3,6 +3,9 @@ import type { SmokeTestEndpointOptions, TestResult } from "@/types/scripts";
 import { BLOG_RENDER_CANARIES } from "@/config/blog-render-canaries";
 import { bookmarkDiagnosticsResponseSchema, healthResponseSchema } from "@/types/schemas/api";
 import { validateBlogRenderHtml } from "./blog-render-smoke";
+import { validateNativeContentHtml } from "./native-content-smoke";
+import { projects } from "@/data/projects";
+import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 const CONVERGENCE_SAMPLE_COUNT = 5;
 const EXPECTED_RELEASE_ID_PREFIX = "--expected-release-id=";
 export function fetchStaticAsset(
@@ -182,6 +185,30 @@ class ProductionSmokeTests {
       await this.record(`Blog article render: ${canary.slug}`, `/blog/${canary.slug}`, {
         validateResponse: async (response) => validateBlogRenderHtml(await response.text(), canary),
       });
+    for (const id of ["brief", "aVenture.vc"]) {
+      const project = projects.find((entry) => entry.id === id);
+      if (!project) throw new Error(`Missing native project canary: ${id}`);
+      await this.record(
+        `Native project content: ${id}`,
+        `/projects/${generateProjectSlug(project.name)}`,
+        {
+          validateResponse: async (response) =>
+            validateNativeContentHtml(await response.text(), {
+              heading: project.name,
+              destination: project.url,
+              description: project.description,
+            }),
+        },
+      );
+    }
+    await this.record("Native contact cards", "/contact", {
+      validateResponse: async (response) =>
+        validateNativeContentHtml(await response.text(), {
+          heading: "~/contact",
+          destination: "https://github.com/WilliamAGH",
+          destinationScope: ".social-card",
+        }),
+    });
     await this.record("Investment release identity and static assets converge", "/investments", {
       validateResponse: async (response) => {
         const responses = [
