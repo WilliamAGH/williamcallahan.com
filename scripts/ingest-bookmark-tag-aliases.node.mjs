@@ -366,8 +366,6 @@ async function applyPlan(sqlClient, seedBookmarkId, bookmarks, aliasMappings, op
       }
 
       for (const mapping of normalizedMappings) {
-        await tx`UPDATE bookmarks_tags SET tag_status = 'primary', updated_at = ${now}
-        WHERE tag_slug = ${mapping.canonicalSlug}`;
         await tx`
         INSERT INTO bookmarks_tags (tag_slug, tag_name, tag_status, created_at, updated_at)
         VALUES (${mapping.aliasSlug}, ${mapping.alias}, 'alias', ${now}, ${now})

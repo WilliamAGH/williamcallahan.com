@@ -116,7 +116,7 @@ describe("Sitemap Generation", () => {
     const entries = await sitemap();
     const posts = await getAllPostsMeta();
     for (const route of [
-      "",
+      "/",
       "/blog",
       "/projects",
       "/bookmarks",
