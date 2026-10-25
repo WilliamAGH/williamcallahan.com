@@ -236,6 +236,26 @@ function createNextConfig(releaseId: string | null) {
         },
       ];
     },
+    // A start-first rollout serves old and new replicas side by side, so a document from one
+    // release can request a hashed chunk only the other release's image holds. The image build
+    // archives `.next/static/chunks` to the CDN bucket before rollout
+    // (scripts/archive-static-assets.ts); a chunk this replica lacks is relayed from there on the
+    // same relative path. `media/` stays unrelayed: Next drops `headers()` on an external rewrite,
+    // so a relayed font would lack the CORS header the TRMNL copy needs, and the edge would keep it.
+    async rewrites() {
+      const archiveOrigin = process.env.NEXT_PUBLIC_S3_CDN_URL?.trim().replace(/\/+$/, "");
+      if (process.env.NODE_ENV !== "production" || !archiveOrigin) return [];
+      return {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [
+          {
+            source: "/_next/static/chunks/:path*",
+            destination: `${archiveOrigin}/_next/static/chunks/:path*`,
+          },
+        ],
+      };
+    },
     // `null` delegates development build IDs to Next; production always has releaseId.
     generateBuildId: async () => releaseId,
     poweredByHeader: false,
@@ -262,6 +282,9 @@ function createNextConfig(releaseId: string | null) {
       optimizeCss: true,
       staticGenerationMaxConcurrency: resolveStaticGenerationMaxConcurrency(),
       optimizeServerReact: true,
+      // The static archive relay is this app's only proxied rewrite. This is an idle-socket bound;
+      // Next's 30 s default would hold a stalled stylesheet request far past the CDN's normal answer.
+      proxyTimeout: 10_000,
     },
     images: {
       dangerouslyAllowSVG: true,
