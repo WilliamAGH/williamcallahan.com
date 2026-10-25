@@ -104,7 +104,7 @@ function toFetchError(
   timeout: number,
   effectiveUrl: string,
 ): Error {
-  if (!(error instanceof Error)) {
+  if (!(error instanceof Error) && !(error instanceof DOMException)) {
     return new Error(`Fetch failed: ${String(error)}`, { cause: error });
   }
 
@@ -162,7 +162,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
   });
 
   const controller = new AbortController();
-  const { abortedByExternalSignal } = setupAbortSignal(controller, signal);
+  const abortState = setupAbortSignal(controller, signal);
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   let requestUrl = effectiveUrl;
   let redirectCount = 0;
@@ -202,7 +202,7 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
       requestUrl = redirectUrl;
     }
   } catch (error) {
-    throw toFetchError(error, abortedByExternalSignal, timeout, effectiveUrl);
+    throw toFetchError(error, abortState.abortedByExternalSignal, timeout, effectiveUrl);
   } finally {
     clearTimeout(timeoutId);
   }
