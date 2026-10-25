@@ -7,7 +7,6 @@
  */
 
 import sitemap from "../../src/app/sitemap";
-import logger from "../../src/lib/utils/logger";
 
 const LOG_PREFIX = "[IndexNow]";
 
@@ -16,31 +15,18 @@ const LOG_PREFIX = "[IndexNow]";
 // deploy, so a URL modified within the last day is announced only by that day's deploys.
 const RECENT_CHANGE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): Promise<boolean> {
-  try {
-    const keyRes = await fetch(keyLocationUrl, { method: "GET" });
-    const body = await keyRes.text();
+export class IndexNowSubmissionError extends Error {
+  override name = "IndexNowSubmissionError";
+}
 
-    if (!keyRes.ok) {
-      logger.error(
-        `${LOG_PREFIX} keyLocation ${keyLocationUrl} returned HTTP ${keyRes.status}. Aborting submission.`,
-      );
-      return false;
-    }
-
-    if (body.trim() !== expectedKey) {
-      logger.error(
-        `${LOG_PREFIX} keyLocation file content mismatch. Expected '${expectedKey}', got '${body.trim()}'. Aborting submission.`,
-      );
-      return false;
-    }
-
-    return true;
-  } catch (error_) {
-    logger.error(`${LOG_PREFIX} Failed to verify keyLocation (${keyLocationUrl}):`, error_);
-    // RC1a: error logged; false is the documented contract for callers
+async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): Promise<void> {
+  const keyRes = await fetch(keyLocationUrl, { method: "GET" });
+  if (!keyRes.ok) {
+    throw new IndexNowSubmissionError(`IndexNow key verification returned HTTP ${keyRes.status}.`);
   }
-  return false;
+  if ((await keyRes.text()).trim() !== expectedKey) {
+    throw new IndexNowSubmissionError("IndexNow key verification file content mismatch.");
+  }
 }
 
 /**
@@ -55,83 +41,65 @@ export async function submitToIndexNow(
   indexNowKeyFile: string,
   isLocalhost: boolean,
   debugMode: boolean,
+  dryRun = false,
 ): Promise<void> {
-  const INDEXNOW_KEY = indexNowKeyEnv;
-  if (!INDEXNOW_KEY) {
+  if (!dryRun && !indexNowKeyEnv) {
     console.warn(`${LOG_PREFIX} Skipping submission – INDEXNOW_KEY env var is not set.`);
     return;
   }
-  if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
-    logger.error(
-      `${LOG_PREFIX} Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.`,
-    );
+  const sitemapData = await sitemap();
+  const changedSince = Date.now() - RECENT_CHANGE_WINDOW_MS;
+  const urlList = sitemapData
+    .filter(
+      (entry) =>
+        entry.lastModified !== undefined && new Date(entry.lastModified).getTime() >= changedSince,
+    )
+    .map((entry) => entry.url);
+  const host = new URL(siteUrlCanonical).host;
+  if (dryRun) {
+    console.info(`${LOG_PREFIX} Dry run: selected ${urlList.length} URLs for ${host}.`);
     return;
+  }
+  const INDEXNOW_KEY = indexNowKeyEnv;
+  if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
+    throw new TypeError(
+      "Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.",
+    );
   }
 
   // Verify key file only when not running from localhost
   const keyLocationUrl = `${siteUrlCanonical}${indexNowKeyFile}`;
   if (!isLocalhost) {
-    const keyValid = await verifyIndexNowKey(keyLocationUrl, INDEXNOW_KEY);
-    if (!keyValid) return;
+    await verifyIndexNowKey(keyLocationUrl, INDEXNOW_KEY);
   }
 
-  try {
-    const sitemapData = await sitemap();
-    const changedSince = Date.now() - RECENT_CHANGE_WINDOW_MS;
-    const urlList = sitemapData
-      .filter(
-        (entry) =>
-          entry.lastModified !== undefined &&
-          new Date(entry.lastModified).getTime() >= changedSince,
-      )
-      .map((entry) => entry.url);
-    if (urlList.length === 0) {
-      console.info(`${LOG_PREFIX} No sitemap URL changed in the last day; nothing to submit.`);
-      return;
-    }
-
-    // Build payload per IndexNow spec
-    const payload: Record<string, unknown> = {
-      host: new URL(siteUrlCanonical).host,
-      key: INDEXNOW_KEY,
-      urlList,
-    };
-
-    // Always include `keyLocation` – some providers require explicit path even when using root verification (empirical 403 fix)
-    payload.keyLocation = keyLocationUrl;
-
-    if (debugMode) {
-      console.info(`${LOG_PREFIX} Submitting with payload:`, JSON.stringify(payload, null, 2));
-    }
-
-    const aggregatorEndpoint = "https://api.indexnow.org/indexnow";
-    const bingEndpoint = "https://www.bing.com/indexnow";
-
-    const attemptSubmit = async (endpoint: string): Promise<Response> => {
-      return fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "User-Agent": "williamcallahan.com-sitemap-script/1.0",
-        },
-        body: JSON.stringify(payload),
-      });
-    };
-
-    let res = await attemptSubmit(aggregatorEndpoint);
-    if (res.status === 403) {
-      console.warn(`${LOG_PREFIX} Aggregator returned 403 – retrying via Bing endpoint.`);
-      res = await attemptSubmit(bingEndpoint);
-    }
-
-    // Log response
-    if (res.ok) {
-      console.info(`${LOG_PREFIX} Payload accepted. Submitted ${urlList.length} URLs`);
-    } else {
-      const bodyText = await res.text().catch(() => "<body unavailable>");
-      logger.error(`${LOG_PREFIX} Submission failed. Status: ${res.status}. Response: ${bodyText}`);
-    }
-  } catch (err) {
-    logger.error(`${LOG_PREFIX} Error while submitting payload:`, err);
+  if (urlList.length === 0) {
+    console.info(`${LOG_PREFIX} No sitemap URL changed in the last day; nothing to submit.`);
+    return;
   }
+
+  const payload = { host, key: INDEXNOW_KEY, urlList, keyLocation: keyLocationUrl };
+  if (debugMode) {
+    console.info(`${LOG_PREFIX} Submitting ${urlList.length} URLs for ${host}.`);
+  }
+
+  const attemptSubmit = async (endpoint: string): Promise<Response> =>
+    fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "User-Agent": "williamcallahan.com-sitemap-script/1.0",
+      },
+      body: JSON.stringify(payload),
+    });
+
+  let res = await attemptSubmit("https://api.indexnow.org/indexnow");
+  if (res.status === 403) {
+    console.warn(`${LOG_PREFIX} Aggregator returned 403 – retrying via Bing endpoint.`);
+    res = await attemptSubmit("https://www.bing.com/indexnow");
+  }
+  if (!res.ok) {
+    throw new IndexNowSubmissionError(`IndexNow submission rejected with HTTP ${res.status}.`);
+  }
+  console.info(`${LOG_PREFIX} Payload accepted. Submitted ${urlList.length} URLs`);
 }
