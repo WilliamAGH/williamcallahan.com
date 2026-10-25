@@ -15,6 +15,24 @@ import {
   type ValidatedOgCacheEntry,
 } from "@/types/seo/opengraph";
 
+/** A publisher's verification screen is not metadata or article content. */
+export function isAccessChallenge(
+  title: string | null | undefined,
+  content?: string | null,
+): boolean {
+  const challengeTitle =
+    /^(?:just a moment(?:\.{3}|…)?|attention required!?|access denied|security verification)$/i.test(
+      title?.trim() ?? "",
+    );
+  return (
+    challengeTitle &&
+    (!content?.trim() ||
+      /cloudflare|(?:bot|browser|security)[ -]verification|enable javascript and cookies|verifying (?:that )?you are human|challenge-platform|cf-chl/i.test(
+        content,
+      ))
+  );
+}
+
 /**
  * Utility function to safely parse OpenGraph metadata
  * @param data - Raw data from external API

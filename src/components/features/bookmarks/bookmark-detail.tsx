@@ -36,6 +36,7 @@ import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
 import { useEngagementTracker } from "@/hooks/use-engagement-tracker";
 import { ExternalLink } from "@/components/ui/external-link.client";
+import { isBookmarkSourceUnavailable } from "@/lib/bookmarks/analysis/extract-context";
 
 function toDisplayDate(date?: string | Date | number | null): string | null {
   if (date == null) return null;
@@ -49,7 +50,8 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
     cachedAnalysis?.analysis ?? null,
   );
   const { trackDwell, trackExternalClick } = useEngagementTracker();
-  const hasAnalysis = Boolean(analysisData);
+  const usableAnalysis = isBookmarkSourceUnavailable(bookmark) ? null : analysisData;
+  const hasAnalysis = Boolean(usableAnalysis);
   const imageY = useTransform(scrollY, [0, 300], [0, -20]);
   const safeUrl = safeExternalHref(bookmark.url);
   const domain = safeUrl ? getDisplayHostname(safeUrl) : "";
@@ -150,18 +152,20 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
             </div>
           </div>
 
-          <motion.section
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.5 }}
-            className="mb-8 sm:mb-10"
-          >
-            <BookmarkAiAnalysis
-              bookmark={bookmark}
-              initialAnalysis={cachedAnalysis ?? undefined}
-              onAnalysisComplete={(a) => setAnalysisData(a)}
-            />
-          </motion.section>
+          {!isBookmarkSourceUnavailable(bookmark) && (
+            <motion.section
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.5 }}
+              className="mb-8 sm:mb-10"
+            >
+              <BookmarkAiAnalysis
+                bookmark={bookmark}
+                initialAnalysis={cachedAnalysis ?? undefined}
+                onAnalysisComplete={(a) => setAnalysisData(a)}
+              />
+            </motion.section>
+          )}
 
           <div className="flex flex-col-reverse lg:grid lg:grid-cols-3 gap-6 lg:gap-10">
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
@@ -220,7 +224,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </motion.div>
               )}
 
-              {analysisData && <BookmarkAiContext analysis={analysisData} />}
+              {usableAnalysis && <BookmarkAiContext analysis={usableAnalysis} />}
 
               {!hasAnalysis && (bookmark.summary || bookmark.description) && (
                 <motion.section
@@ -332,7 +336,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </Link>
               </motion.div>
 
-              {analysisData && <BookmarkAiRelated analysis={analysisData} />}
+              {usableAnalysis && <BookmarkAiRelated analysis={usableAnalysis} />}
             </div>
           </div>
         </div>

@@ -30,6 +30,7 @@ import { envLogger } from "@/lib/utils/env-logger";
 import { cacheContextGuards } from "@/lib/cache";
 import { getDisplayHostname } from "@/lib/utils/url-utils";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
+import { isBookmarkSourceUnavailable } from "@/lib/bookmarks/analysis/extract-context";
 import type { BookmarkPageContext } from "@/types/api";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { BookmarkAiAnalysisResponse } from "@/types/schemas/bookmark-ai-analysis";
@@ -227,10 +228,9 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
 
   // A failed read must fail the page: rendering with a null analysis would make the
   // client regenerate and overwrite the persisted row.
-  const cachedAnalysis = await getCachedAnalysis<BookmarkAiAnalysisResponse>(
-    "bookmarks",
-    foundBookmark.id,
-  );
+  const cachedAnalysis = isBookmarkSourceUnavailable(foundBookmark)
+    ? null
+    : await getCachedAnalysis<BookmarkAiAnalysisResponse>("bookmarks", foundBookmark.id);
 
   if (cachedAnalysis) {
     envLogger.log(
@@ -256,7 +256,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     description: foundBookmark.description || pageDescription,
     datePublished: formatSeoDate(pageMetadata.dateCreated),
     dateModified: formatSeoDate(pageMetadata.dateModified),
-    type: "collection" as const,
+    type: "bookmark-item" as const,
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/bookmarks", name: "Bookmarks" },

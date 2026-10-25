@@ -92,6 +92,56 @@ describe("Scraped content pipeline", () => {
     ]);
   });
 
+  it("keeps a saved link without publishing a publisher challenge as article content", () => {
+    const raw = makeRawBookmark(
+      "blocked-source",
+      "<title>Just a moment...</title><p>Enable JavaScript and cookies to continue</p>",
+    );
+    raw.content.title = "Just a moment...";
+    raw.content.description = null;
+    raw.content.screenshotAssetId = "challenge-screenshot";
+    raw.summary = "This is a bot verification page; the actual article was not retrieved.";
+    raw.note = "Read this research paper later.";
+
+    const result = normalizeBookmark(raw, 0);
+
+    expect(result?.title).toBe("Saved link from example.com");
+    expect(result?.description).toContain("publisher returned an access challenge");
+    expect(result?.summary).toBeNull();
+    expect(result?.scrapedContentText).toBeUndefined();
+    expect(result?.content?.crawlStatus).toBe("blocked");
+    expect(result?.content?.screenshotAssetId).toBeUndefined();
+    expect(result?.note).toBe("Read this research paper later.");
+    expect(result?.url).toBe(raw.content.url);
+  });
+
+  it("preserves the user's title when the publisher returns a challenge", () => {
+    const raw = makeRawBookmark("blocked-custom-title", null);
+    raw.title = "A paper I want to read";
+    raw.content.title = "Just a moment...";
+    raw.summary = "The page shows a Cloudflare bot-verification screen.";
+
+    const result = normalizeBookmark(raw, 0);
+
+    expect(result?.title).toBe("A paper I want to read");
+    expect(result?.content?.crawlStatus).toBe("blocked");
+    expect(result?.summary).toBeNull();
+  });
+
+  it("does not reject an article discussing Cloudflare and browser verification", () => {
+    const raw = makeRawBookmark(
+      "article-about-challenges",
+      "<p>Cloudflare browser verification is an access challenge. This article explains it.</p>",
+    );
+    raw.content.title = "Understanding browser verification";
+
+    const result = normalizeBookmark(raw, 0);
+
+    expect(result?.title).toBe("Understanding browser verification");
+    expect(result?.content?.crawlStatus).toBe("success");
+    expect(result?.scrapedContentText).toContain("This article explains it.");
+  });
+
   it("canonicalizes string tags and replaces stale persisted tag slugs", () => {
     expect(normalizeBookmarkTag("AI & ML")).toEqual({
       id: "AI & ML",
