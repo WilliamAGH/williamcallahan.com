@@ -101,9 +101,13 @@ request returned `404` and the page rendered unstyled until a reload.
   rewrite configuration cannot strip them.
 - A replica relays only through its own configuration, so a release's old replicas cover the new
   release's chunks once the release before it carried this rewrite.
-- Each platform build uploads the same keys; chunk names carry their content hash, so a second
-  copy writes identical bytes. Archived files are never deleted. A `404` or `500` from a missing
-  chunk is never stored at the edge by the `/_next/static` Cache Rule below.
+- The `linux/amd64` and `linux/arm64` builds of one commit emit partly different chunk names
+  (release `45bab86`: 67 of 70 arm64 chunks matched amd64), so a document from a replica of one
+  architecture can request a chunk only the other architecture's replicas hold, outside any
+  rollout too. Each platform build archives its own chunks, so the relay covers that case. A name
+  both builds produce carries the same content hash, so the second copy writes identical bytes.
+  Archived files are never deleted. A `404` or `500` from a missing chunk is never stored at the
+  edge by the `/_next/static` Cache Rule below.
 
 Next's built-in skew protection (`deploymentId` routing) needs a version-pinned router; Traefik
 routes by service, not by the `dpl` query, so it is not used here [IO0e].
