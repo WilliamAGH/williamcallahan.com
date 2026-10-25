@@ -124,6 +124,12 @@ routes by service, not by the `dpl` query, so it is not used here [IO0e].
 
 ## Cloudflare Cache Rules
 
+The optimized-image rule keys raw `Accept` variants whenever Next emits `Vary: Accept`,
+normalizes encoding, and bypasses unexpected Vary fields. This uses general Cache Rules Vary
+(available on Free), not paid extension-based Vary for Images. AVIF and WebP clients must never
+share a negotiated representation. The OG redirect rule respects origin cache headers so
+terminal failure placeholders marked no-store do not become a day-long cached outage.
+
 `infra/cloudflare/cache-rules.json` is the declarative Cache Rules owner, validated by
 `infra/cloudflare/cache-rules.schema.json`. Preview the live diff before applying it, then deploy
 the same configuration:

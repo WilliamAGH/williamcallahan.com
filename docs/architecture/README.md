@@ -1,5 +1,8 @@
 # Project Architecture Entrypoint
 
+Cloudflare Accept-variant and degraded-OG caching contracts live in `ops/deployment.md`;
+front-end SEO parity decisions and indexing/heading boundaries live in `features/seo.md`.
+
 Bookmark feed cache selection is governed by `features/bookmarks.md`; durable historical rows
 are retained independently. `ops/deployment.md` owns hashed chunk/media retention, and
 `architecture/ai-services.md` owns stable analysis warning/terminal execution correlation.

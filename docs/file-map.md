@@ -747,6 +747,10 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 ## Tests Directory
 
+- `__tests__/scripts/cloudflare-cache-rules.test.ts`: deployed API-object Vary schema and optimizer negotiation policy.
+- `__tests__/scripts/indexnow-submit.test.ts`: native submission outcomes, independent configuration and no-write dry-run.
+- `__tests__/components/seo-window-headings.test.tsx`: real server-rendered contact and reading-list heading boundaries.
+
 - `__tests__/scripts/archive-static-assets.test.ts`: public chunks/media publication, original bytes and private-output exclusion.
 - `__tests__/api/static-archive.test.ts`: archived media/chunk HTTP delivery and truthful uncacheable failures.
 - `__tests__/api/ai/chat-analysis-correlation.test.ts`: stable warning/terminal identity and one truthful cancellation outcome.

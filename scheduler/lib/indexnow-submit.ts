@@ -24,7 +24,8 @@ async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): P
   if (!keyRes.ok) {
     throw new IndexNowSubmissionError(`IndexNow key verification returned HTTP ${keyRes.status}.`);
   }
-  if ((await keyRes.text()).trim() !== expectedKey) {
+  const keyText = await keyRes.text();
+  if (keyText.trim() !== expectedKey) {
     throw new IndexNowSubmissionError("IndexNow key verification file content mismatch.");
   }
 }
