@@ -34,6 +34,23 @@ function resolveProductionReleaseId(phase: string): string | null {
   const deploymentId = process.env.NEXT_DEPLOYMENT_ID?.trim();
   if (deploymentId) return requireUrlSafeReleaseId(deploymentId, "NEXT_DEPLOYMENT_ID");
 
+  let releaseIdError: unknown;
+  if (phase === PHASE_PRODUCTION_SERVER) {
+    // The Git-free image carries its build commit here. Never use .next/BUILD_ID,
+    // which is Next's generated build identity rather than the source revision.
+    try {
+      const releaseFile = readFileSync(".next/RELEASE_ID", "utf8").trim();
+      return requireUrlSafeReleaseId(releaseFile, "build-time .next/RELEASE_ID");
+    } catch (error) {
+      // A local production server may have Git but no built release artifact.
+      // An unreadable or malformed artifact must not silently select another identity.
+      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
+        throw error;
+      }
+      releaseIdError = error;
+    }
+  }
+
   let gitError: unknown;
   try {
     const gitHead = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
@@ -53,24 +70,13 @@ function resolveProductionReleaseId(phase: string): string | null {
     );
   }
 
-  // The container carries no .git, so a production server always lands here.
-  // `.next/RELEASE_ID` is written by the image build (Dockerfile) from the same
-  // commit the image was built at. Do NOT fall back to `.next/BUILD_ID`: that is
-  // whatever id Next generated for the build, unrelated to the release, and
-  // returning it silently mislabels `?dpl=`, NEXT_PUBLIC_GIT_HASH and
-  // SENTRY_RELEASE with a value that matches no commit.
-  try {
-    const releaseFile = readFileSync(".next/RELEASE_ID", "utf8").trim();
-    return requireUrlSafeReleaseId(releaseFile, "build-time .next/RELEASE_ID");
-  } catch (releaseIdError: unknown) {
-    const gitMessage = gitError instanceof Error ? gitError.message : String(gitError);
-    const releaseIdMessage =
-      releaseIdError instanceof Error ? releaseIdError.message : String(releaseIdError);
-    throw new Error(
-      `[next.config] Production requires NEXT_DEPLOYMENT_ID, local git HEAD, or a build-time .next/RELEASE_ID. Git failed: ${gitMessage}. RELEASE_ID failed: ${releaseIdMessage}.`,
-      { cause: releaseIdError },
-    );
-  }
+  const gitMessage = gitError instanceof Error ? gitError.message : String(gitError);
+  const releaseIdMessage =
+    releaseIdError instanceof Error ? releaseIdError.message : String(releaseIdError);
+  throw new Error(
+    `[next.config] Production requires NEXT_DEPLOYMENT_ID, local git HEAD, or a build-time .next/RELEASE_ID. Git failed: ${gitMessage}. RELEASE_ID failed: ${releaseIdMessage}.`,
+    { cause: releaseIdError },
+  );
 }
 
 process.env.NEXT_PUBLIC_APP_VERSION = packageJson.version;
@@ -257,6 +263,7 @@ function createNextConfig(releaseId: string | null) {
     agentRules: false,
     reactStrictMode: true,
     cacheComponents: true,
+    partialPrefetching: false,
     serverExternalPackages: [
       "@chroma-core/default-embed",
       "chromadb",
