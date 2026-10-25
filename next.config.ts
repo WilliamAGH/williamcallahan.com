@@ -184,10 +184,18 @@ function createNextConfig(releaseId: string | null) {
     async headers() {
       // Development keeps Next's revalidate-everything behavior so in-place asset edits show up.
       if (process.env.NODE_ENV !== "production") return [];
-      return PUBLIC_ASSET_SOURCES.map((source) => ({
-        source,
-        headers: PUBLIC_ASSET_CACHE_HEADERS,
-      }));
+      return [
+        ...PUBLIC_ASSET_SOURCES.map((source) => ({
+          source,
+          headers: PUBLIC_ASSET_CACHE_HEADERS,
+        })),
+        // Fonts load in CORS mode. Renderers that screenshot a copy of the HTML from another
+        // origin (TRMNL's Screenshot plugin loads it into about:blank) drop Inter without this.
+        {
+          source: "/_next/static/media/:path*",
+          headers: [{ key: "Access-Control-Allow-Origin", value: "*" }],
+        },
+      ];
     },
     // `next dev --webpack` (pnpm-workspace.yaml); production builds use Turbopack.
     webpack: (webpackConfig, { nextRuntime }) => {
@@ -261,7 +269,9 @@ function createNextConfig(releaseId: string | null) {
       formats: ["image/webp", "image/avif"],
       qualities: [75, 80, 85, 90, 100],
       minimumCacheTTL: 60 * 60 * 24 * 30,
-      path: "/_next/image",
+      // Absolute in deployed builds so a copy of the HTML rendered from another origin (TRMNL)
+      // still resolves image URLs; the optimizer route itself stays /_next/image.
+      path: `${(process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_SITE_URL) || ""}/_next/image`,
       localPatterns: [
         { pathname: "/images/**" },
         { pathname: "/api/assets/**" },
