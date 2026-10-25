@@ -10,7 +10,6 @@ import {
   fetchBooksWithFallback,
   fetchBookByIdWithFallback,
   fetchBookListItemsWithFallback,
-  fetchBooks,
   clearBooksCache,
 } from "@/lib/books/books-data-access.server";
 import type { Book } from "@/types/schemas/book";
@@ -82,17 +81,6 @@ describe("Books Database Data Access", () => {
 
       expect(result.books).toHaveLength(0);
       expect(result.isFallback).toBe(false);
-    });
-  });
-
-  describe("fetchBooks", () => {
-    it("returns the books array directly", async () => {
-      mockReadBooksFromDb.mockResolvedValueOnce(SAMPLE_BOOKS);
-
-      const books = await fetchBooks();
-
-      expect(books).toHaveLength(2);
-      expect(books[1]?.title).toBe("Clean Architecture");
     });
   });
 

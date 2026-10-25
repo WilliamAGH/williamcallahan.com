@@ -105,12 +105,13 @@ official `partialPrefetching`/adoption guides retrieved through Context7 on 2026
 metadata streamed into `<body>`. Next leaves plain `Googlebot` off its default list because
 Googlebot renders JavaScript, yet Google ignores a `rel=canonical` outside `<head>`. The option
 replaces the default list, so `next.config.ts` extends Next's own `HTML_LIMITED_BOT_UA_RE` with
-`Googlebot` rather than copying the list. A bot match changes metadata placement only; dynamic
-rendering for bots follows Next's separate `getBotType` check. Evidence: installed
-`next/dist/server/config.js:1402-1405` (the RegExp is serialized to its source),
-`next/dist/server/lib/streaming-metadata.js` (the pattern decides streaming),
-`next/dist/server/base-server.js:1247-1249`, and the official `htmlLimitedBots` reference
-retrieved on 2026-10-25.
+`Googlebot` rather than copying the list. On a partially prerendered route a match also bypasses
+the static shell, because the shell has already closed `<head>`: the matched user agent gets an
+on-demand render, which is why the pattern names crawlers and never matches every visitor.
+Evidence: installed `next/dist/server/config.js:1402-1405` (the RegExp is serialized to its
+source), `next/dist/server/lib/streaming-metadata.js` (the pattern decides streaming),
+`next/dist/build/templates/app-page-runtime.js:342-348` (`shouldForceDynamicPPRRender`), and the
+official `htmlLimitedBots` reference retrieved on 2026-10-25.
 
 `next.config.ts` is the application configuration owner. Cache components invert the
 old route-config workflow: cache explicitly with `'use cache'`; do not use old

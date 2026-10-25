@@ -71,15 +71,13 @@ else
     exit 1
 fi
 
+# submit-sitemap gates each search engine on its own credentials, so IndexNow
+# still runs where the Google service account is absent.
 echo "🗺️  [Entrypoint] Submitting sitemap..."
-if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ]; then
-    if run_bootstrap_step node --run submit-sitemap; then
-        echo "✅ [Entrypoint] Sitemap submission completed"
-    else
-        echo "⚠️  [Entrypoint] Sitemap submission failed; continuing startup"
-    fi
+if run_bootstrap_step node --run submit-sitemap; then
+    echo "✅ [Entrypoint] Sitemap submission completed"
 else
-    echo "⚠️  [Entrypoint] Missing Google sitemap credentials; skipping submission"
+    echo "⚠️  [Entrypoint] Sitemap submission failed; continuing startup"
 fi
 
 echo "🕒 [Entrypoint] Starting scheduler..."
