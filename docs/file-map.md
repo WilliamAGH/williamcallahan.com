@@ -473,7 +473,7 @@ File/Path Functionality Description
   - [x] `window.d.ts` `state-theme-window-providers` - Augmentations for the global `Window` object
 - [x] **seo/**
   - [x] `base.ts` `seo` - Base SEO type definitions
-  - [x] `metadata.ts` `seo` - Types and Zod validation schemas for SEO metadata
+  - [x] `metadata.ts` `seo` - SEO metadata schemas and inferred types; profile/collection validation uses the schemas directly
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
   - [x] `schema.ts` `seo` - Types for Schema.org
   - [x] `shared.ts` `seo` - Shared SEO type definitions

@@ -194,38 +194,6 @@ export const metadataSchema = z.object({
 });
 
 /**
- * Page metadata schemas map
- * Maps page keys to their appropriate schema
- */
-export const pageMetadataSchemas = {
-  home: profilePageMetadataSchema,
-  experience: profilePageMetadataSchema,
-  cv: profilePageMetadataSchema,
-  education: profilePageMetadataSchema,
-  investments: collectionPageMetadataSchema,
-  bookmarks: collectionPageMetadataSchema,
-  blog: collectionPageMetadataSchema,
-  projects: collectionPageMetadataSchema,
-  contact: collectionPageMetadataSchema,
-  books: collectionPageMetadataSchema,
-  thoughts: collectionPageMetadataSchema,
-} as const;
-
-/**
- * Validate page metadata configuration
- * @param pageKey - The page key to validate
- * @param metadata - The metadata to validate
- * @returns Validated metadata or throws ZodError
- */
-export function validatePageMetadata<K extends keyof typeof pageMetadataSchemas>(
-  pageKey: K,
-  metadata: unknown,
-): z.infer<(typeof pageMetadataSchemas)[K]> {
-  const schema = pageMetadataSchemas[pageKey];
-  return schema.parse(metadata);
-}
-
-/**
  * Validate the entire metadata configuration
  * @param metadata - The metadata object to validate
  * @returns Validated metadata or throws ZodError
