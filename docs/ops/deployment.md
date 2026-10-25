@@ -80,23 +80,30 @@ not inspect CSS assets.
 
 Swarm's start-first rollout serves old and new web replicas side by side, and Traefik spreads
 requests across them. A document one release rendered can therefore request a hashed
-`/_next/static` file that only the other release's image holds; before the archive, that request
-returned `404` and the page rendered unstyled until a reload.
+`/_next/static/chunks` file that only the other release's image holds. Every release renames at
+least one stylesheet, because its font URLs embed the `dpl` release id; before the archive, that
+request returned `404` and the page rendered unstyled until a reload.
 
 - The web image build runs `scripts/archive-static-assets.ts` right after `next build`. It copies
-  every file under `.next/static` to the CDN bucket at the same `_next/static/<path>` key, with
-  `Cache-Control: public, max-age=31536000, immutable`. A failed copy fails the build, so the
-  archive holds a release's files before any of its replicas serve.
-- `next.config.ts` `rewrites().fallback` relays a `/_next/static/:path*` request the replica's
-  filesystem cannot answer to `NEXT_PUBLIC_S3_CDN_URL`. The browser keeps the same relative URL,
-  so no `assetPrefix` is involved and copied-HTML renderers (TRMNL) are unaffected.
-  `experimental.proxyTimeout` bounds that relay.
+  every file under `.next/static/chunks` to the CDN bucket at the same `_next/static/chunks/<path>`
+  key, with `Cache-Control: public, max-age=31536000, immutable`. A failed copy fails the build,
+  so the archive holds a release's chunks before any of its replicas serve.
+- `next.config.ts` `rewrites().fallback` relays a `/_next/static/chunks/:path*` request the
+  replica's filesystem cannot answer to `NEXT_PUBLIC_S3_CDN_URL`. The browser keeps the same
+  relative URL, so no `assetPrefix` is involved and copied-HTML renderers (TRMNL) are unaffected.
+  `experimental.proxyTimeout` is the relay's idle-socket bound; a relay timeout or upstream error
+  answers `500`.
+- `/_next/static/media` is not relayed. Next applies no `headers()` rule to an external rewrite,
+  so a relayed font would arrive without the `Access-Control-Allow-Origin` header that TRMNL's
+  copied HTML needs, and Cloudflare would keep that copy for the file's immutable lifetime. Media
+  names are content hashes that change only when the font or image bytes change.
+- The relay forwards the visitor's request headers, cookies included, to the CDN host; Next's
+  rewrite configuration cannot strip them.
 - A replica relays only through its own configuration, so a release's old replicas cover the new
-  release's files once the release before it carried this rewrite.
+  release's chunks once the release before it carried this rewrite.
 - Each platform build uploads the same keys; chunk names carry their content hash, so a second
-  copy writes identical bytes. Archived files are never deleted. A file missing from both the
-  replica and the archive still returns `404`, which the `/_next/static` Cache Rule below never
-  stores at the edge.
+  copy writes identical bytes. Archived files are never deleted. A `404` or `500` from a missing
+  chunk is never stored at the edge by the `/_next/static` Cache Rule below.
 
 Next's built-in skew protection (`deploymentId` routing) needs a version-pinned router; Traefik
 routes by service, not by the `dpl` query, so it is not used here [IO0e].
