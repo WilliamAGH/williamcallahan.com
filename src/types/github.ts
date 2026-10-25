@@ -57,6 +57,30 @@ export const GraphQLContributionYearsResponseSchema = z.object({
   }),
 });
 
+export const GraphQLHistoricalRepositoriesResponseSchema = z.object({
+  user: z.object({
+    contributionsCollection: z.object({
+      totalRepositoriesWithContributedCommits: z.number().int().nonnegative(),
+      hasAnyRestrictedContributions: z.boolean(),
+      commitContributionsByRepository: z.array(z.object({ repository: GraphQLRepoNodeSchema })),
+    }),
+  }),
+});
+
+export const GraphQLRepositoryCommitCountResponseSchema = z.object({
+  repository: z
+    .object({
+      defaultBranchRef: z
+        .object({
+          target: z
+            .object({ history: z.object({ totalCount: z.number().int().nonnegative() }) })
+            .nullable(),
+        })
+        .nullable(),
+    })
+    .nullable(),
+});
+
 /**
  * Schema for GitHub author
  */

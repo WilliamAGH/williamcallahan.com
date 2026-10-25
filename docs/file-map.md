@@ -279,6 +279,7 @@ File/Path Functionality Description
 - [x] **data-access/**
   - [x] `bookmarks.ts` `json-handling` - Data access for bookmarks
   - [x] `github.ts` `json-handling` - GitHub orchestration (API fetch, processing, cache invalidation, and durable persistence flow)
+  - [x] `github-api.ts` `github-activity` - Paginated and historical repository inventory, contribution calendars, and shared contributor statistics with large-repository LOC protection
   - [x] `github-activity-summaries.ts` `github-activity` - Writes the single all-time summary payload via PostgreSQL-backed storage
   - [x] `github-contributions.ts` `github-activity` - Trailing calendar and disjoint historical contribution-year totals, independent of repository visibility
   - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
@@ -668,7 +669,7 @@ File/Path Functionality Description
 - [x] `bookmark-diagnostics.ts` `log-error-debug-handling` - Diagnostics script for bookmark refresh/cache behavior
 - [x] `blog-render-smoke.ts` `blog` - Shared deployed-HTML validator for the canonical blog render canaries; rejects missing article content and the MDX fallback
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
-- [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
+- [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Force-refresh repository stats through the shared validated contributor fetch; preserve existing rows on unavailable data
 - [x] `lib/with-database.node.mjs` `db` - Shared Node-script bootstrap: registers `tsx/esm/api`, runs a task against the TypeScript database owners, closes the shared connection; used by every seed, backfill, and gate script
 - [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for bookmark rows of the unified `embeddings` table; runs through `withDatabase` and delegates to the canonical `backfillBookmarkEmbeddings` owner so batching, embedding-text contract, and `embedding_failures` checkpointing are not restated
 - [x] `ingest-bookmark-tag-aliases.node.mjs` `bookmarks` - Node runtime LLM-driven tag alias ingestion using bookmark tag context + embedding-nearest related bookmarks; writes to `bookmarks_tags` + `bookmarks_tags_links`
@@ -809,7 +810,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `cache.test.ts` `caching` - Cache utility tests
     - [x] `github-activity.test.ts` `github-activity` - Multi-year contribution refresh, failures, empty repository sets and category aggregation
     - [x] `github-activity-persistence.test.ts` `github-activity` - Atomic publication, verified counts with retained LOC, integrity repair and rollback
-    - [x] `github-api.test.ts` `github-activity` - Upstream pagination, GraphQL failures, anonymous contributors and UTC calendar boundaries
+    - [x] `github-api.test.ts` `github-activity` - Historical/private inventory coverage, cap splitting, LOC availability, pagination, GraphQL failures, anonymous contributors and UTC calendar boundaries
     - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guard tests
     - [x] **middleware/**
       - [x] `proxy-analytics.test.ts` `analytics` - Same-origin proxy delivery, header sanitization, timeout, and failure tests

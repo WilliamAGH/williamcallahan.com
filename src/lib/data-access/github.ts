@@ -105,7 +105,8 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   console.log(
     `[DataAccess/GitHub] Fetching list of contributed repositories and user ID for ${GITHUB_REPO_OWNER} via GraphQL API...`,
   );
-  const { repositories: uniqueRepoArray } = await fetchContributedRepositories(GITHUB_REPO_OWNER);
+  const { repositories: uniqueRepoArray, dataComplete: inventoryComplete } =
+    await fetchContributedRepositories(GITHUB_REPO_OWNER);
 
   const trailingYearFromDate = getTrailingYearDate(now);
   const { totalContributions: yearTotalContributions, contributionDays } =
@@ -120,7 +121,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   );
   const lifetimeContributions = yearTotalContributions + historicalContributions;
 
-  if (uniqueRepoArray.length === 0 && lifetimeContributions === 0) {
+  if (inventoryComplete && uniqueRepoArray.length === 0 && lifetimeContributions === 0) {
     console.warn("[DataAccess/GitHub] No non-forked repositories contributed to found for user.");
     const emptyActivityData: GitHubActivitySegment = {
       source: "api",
@@ -184,7 +185,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     contributionCountSource: "github-calendar",
     linesAdded: yearLinesAdded,
     linesRemoved: yearLinesRemoved,
-    dataComplete: allTimeOverallDataComplete,
+    dataComplete: allTimeOverallDataComplete && inventoryComplete,
   };
 
   console.log(
@@ -210,7 +211,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     contributionCountSource: "github-calendar",
     linesAdded: allTimeLinesAdded,
     linesRemoved: allTimeLinesRemoved,
-    dataComplete: allTimeOverallDataComplete,
+    dataComplete: allTimeOverallDataComplete && inventoryComplete,
     allPriorYearCommits: priorYearCommitStats,
   };
 
