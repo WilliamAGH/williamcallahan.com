@@ -628,7 +628,7 @@ File/Path Functionality Description
     - [x] **blog/`route.ts`** `search` - Blog search API (connection() for request-time execution)
     - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (connection() for request-time execution)
     - [x] **[scope]/`route.ts`** `search` - Scoped search API (connection() for request-time execution)
-  - [x] **static-archive/`[...path]`/`route.ts`** `caching` - Answers a `/_next/static/chunks` file the replica lacks from the CDN static archive (fallback rewrite target)
+  - [x] **static-archive/`[...path]`/`route.ts`** `caching` - Answers missing public hashed chunks/media from the CDN archive, excluding source maps/private output (filesystem-first fallback)
   - [x] **sentry-example-api/`route.ts`** `log-error-debug-handling` - Sentry example API (debug endpoint)
   - [x] **tunnel/`route.ts`** `log-error-debug-handling` - Sentry tunnel API
   - [x] **twitter-image/[...path]/`route.ts`** `blog-article` - Twitter image proxy API
@@ -744,6 +744,12 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
   - [x] `*.md` `` - Operations and deployment guides
 
 ## Tests Directory
+
+- `__tests__/scripts/archive-static-assets.test.ts`: public chunks/media publication, original bytes and private-output exclusion.
+- `__tests__/api/static-archive.test.ts`: archived media/chunk HTTP delivery and truthful uncacheable failures.
+- `__tests__/api/ai/chat-analysis-correlation.test.ts`: stable warning/terminal identity and one truthful cancellation outcome.
+
+`src/lib/validators/static-archive.ts` is the shared public path/MIME policy used by the publisher and relay; it excludes source maps and private output at both boundaries.
 
 - `__tests__/scripts/dokploy-deploy-image.test.ts`: real shell/HTTP deployment identity regression
   for unchanged requests versus corrected runtime configuration.

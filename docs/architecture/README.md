@@ -1,5 +1,9 @@
 # Project Architecture Entrypoint
 
+Bookmark feed cache selection is governed by `features/bookmarks.md`; durable historical rows
+are retained independently. `ops/deployment.md` owns hashed chunk/media retention, and
+`architecture/ai-services.md` owns stable analysis warning/terminal execution correlation.
+
 Image deployment and scheduler dependency configuration live in `docs/ops/deployment.md`;
 `__tests__/scripts/dokploy-deploy-image.test.ts` exercises the actual shell/API boundary so
 runtime-reference changes cannot silently reuse an earlier failed deployment.

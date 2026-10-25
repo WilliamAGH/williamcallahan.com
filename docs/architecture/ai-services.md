@@ -138,6 +138,10 @@ Because the endpoints are available to anonymous visitors, they are still callab
 - Token + cookie binding step (`/api/ai/token` → `/api/ai/chat/[feature]`).
 - Per-IP rate limiting using `src/lib/rate-limiter.ts`.
 - Server-side logging via `src/lib/utils/logger.ts`.
+- Each chat pipeline allocates its existing message ID once, before execution. Analysis repair
+  warnings and the terminal success, error, or cancellation record use that same ID; a conversation
+  ID is not a request identity. Cancellation is recorded as499 atINFO severity, never successful generation or an application-error alert, and
+  no prompt/body logging is added for correlation.
 
 ## Required Secret
 
