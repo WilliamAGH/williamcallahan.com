@@ -94,6 +94,7 @@ export async function putObject(
   data: Buffer | string | Readable,
   options?: {
     contentType?: string;
+    cacheControl?: string;
     acl?: "private" | "public-read" | "public-read-write" | "authenticated-read";
     ifNoneMatch?: "*";
   },
@@ -109,6 +110,7 @@ export async function putObject(
         Key: key,
         Body: data,
         ContentType: options?.contentType,
+        CacheControl: options?.cacheControl,
         ACL: options?.acl ?? "private",
         IfNoneMatch: options?.ifNoneMatch,
       }),

@@ -664,6 +664,7 @@ File/Path Functionality Description
 - [x] `check-file-naming.ts` `testing-config` - Script to check file naming conventions
 - [x] `consolidate-configs.js` `build` - Script to consolidate configuration files
 - [x] `deploy-cf-cache-rules.node.mjs` `caching` - Validates, previews, and deploys declarative Cloudflare Cache Rules
+- [x] `archive-static-assets.ts` `caching` - Web image build step that copies `.next/static` to the CDN bucket so every replica can relay another release's hashed assets during a rollout
 - [x] `bookmark-diagnostics.ts` `log-error-debug-handling` - Diagnostics script for bookmark refresh/cache behavior
 - [x] `blog-render-smoke.ts` `blog` - Shared deployed-HTML validator for the canonical blog render canaries; rejects missing article content and the MDX fallback
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks

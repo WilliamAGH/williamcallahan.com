@@ -236,6 +236,21 @@ function createNextConfig(releaseId: string | null) {
         },
       ];
     },
+    // A start-first rollout serves old and new replicas side by side, so a document from one
+    // release can request a hashed asset only the other release's image holds. The image build
+    // archives `.next/static` to the CDN bucket before rollout (scripts/archive-static-assets.ts);
+    // a file this replica lacks is relayed from there on the same relative path.
+    async rewrites() {
+      const archiveOrigin = process.env.NEXT_PUBLIC_S3_CDN_URL?.trim().replace(/\/+$/, "");
+      if (process.env.NODE_ENV !== "production" || !archiveOrigin) return [];
+      return {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [
+          { source: "/_next/static/:path*", destination: `${archiveOrigin}/_next/static/:path*` },
+        ],
+      };
+    },
     // `null` delegates development build IDs to Next; production always has releaseId.
     generateBuildId: async () => releaseId,
     poweredByHeader: false,
@@ -262,6 +277,9 @@ function createNextConfig(releaseId: string | null) {
       optimizeCss: true,
       staticGenerationMaxConcurrency: resolveStaticGenerationMaxConcurrency(),
       optimizeServerReact: true,
+      // The static archive relay is this app's only proxied rewrite; Next's 30 s default would
+      // hold a stylesheet request far past the CDN's normal sub-second answer.
+      proxyTimeout: 10_000,
     },
     images: {
       dangerouslyAllowSVG: true,
