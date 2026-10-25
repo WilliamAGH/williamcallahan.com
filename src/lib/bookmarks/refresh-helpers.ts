@@ -214,9 +214,8 @@ export async function validateChecksumAndGetCached(
     }
 
     // Durable rows also reserve historical slugs; only compare the fetched list's members.
-    const cachedBookmarks = (await getAllBookmarks()).filter((bookmark) =>
-      sourceIds.has(bookmark.id),
-    );
+    const durableBookmarks = await getAllBookmarks();
+    const cachedBookmarks = durableBookmarks.filter((bookmark) => sourceIds.has(bookmark.id));
     const cachedIds = new Set(cachedBookmarks.map((bookmark) => bookmark.id));
     if (cachedIds.size !== cachedBookmarks.length) {
       console.warn("[refreshBookmarksData] Duplicate cached bookmark IDs; refusing cache reuse.");
