@@ -74,7 +74,6 @@ export default async function CvPage(): Promise<React.JSX.Element> {
       bio: pageMetadata.bio,
       alternateName: pageMetadata.alternateName,
       profileImage: pageMetadata.profileImage,
-      interactionStats: pageMetadata.interactionStats,
     },
   };
 
