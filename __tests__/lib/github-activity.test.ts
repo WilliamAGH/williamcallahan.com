@@ -199,6 +199,22 @@ describe("GitHub activity refresh", () => {
     expect(persistedRefresh?.[3]).toBe(GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY);
   });
 
+  it("marks LOC incomplete if aggregate cache reads fail after successful repository processing", async () => {
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      repositories: [createGraphQLRepositoryFixture("current-repo")],
+    });
+    mockProcessSingleRepository.mockResolvedValue(createRepositoryProcessingResult(100, 25, true));
+    mockFetchContributionCalendar.mockResolvedValue(calendarResponse(10));
+    mockReadRepoWeeklyStatsRecord.mockRejectedValue(new Error("Aggregate cache unavailable"));
+
+    const result = await refreshGitHubActivityDataFromApi();
+    expect(result?.allTimeData.totalContributions).toBe(10);
+    expect(result?.trailingYearData.dataComplete).toBe(false);
+    expect(result?.allTimeData.dataComplete).toBe(false);
+    expect(persistedRefresh?.[1].dataComplete).toBe(false);
+  });
+
   it("does not publish zero history when a historical calendar request fails", async () => {
     mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
     mockFetchContributionYears.mockResolvedValue([2022]);

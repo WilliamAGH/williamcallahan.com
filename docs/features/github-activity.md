@@ -59,7 +59,7 @@ Repository discovery follows every GraphQL cursor page but remains limited to re
 
 A missing/failed current calendar, year inventory, or historical calendar aborts publication rather than recording a zero. An empty repository list does not erase historical calendar activity. Fully fetched calendar counts carry `contributionCountSource = "github-calendar"` and can publish even when independent LOC collection is incomplete; `dataComplete` continues to describe repository-stat completeness, which the UI discloses. Anonymous (`author: null`) contributor entries are skipped without discarding other contributors. Failed repository batches mark LOC statistics incomplete. Repository identifiers remain excluded from public responses.
 
-When repository statistics are incomplete, publication retains the previous coherent LOC snapshot (activity fields, summary/category metrics, and weekly aggregate) under the same transaction lock while updating calendar counts. These retained LOC figures remain explicitly incomplete until a complete repository refresh replaces them. This avoids erasing good statistics when a renamed repository has no cache under its new name and GitHub's stats endpoint is pending.
+When repository statistics or the subsequent weekly-aggregate reads are incomplete, publication retains the previous coherent LOC snapshot (activity fields, summary/category metrics, and weekly aggregate) under the same transaction lock while updating calendar counts. These retained LOC figures remain explicitly incomplete until a complete repository refresh replaces them. This avoids erasing good statistics when a renamed repository has no cache under its new name and GitHub's stats endpoint is pending.
 
 ## Storage Model
 

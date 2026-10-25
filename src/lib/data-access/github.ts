@@ -214,6 +214,14 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     allPriorYearCommits: priorYearCommitStats,
   };
 
+  const aggregate = await calculateAggregatedWeeklyActivity(
+    uniqueRepoArray.map((repository) => repository.nameWithOwner),
+  );
+  if (aggregate === null) {
+    throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
+  }
+  trailingYearData.dataComplete &&= aggregate.overallDataComplete;
+  allTimeData.dataComplete &&= aggregate.overallDataComplete;
   const combinedActivityData: GitHubActivityApiResponse = {
     trailingYearData,
     cumulativeAllTimeData: allTimeData,
@@ -223,12 +231,6 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     totalRepositoriesContributedTo: uniqueRepoArray.length,
     linesOfCodeByCategory: allTimeCategoryStats,
   });
-  const aggregate = await calculateAggregatedWeeklyActivity(
-    uniqueRepoArray.map((repository) => repository.nameWithOwner),
-  );
-  if (aggregate === null) {
-    throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
-  }
   const refreshWritten = await writeGitHubActivityRefreshRecord(
     combinedActivityData,
     summary,
