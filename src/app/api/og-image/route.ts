@@ -429,13 +429,15 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Final fallback
+      // A failure placeholder must not outlive the upstream outage in any cache.
       const fallbackImage = getContextualFallbackImage(domain, url);
       const fallbackUrl = new URL(fallbackImage, baseUrl);
       return NextResponse.redirect(fallbackUrl.toString(), {
         status: 302,
         headers: {
-          "Cache-Control": "public, max-age=86400",
+          "Cache-Control": "no-store",
+          "CDN-Cache-Control": "no-store",
+          "Cloudflare-CDN-Cache-Control": "no-store",
         },
       });
     }
@@ -445,7 +447,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
       status: 302,
       headers: {
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "no-store",
+        "CDN-Cache-Control": "no-store",
+        "Cloudflare-CDN-Cache-Control": "no-store",
       },
     });
   }

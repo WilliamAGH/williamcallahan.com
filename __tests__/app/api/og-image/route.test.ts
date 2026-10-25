@@ -5,7 +5,13 @@
  */
 
 // Mock environment variables and dependencies before importing the route
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+// Exercise real redirect status/header semantics rather than the configured lightweight mock.
+vi.mock("next/server", async () => ({
+  ...(await import("next/dist/server/web/spec-extension/request")),
+  ...(await import("next/dist/server/web/spec-extension/response")),
+}));
 
 const originalEnv = process.env;
 
@@ -246,6 +252,79 @@ describe("OG-Image bookmark fallback validation", () => {
     expect(locationHeader).not.toBe(attackerUrl);
     expect(locationHeader).toContain("opengraph-placeholder.png");
   });
+});
+
+describe("OG-Image degraded response caching", () => {
+  const sourceUrl = "https://example.com/opengraph.png";
+  const send = vi.fn<() => Promise<unknown>>();
+
+  beforeEach(() => {
+    vi.resetModules();
+    send.mockReset();
+    vi.doMock("@/lib/s3/client", () => ({
+      getS3Client: () => ({ send }),
+    }));
+    vi.doMock("@/lib/s3/config", () => ({
+      getS3Config: () => ({ bucket: "test-bucket" }),
+    }));
+    process.env.API_BASE_URL = "https://williamcallahan.com";
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.doUnmock("@/lib/s3/client");
+    vi.doUnmock("@/lib/s3/config");
+    vi.resetModules();
+  });
+
+  it.each(["upstream fetch rejection", "unexpected storage failure"])(
+    "keeps the fallback image reachable without caching after %s",
+    async (failure) => {
+      send.mockRejectedValue(
+        failure === "upstream fetch rejection"
+          ? { $metadata: { httpStatusCode: 404 } }
+          : new Error("storage unavailable"),
+      );
+      vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("upstream unavailable"));
+      const { GET } = await import("@/app/api/og-image/route");
+
+      const response = await GET(
+        new NextRequest(
+          `https://williamcallahan.com/api/og-image?url=${encodeURIComponent(sourceUrl)}`,
+        ),
+      );
+
+      expect(response).toBeInstanceOf(NextResponse);
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toContain("opengraph-placeholder.png");
+      for (const header of ["Cache-Control", "CDN-Cache-Control", "Cloudflare-CDN-Cache-Control"]) {
+        expect(response.headers.get(header)).toBe("no-store");
+      }
+    },
+  );
+
+  it.each([
+    { query: "", cacheControl: "public, max-age=86400", cdnCacheControl: null },
+    {
+      query: `?url=${encodeURIComponent("/images/opengraph-placeholder.png")}`,
+      cacheControl: "public, max-age=604800, stale-while-revalidate=86400",
+      cdnCacheControl: "public, max-age=31536000, immutable",
+    },
+  ])(
+    "preserves intentional stable-image caching for '$query'",
+    async ({ query, cacheControl, cdnCacheControl }) => {
+      const { GET } = await import("@/app/api/og-image/route");
+      const response = await GET(
+        new NextRequest(`https://williamcallahan.com/api/og-image${query}`),
+      );
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toContain("opengraph-placeholder.png");
+      expect(response.headers.get("Cache-Control")).toBe(cacheControl);
+      expect(response.headers.get("CDN-Cache-Control")).toBe(cdnCacheControl);
+      expect(response.headers.get("Cloudflare-CDN-Cache-Control")).toBe(cdnCacheControl);
+    },
+  );
 });
 
 describe("OpenGraph static fallbacks", () => {

@@ -5,6 +5,16 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["rules"],
+  "definitions": {
+    "varySetting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action"],
+      "properties": {
+        "action": { "type": "string", "enum": ["normalize", "passthrough", "bypass"] }
+      }
+    }
+  },
   "properties": {
     "$schema": {
       "type": "string",
@@ -44,6 +54,23 @@
             "required": ["cache"],
             "properties": {
               "cache": { "type": "boolean" },
+              "vary": {
+                "description": "Supported general Cache Rules Vary settings (available on Free); not the paid, extension-based Vary for images feature",
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["default"],
+                "properties": {
+                  "default": { "$ref": "#/definitions/varySetting" },
+                  "headers": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "accept": { "$ref": "#/definitions/varySetting" },
+                      "accept-encoding": { "$ref": "#/definitions/varySetting" }
+                    }
+                  }
+                }
+              },
               "edge_ttl": {
                 "type": "object",
                 "additionalProperties": false,
