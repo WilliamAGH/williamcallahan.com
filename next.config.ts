@@ -341,16 +341,12 @@ function createSentryWebpackPluginOptions(releaseId: string | null) {
     autoInstrumentAppDirectory: false,
     ...(releaseId ? { release: { name: releaseId, deploy: { env: process.env.NODE_ENV } } } : {}),
     dryRun: process.env.NODE_ENV === "development",
-    ...(process.env.NODE_ENV === "development"
-      ? { sourcemaps: { disable: true } }
-      : {
-          widenClientFileUpload: true,
-          sourcemaps: {
-            assets: ["./**/*.js", "./**/*.js.map"],
-            ignore: ["./node_modules/**"],
-            filesToDeleteAfterUpload: ["./**/*.js.map"],
-          },
-        }),
+    // Turbopack builds upload through Sentry's after-compile hook, which hands each asset path to
+    // sentry-cli as one artifact bundle. Its defaults (`.next/server`, `.next/static/chunks`) keep
+    // every chunk beside its map; separate `*.js` and `*.js.map` globs split them into two bundles,
+    // and Sentry resolves a debug ID to only its newest bundle, so no stack trace symbolicated.
+    // The hook also deletes the browser maps after upload.
+    ...(process.env.NODE_ENV === "development" ? { sourcemaps: { disable: true } } : {}),
   };
 }
 
