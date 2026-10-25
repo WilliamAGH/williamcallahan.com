@@ -72,9 +72,9 @@ Cloudflare cache key that ignores the `dpl` query.
 After deployment, run
 `pnpm run deploy:smoke-test -- "$NEXT_PUBLIC_SITE_URL" --expected-release-id="$(cat .next/RELEASE_ID)"`
 from the deployed web image or pass its recorded release ID explicitly. The smoke test fails unless
-`/investments` advertises one shared nonempty deployment ID and every advertised script
-loads successfully through the public Cloudflare URL. It verifies JavaScript only; it does
-not inspect CSS assets.
+`/investments` advertises one shared nonempty deployment ID and every advertised script and
+stylesheet loads successfully through the public Cloudflare URL with its JavaScript or CSS
+content type.
 
 ## Static asset archive
 
