@@ -284,6 +284,11 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
   Next's default bot list, so the config extends Next's own `HTML_LIMITED_BOT_UA_RE` with
   `Googlebot` (installed source: `node_modules/next/dist/server/lib/streaming-metadata.js`;
   docs: nextjs.org/docs/app/api-reference/config/next-config-js/htmlLimitedBots).
+- **`next.config.ts` `LEGACY_URL_REDIRECTS`**: Permanent redirects for URLs search engines still
+  hold: posts first published under their MDX filename, projects slugged before the current
+  name-derived scheme, and WordPress-era posts with a migrated equivalent. Without them a renamed
+  slug answers 200 with `noindex` and a WordPress-era URL answers 404, so the old URL leaves the
+  index without passing its links to the current page.
 
 #### Automated Submission
 
