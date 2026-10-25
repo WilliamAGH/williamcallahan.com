@@ -1,4 +1,4 @@
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import os from "node:os";
@@ -338,7 +338,7 @@ function createSentryWebpackPluginOptions(releaseId: string | null) {
     authToken: process.env.SENTRY_AUTH_TOKEN,
     // Webpack (dev) would wrap every server component in a Sentry scope whose UUID
     // breaks cacheComponents prerendering; Turbopack never wraps them.
-    autoInstrumentAppDirectory: false,
+    webpack: { autoInstrumentAppDirectory: false },
     ...(releaseId ? { release: { name: releaseId, deploy: { env: process.env.NODE_ENV } } } : {}),
     dryRun: process.env.NODE_ENV === "development",
     // Turbopack builds upload through Sentry's after-compile hook, which hands each asset path to
