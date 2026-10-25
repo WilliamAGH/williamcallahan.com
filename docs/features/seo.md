@@ -272,24 +272,30 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
   - Production: Allows all crawlers, blocks sensitive paths (`/api/`, `/debug/`)
   - Non-production: Blocks all crawlers to prevent indexing of staging sites
 - **`app/sitemap.ts`**: Dynamically generates the `sitemap.xml` file at build time
-  - Includes: Blog posts, tags, bookmarks, static pages
+  - Includes: static pages, project detail pages, blog posts and published thoughts
   - Priorities: Home (1.0), Investments/Projects (0.9), Experience/Education (0.8), Blog/Bookmarks (0.7)
   - Uses trimmed, validated frontmatter slugs for blog URLs and frontmatter dates for `lastModified` when available
+- **`lib/seo/search-exclusion.ts`**: Bookmark detail, bookmark tag, blog tag and book detail pages
+  serve `noindex, follow` and stay out of the sitemap. They repeat third-party titles,
+  descriptions and AI summaries or only list other pages; thousands of them indexed beside a few
+  dozen original posts read as scaled, low-value content and dragged down the whole site.
+- **`next.config.ts` `htmlLimitedBots`**: Next streams metadata into `<body>` for Googlebot because
+  it renders JavaScript, and Google ignores a `rel=canonical` outside `<head>`. The option replaces
+  Next's default bot list, so the config extends Next's own `HTML_LIMITED_BOT_UA_RE` with
+  `Googlebot` (installed source: `node_modules/next/dist/server/lib/streaming-metadata.js`;
+  docs: nextjs.org/docs/app/api-reference/config/next-config-js/htmlLimitedBots).
 
 #### Automated Submission
 
-- **`scheduler/submit-sitemap.ts`**: Programmatically submits sitemaps to search engines
+- **`scheduler/submit-sitemap.ts`**: Submits the sitemap once per scheduler start, which is once
+  per deploy (`scheduler/entrypoint.sh`); indexable pages change only when a deploy ships them
   - **Google Search Console**: Uses Webmasters API v3 with Service Account authentication
-  - **Bing IndexNow**: Simple GET request with API key verification
-  - Features:
-    - Production-only execution (checks `NEXT_PUBLIC_SITE_URL`)
-    - Rate limiting (1-second delay between submissions)
-    - Retry mechanism with exponential backoff
-    - Command line options: `--google-only`, `--indexnow-only`, `--debug`
+  - **Bing IndexNow**: POSTs only sitemap URLs modified within the last day, and nothing when none
+    changed; IndexNow is for recently added or updated URLs, not the full URL list
+  - Production-only execution (checks `NEXT_PUBLIC_SITE_URL`)
+  - Command line options: `--google-only`, `--indexnow-only`, `--debug`
 - **`scheduler/scheduler.ts`**: Orchestrates automated tasks
-  - Bookmark refresh: Every 2 hours -> triggers sitemap submission
-  - **Distributed-Lock Aware**: Before starting a refresh it attempts to acquire the `bookmarks/refresh-lock*.json` object in S3. If another
-    instance already holds the lock the scheduler skips this cycle to avoid double-refreshing and duplicate sitemap submissions.
+  - Bookmark refresh: Every 2 hours; bookmark pages are excluded from search, so it submits nothing
   - GitHub activity: Daily at midnight PT
   - Logo updates: Weekly on Sunday at 1 AM PT
   - Uses `node-cron` with jitter for load distribution
@@ -361,24 +367,19 @@ The `app/sitemap.ts` file aggregates content from multiple sources:
 1. **Static Pages**: Manually defined routes with fixed priorities
 2. **Project Detail Pages**: `/projects/[slug]` entries derived via `getAllProjectSlugs()` (`src/lib/projects/slug-helpers.ts`), matching the route's canonical slugs; query-variant URLs (`/projects?tag=...`) canonicalize to `/projects` and are excluded
 3. **Blog Posts**: `src/lib/sitemap/blog-collector.ts` projects the canonical inventory from `getAllPostsMeta()`, so sitemap URLs use the same frontmatter slugs as blog routes and static params
-4. **Blog Tags**: Dynamically generated from unique post tags
-5. **Bookmarks**: Retrieved from cache or API with domain groupings
-6. **Bookmark Tags**: Extracted from bookmark metadata
-   - Main tag pages: `/bookmarks/tags/[tagSlug]`
-   - Paginated tag pages: `/bookmarks/tags/[tagSlug]/page/[n]`
-7. **Paginated Pages**:
-   - Tag-filtered pages: `/bookmarks/tags/[tagSlug]/page/[n]`
+4. **Thoughts**: `src/lib/sitemap/content-collectors.ts` lists published thoughts; `/thoughts` itself is listed only once a thought exists
+5. **Bookmarks listing**: `/bookmarks` takes its `lastModified` from the bookmark index (`src/lib/sitemap/bookmark-collectors.ts`)
+
+Bookmark detail, bookmark tag, blog tag and book detail pages are excluded (see `lib/seo/search-exclusion.ts` above).
 
 ### URL Construction
 
 ```typescript
 // Example URL patterns generated
 https://site.com/                    // Home (priority: 1.0)
+https://site.com/projects/[slug]     // Project detail pages (priority: 0.7)
 https://site.com/blog/post-slug      // Blog posts (priority: 0.7)
-https://site.com/blog/tags/tag-slug  // Blog tags (priority: 0.6)
-https://site.com/bookmarks/[slug]              // Individual bookmarks (priority: 0.65)
-https://site.com/bookmarks/tags/react-native   // Bookmark tags (priority: 0.6)
-https://site.com/bookmarks/tags/ai-and-ml/page/2 // Paginated tag pages (priority: 0.55)
+https://site.com/thoughts/[slug]     // Published thoughts (priority: 0.6)
 ```
 
 ## Automated Submission Workflow
@@ -389,7 +390,7 @@ https://site.com/bookmarks/tags/ai-and-ml/page/2 // Paginated tag pages (priorit
 graph TD
     subgraph "Data Sources"
         A[Blog Posts] --> B[app/sitemap.ts]
-        C[Bookmarks API] --> B
+        C[Projects and Thoughts] --> B
         D[Static Routes] --> B
     end
 
@@ -397,16 +398,14 @@ graph TD
         B -->|Next.js Build| E[/sitemap.xml]
     end
 
-    subgraph "Scheduler (scheduler/scheduler.ts)"
-        F[node-cron] -->|Every 2 hours| G[Bookmark Refresh]
-        G -->|On Success| H[Submit Sitemap]
+    subgraph "Scheduler start (scheduler/entrypoint.sh)"
+        F[Deploy] --> H[Submit Sitemap]
     end
 
     subgraph "Submission (scheduler/submit-sitemap.ts)"
         H --> I{Production Check}
-        I -->|Yes| J[Rate Limiter]
-        J --> K[Google Client]
-        J --> L[Bing Client]
+        I -->|Yes| K[Google Client]
+        I -->|Yes| L[IndexNow: URLs changed in the last day]
     end
 
     subgraph "External APIs"
@@ -446,14 +445,11 @@ graph TD
 
 ### Execution Flow
 
-1. **Trigger**: Scheduler runs bookmark refresh every 2 hours
-2. **Success Hook**: On successful refresh, triggers sitemap submission
-3. **Production Check**: Verifies `NEXT_PUBLIC_SITE_URL` matches the canonical production URL
-4. **Rate Limiting**: 1-second delay between API calls
-5. **Submission**:
-   - Google: POST to Webmasters API with sitemap URL
-   - Bing: POST request to IndexNow with JSON payload
-6. **Error Handling**: Retry with exponential backoff on failure
+1. **Trigger**: The scheduler container starts (each deploy) and runs `submit-sitemap` once
+2. **Production Check**: Verifies `NEXT_PUBLIC_SITE_URL` matches the canonical production URL
+3. **Submission**:
+   - Google: PUT to the Webmasters API sitemaps endpoint
+   - IndexNow: POST of the sitemap URLs modified within the last day; skipped when there are none
 
 ## Operations & Maintenance
 
@@ -516,7 +512,7 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 | `react`               | 19.1.0  | UI library   | Server components for SEO tags              |
 | `zod`                 | 3.25.67 | Validation   | Metadata validation, external data parsing  |
 | `cheerio`             | 1.1.0   | HTML parsing | OpenGraph tag extraction from HTML          |
-| `node-cron`           | 4.2.0   | Scheduling   | Automated sitemap submission (2hr interval) |
+| `node-cron`           | 4.2.0   | Scheduling   | Scheduled data refresh jobs                 |
 | `@aws-sdk/client-s3`  | 3.840.0 | S3 client    | OG image persistence, metadata storage      |
 | `google-auth-library` | 10.1.0  | Google APIs  | Search Console API authentication           |
 | `schema-dts`          | 1.1.5   | Schema types | TypeScript types for Schema.org             |
