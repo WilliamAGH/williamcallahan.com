@@ -21,8 +21,6 @@ import {
   generateProjectSlug,
   getAllProjectSlugs,
 } from "@/lib/projects/slug-helpers";
-import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
-import type { ProjectAiAnalysisResponse } from "@/types/schemas/project-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -154,8 +152,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const projectId = project.id;
   const path = `/projects/${canonicalSlug}`;
 
-  // Fetch cached AI analysis from PostgreSQL (runs in parallel with rendering prep)
-  const cachedAnalysis = await getCachedAnalysis<ProjectAiAnalysisResponse>("projects", projectId);
   const pageMetadata = PAGE_METADATA.projects;
 
   const schemaParams = {
@@ -192,15 +188,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-6xl mx-auto">
-        <Suspense
-          fallback={
-            <div className="animate-pulse p-8">
-              <div className="h-96 bg-gray-200 dark:bg-gray-700 rounded-lg" />
-            </div>
-          }
-        >
-          <ProjectDetail project={project} cachedAnalysis={cachedAnalysis} />
-        </Suspense>
+        <ProjectDetail project={project} />
 
         <div className="mt-12">
           <Suspense fallback={<RelatedContentFallback title="Related Content" />}>

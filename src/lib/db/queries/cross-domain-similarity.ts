@@ -9,6 +9,7 @@
 
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/connection";
+import { BOOKMARK_TAG_ALIAS_CTE } from "@/lib/db/bookmark-tag-aliases.mjs";
 import { CONTENT_EMBEDDING_DIMENSIONS } from "@/lib/db/schema/content-embeddings";
 import type { ContentEmbeddingDomain } from "@/types/db/embeddings";
 import type { SimilarityCandidate } from "@/types/related-content";
@@ -51,13 +52,13 @@ async function readCanonicalBookmarkTags(
   );
 
   const rows = await db.execute<{ bookmark_id: string; canonical_tag_slug: string }>(sql`
+    ${sql.raw(BOOKMARK_TAG_ALIAS_CTE)}
     SELECT
       tag_link.bookmark_id,
       coalesce(alias_link.target_tag_slug, tag_link.tag_slug) AS canonical_tag_slug
     FROM bookmark_tag_links AS tag_link
-    LEFT JOIN bookmarks_tags_links AS alias_link
+    LEFT JOIN canonical_tag_aliases AS alias_link
       ON alias_link.source_tag_slug = tag_link.tag_slug
-      AND alias_link.link_type = 'alias'
     WHERE tag_link.bookmark_id IN (${idList})
   `);
 

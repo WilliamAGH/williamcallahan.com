@@ -12,6 +12,7 @@
 
 import { BOOKMARK_ENRICHMENT_FIELDS } from "@/lib/db/bookmark-record-mapper";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
+import { isAccessChallenge } from "@/lib/opengraph/validation";
 
 const mergeField = <K extends (typeof BOOKMARK_ENRICHMENT_FIELDS)[number]>(
   target: Pick<UnifiedBookmark, K>,
@@ -30,6 +31,19 @@ export function hydrateEnrichment(
   for (const bookmark of bookmarks) {
     const prior = priorById.get(bookmark.id);
     if (!prior) continue;
+    const priorText = prior.scrapedContentText || prior.summary;
+    if (
+      isAccessChallenge(prior.title, priorText) ||
+      isAccessChallenge(prior.content?.title, priorText)
+    )
+      continue;
+    if (bookmark.content?.crawlStatus === "blocked" && priorText?.trim()) {
+      if (bookmark.title.startsWith("Saved link from ")) bookmark.title = prior.title;
+      bookmark.description = prior.description;
+      bookmark.summary = prior.summary;
+      bookmark.content.title = bookmark.title;
+      bookmark.content.description = prior.description;
+    }
     for (const field of BOOKMARK_ENRICHMENT_FIELDS) {
       mergeField(bookmark, prior, field);
     }

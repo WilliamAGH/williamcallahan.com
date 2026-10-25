@@ -9,6 +9,13 @@
 import type { UnifiedBookmark, BookmarkTag } from "@/types/schemas/bookmark";
 import type { BookmarkAnalysisContext } from "@/types/bookmark-ai-analysis";
 
+/** A blocked recapture can still have a healthy, previously retrieved article body. */
+export function isBookmarkSourceUnavailable(
+  bookmark: Pick<UnifiedBookmark, "content" | "scrapedContentText">,
+): boolean {
+  return bookmark.content?.crawlStatus === "blocked" && !bookmark.scrapedContentText?.trim();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────

@@ -6,6 +6,21 @@
  * @module lib/utils/date-format
  */
 
+/** Parse a content date without inventing freshness for missing or invalid values. */
+export const getSafeDate = (dateInput: unknown): Date | undefined => {
+  if (dateInput === null || dateInput === undefined || dateInput === "") return undefined;
+  let dateStr = String(dateInput);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) dateStr = `${dateStr}T23:59:59.999Z`;
+  const date = new Date(dateStr);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
+export const getLatestDate = (...dates: (Date | undefined)[]): Date | undefined =>
+  dates.reduce<Date | undefined>(
+    (latest, current) => (current && (!latest || current > latest) ? current : latest),
+    undefined,
+  );
+
 /**
  * Format date to Pacific timezone string
  * Used for displaying last updated timestamps

@@ -1,28 +1,30 @@
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/connection";
-import { bookmarkTagAliasLinks, bookmarkTags } from "@/lib/db/schema/bookmark-taxonomy";
+import { BOOKMARK_TAG_ALIAS_CTE } from "@/lib/db/bookmark-tag-aliases.mjs";
 import type { TagTaxonomyMaps } from "@/types/features/discovery";
 
 export async function loadCanonicalTagMaps(): Promise<TagTaxonomyMaps> {
-  const [primaryRows, aliasRows] = await Promise.all([
-    db
-      .select({ tagSlug: bookmarkTags.tagSlug, tagName: bookmarkTags.tagName })
-      .from(bookmarkTags)
-      .where(eq(bookmarkTags.tagStatus, "primary")),
-    db
-      .select({
-        sourceTagSlug: bookmarkTagAliasLinks.sourceTagSlug,
-        targetTagSlug: bookmarkTagAliasLinks.targetTagSlug,
-      })
-      .from(bookmarkTagAliasLinks)
-      .where(eq(bookmarkTagAliasLinks.linkType, "alias")),
-  ]);
-
+  const rows = await db.execute<{
+    source_slug: string;
+    canonical_slug: string;
+    canonical_name: string;
+  }>(sql`
+    ${sql.raw(BOOKMARK_TAG_ALIAS_CTE)}
+    SELECT tag.tag_slug AS source_slug,
+           coalesce(mapping.target_tag_slug, tag.tag_slug) AS canonical_slug,
+           canonical.tag_name AS canonical_name
+    FROM bookmarks_tags AS tag
+    LEFT JOIN canonical_tag_aliases AS mapping ON mapping.source_tag_slug = tag.tag_slug
+    JOIN bookmarks_tags AS canonical
+      ON canonical.tag_slug = coalesce(mapping.target_tag_slug, tag.tag_slug)
+  `);
   return {
-    primaryBySlug: new Map(primaryRows.map((row) => [row.tagSlug, row.tagName] as const)),
+    primaryBySlug: new Map(rows.map((row) => [row.canonical_slug, row.canonical_name])),
     aliasToCanonical: new Map(
-      aliasRows.map((row) => [row.sourceTagSlug, row.targetTagSlug] as const),
+      rows
+        .filter((row) => row.source_slug !== row.canonical_slug)
+        .map((row) => [row.source_slug, row.canonical_slug]),
     ),
   };
 }

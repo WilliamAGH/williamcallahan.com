@@ -2,6 +2,7 @@ import { and, eq, notInArray, sql, type SQL } from "drizzle-orm";
 import type { PgColumn, PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
+import { getLatestBookmarkLastModified } from "@/lib/bookmarks/content-dates";
 import {
   BOOKMARK_ENRICHMENT_FIELDS,
   mapUnifiedBookmarksToBookmarkInserts,
@@ -11,6 +12,7 @@ import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
 import {
   bookmarkIndexState,
+  bookmarkTagAliasLinks,
   bookmarkTags,
   bookmarkTagIndexState,
   bookmarkTagLinks,
@@ -21,6 +23,12 @@ import type { BookmarkInsert } from "@/types/db/bookmarks";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const GLOBAL_BOOKMARK_INDEX_STATE_ID = "global";
+// Pruning an identity with incoming aliases would cascade-delete its redirects.
+const unreferencedTag = sql`not exists (
+  select 1 from ${bookmarkTagAliasLinks}
+  where ${bookmarkTagAliasLinks.targetTagSlug} = ${bookmarkTags.tagSlug}
+     or ${bookmarkTagAliasLinks.sourceTagSlug} = ${bookmarkTags.tagSlug}
+)`;
 const UPSERT_MAX_RETRIES = 3;
 const UPSERT_RETRY_DELAY_MS = 500;
 
@@ -31,10 +39,14 @@ type BookmarkWriteExecutor = Pick<typeof db, "delete" | "insert">;
  * OpenGraph/logo/computed-field pipelines, not by the Karakeep source
  * payload. A refresh that carries no enrichment must not erase previously
  * persisted values, so on conflict these columns keep the stored value
- * whenever the incoming one is NULL.
+ * whenever the incoming one is NULL. Blocked captures instead own their
+ * explicit nulls: normalization/hydration has already selected any healthy
+ * archived data to retain, and COALESCE must not resurrect challenge content.
  */
 const preserveEnrichment = (column: PgColumn): SQL =>
-  sql`coalesce(excluded.${sql.identifier(column.name)}, ${column})`;
+  sql`case when excluded.content->>'crawlStatus' = 'blocked'
+    then excluded.${sql.identifier(column.name)}
+    else coalesce(excluded.${sql.identifier(column.name)}, ${column}) end`;
 
 export const buildBookmarkConflictUpdate = ({
   id: _id,
@@ -149,7 +161,6 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
   changeDetected: boolean,
 ): Promise<void> {
   const timestamp = Date.now();
-  const lastModified = new Date(timestamp).toISOString();
 
   const tagLinkRows: Array<typeof bookmarkTagLinks.$inferInsert> = [];
   const tagsBySlug = new Map<
@@ -210,7 +221,7 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
         count,
         calculateBookmarksChecksum(bucket.bookmarks),
         timestamp,
-        lastModified,
+        getLatestBookmarkLastModified(bucket.bookmarks) ?? "",
         changeDetected,
       ),
     });
@@ -223,7 +234,7 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
       globalCount,
       calculateBookmarksChecksum([...bookmarksData]),
       timestamp,
-      lastModified,
+      getLatestBookmarkLastModified(bookmarksData) ?? "",
       changeDetected,
     ),
   };
@@ -242,7 +253,9 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
   }
 
   if (incomingPrimaryTagSlugs.length === 0) {
-    await executor.delete(bookmarkTags).where(eq(bookmarkTags.tagStatus, "primary"));
+    await executor
+      .delete(bookmarkTags)
+      .where(and(eq(bookmarkTags.tagStatus, "primary"), unreferencedTag));
   } else {
     await executor
       .delete(bookmarkTags)
@@ -250,6 +263,7 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
         and(
           eq(bookmarkTags.tagStatus, "primary"),
           notInArray(bookmarkTags.tagSlug, incomingPrimaryTagSlugs),
+          unreferencedTag,
         ),
       );
   }

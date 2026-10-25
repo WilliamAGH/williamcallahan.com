@@ -67,12 +67,14 @@ Derived columns are computed during normalization (`lib/bookmarks/normalize.ts`)
 
 Enrichment-owned columns are listed once in `BOOKMARK_ENRICHMENT_FIELDS` (`lib/db/bookmark-record-mapper.ts`); all consumers bind that list:
 
-- **Upsert** (`lib/db/mutations/bookmarks.ts`): on conflict these columns use `COALESCE(excluded.col, bookmarks.col)` so a less-enriched dataset can never null out persisted enrichment.
+- **Upsert** (`lib/db/mutations/bookmarks.ts`): normal partial refreshes use `COALESCE(excluded.col, bookmarks.col)`. Blocked captures instead persist explicit NULL enrichment after normalization/hydration has selected any healthy archive to retain; stale challenge fields must not be resurrected.
 - **Hydration** (`lib/bookmarks/enrichment-hydration.ts`): freshly normalized Karakeep payloads are merged with prior persisted rows before enrichment, so unchanged bookmarks skip image work and partial refreshes carry enrichment forward.
 - **Refresh gate** (`lib/bookmarks/refresh-helpers.ts`): compare the complete fetched source IDs with their persisted rows using the canonical `calculateBookmarksChecksum`. Retained historical rows do not force a miss or enter the returned feed snapshot; no durable row, enrichment, or legacy slug is deleted. Missing/duplicate IDs, inconsistent index counts, or stale selected rows reject reuse. In updater mode only selected source members are checked for pending Karakeep-to-S3 image upgrades.
 - **Scheduled refresh operation** (`lib/bookmarks/data-fetch-refresh.server.ts`): compares against PostgreSQL without triggering an external read, then performs the explicit Karakeep refresh through `service.server.ts` and returns the batch-operation summary. Refresh coalescing and locking belong to the bookmark service, not a separate job queue.
 - **Runtime split**: only the data updater (`IS_DATA_UPDATER=true`) downloads Karakeep assets and persists them to S3; the web runtime keeps the relative `/api/assets/<id>` proxy URL (never passed to `persistImageToS3`, which rejects app-relative URLs) until the next updater run upgrades it.
 - **Asset downloads**: `fetchKarakeepImage()` retries one transient failure across headers and body transfer. Each attempt retains its deadline through body consumption; exhaustion emits one final error line with the underlying cause.
+
+Publisher verification screens are not articles. `isAccessChallenge()` in `lib/opengraph/validation.ts` is shared by parsing, normalization, and enrichment. Normalization marks captures `blocked`, uses an honest saved-link title/description, and clears bogus summary, body, screenshot, and OG data. Hydration rejects prior challenge content but preserves genuinely healthy prior article enrichment. `isBookmarkSourceUnavailable()` in `lib/bookmarks/analysis/extract-context.ts` suppresses cached article-analysis UI only when a blocked bookmark has no retrieved body; healthy archives and analysis version history remain intact.
 
 ### Backfill Scripts
 
@@ -101,10 +103,13 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 - `scripts/ingest-bookmark-tag-aliases.node.mjs` runs tag alias canonicalization from bookmark tag context plus embedding-nearest related bookmarks.
 - Each run can process one seed bookmark (plus up to 8 similar bookmarks by default), ask the LLM for alias-to-canonical tag mappings, and write results to `bookmarks_tags` + `bookmarks_tags_links`.
 - Alias tags are stored in `bookmarks_tags` (`tag_status='alias'`) and mapped to canonical primary tags through `bookmarks_tags_links`.
+- Runtime taxonomy reads and the CLI share terminal/cycle-safe SQL in `src/lib/db/bookmark-tag-aliases.mjs`. Existing cycles resolve deterministically by primary status, member count, creation time, then slug; tag identities and bookmark member links are retained.
+- `scripts/lib/bookmark-tag-alias-plan.mjs` validates the whole proposed alias graph together, rejects reachable cycles, and flattens proposed mappings to terminal targets. Writes serialize with refresh through the bookmarks/taxonomy table locks.
 - Incremental mode: `node scripts/ingest-bookmark-tag-aliases.node.mjs --limit=1`
 - Retrofit mode: `node scripts/ingest-bookmark-tag-aliases.node.mjs --retrofit --limit=1`
 - One-bookmark test run: `node scripts/ingest-bookmark-tag-aliases.node.mjs --bookmark-id=<bookmark-id>`
 - Dry-run preview: append `--dry-run` to print before/after without writes.
+- Scoped repair: `node scripts/ingest-bookmark-tag-aliases.node.mjs --repair-cycles=canonical-slug,...` selects exactly one representative per selected cycle. Repair is read-only by default (and with `--dry-run`); `--apply` requires the production write environment. Repair makes no AI call and changes alias edges/statuses, not tag identities or bookmark member links.
 
 ### Scheduler / Cron Pipeline
 
@@ -119,8 +124,9 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 ### Runtime Fetch Strategy
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds read bookmarks from PostgreSQL in runtime paths.
-- `app/sitemap.ts` iterates DB-backed pagination via `getBookmarksIndex()` + `getBookmarksPage()` and streams tag metadata via `listBookmarkTagSlugs()` + `getTagBookmarksIndex()`/`getTagBookmarksPage()` so the sitemap never materializes the full dataset in memory.
+- `lib/sitemap/bookmark-collectors.ts` reads the bookmark index date for the `/bookmarks` hub. The existing search-exclusion policy omits detail/tag URLs. Per-tag indexes still derive counts and dates from deduplicated canonical members; the global index fallback uses compact content-date rows rather than inventing freshness.
 - All bookmark data is served from PostgreSQL at runtime; no local JSON snapshot step is required.
+- `lib/bookmarks/content-dates.ts` owns meaningful bookmark freshness: the latest valid `modifiedAt`, `dateCreated`, or `dateBookmarked`. Index rebuilds and canonical tag `lastModified` derive from member content; source-update, fetch, and attempt timestamps are operational, not freshness. Generic parsing/comparison belongs to `lib/utils/date-format.ts`, without compatibility exports from `lib/sitemap/date-utils.ts`.
 
 ### Rendering Strategy
 
@@ -134,7 +140,8 @@ The discovery feed ranks bookmarks by blended engagement and recency signals rat
 **Feed Modes** (`?feed=discover|latest`):
 
 - **Discover** (default): Recency-primary ranking (82% recency + 18% engagement). Client-side SWR fetch with `fallbackData: undefined` triggers a loading skeleton while the API returns engagement-ranked results. Falls back to latest order when discovery scores are unavailable.
-- **Latest**: Chronological order using server-provided `initialData` via SWR `fallbackData`.
+- **Latest**: `/bookmarks?feed=latest&page=N` renders the requested chronological slice using server-provided `initialData` via SWR `fallbackData`, with native pagination anchors and callback enhancement. Pages above 1 self-canonicalize with that query; page 1 canonicalizes to `/bookmarks`. Invalid/out-of-range Latest pages use `notFound()` and noindex metadata.
+- **Discover navigation**: Topic deduplication retains full `totalCount` values for “See all” links, and the feed exposes a native Latest link.
 
 **Data Flow**:
 
@@ -174,6 +181,7 @@ deployments remain read-only and do not send engagement requests.
 ### Pagination System
 
 - **Root Discover Feed**: `/bookmarks` uses auto-scroll loading for topic sections
+- **Root Latest Feed**: Query pagination renders the correct server slice and native next/previous/page links without requiring JavaScript
 - **Tag Pages**: URL-based pagination remains on `/bookmarks/tags/[tagSlug]/page/[n]`
 - **Efficient Loading**: 24 items per page, served from PostgreSQL pagination + RSC cache
 - **Dual Modes**: Tag pagination controls or infinite scroll where explicitly enabled
@@ -187,7 +195,7 @@ deployments remain read-only and do not send engagement requests.
 - **Slug Handling**: Converts between slug and display formats
 - **Special Characters**: Handles &, +, and other characters gracefully
 - **DB Join Path**: Tag routes are served from `bookmark_tag_links` joins with deterministic sort/order.
-- **Index Metadata**: Per-tag counts/pages are served from `bookmark_tag_index_state`.
+- **Index Metadata**: Canonical counts/pages and `lastModified` are computed across alias-resolved members; persisted index state supplies operational/checksum metadata, not canonical member freshness.
 
 ### Memory & Cache Management
 

@@ -33,6 +33,8 @@ export interface PaginationControlProps {
 }
 
 export interface PaginationControlUrlProps extends PaginationControlProps {
+  /** Explicit link builder; bypasses current-query hooks for server-rendered links */
+  getPageHref?: (page: number) => string;
   /** Base URL for page links */
   baseUrl?: string;
   /** URL parameter name for page number */

@@ -6,9 +6,6 @@
  * styling, and image paths.
  */
 
-/** Delay before mounting to allow for smooth transition animations */
-export const MOUNT_DELAY_MS = 20;
-
 /** Default GitHub username for avatar fallback when extraction fails */
 export const DEFAULT_GITHUB_USERNAME = "WilliamAGH";
 

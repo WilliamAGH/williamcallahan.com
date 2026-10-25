@@ -1,14 +1,10 @@
 /**
- * Bookmark Sitemap Collector
- * @module lib/sitemap/bookmark-collectors
- * @description
- * Resolves the last-modified time of the /bookmarks listing. Bookmark detail
- * and tag pages are excluded from search indexing (`lib/seo/search-exclusion`),
- * so the sitemap lists only the listing itself.
+ * Last-modified time of the /bookmarks hub. Detail and tag pages remain
+ * excluded from the sitemap by the existing search-exclusion policy.
  */
-
 import { getBookmarksIndex } from "@/lib/bookmarks/service.server";
-import { getSafeDate, handleSitemapCollectorError } from "@/lib/sitemap/date-utils";
+import { handleSitemapCollectorError } from "@/lib/sitemap/date-utils";
+import { getSafeDate } from "@/lib/utils/date-format";
 
 export const collectBookmarksLastModified = async (): Promise<Date | undefined> => {
   try {
