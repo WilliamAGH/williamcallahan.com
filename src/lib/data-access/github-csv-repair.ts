@@ -132,7 +132,7 @@ async function updateRepoChecksum(
 async function repairFromApi(repoOwner: string, repoName: string): Promise<boolean> {
   let contributorStats: GithubContributorStatsEntry[];
   try {
-    contributorStats = await fetchContributorStats(repoOwner, repoName);
+    contributorStats = await fetchContributorStats(repoOwner, repoName, GITHUB_REPO_OWNER);
   } catch (error: unknown) {
     if (error instanceof GitHubContributorStatsPendingError) {
       console.info(`[GitHub-CSV] Stats generating for ${repoOwner}/${repoName}`);
