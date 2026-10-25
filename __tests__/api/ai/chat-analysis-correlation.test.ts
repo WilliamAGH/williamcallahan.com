@@ -25,12 +25,13 @@ function upstreamResponse(content: string) {
   return { choices: [{ message: { role: "assistant" as const, content } }] };
 }
 
-function startAnalysis(controller = new AbortController()) {
+function startAnalysis(controller = new AbortController(), finishAfterDisconnect = false) {
+  const upstreamAbort = new AbortController();
   const pipeline = buildChatPipeline({
     feature: "bookmark-analysis",
     ctx: createValidatedContext({ feature: "bookmark-analysis" }),
     ragResult: { augmentedPrompt: undefined, status: "not_applicable" },
-    signal: controller.signal,
+    signal: upstreamAbort.signal,
   });
   // The repository NextRequest mock does not copy RequestInit.signal.
   const request = Object.assign(
@@ -39,7 +40,13 @@ function startAnalysis(controller = new AbortController()) {
       signal: controller.signal,
     },
   );
-  return createSseStreamResponse({ request, ...pipeline, ragContextStatus: "not_applicable" });
+  return createSseStreamResponse({
+    request,
+    ...pipeline,
+    ragContextStatus: "not_applicable",
+    upstreamAbort,
+    finishAfterDisconnect,
+  }).response;
 }
 
 describe("analysis execution correlation", () => {
@@ -80,6 +87,7 @@ describe("analysis execution correlation", () => {
 
   it.each([
     { outcome: "success", status: 200, repairs: 1 },
+    { outcome: "finish-after-disconnect", status: 200, repairs: 1 },
     { outcome: "exhaustion", status: 502, repairs: 2 },
     { outcome: "abort-after-repair", status: 499, repairs: 1 },
     { outcome: "abort-before-start", status: 499, repairs: 0 },
@@ -94,6 +102,11 @@ describe("analysis execution correlation", () => {
         mockStreamOpenAiCompatibleChatCompletions.mockResolvedValue(
           upstreamResponse(validAnalysis),
         );
+      } else if (outcome === "finish-after-disconnect") {
+        mockStreamOpenAiCompatibleChatCompletions.mockImplementationOnce(() => {
+          controller.abort();
+          return Promise.resolve(upstreamResponse(validAnalysis));
+        });
       } else if (outcome === "exhaustion") {
         mockStreamOpenAiCompatibleChatCompletions.mockResolvedValue(
           upstreamResponse(invalidAnalysis),
@@ -107,7 +120,7 @@ describe("analysis execution correlation", () => {
         controller.abort();
       }
 
-      const body = await startAnalysis(controller).text();
+      const body = await startAnalysis(controller, outcome === "finish-after-disconnect").text();
       await vi.waitFor(() => expect(terminalLines()).toHaveLength(1));
       const terminal = terminalLines()[0];
       expect(terminal).toContain(`status=${status}`);
@@ -121,7 +134,11 @@ describe("analysis execution correlation", () => {
           reason: expect.stringContaining("summary"),
         });
       }
-      if (status === 200) {
+      if (outcome === "finish-after-disconnect") {
+        expect(body).not.toContain("event: done");
+        expect(terminal).toMatch(/outputChars=[1-9]\d*/);
+        expect(console.error).not.toHaveBeenCalled();
+      } else if (status === 200) {
         expect(body).toContain("event: done");
         expect(body).toContain("A browser automation CLI.");
       } else if (status === 499) {

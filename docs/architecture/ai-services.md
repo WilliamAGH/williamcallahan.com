@@ -141,8 +141,10 @@ Because the endpoints are available to anonymous visitors, they are still callab
 - Server-side logging via `src/lib/utils/logger.ts`.
 - Each chat pipeline allocates its existing message ID once, before execution. Analysis repair
   warnings and the terminal success, error, or cancellation record use that same ID; a conversation
-  ID is not a request identity. Cancellation is recorded as499 atINFO severity, never successful generation or an application-error alert, and
-  no prompt/body logging is added for correlation.
+  ID is not a request identity. Actual upstream cancellation is recorded as499 atINFO severity,
+  never successful generation or an application-error alert. A started persisted analysis can
+  outlive its disconnected viewer and records its real completion with that same ID. No prompt/body
+  logging is added for correlation.
 
 ## Required Secret
 
