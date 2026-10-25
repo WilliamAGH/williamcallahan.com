@@ -50,12 +50,15 @@ export async function writeGitHubActivityRefreshRecord(
   summary: GitHubActivitySummary,
   aggregatedActivity: AggregatedWeeklyActivity[],
   intent: GitHubActivityWriteIntent = GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY,
+  signal?: AbortSignal,
 ): Promise<boolean> {
+  signal?.throwIfAborted();
   return writeGitHubActivityRefreshToDb(
     gitHubActivityApiResponseSchema.parse(activity),
     gitHubActivitySummarySchema.parse(summary),
     aggregatedWeeklyActivityArraySchema.parse(aggregatedActivity),
     intent,
+    signal,
   );
 }
 

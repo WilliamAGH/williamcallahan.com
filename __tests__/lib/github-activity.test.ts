@@ -57,6 +57,7 @@ import {
 } from "@/lib/data-access/github-processing";
 import { processRepositoryStats } from "@/lib/data-access/github-repo-stats";
 import { GitHubActivityRefreshPreservedError } from "@/lib/data-access/github-refresh-outcome";
+import { GITHUB_ACTIVITY_TOTAL_BUDGET_MS } from "@/lib/data-access/github-refresh-budget";
 import { GraphQLRepoNodeSchema, type GraphQLUserContributionsResponse } from "@/types/github";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
@@ -151,6 +152,93 @@ describe("GitHub activity refresh", () => {
         return true;
       },
     );
+  });
+
+  it("expires one total budget, drains collection and never publishes afterwards", async () => {
+    let active = false;
+    mockFetchContributedRepositories.mockImplementation(
+      (_owner, signal) =>
+        new Promise((_resolve, reject) => {
+          if (!signal) throw new Error("Expected total-budget signal");
+          active = true;
+          signal.addEventListener(
+            "abort",
+            () => {
+              active = false;
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+        }),
+    );
+    vi.useFakeTimers();
+    try {
+      const failure = refreshGitHubActivityDataFromApi().catch((error) => error);
+      await vi.advanceTimersByTimeAsync(GITHUB_ACTIVITY_TOTAL_BUDGET_MS - 1);
+      expect(active).toBe(true);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await failure).toMatchObject({ reason: "refresh-deadline" });
+      expect(active).toBe(false);
+      expect(persistedRefresh).toBeUndefined();
+      expect(mockFetchContributionCalendar).not.toHaveBeenCalled();
+      expect(mockWriteGitHubActivityRefreshRecord).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("drains the active repository batch on abort and never starts the next batch", async () => {
+    const controller = new AbortController();
+    const abort = new Error("cancelled collection");
+    const repositories = Array.from({ length: 6 }, (_value, i) =>
+      createGraphQLRepositoryFixture(`repo-${i}`),
+    );
+    let active = 0;
+    mockProcessSingleRepository.mockImplementation(
+      (_input, signal) =>
+        new Promise((_resolve, reject) => {
+          if (!signal) throw new Error("Expected repository cancellation signal");
+          active++;
+          signal.addEventListener(
+            "abort",
+            () => {
+              active--;
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+        }),
+    );
+    const result = processRepositoryStats(
+      {
+        repos: repositories,
+        githubRepoOwner: "owner",
+        trailingYearFromDate: new Date(),
+        now: new Date(),
+      },
+      controller.signal,
+    );
+    expect(active).toBe(5);
+    controller.abort(abort);
+    await expect(result).rejects.toBe(abort);
+    expect(active).toBe(0);
+    expect(mockProcessSingleRepository).toHaveBeenCalledTimes(5);
+  });
+
+  it("does not publish when cancellation arrives during the final aggregate read", async () => {
+    const controller = new AbortController();
+    const deadline = new Error("collection deadline");
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      repositories: [createGraphQLRepositoryFixture("repo")],
+    });
+    mockProcessSingleRepository.mockResolvedValue(createRepositoryProcessingResult(10, 1, true));
+    mockReadRepoWeeklyStatsRecord.mockImplementation(async () => {
+      controller.abort(deadline);
+      return null;
+    });
+    await expect(refreshGitHubActivityDataFromApi(controller.signal)).rejects.toBe(deadline);
+    expect(mockWriteGitHubActivityRefreshRecord).not.toHaveBeenCalled();
   });
 
   it("uses complete historical calendars rather than repository commit subsets", async () => {

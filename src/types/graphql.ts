@@ -12,6 +12,7 @@ export interface GraphQLRequest {
   query: string;
   variables?: Record<string, unknown>;
   operationName?: string;
+  signal?: AbortSignal;
 }
 
 export interface GraphQLResponse<T> {
