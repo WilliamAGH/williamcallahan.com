@@ -207,10 +207,7 @@ function createDatasetEntity(params: SchemaParams): DatasetEntity {
 /**
  * Creates a CollectionPage entity for listings
  */
-function createCollectionPageEntity(
-  params: SchemaParams,
-  items: Array<{ url: string; position: number }>,
-): CollectionPageEntity {
+function createCollectionPageEntity(params: SchemaParams): CollectionPageEntity {
   return {
     "@type": "CollectionPage",
     "@id": createIdUrl(params.path, "collection"),
@@ -220,14 +217,18 @@ function createCollectionPageEntity(
     creator: { "@id": createIdUrl("/", "person") },
     datePublished: params.datePublished,
     dateModified: params.dateModified,
-    mainEntity: {
-      "@type": "ItemList",
-      itemListElement: items.map((item) => ({
-        "@type": "ListItem",
-        position: item.position,
-        url: ensureAbsoluteUrl(item.url),
-      })),
-    },
+    ...(params.itemList?.length
+      ? {
+          mainEntity: {
+            "@type": "ItemList" as const,
+            itemListElement: params.itemList.map((item) => ({
+              "@type": "ListItem" as const,
+              position: item.position,
+              url: ensureAbsoluteUrl(item.url),
+            })),
+          },
+        }
+      : {}),
   };
 }
 
@@ -237,36 +238,6 @@ function createCollectionPageEntity(
 function createProfilePageEntity(params: SchemaParams): ProfilePageEntity {
   // Get profile-specific metadata if available
   const profileMetadata = params.profileMetadata || {};
-
-  // Process interaction statistics to ensure proper typing
-  const interactionStats = profileMetadata.interactionStats;
-  const interactionStatistics = interactionStats?.follows
-    ? [
-        {
-          "@type": "InteractionCounter" as const,
-          interactionType: "https://schema.org/FollowAction",
-          userInteractionCount: interactionStats.follows,
-        },
-        ...(interactionStats?.likes
-          ? [
-              {
-                "@type": "InteractionCounter" as const,
-                interactionType: "https://schema.org/LikeAction",
-                userInteractionCount: interactionStats.likes,
-              },
-            ]
-          : []),
-      ]
-    : undefined;
-
-  // Create agent interaction statistic with proper typing
-  const agentInteractionStatistic = interactionStats?.posts
-    ? {
-        "@type": "InteractionCounter" as const,
-        interactionType: "https://schema.org/WriteAction",
-        userInteractionCount: interactionStats.posts,
-      }
-    : undefined;
 
   return {
     "@type": "ProfilePage",
@@ -285,8 +256,6 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageEntity {
       ...(profileMetadata.profileImage
         ? { image: ensureAbsoluteUrl(profileMetadata.profileImage) }
         : params.image && { image: ensureAbsoluteUrl(params.image.url) }),
-      ...(interactionStatistics && { interactionStatistic: interactionStatistics }),
-      ...(agentInteractionStatistic && { agentInteractionStatistic }),
     },
   };
 }
@@ -447,16 +416,6 @@ function createBookmarkItemEntity(params: SchemaParams): ArticleEntity | Softwar
 }
 
 /**
- * Creates a CollectionPage entity for bookmark listing pages (root, tag, paginated etc.)
- */
-function createBookmarkCollectionEntity(
-  params: SchemaParams,
-  items: Array<{ url: string; position: number }>,
-): CollectionPageEntity {
-  return createCollectionPageEntity(params, items);
-}
-
-/**
  * Generates complete schema graph for a page
  */
 export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
@@ -511,27 +470,13 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
     case "software":
       graph["@graph"].push(createSoftwareApplicationEntity(params));
       break;
-    case "collection": {
-      // Fall back to breadcrumb-derived list when an explicit itemList is not provided.
-      const listItems = params.itemList
-        ? params.itemList
-        : params.breadcrumbs?.map((crumb, i) => ({ url: crumb.path, position: i + 1 })) || [];
-
-      if (listItems.length === 0) {
-        throw new Error(
-          "Collection pages require either params.itemList or breadcrumbs to derive an ItemList for Schema.org",
-        );
-      }
-
-      graph["@graph"].push(createCollectionPageEntity(params, listItems));
+    case "collection":
+    case "bookmark-collection": {
+      graph["@graph"].push(createCollectionPageEntity(params));
       break;
     }
     case "bookmark-item": {
       graph["@graph"].push(createBookmarkItemEntity(params));
-      break;
-    }
-    case "bookmark-collection": {
-      graph["@graph"].push(createBookmarkCollectionEntity(params, params.itemList || []));
       break;
     }
   }

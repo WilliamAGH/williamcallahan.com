@@ -63,10 +63,10 @@ export function extractBookIdFromSlug(slug: string): string | null {
   const isbn10Match = slug.match(/[\dX]{10}$/i);
   if (isbn10Match) return isbn10Match[0];
 
-  // Fallback: last segment after final hyphen
+  // Fallback: last segment after final hyphen, or a legacy bare ID
   const parts = slug.split("-");
   const lastPart = parts[parts.length - 1];
-  return parts.length > 1 && lastPart ? lastPart : null;
+  return lastPart || null;
 }
 
 /**

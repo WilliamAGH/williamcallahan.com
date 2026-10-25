@@ -324,11 +324,6 @@ export function getStaticPageMetadata(
           ...("profileImage" in pageMetadata && {
             profileImage: (pageMetadata as { profileImage: string }).profileImage,
           }),
-          ...("interactionStats" in pageMetadata && {
-            interactionStats: (
-              pageMetadata as { interactionStats: { follows: number; posts: number } }
-            ).interactionStats,
-          }),
         },
       }),
   };

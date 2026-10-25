@@ -115,7 +115,7 @@ export interface CollectionPageEntity extends SchemaBase {
   creator: { "@id": string };
   datePublished: PacificDateString;
   dateModified: PacificDateString;
-  mainEntity: {
+  mainEntity?: {
     "@type": "ItemList";
     itemListElement: Array<{
       "@type": "ListItem";
@@ -158,16 +158,6 @@ export interface ProfilePageEntity extends SchemaBase {
     description: string;
     image?: string;
     sameAs?: string[];
-    interactionStatistic?: Array<{
-      "@type": "InteractionCounter";
-      interactionType: string;
-      userInteractionCount: number;
-    }>;
-    agentInteractionStatistic?: {
-      "@type": "InteractionCounter";
-      interactionType: string;
-      userInteractionCount: number;
-    };
   };
 }
 
@@ -293,11 +283,6 @@ export interface SchemaParams {
     alternateName?: string;
     identifier?: string;
     profileImage?: string;
-    interactionStats?: {
-      follows?: number;
-      likes?: number;
-      posts?: number;
-    };
   };
   softwareMetadata?: {
     name: string;

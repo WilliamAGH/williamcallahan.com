@@ -17,7 +17,7 @@
  */
 
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { BookDetail } from "@/components/features/books/book-detail";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
@@ -26,10 +26,11 @@ import {
   fetchBookByIdWithFallback,
   fetchBooksWithFallback,
 } from "@/lib/books/books-data-access.server";
-import { extractBookIdFromSlug, findBookBySlug } from "@/lib/books/slug-helpers";
+import { extractBookIdFromSlug, findBookBySlug, generateBookSlug } from "@/lib/books/slug-helpers";
 import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -70,23 +71,22 @@ function buildBookOgImageUrl(book: Book): string {
   });
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { "book-slug": string };
-}): Promise<Metadata> {
-  const { "book-slug": slug } = await Promise.resolve(params);
-  const path = `/books/${slug}`;
+export async function generateMetadata({ params }: BookPageProps): Promise<Metadata> {
+  const { "book-slug": slug } = await params;
   const { book } = await getBookBySlug(slug, { includeBlurPlaceholders: false });
 
   if (!book) {
-    return {
-      ...getStaticPageMetadata(path, "books"),
-      title: "Book Not Found",
-      description: "The requested book could not be found.",
-    };
+    return getNotFoundMetadata("Book");
   }
 
+  const canonicalSlug = generateBookSlug(
+    book.title,
+    book.id,
+    book.authors,
+    book.isbn13,
+    book.isbn10,
+  );
+  const path = `/books/${canonicalSlug}`;
   const baseMetadata = getStaticPageMetadata(path, "books");
   const customTitle = generateDynamicTitle(book.title, "books");
   const authorText = book.authors?.join(", ") ?? "Unknown Author";
@@ -140,17 +140,28 @@ export async function generateMetadata({
 }
 
 export default async function BookPage({ params }: BookPageProps) {
-  const { "book-slug": slug } = await Promise.resolve(params);
+  const { "book-slug": slug } = await params;
   const { book, isFallback } = await getBookBySlug(slug, { includeBlurPlaceholders: true });
 
   if (!book) {
     return notFound();
   }
 
+  const canonicalSlug = generateBookSlug(
+    book.title,
+    book.id,
+    book.authors,
+    book.isbn13,
+    book.isbn10,
+  );
+  const path = `/books/${canonicalSlug}`;
+  if (slug !== canonicalSlug) {
+    permanentRedirect(path);
+  }
+
   // Fetch cached AI analysis from PostgreSQL (runs in parallel with rendering prep)
   const cachedAnalysis = await getCachedAnalysis<BookAiAnalysisResponse>("books", book.id);
 
-  const path = `/books/${slug}`;
   const pageMetadata = PAGE_METADATA.books;
   const authorText = book.authors?.join(", ") ?? "Unknown Author";
 
