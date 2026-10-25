@@ -43,9 +43,9 @@ HTML-only production smoke check; it does not replace it.
 
 ## Advertised JavaScript Verification
 
-Verify advertised JavaScript after convergence. A rebuild alone is not proof that bundle
-hashes or CDN contents changed. This procedure and `scripts/smoke-test-production.ts` inspect
-JavaScript only; they do not verify CSS assets.
+Verify advertised JavaScript and stylesheets after convergence. A rebuild alone is not proof
+that bundle hashes or CDN contents changed. `scripts/smoke-test-production.ts` checks both;
+the abbreviated command below illustrates the JavaScript portion.
 
 ```bash
 BASE_URL="https://[domain]"
@@ -74,7 +74,7 @@ containing `no-store`; `CDN-Cache-Control` and `Cloudflare-CDN-Cache-Control` ma
 but each must contain `no-store` when emitted. Independently, neither response may report
 `CF-Cache-Status: HIT` or an `Age` header. Cloudflare's `status_code_ttl: -1` rule prevents
 edge storage of failed static chunks; it does not mutate their origin response headers. The
-missing chunk must be `404`; the analytics tracker must be `200`.
+missing chunk must be `404`; the retired analytics tracker must be `410`.
 
 `src/proxy.ts` returns `/stats/**` directly after fetching the fixed Umami origin. Do not replace
 that response with an external Next.js rewrite: Next 16 applies proxy headers before forwarding,

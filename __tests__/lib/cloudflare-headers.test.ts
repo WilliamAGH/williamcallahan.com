@@ -29,7 +29,7 @@ function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
 }
 async function loadNextConfig(phase = PHASE_PRODUCTION_BUILD) {
   vi.resetModules();
-  vi.doMock("@sentry/nextjs", () => ({
+  vi.doMock("@sentry/nextjs/config", () => ({
     withSentryConfig: <T>(nextConfig: T): T => nextConfig,
   }));
   const configPath = "../../next.config";
@@ -61,7 +61,7 @@ describe("Cloudflare header enforcement", () => {
     else if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
       throw new Error("Could not remove NextResponse.rewrite test implementation");
     }
-    for (const id of ["@sentry/nextjs", "node:child_process", "node:fs"]) vi.doUnmock(id);
+    for (const id of ["@sentry/nextjs/config", "node:child_process", "node:fs"]) vi.doUnmock(id);
     vi.resetModules();
   });
 
@@ -216,7 +216,7 @@ describe("Cloudflare header enforcement", () => {
         "[next.config] NEXT_DEPLOYMENT_ID may contain only letters, numbers, hyphens, and underscores.",
       );
     });
-    it("uses local Git or the built identity when the deployment ID is missing", async () => {
+    it("uses local Git when the deployment ID and server artifact are missing", async () => {
       clearDeploymentId();
       vi.stubEnv("NODE_ENV", "production");
       const expectedReleaseId = execFileSync("git", ["rev-parse", "--short", "HEAD"])
@@ -225,7 +225,20 @@ describe("Cloudflare header enforcement", () => {
       const nextConfig = await loadNextConfig();
       await expect(nextConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
       expect(process.env.NEXT_DEPLOYMENT_ID).toBe(expectedReleaseId);
-      vi.doMock("node:child_process", () => ({ execFileSync: () => execFileSync("git-missing") }));
+      vi.doMock("node:fs", () => ({ realpathSync, readFileSync: missingFile }));
+      clearDeploymentId();
+      const runtimeConfig = await loadNextConfig(PHASE_PRODUCTION_SERVER);
+      await expect(runtimeConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
+    });
+
+    it("uses the built server identity without invoking Git", async () => {
+      clearDeploymentId();
+      vi.stubEnv("NODE_ENV", "production");
+      const expectedReleaseId = "image_commit-123";
+      const gitProbe = vi.fn<() => never>(() => {
+        throw new Error("Git must not be probed");
+      });
+      vi.doMock("node:child_process", () => ({ execFileSync: gitProbe }));
       // Path-aware on purpose: a mock that answers for any path would stay green if
       // the runtime were pointed back at .next/BUILD_ID.
       vi.doMock("node:fs", () => ({
@@ -235,10 +248,28 @@ describe("Cloudflare header enforcement", () => {
             ? `${expectedReleaseId}\n`
             : missingFile(String(filePath)),
       }));
-      clearDeploymentId();
       const runtimeConfig = await loadNextConfig(PHASE_PRODUCTION_SERVER);
       await expect(runtimeConfig.generateBuildId()).resolves.toBe(expectedReleaseId);
+      expect(process.env.NEXT_PUBLIC_GIT_HASH).toBe(expectedReleaseId);
+      expect(process.env.SENTRY_RELEASE).toBe(expectedReleaseId);
+      expect(gitProbe).not.toHaveBeenCalled();
     });
+
+    it.each(["release/id", ""])(
+      "rejects a malformed server release artifact %j",
+      async (releaseId) => {
+        clearDeploymentId();
+        vi.stubEnv("NODE_ENV", "production");
+        const gitProbe = vi.fn<() => string>(() => "local123");
+        vi.doMock("node:child_process", () => ({ execFileSync: gitProbe }));
+        vi.doMock("node:fs", () => ({ realpathSync, readFileSync: () => releaseId }));
+
+        await expect(loadNextConfig(PHASE_PRODUCTION_SERVER)).rejects.toThrow(
+          "[next.config] build-time .next/RELEASE_ID may contain only letters, numbers, hyphens, and underscores.",
+        );
+        expect(gitProbe).not.toHaveBeenCalled();
+      },
+    );
 
     it("fails closed when the image carries only .next/BUILD_ID", async () => {
       clearDeploymentId();

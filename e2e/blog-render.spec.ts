@@ -85,5 +85,32 @@ for (const canary of BLOG_RENDER_CANARIES) {
       await summary.click();
       await expect(article.getByText(interaction.revealedContent)).toBeVisible();
     }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const links = article.locator("a[href]:visible");
+    await expect(links.first()).toBeVisible();
+    for (const link of await links.all()) {
+      await expect(link).not.toHaveCSS("word-break", "break-all");
+      await expect(link).not.toHaveCSS("overflow-wrap", "anywhere");
+    }
+
+    // The Java canary has inline code and exposes block code via its catalogued interactions.
+    // The storage canary's code examples remain inside unopened dropdowns.
+    if (canary === BLOG_RENDER_CANARIES[1]) {
+      const inlineCode = article.locator("code:not(pre code):visible");
+      await expect(inlineCode.first()).toBeVisible();
+      for (const code of await inlineCode.all()) {
+        await expect(code).not.toHaveCSS("word-break", "break-all");
+        await expect(code).not.toHaveCSS("overflow-wrap", "anywhere");
+        await expect(code).not.toHaveCSS("white-space", "pre-wrap");
+      }
+
+      const blockCode = article.locator("pre:visible, pre code:visible");
+      await expect(article.locator("pre code:visible").first()).toBeVisible();
+      for (const code of await blockCode.all()) {
+        await expect(code).toHaveCSS("white-space", "pre-wrap");
+        await expect(code).not.toHaveCSS("word-break", "break-all");
+      }
+    }
   });
 }

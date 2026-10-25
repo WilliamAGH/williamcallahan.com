@@ -234,15 +234,15 @@ describe("GitHub data access", () => {
         .fn<typeof HttpClient.fetchWithTimeout>()
         .mockResolvedValue(new Response(null, { status: 204 }));
       vi.doMock("@/lib/utils/http-client", () => ({
-        createRetryingFetch: vi.fn<typeof HttpClient.createRetryingFetch>(() => githubHttpClient),
+        fetchWithTimeout: githubHttpClient,
       }));
       vi.doMock("@/lib/rate-limiter", () => ({
-        waitForPermit: vi.fn<typeof RateLimiter.waitForPermit>(),
+        isOperationAllowed: vi.fn<typeof RateLimiter.isOperationAllowed>(() => true),
       }));
 
       try {
         const { fetchContributorStats } = await import("@/lib/data-access/github-api");
-        await expect(fetchContributorStats("owner", "repo")).resolves.toEqual([]);
+        await expect(fetchContributorStats("owner", "repo", "owner")).resolves.toEqual([]);
         expect(githubHttpClient).toHaveBeenCalledExactlyOnceWith(
           "https://api.github.com/repos/owner/repo/stats/contributors",
           expect.objectContaining({ headers: expect.any(Object) }),

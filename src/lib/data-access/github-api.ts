@@ -12,15 +12,23 @@ const HTTP_ACCEPTED = 202;
 const HTTP_NO_CONTENT = 204;
 const HTTP_FORBIDDEN = 403;
 
-import { createGitHubGraphQLClient } from "@/lib/utils/graphql-client";
-import { createRetryingFetch } from "@/lib/utils/http-client";
-import { waitForPermit } from "@/lib/rate-limiter";
+import { createGitHubGraphQLClient, GraphQLError } from "@/lib/utils/graphql-client";
+import { fetchWithTimeout } from "@/lib/utils/http-client";
+import { isOperationAllowed } from "@/lib/rate-limiter";
 import { debugLog } from "@/lib/utils/debug";
-import { retryWithOptions, RETRY_CONFIGS, delay } from "@/lib/utils/retry";
+import { retryWithOptions, RETRY_CONFIGS } from "@/lib/utils/retry";
+import type { FetchOptions } from "@/types/http";
+import { retryGitHubOperation, waitForGitHubRetry } from "./github-refresh-budget";
+import {
+  GITHUB_ACTIVITY_UPSTREAM_RETRY,
+  GitHubUpstreamUnavailableError,
+} from "./github-refresh-outcome";
 import {
   GitHubGraphQLContributionResponseSchema,
   GraphQLUserContributionsResponseSchema,
   GraphQLContributionYearsResponseSchema,
+  GraphQLHistoricalRepositoriesResponseSchema,
+  GraphQLRepositoryCommitCountResponseSchema,
   ContributorStatsResponseSchema,
   type GraphQLRepoNode,
   type GraphQLUserContributionsResponse,
@@ -37,11 +45,23 @@ const GITHUB_API_TOKEN =
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
 
 // Create configured HTTP client for GitHub REST API using consolidated configuration
-export const githubHttpClient = createRetryingFetch(
-  RETRY_CONFIGS.GITHUB_API.maxRetries,
-  RETRY_CONFIGS.GITHUB_API.baseDelay,
-  RETRY_CONFIGS.GITHUB_API,
-);
+export const githubHttpClient = (url: string, options?: FetchOptions) =>
+  retryGitHubOperation(
+    () =>
+      fetchWithTimeout(url, {
+        ...options,
+        signal: options?.signal ? AbortSignal.any([options.signal]) : undefined,
+      }),
+    RETRY_CONFIGS.GITHUB_API,
+    options?.signal ?? undefined,
+  );
+
+async function waitForGitHubPermit(namespace: string, context: string, signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  while (!isOperationAllowed(namespace, context, GITHUB_API_RATE_LIMIT_CONFIG)) {
+    await waitForGitHubRetry(200, signal);
+  }
+}
 
 // Create GraphQL client singleton
 let graphQLClient: ReturnType<typeof createGitHubGraphQLClient> | null = null;
@@ -53,9 +73,56 @@ function getGitHubGraphQLClient() {
     }
     graphQLClient = createGitHubGraphQLClient(GITHUB_API_TOKEN, {
       debug: process.env.NODE_ENV === "development",
+      // Retry the whole query below, including HTTP status errors, without nested retries.
+      retryConfig: { maxRetries: 0 },
     });
   }
   return graphQLClient;
+}
+
+async function queryGitHub(
+  query: string,
+  variables: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const client = getGitHubGraphQLClient();
+  return retryGitHubOperation(
+    async () => {
+      try {
+        return await client.query(query, variables, signal ? AbortSignal.any([signal]) : undefined);
+      } catch (error) {
+        signal?.throwIfAborted();
+        if (!(error instanceof Error)) throw error;
+        const causeCode =
+          error.cause instanceof Error && "code" in error.cause ? error.cause.code : undefined;
+        if (
+          /^Request timeout after \d+ms:/.test(error.message) ||
+          causeCode === "UND_ERR_CONNECT_TIMEOUT" ||
+          causeCode === "UND_ERR_HEADERS_TIMEOUT" ||
+          causeCode === "UND_ERR_BODY_TIMEOUT" ||
+          causeCode === "ETIMEDOUT"
+        ) {
+          throw new GitHubUpstreamUnavailableError("upstream-timeout", error);
+        }
+        if (error.message === "GraphQL HTTP error! status: 429") {
+          throw new GitHubUpstreamUnavailableError("upstream-rate-limit", error);
+        }
+        if (error.message === "GraphQL HTTP error! status: 503") {
+          throw new GitHubUpstreamUnavailableError("upstream-unavailable", error);
+        }
+        throw error;
+      }
+    },
+    {
+      ...GITHUB_ACTIVITY_UPSTREAM_RETRY,
+      isRetryable: (error) =>
+        error instanceof GitHubUpstreamUnavailableError ||
+        (!(error instanceof GraphQLError) &&
+          !(error instanceof Error && error.message.startsWith("GraphQL HTTP error! status:")) &&
+          RETRY_CONFIGS.HTTP_CLIENT.isRetryable(error)),
+    },
+    signal,
+  );
 }
 
 // NEW: Custom error to indicate that the GitHub /stats/contributors endpoint
@@ -79,17 +146,20 @@ export class GitHubContributorStatsRateLimitError extends Error {
 /**
  * Fetch contributed repositories for a user
  */
-export async function fetchContributedRepositories(username: string): Promise<{
+export async function fetchContributedRepositories(
+  username: string,
+  signal?: AbortSignal,
+): Promise<{
   userId: string;
   repositories: GraphQLRepoNode[];
+  dataComplete: boolean;
 }> {
-  const client = getGitHubGraphQLClient();
   const repositories = new Map<string, GraphQLRepoNode>();
   let cursor: string | null = null;
   let userId: string;
   do {
-    await waitForPermit("github-graphql", "contributed-repos", GITHUB_API_RATE_LIMIT_CONFIG);
-    const rawResponse = await client.query(
+    await waitForGitHubPermit("github-graphql", "contributed-repos", signal);
+    const rawResponse = await queryGitHub(
       `
     query($username: String!, $cursor: String) {
       user(login: $username) {
@@ -108,6 +178,7 @@ export async function fetchContributedRepositories(username: string): Promise<{
     }
     `,
       { username, cursor },
+      signal,
     );
 
     const response = GitHubGraphQLContributionResponseSchema.parse(rawResponse);
@@ -128,17 +199,95 @@ export async function fetchContributedRepositories(username: string): Promise<{
     cursor = hasNextPage ? endCursor : null;
   } while (cursor);
 
-  return { userId, repositories: [...repositories.values()] };
+  // The recent connection is not a lifetime inventory. Recover older repositories from
+  // every contribution year, deduplicating canonical identities across periods/renames.
+  const years = await fetchContributionYears(username, signal);
+  const now = new Date();
+  const tomorrow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  const dayMs = 86_400_000;
+  const windows = [...new Set(years)]
+    .map((year) => ({
+      from: Date.UTC(year, 0, 1),
+      until: Math.min(Date.UTC(year + 1, 0, 1), tomorrow),
+    }))
+    .filter((window) => window.from < window.until);
+  let dataComplete = true;
+  let requests = 0;
+  while (windows.length > 0) {
+    signal?.throwIfAborted();
+    // Bound discovery's share of the upstream quota. Exhaustion is incomplete, never empty.
+    if (requests >= 64) {
+      dataComplete = false;
+      break;
+    }
+    const window = windows.pop();
+    if (!window) break;
+    requests++;
+    try {
+      await waitForGitHubPermit("github-graphql", "historical-repos", signal);
+      const raw = await queryGitHub(
+        `query($username: String!, $from: DateTime!, $to: DateTime!) {
+        user(login: $username) {
+          contributionsCollection(from: $from, to: $to) {
+            totalRepositoriesWithContributedCommits
+            hasAnyRestrictedContributions
+            commitContributionsByRepository(maxRepositories: 100) {
+              repository { id name owner { login } nameWithOwner isFork isPrivate }
+            }
+          }
+        }
+      }`,
+        {
+          username,
+          from: new Date(window.from).toISOString(),
+          to: new Date(window.until - 1).toISOString(),
+        },
+        signal,
+      );
+      signal?.throwIfAborted();
+      const { contributionsCollection: collection } =
+        GraphQLHistoricalRepositoriesResponseSchema.parse(raw).user;
+      const identities = new Set(
+        collection.commitContributionsByRepository.map((entry) => entry.repository.id),
+      );
+      for (const { repository } of collection.commitContributionsByRepository) {
+        if (!repository.isFork) repositories.set(repository.id, repository);
+      }
+      if (collection.hasAnyRestrictedContributions) dataComplete = false;
+      if (identities.size !== collection.totalRepositoriesWithContributedCommits) {
+        const days = (window.until - window.from) / dayMs;
+        if (identities.size >= 100 && days > 1) {
+          const middle = window.from + Math.floor(days / 2) * dayMs;
+          windows.push({ from: window.from, until: middle }, { from: middle, until: window.until });
+        } else {
+          dataComplete = false;
+        }
+      }
+    } catch (error) {
+      signal?.throwIfAborted();
+      dataComplete = false;
+      console.warn(
+        "[GitHub] Historical repository inventory incomplete:",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+  signal?.throwIfAborted();
+  return { userId, repositories: [...repositories.values()], dataComplete };
 }
 
 /** Discover every contribution year, independently of repository visibility. */
-export async function fetchContributionYears(username: string): Promise<number[]> {
-  await waitForPermit("github-graphql", "contribution-years", GITHUB_API_RATE_LIMIT_CONFIG);
-  const response = await getGitHubGraphQLClient().query(
+export async function fetchContributionYears(
+  username: string,
+  signal?: AbortSignal,
+): Promise<number[]> {
+  await waitForGitHubPermit("github-graphql", "contribution-years", signal);
+  const response = await queryGitHub(
     `query($username: String!) {
       user(login: $username) { contributionsCollection { contributionYears } }
     }`,
     { username },
+    signal,
   );
   return GraphQLContributionYearsResponseSchema.parse(response).user.contributionsCollection
     .contributionYears;
@@ -151,11 +300,11 @@ export async function fetchContributionCalendar(
   username: string,
   from?: string,
   to?: string,
+  signal?: AbortSignal,
 ): Promise<GraphQLUserContributionsResponse> {
-  await waitForPermit("github-graphql", "contribution-calendar", GITHUB_API_RATE_LIMIT_CONFIG);
+  await waitForGitHubPermit("github-graphql", "contribution-calendar", signal);
 
-  const client = getGitHubGraphQLClient();
-  const rawResponse = await client.query(
+  const rawResponse = await queryGitHub(
     `
     query($username: String!, $from: DateTime, $to: DateTime) {
       user(login: $username) {
@@ -175,6 +324,7 @@ export async function fetchContributionCalendar(
     }
     `,
     { username, from, to },
+    signal,
   );
 
   return GraphQLUserContributionsResponseSchema.parse(rawResponse);
@@ -186,6 +336,8 @@ export async function fetchContributionCalendar(
 export async function fetchContributorStats(
   owner: string,
   name: string,
+  contributorLogin: string,
+  signal?: AbortSignal,
 ): Promise<GithubContributorStatsEntry[]> {
   const maxAttempts = Number(process.env.GITHUB_STATS_PENDING_MAX_ATTEMPTS ?? "4");
   const initialDelayMs = Number(process.env.GITHUB_STATS_PENDING_DELAY_MS ?? "10000"); // 10s default
@@ -195,10 +347,11 @@ export async function fetchContributorStats(
 
   while (attempt < maxAttempts) {
     attempt++;
-    await waitForPermit("github-rest", "contributor-stats", GITHUB_API_RATE_LIMIT_CONFIG);
+    await waitForGitHubPermit("github-rest", "contributor-stats", signal);
 
     const url = `https://api.github.com/repos/${owner}/${name}/stats/contributors`;
     const response = await githubHttpClient(url, {
+      signal,
       headers: {
         Authorization: `token ${GITHUB_API_TOKEN}`,
         Accept: "application/vnd.github.v3+json",
@@ -213,7 +366,7 @@ export async function fetchContributorStats(
           `GitHub contributor stats still pending for ${owner}/${name} (attempt ${attempt}/${maxAttempts}). Retrying in ${currentDelay}ms`,
           "info",
         );
-        await delay(currentDelay);
+        await waitForGitHubRetry(currentDelay, signal);
         currentDelay *= 2; // exponential back-off
         continue;
       }
@@ -248,6 +401,34 @@ export async function fetchContributorStats(
       );
     }
 
+    // Zero LOC is also GitHub's sentinel for >=10,000-commit repositories. Only
+    // consult history for ambiguous responses; small binary-only changes remain valid zero LOC.
+    const ambiguousLoc = result.data.some(
+      (entry) =>
+        entry.author?.login.toLowerCase() === contributorLogin.toLowerCase() &&
+        entry.weeks.some((week) => week.c > 0) &&
+        entry.weeks.every((week) => week.a === 0 && week.d === 0),
+    );
+    if (ambiguousLoc) {
+      await waitForGitHubPermit("github-graphql", "repository-commit-count", signal);
+      const raw = await queryGitHub(
+        `query($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+          defaultBranchRef { target { ... on Commit { history(first: 1) { totalCount } } } }
+        }
+      }`,
+        { owner, name },
+        signal,
+      );
+      signal?.throwIfAborted();
+      const repository = GraphQLRepositoryCommitCountResponseSchema.parse(raw).repository;
+      const commitCount = repository?.defaultBranchRef?.target?.history.totalCount;
+      if (commitCount === undefined || commitCount >= 10000) {
+        throw new Error(
+          "LOC statistics unavailable: repository history is inaccessible or has at least 10,000 commits.",
+        );
+      }
+    }
     return result.data;
   }
   // If loop exits unexpectedly without return, throw pending error

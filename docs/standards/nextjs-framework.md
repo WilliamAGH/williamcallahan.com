@@ -10,7 +10,7 @@ application behavior; do not infer behavior from a major-version label.
 
 | Concern                 | Canonical evidence                                     | Current contract |
 | ----------------------- | ------------------------------------------------------ | ---------------- |
-| Next.js                 | `package.json`, `node_modules/next/package.json`       | 16.1.6           |
+| Next.js                 | `package.json`, `node_modules/next/package.json`       | 16.4.2           |
 | React                   | `package.json`, `node_modules/react/package.json`      | 19.2.4           |
 | Vitest                  | `package.json`, `node_modules/vitest/package.json`     | 4.1.2            |
 | next-mdx-remote         | `package.json`, `node_modules/next-mdx-remote`         | 6.0.0            |
@@ -94,6 +94,12 @@ not be used as one. Follow the recovery procedure in
   synchronous-access error; use that source rather than guessing a migration shape.
 
 ### Cache Components and Rendering
+
+The existing application explicitly retains `partialPrefetching: false` while adopting
+Next.js 16.4.2. This matches the previously unset option's behavior, without its startup
+warning; enabling Partial Prefetching changes existing full-prefetch semantics and is a
+separate migration. Evidence: installed `next/dist/server/config.js:449-458` and the
+official `partialPrefetching`/adoption guides retrieved through Context7 on 2026-10-25.
 
 `next.config.ts` is the application configuration owner. Cache components invert the
 old route-config workflow: cache explicitly with `'use cache'`; do not use old

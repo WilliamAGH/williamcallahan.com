@@ -299,7 +299,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 - **`types/seo/metadata.ts`**: Now includes comprehensive Zod validation schemas alongside type definitions:
   - **SEO_LIMITS**: Constants defining optimal character lengths for various metadata fields
   - **Validation Schemas**: `metadataSchema`, `profilePageMetadataSchema`, `collectionPageMetadataSchema`, etc.
-  - **Validation Functions**: `validateMetadata()`, `validatePageMetadata()`, `safeValidateMetadata()`
+  - **Validation Functions**: `validateMetadata()`, `safeValidateMetadata()`; page-specific validation calls the profile or collection schema directly
   - **Benefits**: Ensures metadata adheres to SEO best practices, enforces character limits, validates URLs, and provides helpful error messages
   - Enhanced with URL security validation to prevent SSRF attacks in metadata URLs
 
@@ -328,7 +328,7 @@ This modular architecture ensures a clear separation of concerns, making the SEO
 
 ```typescript
 import { createArticleMetadata } from "@/lib/seo/metadata";
-import { safeValidateMetadata, validatePageMetadata } from "@/types/seo/metadata";
+import { safeValidateMetadata } from "@/types/seo/metadata";
 
 // Validate metadata configuration
 const validationResult = safeValidateMetadata(metadata);
@@ -340,14 +340,14 @@ if (!validationResult.success) {
 ### Validating Page Metadata
 
 ```typescript
-import { validatePageMetadata } from "@/lib/seo";
+import { profilePageMetadataSchema } from "@/types/seo/metadata";
 
 // This will throw if validation fails
-const validatedHomeMetadata = validatePageMetadata("home", {
-  title: "My Site",
+const validatedHomeMetadata = profilePageMetadataSchema.parse({
+  title: "My Personal Site",
   description: "A great website",
-  dateCreated: "<ISO-8601 timestamp>",
-  dateModified: "<ISO-8601 timestamp>",
+  dateCreated: "2026-01-01T00:00:00Z",
+  dateModified: "2026-01-02T00:00:00Z",
   bio: "Welcome to my site",
 });
 ```

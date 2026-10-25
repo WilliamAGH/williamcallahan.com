@@ -55,11 +55,13 @@ A hybrid approach is used to gather comprehensive data:
 - **REST API**: Used for granular, repository-specific data like contributor stats and language breakdowns.
 - **Repository-weekly repair**: Normalizes an in-memory CSV serialization of PostgreSQL repository-weekly records, compares its PostgreSQL checksum, and persists the repaired record. When no record exists, it fetches GitHub contributor data and creates the PostgreSQL record.
 
-Repository discovery follows every GraphQL cursor page but remains limited to repositories GitHub exposes as recently contributed to. It supports LOC statistics, never lifetime contribution counts. `allPriorYearCommits`/public `priorYearCommits` remains a limited repository-weekly commit breakdown, not the historical contribution total; weeks can straddle the calendar boundary. The UI's earlier-contribution subtotal is lifetime minus trailing contributions, displayed only for `contributionCountSource = "github-calendar"` records. Legacy records are replaced by the next successful refresh, with no schema migration.
+Repository discovery follows every recent GraphQL cursor page and supplements it with commit-contribution repositories from every contribution year. Canonical repository IDs deduplicate years and renames. Historical windows returning 100 repositories with a larger reported total split into disjoint UTC-day windows; discovery stops after 64 historical requests. Restricted contributions, unresolved count mismatches, failed windows, and budget exhaustion mark LOC incomplete rather than certifying a partial inventory. Coverage is relative to history GitHub exposes to the token, not inaccessible or deleted projects. The inventory supports LOC statistics, never lifetime contribution counts. `allPriorYearCommits`/public `priorYearCommits` remains a limited repository-weekly commit breakdown, not the historical contribution total; weeks can straddle the calendar boundary. The UI's earlier-contribution subtotal is lifetime minus trailing contributions, displayed only for `contributionCountSource = "github-calendar"` records. Legacy records are replaced by the next successful refresh, with no schema migration.
 
 A missing/failed current calendar, year inventory, or historical calendar aborts publication rather than recording a zero. An empty repository list does not erase historical calendar activity. Fully fetched calendar counts carry `contributionCountSource = "github-calendar"` and can publish even when independent LOC collection is incomplete; `dataComplete` continues to describe repository-stat completeness, which the UI discloses. Anonymous (`author: null`) contributor entries are skipped without discarding other contributors. Failed repository batches mark LOC statistics incomplete. Repository identifiers remain excluded from public responses.
 
 When repository statistics or the subsequent weekly-aggregate reads are incomplete, publication retains the previous coherent LOC snapshot (activity fields, summary/category metrics, and weekly aggregate) under the same transaction lock while updating calendar counts. These retained LOC figures remain explicitly incomplete until a complete repository refresh replaces them. This avoids erasing good statistics when a renamed repository has no cache under its new name and GitHub's stats endpoint is pending.
+
+GitHub returns zero additions/deletions for repositories with at least 10,000 commits. When the requested contributor has commits but exclusively zero LOC, the shared contributor fetch checks the unfiltered default-branch history count. A count at or above the limit, or inaccessible history, leaves LOC unavailable and preserves cached data; it is not an authoritative zero. Genuine zero LOC below the limit remains valid. Scheduled processing, missing-record repair, and `scripts/force-refresh-repo-stats.ts` all use this boundary. Existing corrupt zeros cannot reconstruct lost LOC; preserved figures remain disclosed as incomplete.
 
 ## Storage Model
 
@@ -81,6 +83,20 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 
 - **Schedule**: Daily at midnight Pacific Time (`0 7 * * *` in UTC).
 - **Mechanism**: A `scheduler.ts` script uses `node-cron` to trigger the `data-updater.ts` script. A lock is acquired to prevent multiple concurrent refresh operations.
+
+The refresh has one **10-minute total collection budget**, including CSV repair, repository discovery,
+contribution history, REST statistics, permit waits, and retries. This is over twice the observed
+266-second successful refresh and below the scheduler's 15-minute startup allowance; it is not the
+old 300-second per-repository monitor. Scheduler preserved-data retries share the same budget;
+direct refresh calls create their own. Expiry aborts active GitHub requests and retry timers, drains
+the active repository batch, and prevents another page, year, repository batch, or publication.
+Publication checks cancellation inside its existing transaction, including after the insert so
+an expired transaction rolls back. Database commands/commit are not HTTP-abortable and must finish
+under the database's own limits; this is not a hard wall-clock bound on an unavailable database.
+With validated retained activity, collection expiry returns a typed degraded `refresh-deadline`
+outcome without advancing freshness or invalidating caches. A missing/invalid retained record or
+configuration/schema/persistence failure remains a failure. Per-request upstream timeout is a
+separate `upstream-timeout` reason, not a label applied to total-budget cancellation.
 
 ## API Endpoints
 

@@ -8,6 +8,7 @@
  * Provides domain-specific configuration: context extraction, prompts, schema, and rendering.
  */
 
+import { ANALYSIS_LENGTH_LIMITS } from "@/types/schemas/ai-analysis-common";
 import type {
   BookmarkAiAnalysisProps,
   BookmarkAnalysisContext,
@@ -57,11 +58,11 @@ export const BOOKMARK_ANALYSIS_RESPONSE_FORMAT = {
       type: "object",
       additionalProperties: false,
       properties: {
-        summary: { type: "string", minLength: 1 },
-        category: { type: "string", minLength: 1 },
+        summary: { type: "string", minLength: 1, maxLength: ANALYSIS_LENGTH_LIMITS.stringField },
+        category: { type: "string", minLength: 1, maxLength: ANALYSIS_LENGTH_LIMITS.stringField },
         highlights: {
           type: "array",
-          items: { type: "string", minLength: 1 },
+          items: { type: "string", minLength: 1, maxLength: ANALYSIS_LENGTH_LIMITS.listItem },
           minItems: 1,
           maxItems: 6,
         },
@@ -69,19 +70,29 @@ export const BOOKMARK_ANALYSIS_RESPONSE_FORMAT = {
           type: "object",
           additionalProperties: false,
           properties: {
-            primaryDomain: { type: ["string", "null"] },
-            format: { type: ["string", "null"] },
-            accessMethod: { type: ["string", "null"] },
+            primaryDomain: {
+              type: ["string", "null"],
+              maxLength: ANALYSIS_LENGTH_LIMITS.detailField,
+            },
+            format: { type: ["string", "null"], maxLength: ANALYSIS_LENGTH_LIMITS.detailField },
+            accessMethod: {
+              type: ["string", "null"],
+              maxLength: ANALYSIS_LENGTH_LIMITS.detailField,
+            },
           },
           required: ["primaryDomain", "format", "accessMethod"],
         },
         relatedResources: {
           type: "array",
-          items: { type: "string", minLength: 1 },
+          items: { type: "string", minLength: 1, maxLength: ANALYSIS_LENGTH_LIMITS.listItem },
           minItems: 1,
           maxItems: 6,
         },
-        targetAudience: { type: "string", minLength: 1 },
+        targetAudience: {
+          type: "string",
+          minLength: 1,
+          maxLength: ANALYSIS_LENGTH_LIMITS.stringField,
+        },
       },
       required: [
         "summary",

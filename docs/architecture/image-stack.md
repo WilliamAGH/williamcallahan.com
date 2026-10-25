@@ -127,7 +127,7 @@ Keep this document synchronized with the other two structure docs whenever you i
 
 1. **CDN URLs go through `/_next/image` for optimization.** Images from our CDN (`s3-storage.callahan.cloud`, `*.digitaloceanspaces.com`, `*.callahan.cloud`) MUST use direct URLs without `unoptimized` so Next.js performs resize + WebP/AVIF conversion via Sharp.
 
-2. **API routes set `unoptimized`.** Only `/api/logo`, `/api/cache/images` (for external URLs), and `/api/og-image` use `unoptimized` because these routes already process/stream the image. The canonical helper is `shouldBypassOptimizer()` (`lib/utils/cdn-utils.ts`).
+2. **Use the canonical optimizer policy.** `/api/logo` serves first-party image bytes for Next optimization; local optimizer fetches do not follow route redirects. `/api/cache/images` (external URLs) and `/api/og-image` bypass optimization through `shouldBypassOptimizer()` (`lib/utils/cdn-utils.ts`).
 
 3. **`sizes` prop policy.** Per Next.js docs: without `sizes`, a limited `1x, 2x` srcset is generated (appropriate for fixed-size images with explicit `width`/`height`). With `sizes`, a full responsive srcset (`640w, 750w, ...`) is generated. **Rules:**
    - Responsive images (using `fill`, CSS `width: 100%`, or viewport-relative sizing) MUST have `sizes` with breakpoint-aware values.

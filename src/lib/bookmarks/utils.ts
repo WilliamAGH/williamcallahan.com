@@ -2,6 +2,7 @@ import type { BookmarkTag, UnifiedBookmark, RawBookmark } from "@/types/schemas/
 import type { LightweightBookmark } from "@/types/bookmark";
 import type { SerializableBookmark } from "@/types/features/bookmarks";
 import { getMonotonicTime } from "@/lib/utils";
+import { tagToSlug } from "@/lib/utils/tag-utils";
 
 /**
  * Calculates the date 30 days ago from the current time.
@@ -46,7 +47,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
     return {
       id: forceUppercase ? upperTag : tag,
       name: forceUppercase ? upperTag : tag,
-      slug: tag.toLowerCase().replaceAll(/\s+/g, "-"),
+      slug: tagToSlug(tag),
       color: undefined,
     };
   }
@@ -60,7 +61,7 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   return {
     id: tag?.id || name,
     name: name,
-    slug: tag?.slug || name.toLowerCase().replaceAll(/\s+/g, "-"),
+    slug: tagToSlug(name),
     color: tag?.color,
   };
 }

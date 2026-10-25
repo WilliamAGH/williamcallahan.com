@@ -102,14 +102,13 @@ File/Path Functionality Description
     - [x] `index.ts` `investments` - Removed; import `investments.server.tsx` directly
     - [x] `investment-card.{client,server}.tsx` `investments` - ind card for each investment made
     - [x] `investments.{client,server}.tsx` `investments` - list investments
-    - [x] `theme-wrapper.client.tsx` `investments` - theme wrapper for investments list
   - [x] **projects/**
     - [x] `index.ts` `projects` - Removed; import projects components from concrete files
     - [x] `project-ai-analysis.client.tsx` `projects` - AI analysis component for projects with SSR cache support
-    - [x] `project-card.{client,server}.tsx` `projects` - Individual project cards; client cards disable detail-link prefetch and fall back safely when CDN config is missing
+    - [x] `project-card.client.tsx` `projects` - Individual project cards; disable detail-link prefetch and fall back safely when CDN config is missing
     - [x] `project-detail.tsx` `projects` - Project detail view with AI analysis integration
     - [x] `project-tags.client.tsx` `projects` - Project tag filter UI
-    - [x] `projects-list.{client,server}.tsx` `projects` - List all projects
+    - [x] `projects-list.client.tsx` `projects` - List all projects; exports the ProjectsListServer alias consumed by ProjectsWindow
     - [x] `projects-window.client.tsx` `projects` - Projects window wrapper
     - [x] `projects.client.tsx` `projects` - Projects feature wrapper
   - [x] **social/**
@@ -167,7 +166,7 @@ File/Path Functionality Description
     - [x] `theme-provider.client.tsx` `theming` - Theme provider using next-themes
     - [x] `theme-toggle.tsx` `theming` - Button to toggle light/dark theme
   - [x] **code-block/**
-    - [x] `code-block.client.tsx` `code-block` - Main code block component
+    - [x] `code-block.client.tsx` `code-block` - Code display and interaction; MDX wrapper owns SVG transform processing
     - [x] `copy-button.client.tsx` `code-block` - Copy button for code blocks
     - [x] `mdx-code-block-wrapper.client.tsx` `code-block` - MDX wrapper for code blocks
     - [x] `mdx-code-block.server.tsx` `code-block` - Renders MDX code blocks on the server
@@ -221,8 +220,7 @@ File/Path Functionality Description
   - [ ] `unified-ai-service.ts` `ai-shared-services` - Main AI service singleton
   - [ ] `unified-search-service.ts` `ai-shared-services` - Main search service singleton
   - [ ] `types.ts` `ai-shared-services` - Shared type definitions
-- [x] `async-job-queue.ts` `bookmarks` - Asynchronous job queue implementation
-- [ ] `async-operations-monitor.ts` `instrumentation-monitoring` - Global async operations tracker & timeout guard
+- [ ] `async-operations-monitor.ts` `instrumentation-monitoring` - Singleton operation tracker and monitoredAsync timeout wrapper
 - [x] `blog.ts` `blog` - Blog data helper functions
 - [x] `bookmarks.{client,server}.ts` `json-handling` - Helper functions for bookmarks
 - [x] `bookmarks.ts` `json-handling` - Core bookmarks logic
@@ -279,8 +277,10 @@ File/Path Functionality Description
 - [x] **data-access/**
   - [x] `bookmarks.ts` `json-handling` - Data access for bookmarks
   - [x] `github.ts` `json-handling` - GitHub orchestration (API fetch, processing, cache invalidation, and durable persistence flow)
+  - [x] `github-api.ts` `github-activity` - Paginated and historical repository inventory, contribution calendars, and shared contributor statistics with large-repository LOC protection
   - [x] `github-activity-summaries.ts` `github-activity` - Writes the single all-time summary payload via PostgreSQL-backed storage
   - [x] `github-contributions.ts` `github-activity` - Trailing calendar and disjoint historical contribution-year totals, independent of repository visibility
+  - [x] `github-refresh-budget.ts` `github-activity` - Shared collection deadline, cancellable retry waits, and GitHub-specific retry ownership
   - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
   - [x] `github-processing.ts` `github-activity` - Canonical weekly aggregation and line-of-code category processing
   - [x] `github-public-api.ts` `github-activity` - Projects validated stored activity into the aggregate-only public view
@@ -353,7 +353,8 @@ File/Path Functionality Description
   - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
 - [x] **image-handling/**
-  - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component manifest readers for logo/OG/blog maps
+  - [x] `logo-response.server.ts` `image-handling` - Shared bounded CDN byte delivery for normal and inverted logo routes
+  - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component logo manifest reader; startup loads all manifests directly
   - [x] `twitter-image-policy.ts` `image-handling` - Canonical Twitter image root, format, path, and S3 category policy
   - [x] `image-manifest-loader.ts` `image-handling` - Manifest warm-up + in-memory lookup helpers; production request paths skip lazy S3 loads when warm-up is unavailable
 - [ ] **imageAnalysis/**
@@ -475,7 +476,7 @@ File/Path Functionality Description
   - [x] `window.d.ts` `state-theme-window-providers` - Augmentations for the global `Window` object
 - [x] **seo/**
   - [x] `base.ts` `seo` - Base SEO type definitions
-  - [x] `metadata.ts` `seo` - Types and Zod validation schemas for SEO metadata
+  - [x] `metadata.ts` `seo` - SEO metadata schemas and inferred types; profile/collection validation uses the schemas directly
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
   - [x] `schema.ts` `seo` - Types for Schema.org
   - [x] `shared.ts` `seo` - Shared SEO type definitions
@@ -668,7 +669,7 @@ File/Path Functionality Description
 - [x] `bookmark-diagnostics.ts` `log-error-debug-handling` - Diagnostics script for bookmark refresh/cache behavior
 - [x] `blog-render-smoke.ts` `blog` - Shared deployed-HTML validator for the canonical blog render canaries; rejects missing article content and the MDX fallback
 - [x] `fix-fetch-mock.ts` `testing-config` - Script to fix fetch mocks
-- [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Script to force-refresh GitHub repo stats
+- [x] `force-refresh-repo-stats.ts` `batch-fetch-update` - Force-refresh repository stats through the shared validated contributor fetch; preserve existing rows on unavailable data
 - [x] `lib/with-database.node.mjs` `db` - Shared Node-script bootstrap: registers `tsx/esm/api`, runs a task against the TypeScript database owners, closes the shared connection; used by every seed, backfill, and gate script
 - [x] `backfill-bookmark-embeddings.node.mjs` `bookmarks` - Node runtime backfill for bookmark rows of the unified `embeddings` table; runs through `withDatabase` and delegates to the canonical `backfillBookmarkEmbeddings` owner so batching, embedding-text contract, and `embedding_failures` checkpointing are not restated
 - [x] `ingest-bookmark-tag-aliases.node.mjs` `bookmarks` - Node runtime LLM-driven tag alias ingestion using bookmark tag context + embedding-nearest related bookmarks; writes to `bookmarks_tags` + `bookmarks_tags_links`
@@ -744,6 +745,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 - [x] **e2e/**
   - [x] `blog-render.spec.ts` `blog` - Chromium route-layer checks for the shared blog render canaries, including declared interactions and browser failures
+  - [x] `github-activity.spec.ts` `github-activity` - Real calendar desktop labels and mobile heatmap rendering at the route boundary
 - [x] \***\*tests**/\*\*
   - [x] `README.md` `project-mgmt` - Tests documentation
   - [x] \***\*mocks**/\*\*
@@ -768,6 +770,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
         - [x] `entity-route.test.ts` `opengraph` - Unified OG image route handler dispatch and validation tests
       - [x] **logo/**
         - [x] `cache.test.ts` `image-handling` - Tests for logo caching
+        - [x] `route.test.ts` `image-handling` - Image bytes, CDN/S3 metadata paths, bounded upstream failures, and success-only caching
       - [x] **twitter-image/**
         - [x] `route.test.ts` `image-handling` - Twitter image root, format, forwarding, and category tests
     - [x] `pages.smoke.test.ts` `app-layout` - Smoke tests for all pages
@@ -795,6 +798,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
         - [x] `terminal.test.tsx` `terminal` - Terminal component tests
         - [x] `terminalSelectionView.test.tsx` `terminal` - Terminal selection view tests
   - [x] **lib/**
+    - [x] `books/generate.test.ts` `books` - Original ABS failures, successful-empty libraries, and preservation of published book data
     - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
     - [x] `ai-harmony-sanitizer.test.ts` `ai-shared-services` - Marker-based Harmony channel-control sanitation coverage
     - [x] `ai-openai-compatible-client-timeout.test.ts` `ai-shared-services` - Cached-client request-policy coverage for non-stream, Chat stream, and Responses stream calls
@@ -809,7 +813,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `cache.test.ts` `caching` - Cache utility tests
     - [x] `github-activity.test.ts` `github-activity` - Multi-year contribution refresh, failures, empty repository sets and category aggregation
     - [x] `github-activity-persistence.test.ts` `github-activity` - Atomic publication, verified counts with retained LOC, integrity repair and rollback
-    - [x] `github-api.test.ts` `github-activity` - Upstream pagination, GraphQL failures, anonymous contributors and UTC calendar boundaries
+    - [x] `github-api.test.ts` `github-activity` - Historical/private inventory coverage, cap splitting, LOC availability, pagination, GraphQL failures, anonymous contributors and UTC calendar boundaries
     - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guard tests
     - [x] **middleware/**
       - [x] `proxy-analytics.test.ts` `analytics` - Same-origin proxy delivery, header sanitization, timeout, and failure tests
@@ -854,7 +858,6 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `blog-render-smoke.test.ts` `blog` - Outcome tests for the shared production blog-render HTML validator
     - [x] `fix-s3-acl-public.sh` `s3-object-storage` - Reapply public ACLs for S3 buckets; accepts optional `--prefix` to scope updates (2025-08 refresh)
     - [x] `update-data.smoke.test.ts` `batch-fetch-update` - Data updater smoke tests
-  - [x] **setup/**
 - [x] `tsconfig.json` `testing-config` - TypeScript config for Vitest tests
 
 ## Mocks Directory

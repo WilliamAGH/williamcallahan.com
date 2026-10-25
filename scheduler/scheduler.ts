@@ -3,6 +3,7 @@ import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 import { getMonotonicTime } from "@/lib/utils";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { writeFileSync } from "node:fs";
+import logger from "@/lib/utils/logger";
 loadEnvironmentWithMultilineSupport();
 
 let fatalExitStarted = false;
@@ -10,7 +11,7 @@ let fatalExitStarted = false;
 const exitAfterFatalProcessError = (event: string, reason: unknown): void => {
   if (fatalExitStarted) return;
   fatalExitStarted = true;
-  console.error(`[Scheduler] FATAL: ${event}`, reason);
+  logger.error(`[Scheduler] FATAL: ${event}`, reason);
   process.exitCode = 1;
   setImmediate(() => process.exit(1));
 };
@@ -168,7 +169,7 @@ async function invalidateWebCache(
   const secret = process.env[target.authSecretKey];
   if (!secret) {
     const error = new Error(`${target.authSecretKey} is not configured`);
-    console.error(`[Scheduler] [${name}] ${error.message}`);
+    logger.error(`[Scheduler] [${name}] ${error.message}`);
     return { success: false, error };
   }
 
@@ -184,7 +185,7 @@ async function invalidateWebCache(
     });
     if (!response.ok) {
       const error = new Error(`Cache invalidation failed: ${response.status}`);
-      console.error(`[Scheduler] [${name}] ${error.message}`);
+      logger.error(`[Scheduler] [${name}] ${error.message}`);
       return { success: false, error };
     }
 
@@ -192,7 +193,7 @@ async function invalidateWebCache(
     return { success: true };
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
-    console.error(`[Scheduler] [${name}] Cache invalidation error:`, failure);
+    logger.error(`[Scheduler] [${name}] Cache invalidation error:`, failure);
     return { success: false, error: failure };
   } finally {
     clearTimeout(timeoutId);
@@ -207,7 +208,7 @@ async function revalidateBootstrapCaches(): Promise<void> {
   );
 
   if (results.some((result) => !result.success)) {
-    console.error("[Scheduler] Bootstrap cache revalidation failed");
+    logger.error("[Scheduler] Bootstrap cache revalidation failed");
     process.exit(1);
   }
 
@@ -258,7 +259,7 @@ const scheduleCronJob = (
 
       updateProcess.on("error", (err) => {
         activeUpdateProcesses.delete(updateProcess);
-        console.error(
+        logger.error(
           `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Failed to start process:`,
           err,
         );
@@ -278,7 +279,7 @@ const scheduleCronJob = (
         }
 
         if (code !== 0) {
-          console.error(
+          logger.error(
             `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [${name}] Script failed (code ${code})`,
           );
           return;

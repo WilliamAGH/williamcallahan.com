@@ -22,7 +22,7 @@ See [Investments Architecture Diagram](./investments.mmd).
 4. **Client-Side Hydration (`InvestmentsClient`)**:
    - This component receives the array of fully pre-rendered investment cards from the server.
    - Its main responsibility is to manage the interactive "window" state (minimize, maximize, close) and display the static content and prose about the investment philosophy.
-   - A `ThemeWrapper` is used to provide theme context (dark/light) to each card for proper styling.
+   - Cards render directly as `InvestmentCardClient`; their `dark:` CSS variants handle theme styling without a per-card wrapper.
 
 ## Key Files & Components
 

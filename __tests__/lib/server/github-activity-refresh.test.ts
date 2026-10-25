@@ -3,6 +3,7 @@ import { GET as getGitHubActivity } from "@/app/api/github-activity/route";
 import { POST as refreshGitHubActivityProduction } from "@/app/api/github-activity/refresh-production/route";
 import { POST as refreshGitHubActivity } from "@/app/api/github-activity/refresh/route";
 import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
+import { readGitHubActivityRecord } from "@/lib/data-access/github-storage";
 import { createGitHubActivitySummary } from "@/lib/data-access/github-activity-summaries";
 import { getGithubActivityCached } from "@/lib/data-access/github-public-api";
 import { createEmptyCategoryStats } from "@/lib/data-access/github-processing";
@@ -11,8 +12,10 @@ import { runGitHubActivityRefresh } from "@/lib/server/github-activity-refresh";
 import {
   GITHUB_ACTIVITY_PRESERVED_DATA_RETRY,
   GitHubActivityRefreshPreservedError,
+  GitHubUpstreamUnavailableError,
 } from "@/lib/data-access/github-refresh-outcome";
 import { getMonotonicTime } from "@/lib/utils";
+import { GitHubRefreshDeadlineError } from "@/lib/data-access/github-refresh-budget";
 import { invalidateAllGitHubCaches } from "@/lib/cache/invalidation";
 import {
   contributionDaySchema,
@@ -31,6 +34,9 @@ const mockedAuth = vi.hoisted(() =>
 vi.mock("@clerk/nextjs/server", () => ({ auth: mockedAuth }));
 vi.mock("@/lib/data-access/github", () => ({
   refreshGitHubActivityDataFromApi: vi.fn<typeof refreshGitHubActivityDataFromApi>(),
+}));
+vi.mock("@/lib/data-access/github-storage", () => ({
+  readGitHubActivityRecord: vi.fn<typeof readGitHubActivityRecord>(),
 }));
 vi.mock("@/lib/data-access/github-public-api", () => ({
   getGithubActivityCached: vi.fn<typeof getGithubActivityCached>(),
@@ -53,6 +59,7 @@ vi.mock("@/lib/utils/logger", () => ({
 }));
 
 const mockedRefreshGitHubActivityDataFromApi = vi.mocked(refreshGitHubActivityDataFromApi);
+const mockedReadGitHubActivityRecord = vi.mocked(readGitHubActivityRecord);
 const mockedGetGithubActivityCached = vi.mocked(getGithubActivityCached);
 const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
 const mockedGetMonotonicTime = vi.mocked(getMonotonicTime);
@@ -83,6 +90,15 @@ const unavailableGitHubActivity = createUnavailableUserActivityView({ source: "e
 const githubActivityUrl = "http://localhost:3000/api/github-activity";
 const githubActivityRefreshUrl = `${githubActivityUrl}/refresh`;
 const cronRefreshSecret = "github-activity-refresh-secret";
+const productionAccess = {
+  allowWrites: true,
+  environment: "production",
+  source: "NEXT_PUBLIC_SITE_URL",
+} satisfies ReturnType<typeof resolveDatabaseAccessMode>;
+const upstreamTimeout = new GitHubUpstreamUnavailableError(
+  "upstream-timeout",
+  new Error("timeout"),
+);
 
 function createAuthorizedGitHubActivityRefreshRequest(): NextRequest {
   return new NextRequest(githubActivityRefreshUrl, {
@@ -124,11 +140,7 @@ describe("GitHub activity refresh routes", () => {
   });
 
   it("returns a canonical retryable response when healthy activity is preserved", async () => {
-    mockedResolveDatabaseAccessMode.mockReturnValueOnce({
-      allowWrites: true,
-      environment: "production",
-      source: "NEXT_PUBLIC_SITE_URL",
-    });
+    mockedResolveDatabaseAccessMode.mockReturnValueOnce(productionAccess);
     mockedRefreshGitHubActivityDataFromApi.mockRejectedValueOnce(
       new GitHubActivityRefreshPreservedError(),
     );
@@ -149,11 +161,7 @@ describe("GitHub activity refresh routes", () => {
 
   it("reports unexpected refresh failures as internal server errors", async () => {
     const refreshError = new Error("GitHub API unavailable");
-    mockedResolveDatabaseAccessMode.mockReturnValueOnce({
-      allowWrites: true,
-      environment: "production",
-      source: "NEXT_PUBLIC_SITE_URL",
-    });
+    mockedResolveDatabaseAccessMode.mockReturnValueOnce(productionAccess);
     mockedRefreshGitHubActivityDataFromApi.mockRejectedValueOnce(refreshError);
 
     const response = await refreshGitHubActivity(createAuthorizedGitHubActivityRefreshRequest());
@@ -165,11 +173,7 @@ describe("GitHub activity refresh routes", () => {
   });
 
   it("returns the successful refresh result after invalidating caches", async () => {
-    mockedResolveDatabaseAccessMode.mockReturnValueOnce({
-      allowWrites: true,
-      environment: "production",
-      source: "NEXT_PUBLIC_SITE_URL",
-    });
+    mockedResolveDatabaseAccessMode.mockReturnValueOnce(productionAccess);
     mockedRefreshGitHubActivityDataFromApi.mockResolvedValueOnce(refreshedActivity);
 
     const response = await refreshGitHubActivity(createAuthorizedGitHubActivityRefreshRequest());
@@ -332,27 +336,20 @@ describe("GitHub activity refresh routes", () => {
 });
 
 describe("GET /api/github-activity", () => {
-  it("returns no-store after calling connection on activity data", async () => {
-    mockedGetGithubActivityCached.mockResolvedValueOnce(unavailableGitHubActivity);
-    const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(connection).toHaveBeenCalledOnce();
-  });
-
-  it("returns no-store after calling connection on refresh guidance", async () => {
-    const response = await getGitHubActivity(new NextRequest(`${githubActivityUrl}?refresh=true`));
-    expect(response.status).toBe(400);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(connection).toHaveBeenCalledOnce();
-  });
-
-  it("returns no-store after calling connection on data access failure", async () => {
-    mockedGetGithubActivityCached.mockRejectedValueOnce(
-      new Error("GitHub activity data access failed"),
-    );
-    const response = await getGitHubActivity(new NextRequest(githubActivityUrl));
-    expect(response.status).toBe(500);
+  it.each([
+    { outcome: "activity data", query: "", status: 200 },
+    { outcome: "refresh guidance", query: "?refresh=true", status: 400 },
+    { outcome: "data access failure", query: "", status: 500 },
+  ])("returns no-store after calling connection on $outcome", async ({ query, status }) => {
+    if (status === 500) {
+      mockedGetGithubActivityCached.mockRejectedValueOnce(
+        new Error("GitHub activity data access failed"),
+      );
+    } else if (status === 200) {
+      mockedGetGithubActivityCached.mockResolvedValueOnce(unavailableGitHubActivity);
+    }
+    const response = await getGitHubActivity(new NextRequest(`${githubActivityUrl}${query}`));
+    expect(response.status).toBe(status);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(connection).toHaveBeenCalledOnce();
   });
@@ -397,6 +394,7 @@ describe("GitHub activity summary", () => {
 describe("runGitHubActivityRefresh", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedResolveDatabaseAccessMode.mockReturnValue(productionAccess);
     mockedGetMonotonicTime.mockReturnValueOnce(1_000).mockReturnValueOnce(1_500);
   });
 
@@ -419,11 +417,6 @@ describe("runGitHubActivityRefresh", () => {
   });
 
   it("refreshes and invalidates caches in the production write environment", async () => {
-    mockedResolveDatabaseAccessMode.mockReturnValue({
-      allowWrites: true,
-      environment: "production",
-      source: "NEXT_PUBLIC_SITE_URL",
-    });
     mockedRefreshGitHubActivityDataFromApi.mockResolvedValue(refreshedActivity);
 
     await expect(runGitHubActivityRefresh()).resolves.toEqual({
@@ -437,33 +430,47 @@ describe("runGitHubActivityRefresh", () => {
     expect(mockedCaptureException).not.toHaveBeenCalled();
   });
 
-  it("reports unexpected production refresh failures to Sentry", async () => {
-    const refreshError = new Error("GitHub API unavailable");
-    mockedResolveDatabaseAccessMode.mockReturnValue({
-      allowWrites: true,
-      environment: "production",
-      source: "NEXT_PUBLIC_SITE_URL",
-    });
-    mockedRefreshGitHubActivityDataFromApi.mockRejectedValue(refreshError);
-
-    await expect(runGitHubActivityRefresh()).resolves.toEqual({
-      success: false,
-      operation: "github-activity",
-      error: refreshError.message,
-      duration: 0.5,
-    });
-    expect(mockedCaptureException).toHaveBeenCalledOnce();
-    expect(mockedCaptureException).toHaveBeenCalledWith(refreshError);
-    expect(mockedRefreshGitHubActivityDataFromApi).toHaveBeenCalledOnce();
-    expect(mockedInvalidateAllGitHubCaches).not.toHaveBeenCalled();
-  });
+  it.each([
+    ["unclassified failure", new Error("GitHub API unavailable"), false, false],
+    ["unclassified timeout", new Error("Request timeout after 30000ms: database"), true, false],
+    ["no retained activity", upstreamTimeout, false, false],
+    ["invalid retained activity", upstreamTimeout, new Error("Invalid persisted activity"), false],
+    ["retained activity", upstreamTimeout, true, true],
+    ["total deadline with retained activity", new GitHubRefreshDeadlineError(), true, true],
+    ["total deadline without retained activity", new GitHubRefreshDeadlineError(), false, false],
+  ] satisfies Array<[string, Error, boolean | Error, boolean]>)(
+    "classifies %s (%s)",
+    async (_case, refreshError, retained, degraded) => {
+      mockedRefreshGitHubActivityDataFromApi.mockRejectedValue(refreshError);
+      if (retained instanceof Error) mockedReadGitHubActivityRecord.mockRejectedValue(retained);
+      else
+        mockedReadGitHubActivityRecord.mockResolvedValue(
+          retained
+            ? {
+                trailingYearData: refreshedActivity.trailingYearData,
+                cumulativeAllTimeData: refreshedActivity.allTimeData,
+              }
+            : null,
+        );
+      await expect(runGitHubActivityRefresh()).resolves.toMatchObject({
+        success: degraded,
+        operation: "github-activity",
+        ...(degraded
+          ? {
+              degraded: true,
+              reason: "reason" in refreshError ? refreshError.reason : undefined,
+              itemsProcessed: 0,
+            }
+          : { error: (retained instanceof Error ? retained : refreshError).message }),
+        duration: 0.5,
+      });
+      expect(mockedCaptureException).toHaveBeenCalledTimes(degraded ? 0 : 1);
+      expect(mockedRefreshGitHubActivityDataFromApi).toHaveBeenCalledOnce();
+      expect(mockedInvalidateAllGitHubCaches).not.toHaveBeenCalled();
+    },
+  );
 
   it("retries preserved healthy activity with bounded backoff and lets bootstrap continue", async () => {
-    mockedResolveDatabaseAccessMode.mockReturnValue({
-      allowWrites: true,
-      environment: "production",
-      source: "NEXT_PUBLIC_SITE_URL",
-    });
     mockedRefreshGitHubActivityDataFromApi.mockRejectedValue(
       new GitHubActivityRefreshPreservedError(),
     );
@@ -477,6 +484,8 @@ describe("runGitHubActivityRefresh", () => {
         success: true,
         operation: "github-activity",
         itemsProcessed: 0,
+        degraded: true,
+        reason: "preserved-healthy-activity",
         duration: 0.5,
       });
       expect(mockedRefreshGitHubActivityDataFromApi).toHaveBeenCalledTimes(

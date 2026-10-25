@@ -40,6 +40,7 @@ const GitHubActivity = () => {
   const { resolvedTheme } = useTheme();
   const [activity, setActivity] = useState<UserActivityView | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [canMeasureSvgText, setCanMeasureSvgText] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchInitiatedRef = useRef(false);
@@ -51,6 +52,9 @@ const GitHubActivity = () => {
   // Callback ref: measures whenever the calendar container mounts (it renders only after loading)
   const observeContainerWidth = useCallback((container: HTMLDivElement) => {
     setIsMobile(container.clientWidth < SM_BREAKPOINT);
+    // Match the dependency's actual text-node API, not an unrelated global prototype.
+    const svgText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    setCanMeasureSvgText(typeof svgText.getBBox === "function");
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setIsMobile(entry.contentRect.width < SM_BREAKPOINT);
     });
@@ -165,7 +169,7 @@ const GitHubActivity = () => {
                 blockRadius={isMobile ? 2 : 0}
                 fontSize={isMobile ? 11 : 14}
                 hideTotalCount
-                showWeekdayLabels={!isMobile}
+                showWeekdayLabels={!isMobile && canMeasureSvgText}
               />
             </div>
           )}

@@ -3,12 +3,12 @@
  * @module lib/books/audiobookshelf
  * @description
  * Server-side client for AudioBookShelf API.
- * Fetches library items and transforms to Book types with a resilient,
- * request-time strategy and an in-memory last-good snapshot for fallbacks.
+ * Fetches library items and transforms to Book types. Compatibility fallback
+ * APIs can return empty data on failure; snapshot getters currently retain no payload.
  */
 
 import { fetchWithTimeout } from "@/lib/utils/http-client";
-import { envLogger } from "@/lib/utils/env-logger";
+import logger from "@/lib/utils/logger";
 import {
   validateAbsLibraryItemsResponse,
   validateAbsLibraryEntry,
@@ -160,9 +160,10 @@ async function fetchBooksFresh(
 }
 
 /**
- * Fetch all books with a resilient fallback to the last-good in-memory snapshot.
- * Defaults to allowing stale data when AudioBookShelf is unavailable.
- * Never throws - returns empty array if all fallbacks are exhausted.
+ * Fetch all books with an explicit source error when AudioBookShelf is unavailable.
+ * Snapshot getters currently return null, so no last-good payload is available.
+ * Never throws - returns empty array and the source error if fallbacks are exhausted.
+ * Callers refreshing persisted data must check error, not treat an empty fallback as success.
  *
  * Note: fetchedAt returns 0 to be prerender-safe (current time not allowed before data access)
  */
@@ -171,7 +172,7 @@ export async function fetchBooksWithFallback(
     includeBlurPlaceholders?: boolean;
     allowStale?: boolean;
   } = {},
-): Promise<{ books: Book[]; isFallback: boolean; fetchedAt: number }> {
+): Promise<{ books: Book[]; isFallback: boolean; fetchedAt: number; error?: Error }> {
   const { allowStale = true, ...rest } = options;
 
   try {
@@ -179,39 +180,39 @@ export async function fetchBooksWithFallback(
     cacheSnapshot(books);
     return { books, isFallback: false, fetchedAt: 0 };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    envLogger.log(
-      "AudioBookShelf fetch failed, considering fallback snapshot",
-      { error: message },
-      { category: "Books" },
-    );
-
+    const failure = error instanceof Error ? error : new Error(String(error), { cause: error });
     const snapshotBooks = allowStale ? getSnapshotBooks(SNAPSHOT_TTL_MS) : null;
     if (snapshotBooks) {
+      logger.warn(
+        `[Books] AudioBookShelf fetch failed; serving stale snapshot: ${failure.name}: ${failure.message}`,
+        failure,
+      );
       return {
         books: snapshotBooks,
         isFallback: true,
         fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0,
+        error: failure,
       };
     }
 
     // Return empty array instead of throwing - allows page to render gracefully
-    envLogger.log(
-      "AudioBookShelf unavailable and no snapshot - returning empty books list",
-      { error: message },
-      { category: "Books" },
+    logger.error(
+      `[Books] AudioBookShelf unavailable and no snapshot - returning empty books list: ${failure.name}: ${failure.message}`,
+      failure,
     );
-    return { books: [], isFallback: true, fetchedAt: 0 };
+    return { books: [], isFallback: true, fetchedAt: 0, error: failure };
   }
 }
 
 /**
- * Preserve legacy signature while routing through the resilient fetch.
+ * Strict array API: source failures reject instead of masquerading as an empty library.
+ * Callers needing graceful unavailable results use fetchBooksWithFallback.
  */
 export async function fetchBooks(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
 ): Promise<Book[]> {
   const result = await fetchBooksWithFallback({ ...options, allowStale: true });
+  if (result.error) throw result.error;
   return result.books;
 }
 
@@ -224,7 +225,7 @@ export async function fetchBooks(
  */
 export async function fetchBookListItemsWithFallback(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
-): Promise<{ books: BookBrief[]; isFallback: boolean; fetchedAt: number }> {
+): Promise<{ books: BookBrief[]; isFallback: boolean; fetchedAt: number; error?: Error }> {
   const { includeBlurPlaceholders = false, ...fetchOptions } = options;
 
   try {
@@ -244,16 +245,14 @@ export async function fetchBookListItemsWithFallback(
 
     return { books: bookListItems, isFallback: false, fetchedAt: 0 };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    envLogger.log(
-      "AudioBookShelf book list fetch failed, considering fallback snapshot",
-      { error: message },
-      { category: "Books" },
-    );
-
+    const failure = error instanceof Error ? error : new Error(String(error), { cause: error });
     // Try in-memory snapshot first
     const snapshotBooks = getSnapshotBooks(SNAPSHOT_TTL_MS);
     if (snapshotBooks) {
+      logger.warn(
+        `[Books] AudioBookShelf book list fetch failed; serving stale snapshot: ${failure.name}: ${failure.message}`,
+        failure,
+      );
       const books = snapshotBooks.map(({ id, title, authors, coverUrl, coverBlurDataURL }) => ({
         id,
         title,
@@ -261,27 +260,33 @@ export async function fetchBookListItemsWithFallback(
         coverUrl,
         coverBlurDataURL,
       }));
-      return { books, isFallback: true, fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0 };
+      return {
+        books,
+        isFallback: true,
+        fetchedAt: lastBooksSnapshot?.fetchedAt ?? 0,
+        error: failure,
+      };
     }
 
     // If no snapshot available, return empty array instead of throwing
     // This allows the page to render with an "unavailable" state
-    envLogger.log(
-      "AudioBookShelf unavailable and no snapshot - returning empty books list",
-      { error: message },
-      { category: "Books" },
+    logger.error(
+      `[Books] AudioBookShelf unavailable and no snapshot - returning empty book list: ${failure.name}: ${failure.message}`,
+      failure,
     );
-    return { books: [], isFallback: true, fetchedAt: 0 };
+    return { books: [], isFallback: true, fetchedAt: 0, error: failure };
   }
 }
 
 /**
- * Backwards-compatible wrapper that returns only the list.
+ * Strict array API for index builders: never serialize an unavailable library as empty.
+ * Page callers needing graceful unavailable results use fetchBookListItemsWithFallback.
  */
 export async function fetchBookListItems(
   options: FetchAbsLibraryItemsOptions & { includeBlurPlaceholders?: boolean } = {},
 ): Promise<BookBrief[]> {
   const result = await fetchBookListItemsWithFallback(options);
+  if (result.error) throw result.error;
   return result.books;
 }
 
@@ -349,11 +354,10 @@ export async function fetchBookByIdWithFallback(
       return { book, isFallback: false };
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    envLogger.log(
-      "AudioBookShelf single-book fetch failed, considering fallback snapshot",
-      { error: message, id },
-      { category: "Books" },
+    const failure = error instanceof Error ? error : new Error(String(error), { cause: error });
+    logger.error(
+      `[Books] AudioBookShelf single-book fetch failed for ${id}: ${failure.name}: ${failure.message}`,
+      failure,
     );
   }
 

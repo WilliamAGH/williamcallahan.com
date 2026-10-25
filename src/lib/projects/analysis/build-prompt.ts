@@ -7,6 +7,7 @@
  */
 
 import type { ProjectAnalysisContext } from "@/types/project-ai-analysis";
+import { ANALYSIS_LENGTH_INSTRUCTIONS } from "@/types/schemas/ai-analysis-common";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System Prompt
@@ -70,8 +71,9 @@ export function buildProjectAnalysisUserPrompt(context: ProjectAnalysisContext):
   // Response format section
   sections.push("");
   sections.push("EXPECTED JSON RESPONSE:");
+  sections.push(ANALYSIS_LENGTH_INSTRUCTIONS);
   sections.push(`{
-  "summary": "2-3 sentence overview of what the project does and its purpose",
+  "summary": "a concise overview of what the project does and its purpose within the character budget",
   "category": "primary category (e.g., 'Developer Tool', 'Web Application', 'Library')",
   "keyFeatures": ["3-5 key features, capabilities, or notable aspects"],
   "targetUsers": "description of who would benefit from using this project",

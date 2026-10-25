@@ -8,6 +8,7 @@
  * Provides domain-specific configuration: context extraction, prompts, schema, and rendering.
  */
 
+import { ANALYSIS_LENGTH_LIMITS } from "@/types/schemas/ai-analysis-common";
 import type { BookAiAnalysisProps, BookAnalysisContext } from "@/types/book-ai-analysis";
 import {
   bookAiAnalysisResponseSchema,
@@ -49,32 +50,46 @@ export const BOOK_ANALYSIS_RESPONSE_FORMAT = {
       type: "object",
       additionalProperties: false,
       properties: {
-        summary: { type: "string", minLength: 1 },
-        category: { type: "string", minLength: 1 },
+        summary: { type: "string", minLength: 1, maxLength: ANALYSIS_LENGTH_LIMITS.stringField },
+        category: { type: "string", minLength: 1, maxLength: ANALYSIS_LENGTH_LIMITS.stringField },
         keyThemes: {
           type: "array",
-          items: { type: "string", minLength: 1 },
+          items: { type: "string", minLength: 1, maxLength: ANALYSIS_LENGTH_LIMITS.listItem },
           minItems: 1,
           maxItems: 6,
         },
-        idealReader: { type: "string", minLength: 1 },
+        idealReader: {
+          type: "string",
+          minLength: 1,
+          maxLength: ANALYSIS_LENGTH_LIMITS.stringField,
+        },
         contextualDetails: {
           type: "object",
           additionalProperties: false,
           properties: {
-            writingStyle: { type: ["string", "null"] },
-            readingLevel: { type: ["string", "null"] },
-            commitment: { type: ["string", "null"] },
+            writingStyle: {
+              type: ["string", "null"],
+              maxLength: ANALYSIS_LENGTH_LIMITS.detailField,
+            },
+            readingLevel: {
+              type: ["string", "null"],
+              maxLength: ANALYSIS_LENGTH_LIMITS.detailField,
+            },
+            commitment: { type: ["string", "null"], maxLength: ANALYSIS_LENGTH_LIMITS.detailField },
           },
           required: ["writingStyle", "readingLevel", "commitment"],
         },
         relatedReading: {
           type: "array",
-          items: { type: "string", minLength: 1 },
+          items: { type: "string", minLength: 1, maxLength: ANALYSIS_LENGTH_LIMITS.listItem },
           minItems: 1,
           maxItems: 6,
         },
-        whyItMatters: { type: "string", minLength: 1 },
+        whyItMatters: {
+          type: "string",
+          minLength: 1,
+          maxLength: ANALYSIS_LENGTH_LIMITS.stringField,
+        },
       },
       required: [
         "summary",

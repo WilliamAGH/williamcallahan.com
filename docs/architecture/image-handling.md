@@ -66,6 +66,12 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 5. `image-analysis.ts` / `image-compare.ts` flag globe icons, `FailureTracker` tracks domains via `LOGO_BLOCKLIST_STORE_KEY` on repeated failures.
 6. Result is persisted/streamed to S3, CDN URL returned, placeholder fallback used only if every source fails.
 
+`/api/logo` and `/api/logo/invert` share `lib/image-handling/logo-response.server.ts` to stream
+validated first-party CDN image bytes with a bounded fetch, rather than redirecting: Next's
+internal optimizer does not follow a local route's redirect. Only successful
+images receive immutable caching. The proxy leaves optimizer caching to Next, and Cloudflare
+image rules exclude 4xx/5xx responses from edge storage.
+
 > **Logo `<Image>` behavior:** Whenever the resolved `src` points at `/api/cache/images`, `<LogoImage>` sets `unoptimized` so Next.js skips the built-in optimizer. The proxy already resizes/streams logo bytes. `/api/assets` is **not** bypassed — it streams raw bytes that benefit from Next.js optimization (WebP/AVIF conversion, responsive srcset). See `shouldBypassOptimizer` in `cdn-utils.ts`.
 
 ### Bookmark Cards & Sharing Links
@@ -108,7 +114,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 - **`lib/image-handling/shared-image-processing.ts`** – format detection, SVG sanitization, metadata-derived content types.
 - **`lib/image-handling/twitter-image-policy.ts`** – canonical Twitter CDN root/format validation, upstream-path normalization, and storage category selection.
 - **`lib/image-handling/image-analysis.ts` / `image-compare.ts`** – brightness estimation, placeholder detection, perceptual hashing for dedupe/globe detection.
-- **`lib/image-handling/image-manifest-loader.ts` / `cached-manifest-loader.ts`** – load and cache manifest JSON for logos/OG/blog images; aware of build-phase constraints and production runtime safeguards that avoid request-path lazy S3 loads when manifests are missing.
+- **`lib/image-handling/image-manifest-loader.ts`** – loads logo/OG/blog manifests directly from PostgreSQL during opt-in startup warm-up; `cached-manifest-loader.ts` owns only the request-time tagged logo-manifest cache. Unwarmed asynchronous logo lookups use that cache when enabled, then load directly from PostgreSQL if caching is disabled or fails.
 - **`lib/services/image-streaming.ts`** – Node stream -> S3 upload pipeline with timeouts and byte monitoring.
 - **`components/ui/logo-image.client.tsx`** – client watchdog: inlined placeholders, dev logging, on-error fetch triggers, CSS inversion toggles.
 - **`components/features/*`** – feed selection helpers (bookmarks/blog/investments/education/experience) and ensure width/height/sizes align with Next config.
@@ -170,7 +176,8 @@ Keep this document synchronized with real code: every new image entry point, val
 | `/api/twitter-image/[...path]`                           | N/A (local API route)         | **Yes**        | Yes (responsive) / Recommended (fixed) | No Next.js optimization  |
 | `/api/assets/[assetId]` (Karakeep proxy)                 | N/A (local API route)         | **No**         | Yes (responsive)                       | Next.js `/_next/image`   |
 | Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Yes (responsive) / Recommended (fixed) | Next.js                  |
-| `/api/logo`, `/api/og-image`                             | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
+| `/api/logo`                                              | Direct image bytes            | **No**         | Yes (responsive) / Recommended (fixed) | Next.js optimizer        |
+| `/api/og-image`                                          | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
 | Tracking pixels (`<noscript>` analytics)                 | **Direct external URL**       | N/A            | N/A                                    | None (use plain `<img>`) |
 
 ### Why This Matters
