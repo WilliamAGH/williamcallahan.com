@@ -277,20 +277,22 @@ describe("OG-Image degraded response caching", () => {
     vi.resetModules();
   });
 
-  it.each(["upstream fetch rejection", "unexpected storage failure"])(
+  it.each(["upstream fetch rejection", "unexpected storage failure", "S3 service outage"])(
     "keeps the fallback image reachable without caching after %s",
     async (failure) => {
       send.mockRejectedValue(
         failure === "upstream fetch rejection"
           ? { $metadata: { httpStatusCode: 404 } }
-          : new Error("storage unavailable"),
+          : failure === "S3 service outage"
+            ? Object.assign(new Error("ServiceUnavailable"), { $metadata: { httpStatusCode: 503 } })
+            : new Error("storage unavailable"),
       );
       vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("upstream unavailable"));
       const { GET } = await import("@/app/api/og-image/route");
 
       const response = await GET(
         new NextRequest(
-          `https://williamcallahan.com/api/og-image?url=${encodeURIComponent(sourceUrl)}`,
+          `https://williamcallahan.com/api/og-image?url=${encodeURIComponent(failure === "S3 service outage" ? "s3://example.png" : sourceUrl)}`,
         ),
       );
 

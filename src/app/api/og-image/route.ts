@@ -173,12 +173,14 @@ export async function GET(request: NextRequest) {
         if (!isS3Error(s3Error)) {
           throw s3Error;
         }
-        console.warn(`[OG-Image] S3 object not found: ${s3Key}`, s3Error);
+        console.warn(`[OG-Image] S3 object unavailable: ${s3Key}`, s3Error);
         const fallbackImage = getDomainFallbackImage("unknown");
         return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
           status: 302,
           headers: {
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": "no-store",
+            "CDN-Cache-Control": "no-store",
+            "Cloudflare-CDN-Cache-Control": "no-store",
           },
         });
       }
