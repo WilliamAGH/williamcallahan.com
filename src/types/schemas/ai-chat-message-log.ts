@@ -144,6 +144,8 @@ export const logChatMessageInputMessageSchema = z.object({
  * Input parameters for the logChatMessage function
  */
 export const logChatMessageParamsSchema = z.object({
+  /** Supplied by the chat pipeline; other callers retain automatic ID generation. */
+  messageId: z.uuid().optional(),
   feature: z.string(),
   conversationId: z.uuid().optional(),
   clientIp: z.string(),
