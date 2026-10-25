@@ -164,8 +164,8 @@ image, so ARM64 hosts need this publisher.
   `main` deploys web and scheduler to `production`. `DOKPLOY_APPLICATION_ID` (and, in
   production, `DOKPLOY_SCHEDULER_APPLICATION_ID`) are GitHub environment variables.
 - The web build reads `buildArgs` and `buildSecrets` from the Dokploy application it deploys
-   to, so Dokploy stays their owner. Production web builds resolve Infisical vault references
-   through the workflow's OIDC step; plaintext build-secret copies are not stored in GitHub.
+  to, so Dokploy stays their owner. Production web builds resolve Infisical vault references
+  through the workflow's OIDC step; plaintext build-secret copies are not stored in GitHub.
 - `scripts/dokploy-deploy-image.sh` switches the application to `sourceType: docker` with the
   exact `<tag>@<digest>` reference, deploys it, waits for the deployment row, then waits until
   consecutive uncached requests all advertise `dpl=<short sha>`.

@@ -176,8 +176,8 @@ Keep this document synchronized with real code: every new image entry point, val
 | `/api/twitter-image/[...path]`                           | N/A (local API route)         | **Yes**        | Yes (responsive) / Recommended (fixed) | No Next.js optimization  |
 | `/api/assets/[assetId]` (Karakeep proxy)                 | N/A (local API route)         | **No**         | Yes (responsive)                       | Next.js `/_next/image`   |
 | Local static (`/public/images/**`)                       | Direct URL or static import   | **No**         | Yes (responsive) / Recommended (fixed) | Next.js                  |
-| `/api/logo`                                             | Direct image bytes            | **No**         | Yes (responsive) / Recommended (fixed) | Next.js optimizer        |
-| `/api/og-image`                                         | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
+| `/api/logo`                                              | Direct image bytes            | **No**         | Yes (responsive) / Recommended (fixed) | Next.js optimizer        |
+| `/api/og-image`                                          | N/A (server-rendered)         | **Yes**        | Yes (responsive) / Recommended (fixed) | API route                |
 | Tracking pixels (`<noscript>` analytics)                 | **Direct external URL**       | N/A            | N/A                                    | None (use plain `<img>`) |
 
 ### Why This Matters
