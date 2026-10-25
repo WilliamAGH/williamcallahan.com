@@ -8,12 +8,11 @@ import type { MockedFunction } from "vitest";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import {
-  getBookmarksIndex,
   listBookmarkTagSlugs,
   type getBookmarksPage,
   type listCanonicalTagPageCounts,
 } from "@/lib/bookmarks/service.server";
-import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { getBookmarkSitemapRowsFromDatabase } from "@/lib/db/queries/bookmarks";
 import { bookmarkDetailSlugSchema, bookmarkTagSchema } from "@/types/schemas/bookmark";
 import {
   collectBookmarkSitemapData,
@@ -21,21 +20,19 @@ import {
 } from "@/lib/sitemap/bookmark-collectors";
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
-  getBookmarksIndex: vi.fn<typeof getBookmarksIndex>(),
   getBookmarksPage: vi.fn<typeof getBookmarksPage>(),
   listBookmarkTagSlugs: vi.fn<typeof listBookmarkTagSlugs>(),
   listCanonicalTagPageCounts: vi.fn<typeof listCanonicalTagPageCounts>().mockResolvedValue([]),
 }));
 
-vi.mock("@/lib/bookmarks/slug-manager", () => ({
-  loadSlugMapping: vi.fn<typeof loadSlugMapping>(),
+vi.mock("@/lib/db/queries/bookmarks", () => ({
+  getBookmarkSitemapRowsFromDatabase: vi.fn<typeof getBookmarkSitemapRowsFromDatabase>(),
 }));
 
-const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
+const mockBookmarkRows = vi.mocked(getBookmarkSitemapRowsFromDatabase);
 const mockListBookmarkTagSlugs = listBookmarkTagSlugs as MockedFunction<
   typeof listBookmarkTagSlugs
 >;
-const mockLoadSlugMapping = loadSlugMapping as MockedFunction<typeof loadSlugMapping>;
 
 describe("Sitemap URL Generation", () => {
   const siteUrl = "https://williamcallahan.com";
@@ -197,7 +194,7 @@ describe("Sitemap Collector Error Handling", () => {
     vi.stubEnv("NODE_ENV", "test");
     process.env.VITEST = "true";
     process.env.TEST = "true";
-    mockLoadSlugMapping.mockResolvedValue(null);
+    mockBookmarkRows.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -219,7 +216,7 @@ describe("Sitemap Collector Error Handling", () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.VITEST = "false";
     process.env.TEST = "false";
-    mockGetBookmarksIndex.mockRejectedValue(outage);
+    mockBookmarkRows.mockRejectedValue(outage);
 
     await expect(collectBookmarkSitemapData(siteUrl)).rejects.toThrow("S3 outage");
   });
@@ -235,7 +232,7 @@ describe("Sitemap Collector Error Handling", () => {
   });
 
   it("returns empty fallback in tests when bookmark collection fails", async () => {
-    mockGetBookmarksIndex.mockRejectedValue(new Error("S3 outage"));
+    mockBookmarkRows.mockRejectedValue(new Error("S3 outage"));
 
     await expect(collectBookmarkSitemapData(siteUrl)).resolves.toEqual({
       entries: [],

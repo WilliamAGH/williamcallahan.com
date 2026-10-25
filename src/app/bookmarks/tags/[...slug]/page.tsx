@@ -27,6 +27,7 @@ import {
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import type { BookmarkTagPageContext } from "@/types/api";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { redirect, notFound } from "next/navigation";
 import { resolveBookmarkTagSlug } from "@/lib/bookmarks/service.server";
 
@@ -268,6 +269,10 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     datePublished: formatSeoDate(pageMetadata.dateCreated),
     dateModified: formatSeoDate(pageMetadata.dateModified),
     type: "collection" as const,
+    itemList: result.bookmarks.map((bookmark, index) => ({
+      url: buildBookmarkPath(bookmark.slug),
+      position: index + 1,
+    })),
     breadcrumbs,
   };
   const jsonLdData = generateSchemaGraph(schemaParams);

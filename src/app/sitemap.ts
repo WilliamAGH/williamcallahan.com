@@ -56,7 +56,8 @@ import {
   collectBookSitemapData,
   collectThoughtSitemapData,
 } from "@/lib/sitemap/content-collectors";
-import { getLatestDate, getSafeDate, isTestEnvironment } from "@/lib/sitemap/date-utils";
+import { isTestEnvironment } from "@/lib/sitemap/date-utils";
+import { getLatestDate, getSafeDate } from "@/lib/utils/date-format";
 
 let runtimeSitemapCache: {
   generatedAt: number;

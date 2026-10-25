@@ -3,6 +3,12 @@ import "dotenv/config";
 import OpenAiClient from "openai";
 import postgres from "postgres";
 import { z } from "zod/v4";
+import {
+  lockAliasWriters,
+  normalizeAliasMappings,
+  repairAliasCycles,
+} from "./lib/bookmark-tag-alias-plan.mjs";
+import { BOOKMARK_TAG_ALIAS_CTE } from "../src/lib/db/bookmark-tag-aliases.mjs";
 
 const DEFAULT_LIMIT = 1;
 const DEFAULT_RELATED_LIMIT = 8;
@@ -21,9 +27,24 @@ function parseArgs(args) {
   let bookmarkId = null;
   let limit = DEFAULT_LIMIT;
   let relatedLimit = DEFAULT_RELATED_LIMIT;
+  let repairCycleSlugs = null;
   for (let i = 0; i < args.length; i += 1) {
     const value = args[i];
     if (!value) continue;
+    if (value.startsWith("--repair-cycles=")) {
+      repairCycleSlugs = value
+        .slice("--repair-cycles=".length)
+        .split(",")
+        .map(slugifyTag)
+        .filter(Boolean);
+      if (repairCycleSlugs.length === 0)
+        throw new Error("--repair-cycles requires one canonical tag slug per selected cycle.");
+      continue;
+    }
+    if (value === "--repair-cycles")
+      throw new Error(
+        "Use --repair-cycles=canonical-slug[,canonical-slug...] to bound the repair.",
+      );
     if (value === "--bookmark-id" && args[i + 1]) {
       bookmarkId = args[i + 1];
       i += 1;
@@ -55,7 +76,8 @@ function parseArgs(args) {
     limit,
     relatedLimit,
     retrofit: args.includes("--retrofit"),
-    dryRun: args.includes("--dry-run"),
+    repairCycleSlugs,
+    dryRun: args.includes("--dry-run") || (repairCycleSlugs !== null && !args.includes("--apply")),
   };
 }
 
@@ -175,11 +197,11 @@ function formatBookmarkMetadataBlock(bookmark) {
 async function readAliasMap(sqlClient, tagSlugs) {
   if (tagSlugs.length === 0) return new Map();
   const rows = await sqlClient`
+    ${sqlClient.unsafe(BOOKMARK_TAG_ALIAS_CTE)}
     SELECT alias_link.source_tag_slug, alias_link.target_tag_slug, canonical.tag_name AS canonical_name
-    FROM bookmarks_tags_links AS alias_link
+    FROM canonical_tag_aliases AS alias_link
     INNER JOIN bookmarks_tags AS canonical ON canonical.tag_slug = alias_link.target_tag_slug
-    WHERE alias_link.link_type = 'alias'
-      AND alias_link.source_tag_slug = ANY(${sqlClient.array(tagSlugs)})
+    WHERE alias_link.source_tag_slug = ANY(${sqlClient.array(tagSlugs)})
   `;
   const aliasBySlug = new Map();
   for (const row of rows)
@@ -299,47 +321,54 @@ function buildCanonicalizedTags(tags, aliasMappingsBySlug) {
 }
 
 async function applyPlan(sqlClient, seedBookmarkId, bookmarks, aliasMappings, options) {
-  const tagUniverse = new Map();
-  for (const bookmark of bookmarks) {
-    for (const tagName of extractTagNames(bookmark.tags)) {
-      const slug = slugifyTag(tagName);
-      if (slug && !tagUniverse.has(slug)) tagUniverse.set(slug, tagName);
-    }
-  }
-  for (const mapping of aliasMappings) {
-    if (!tagUniverse.has(mapping.canonicalSlug))
-      tagUniverse.set(mapping.canonicalSlug, mapping.canonical);
-    if (!tagUniverse.has(mapping.aliasSlug)) tagUniverse.set(mapping.aliasSlug, mapping.alias);
-  }
+  await sqlClient.begin(
+    options.dryRun ? "isolation level repeatable read read only" : "",
+    async (tx) => {
+      if (!options.dryRun) await lockAliasWriters(tx);
+      const normalizedMappings = await normalizeAliasMappings(tx, aliasMappings);
+      const tagUniverse = new Map();
+      for (const bookmark of bookmarks) {
+        for (const tagName of extractTagNames(bookmark.tags)) {
+          const slug = slugifyTag(tagName);
+          if (slug && !tagUniverse.has(slug)) tagUniverse.set(slug, tagName);
+        }
+      }
+      for (const mapping of normalizedMappings) {
+        if (!tagUniverse.has(mapping.canonicalSlug))
+          tagUniverse.set(mapping.canonicalSlug, mapping.canonical);
+        if (!tagUniverse.has(mapping.aliasSlug)) tagUniverse.set(mapping.aliasSlug, mapping.alias);
+      }
 
-  const aliasBySlug = new Map(aliasMappings.map((mapping) => [mapping.aliasSlug, mapping]));
-  if (options.dryRun) {
-    console.log(`[BookmarkTagIngestion] ${seedBookmarkId} dry-run preview:`);
-    for (const bookmark of bookmarks) {
-      const beforeTags = extractTagNames(bookmark.tags);
-      const afterTags = buildCanonicalizedTags(bookmark.tags, aliasBySlug);
-      console.log(
-        `  - ${bookmark.id}\n${formatBookmarkMetadataBlock(bookmark)}\n    before tags: ${beforeTags.join(", ") || "none"}\n    after tags:  ${afterTags.join(", ") || "none"}`,
+      const aliasBySlug = new Map(
+        normalizedMappings.map((mapping) => [mapping.aliasSlug, mapping]),
       );
-    }
-    console.log(`  alias mappings: ${aliasMappings.length}`);
-    return;
-  }
+      if (options.dryRun) {
+        console.log(`[BookmarkTagIngestion] ${seedBookmarkId} dry-run preview:`);
+        for (const bookmark of bookmarks) {
+          const beforeTags = extractTagNames(bookmark.tags);
+          const afterTags = buildCanonicalizedTags(bookmark.tags, aliasBySlug);
+          console.log(
+            `  - ${bookmark.id}\n${formatBookmarkMetadataBlock(bookmark)}\n    before tags: ${beforeTags.join(", ") || "none"}\n    after tags:  ${afterTags.join(", ") || "none"}`,
+          );
+        }
+        console.log(`  alias mappings: ${normalizedMappings.length}`);
+        return;
+      }
 
-  const now = Date.now();
-  await sqlClient.begin(async (tx) => {
-    for (const [tagSlug, tagName] of tagUniverse.entries()) {
-      await tx`
+      const now = Date.now();
+      for (const [tagSlug, tagName] of tagUniverse.entries()) {
+        await tx`
         INSERT INTO bookmarks_tags (tag_slug, tag_name, tag_status, created_at, updated_at)
         VALUES (${tagSlug}, ${tagName}, 'primary', ${now}, ${now})
         ON CONFLICT (tag_slug) DO UPDATE
-        SET tag_name = EXCLUDED.tag_name,
-            updated_at = EXCLUDED.updated_at
+        SET tag_status = 'primary', updated_at = EXCLUDED.updated_at
       `;
-    }
+      }
 
-    for (const mapping of aliasMappings) {
-      await tx`
+      for (const mapping of normalizedMappings) {
+        await tx`UPDATE bookmarks_tags SET tag_status = 'primary', updated_at = ${now}
+        WHERE tag_slug = ${mapping.canonicalSlug}`;
+        await tx`
         INSERT INTO bookmarks_tags (tag_slug, tag_name, tag_status, created_at, updated_at)
         VALUES (${mapping.aliasSlug}, ${mapping.alias}, 'alias', ${now}, ${now})
         ON CONFLICT (tag_slug) DO UPDATE
@@ -347,37 +376,45 @@ async function applyPlan(sqlClient, seedBookmarkId, bookmarks, aliasMappings, op
             tag_status = 'alias',
             updated_at = EXCLUDED.updated_at
       `;
-      await tx`
+        await tx`
         INSERT INTO bookmarks_tags_links (source_tag_slug, target_tag_slug, link_type, created_at, updated_at)
         VALUES (${mapping.aliasSlug}, ${mapping.canonicalSlug}, 'alias', ${now}, ${now})
-        ON CONFLICT (source_tag_slug, target_tag_slug) DO UPDATE
-        SET updated_at = EXCLUDED.updated_at
+        ON CONFLICT (source_tag_slug) WHERE link_type = 'alias' DO UPDATE
+        SET target_tag_slug = EXCLUDED.target_tag_slug,
+            updated_at = EXCLUDED.updated_at
       `;
-    }
-  });
+      }
+    },
+  );
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   assertWriteAllowed(options.dryRun);
-  const modelConfig = resolveModelConfig();
+  if (!process.env.DATABASE_URL?.trim())
+    throw new Error("DATABASE_URL is required for bookmark tag ingestion/repair.");
   const sqlClient = postgres(process.env.DATABASE_URL, {
     ssl: "require",
     max: 1,
     idle_timeout: 5,
     connect_timeout: 10,
   });
-  const aiClient = new OpenAiClient({
-    apiKey: modelConfig.apiKey,
-    baseURL: modelConfig.baseUrl,
-    defaultHeaders: {
-      "X-User-ID": "williamcallahan.com:bookmarkTagAliases:batch",
-    },
-    timeout: DEFAULT_TIMEOUT_MS,
-    maxRetries: 1,
-  });
-
   try {
+    if (options.repairCycleSlugs) {
+      await repairAliasCycles(sqlClient, options);
+      return;
+    }
+    const modelConfig = resolveModelConfig();
+    const aiClient = new OpenAiClient({
+      apiKey: modelConfig.apiKey,
+      baseURL: modelConfig.baseUrl,
+      defaultHeaders: {
+        "X-User-ID": "williamcallahan.com:bookmarkTagAliases:batch",
+      },
+      timeout: DEFAULT_TIMEOUT_MS,
+      maxRetries: 1,
+    });
+
     const candidateIds = await selectCandidateIds(sqlClient, options);
     if (candidateIds.length === 0) {
       console.log("[BookmarkTagIngestion] No candidate bookmarks found.");

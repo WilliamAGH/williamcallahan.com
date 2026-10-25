@@ -248,6 +248,9 @@ export async function resolveBookmarkTagSlug(tagSlug: string): Promise<{
   canonicalTagName: string | null;
   isAlias: boolean;
 }> {
+  "use cache";
+  safeCacheLife({ revalidate: 3600 });
+  safeCacheTag("bookmarks", `bookmarks-tag-${tagSlug}`);
   const { resolveCanonicalTagSlug } = await loadBookmarkQueryModule();
   return resolveCanonicalTagSlug(tagSlug);
 }

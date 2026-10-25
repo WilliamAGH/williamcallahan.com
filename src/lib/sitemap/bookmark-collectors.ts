@@ -2,20 +2,16 @@
  * Bookmark & Tag Sitemap Collectors
  * @module lib/sitemap/bookmark-collectors
  * @description
- * Collects sitemap entries for individual bookmarks (via slug mapping or
- * paginated fallback) and bookmark tag pages.
+ * Collects sitemap entries from compact bookmark/date projections and canonical tags.
  */
 
 import type { MetadataRoute } from "next";
 
-import {
-  getBookmarksIndex,
-  getBookmarksPage,
-  listBookmarkTagSlugs,
-  listCanonicalTagPageCounts,
-} from "@/lib/bookmarks/service.server";
-import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { listBookmarkTagSlugs, listCanonicalTagPageCounts } from "@/lib/bookmarks/service.server";
+import { getBookmarkSitemapRowsFromDatabase } from "@/lib/db/queries/bookmarks";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
+import { resolveBookmarkLastModified } from "@/lib/bookmarks/content-dates";
+import { getSafeDate, getLatestDate } from "@/lib/utils/date-format";
 
 import {
   BOOKMARK_CHANGE_FREQUENCY,
@@ -23,51 +19,7 @@ import {
   BOOKMARK_TAG_PRIORITY,
   BOOKMARK_TAG_PAGE_PRIORITY,
 } from "@/lib/sitemap/constants";
-import {
-  sanitizePathSegment,
-  getSafeDate,
-  getLatestDate,
-  resolveBookmarkLastModified,
-  handleSitemapCollectorError,
-  isTestEnvironment,
-} from "@/lib/sitemap/date-utils";
-
-const collectBookmarkEntriesFromPages = async (
-  siteUrl: string,
-  totalPages: number,
-): Promise<{
-  entries: MetadataRoute.Sitemap;
-  latestBookmarkUpdateTime?: Date;
-}> => {
-  const bookmarkEntries: MetadataRoute.Sitemap = [];
-  let latestBookmarkUpdateTime: Date | undefined;
-
-  for (let page = 1; page <= totalPages; page++) {
-    const pageBookmarks = await getBookmarksPage(page);
-    if (!Array.isArray(pageBookmarks) || pageBookmarks.length === 0) {
-      continue;
-    }
-
-    for (const bookmark of pageBookmarks) {
-      const slug = bookmark.slug;
-      if (!slug) {
-        console.warn(`[Sitemap] Skipping bookmark ${bookmark.id} because slug is missing.`);
-        continue;
-      }
-
-      const lastModified = resolveBookmarkLastModified(bookmark);
-      latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, lastModified);
-      bookmarkEntries.push({
-        url: `${siteUrl}${buildBookmarkPath(slug)}`,
-        lastModified,
-        changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
-        priority: BOOKMARK_PRIORITY,
-      });
-    }
-  }
-
-  return { entries: bookmarkEntries, latestBookmarkUpdateTime };
-};
+import { sanitizePathSegment, handleSitemapCollectorError } from "@/lib/sitemap/date-utils";
 
 export const collectBookmarkSitemapData = async (
   siteUrl: string,
@@ -76,40 +28,22 @@ export const collectBookmarkSitemapData = async (
   latestBookmarkUpdateTime?: Date;
 }> => {
   try {
-    const [index, slugMapping] = await Promise.all([getBookmarksIndex(), loadSlugMapping()]);
-    if (!index || !index.totalPages || index.totalPages < 1) {
-      return {
-        entries: [],
-        latestBookmarkUpdateTime: undefined,
-      };
+    const bookmarks = await getBookmarkSitemapRowsFromDatabase();
+    let latestBookmarkUpdateTime: Date | undefined;
+    const entries: MetadataRoute.Sitemap = [];
+    for (const bookmark of bookmarks) {
+      if (!bookmark.slug) continue;
+      const lastModified = resolveBookmarkLastModified(bookmark);
+      latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, lastModified);
+      entries.push({
+        url: `${siteUrl}${buildBookmarkPath(bookmark.slug)}`,
+        lastModified,
+        changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
+        priority: BOOKMARK_PRIORITY,
+      });
     }
-
-    const totalPages = Math.max(1, index.totalPages);
-    const latestBookmarkUpdateTime = getSafeDate(index.lastModified);
-
-    const bookmarkEntriesFromMapping: MetadataRoute.Sitemap | null =
-      slugMapping && Object.keys(slugMapping.slugs).length > 0
-        ? Object.values(slugMapping.slugs).map((entry) => ({
-            url: `${siteUrl}${buildBookmarkPath(entry.slug)}`,
-            lastModified: latestBookmarkUpdateTime,
-            changeFrequency: BOOKMARK_CHANGE_FREQUENCY,
-            priority: BOOKMARK_PRIORITY,
-          }))
-        : null;
-
-    let bookmarkEntries: MetadataRoute.Sitemap = bookmarkEntriesFromMapping ?? [];
-    if (bookmarkEntries.length === 0) {
-      if (!isTestEnvironment()) {
-        console.info(
-          "[Sitemap] Slug mapping produced no bookmark entries; falling back to page collection",
-        );
-      }
-      const pageData = await collectBookmarkEntriesFromPages(siteUrl, totalPages);
-      bookmarkEntries = pageData.entries;
-    }
-
     return {
-      entries: bookmarkEntries,
+      entries,
       latestBookmarkUpdateTime,
     };
   } catch (error) {

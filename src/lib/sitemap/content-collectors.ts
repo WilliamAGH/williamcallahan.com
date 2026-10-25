@@ -18,12 +18,8 @@ import {
   THOUGHT_CHANGE_FREQUENCY,
   THOUGHT_PRIORITY,
 } from "@/lib/sitemap/constants";
-import {
-  sanitizePathSegment,
-  getSafeDate,
-  getLatestDate,
-  handleSitemapCollectorError,
-} from "@/lib/sitemap/date-utils";
+import { sanitizePathSegment, handleSitemapCollectorError } from "@/lib/sitemap/date-utils";
+import { getSafeDate, getLatestDate } from "@/lib/utils/date-format";
 
 export const collectBookSitemapData = async (
   siteUrl: string,

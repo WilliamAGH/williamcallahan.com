@@ -1,10 +1,4 @@
-/**
- * Sitemap Tests
- * @description Tests that the sitemap generates correctly with proper pagination and lastModified handling
- * @vitest-environment node
- */
-
-import type { MockedFunction } from "vitest";
+/** @vitest-environment node */
 import sitemap from "@/app/sitemap";
 import { getAllPostsMeta } from "@/lib/blog";
 import {
@@ -12,31 +6,25 @@ import {
   getBookmarksPage,
   listBookmarkTagSlugs,
   listCanonicalTagPageCounts,
-  getTagBookmarksPage,
 } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { buildBookmarksIndex, SAMPLE_SLUG_MAPPING } from "@/test-utils/sitemap-factories";
+import { getBookmarkSitemapRowsFromDatabase } from "@/lib/db/queries/bookmarks";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
-import {
-  buildBookmark,
-  buildBookmarksIndex,
-  generateBookmarksList,
-  generatePaginatedBookmarks,
-  SAMPLE_SLUG_MAPPING,
-} from "@/test-utils/sitemap-factories";
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarksIndex: vi.fn<typeof getBookmarksIndex>(),
   getBookmarksPage: vi.fn<typeof getBookmarksPage>(),
   listBookmarkTagSlugs: vi.fn<typeof listBookmarkTagSlugs>(),
   listCanonicalTagPageCounts: vi.fn<typeof listCanonicalTagPageCounts>(),
-  getTagBookmarksPage: vi.fn<typeof getTagBookmarksPage>(),
 }));
-
 vi.mock("@/lib/bookmarks/slug-manager", () => ({
   loadSlugMapping: vi.fn<typeof loadSlugMapping>(),
 }));
-
+vi.mock("@/lib/db/queries/bookmarks", () => ({
+  getBookmarkSitemapRowsFromDatabase: vi.fn<typeof getBookmarkSitemapRowsFromDatabase>(),
+}));
 vi.mock("@/data/education", () => ({ education: [], updatedAt: "2024-01-01" }));
 vi.mock("@/data/experience", () => ({ experience: [], updatedAt: "2024-01-01" }));
 vi.mock("@/data/investments", () => ({ investments: [], updatedAt: "2024-01-01" }));
@@ -64,334 +52,181 @@ vi.mock("@/data/projects", () => ({
   updatedAt: "2024-01-01",
 }));
 
-const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
-const mockGetBookmarksPage = getBookmarksPage as MockedFunction<typeof getBookmarksPage>;
-const mockListBookmarkTagSlugs = listBookmarkTagSlugs as MockedFunction<
-  typeof listBookmarkTagSlugs
->;
-const mockListCanonicalTagPageCounts = listCanonicalTagPageCounts as MockedFunction<
-  typeof listCanonicalTagPageCounts
->;
-const mockGetTagBookmarksPage = getTagBookmarksPage as MockedFunction<typeof getTagBookmarksPage>;
-const mockLoadSlugMapping = loadSlugMapping as MockedFunction<typeof loadSlugMapping>;
-
-const mockIndex = (overrides: Partial<Parameters<typeof buildBookmarksIndex>[0]> = {}) =>
-  mockGetBookmarksIndex.mockResolvedValue(buildBookmarksIndex(overrides));
+const mockBookmarkRows = vi.mocked(getBookmarkSitemapRowsFromDatabase);
+const mockTagSlugs = vi.mocked(listBookmarkTagSlugs);
+const mockTagPageCounts = vi.mocked(listCanonicalTagPageCounts);
 
 describe("Sitemap Generation", () => {
-  let originalSiteUrl: string | undefined;
-  let originalNextPhase: string | undefined;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetBookmarksIndex.mockReset();
-    mockGetBookmarksPage.mockReset();
-    mockListBookmarkTagSlugs.mockReset();
-    mockListCanonicalTagPageCounts.mockReset();
-    mockGetTagBookmarksPage.mockReset();
-    mockLoadSlugMapping.mockReset();
-    originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    originalNextPhase = process.env.NEXT_PHASE;
-    process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
-    delete process.env.NEXT_PHASE;
-    mockListBookmarkTagSlugs.mockResolvedValue([]);
-    mockListCanonicalTagPageCounts.mockResolvedValue([]);
-    mockGetTagBookmarksPage.mockResolvedValue([]);
-    mockLoadSlugMapping.mockResolvedValue(null);
+    mockBookmarkRows.mockReset();
+    mockTagSlugs.mockReset();
+    mockTagPageCounts.mockReset();
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://williamcallahan.com");
+    mockBookmarkRows.mockResolvedValue([]);
+    vi.mocked(getBookmarksIndex).mockResolvedValue(
+      buildBookmarksIndex({ count: 2, totalPages: 1, lastModified: "2026-10-25T00:00:00Z" }),
+    );
+    vi.mocked(getBookmarksPage).mockResolvedValue([]);
+    vi.mocked(loadSlugMapping).mockResolvedValue(null);
+    mockTagSlugs.mockResolvedValue([]);
+    mockTagPageCounts.mockResolvedValue([]);
   });
-
-  afterEach(() => {
-    process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
-    if (typeof originalNextPhase === "string") {
-      process.env.NEXT_PHASE = originalNextPhase;
-    } else {
-      delete process.env.NEXT_PHASE;
-    }
-  });
+  afterEach(() => vi.unstubAllEnvs());
 
   describe("Bookmarks Root Pagination Retirement", () => {
-    it("does not create root /bookmarks/page/[n] entries", async () => {
-      const totalBookmarks = 50;
-      const totalPages = Math.ceil(totalBookmarks / BOOKMARKS_PER_PAGE);
-
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({
-          count: totalBookmarks,
-          totalPages,
-          lastModified: "2024-01-01T00:00:00.000Z",
-        }),
-      );
-
-      const pageData = generatePaginatedBookmarks(totalPages, BOOKMARKS_PER_PAGE);
-      mockGetBookmarksPage.mockImplementation((pageNumber) =>
-        Promise.resolve(pageData.get(pageNumber) ?? []),
-      );
-
-      const sitemapEntries = await sitemap();
-
-      const paginatedEntries = sitemapEntries.filter((entry) =>
-        entry.url.includes("/bookmarks/page/"),
-      );
-      expect(paginatedEntries).toHaveLength(0);
-    });
-
-    it("keeps the main /bookmarks sitemap entry when multiple bookmark pages exist", async () => {
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({
-          count: BOOKMARKS_PER_PAGE + 6,
-          totalPages: 2,
-        }),
-      );
-
-      mockGetBookmarksPage.mockImplementation((pageNumber) => {
-        const count = pageNumber === 1 ? BOOKMARKS_PER_PAGE : 6;
-        return Promise.resolve(generateBookmarksList(count, `page${pageNumber}`));
-      });
-
-      const sitemapEntries = await sitemap();
-      const mainBookmarksEntry = sitemapEntries.find(
-        (entry) => entry.url === "https://williamcallahan.com/bookmarks",
-      );
-
-      expect(mainBookmarksEntry).toBeDefined();
-    });
-
-    it("still has zero root pagination entries when there is only one page", async () => {
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({
-          count: BOOKMARKS_PER_PAGE - 1,
-          totalPages: 1,
-        }),
-      );
-
-      mockGetBookmarksPage.mockResolvedValue(
-        generateBookmarksList(BOOKMARKS_PER_PAGE - 1, "bookmark"),
-      );
-
-      const sitemapEntries = await sitemap();
-      const paginatedEntries = sitemapEntries.filter((entry) =>
-        entry.url.includes("/bookmarks/page/"),
-      );
-      expect(paginatedEntries).toHaveLength(0);
-
-      const mainBookmarksEntry = sitemapEntries.find(
-        (entry) => entry.url === "https://williamcallahan.com/bookmarks",
-      );
-      expect(mainBookmarksEntry).toBeDefined();
-    });
+    it.each([1, BOOKMARKS_PER_PAGE + 6])(
+      "keeps /bookmarks but never root pagination for %i members",
+      async (count) => {
+        mockBookmarkRows.mockResolvedValue(
+          Array.from({ length: count }, (_, index) => ({
+            slug: `bookmark-${index}`,
+            modifiedAt: null,
+            dateCreated: null,
+            dateBookmarked: "2024-01-01T00:00:00Z",
+          })),
+        );
+        const entries = await sitemap();
+        expect(entries.some((entry) => entry.url === "https://williamcallahan.com/bookmarks")).toBe(
+          true,
+        );
+        expect(entries.filter((entry) => entry.url.includes("/bookmarks/page/"))).toHaveLength(0);
+      },
+    );
   });
 
   describe("Individual Bookmark Entries", () => {
-    it("uses slug mapping when available without fetching every bookmarks page", async () => {
-      mockIndex({ count: 2, totalPages: 1, lastModified: "2024-01-02T00:00:00Z" });
-
-      mockLoadSlugMapping.mockResolvedValue(SAMPLE_SLUG_MAPPING);
-
-      const sitemapEntries = await sitemap();
-
-      expect(
-        sitemapEntries.some(
-          (entry) =>
-            entry.url === `https://williamcallahan.com${buildBookmarkPath("example-com-article")}`,
-        ),
-      ).toBe(true);
-      expect(
-        sitemapEntries.some(
-          (entry) =>
-            entry.url === `https://williamcallahan.com${buildBookmarkPath("another-com-post")}`,
-        ),
-      ).toBe(true);
-      expect(mockGetBookmarksPage).not.toHaveBeenCalled();
-    });
-
-    it("creates entries for each bookmark slug", async () => {
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({ count: 2, totalPages: 1, lastModified: "2024-01-02T00:00:00Z" }),
-      );
-
-      mockGetBookmarksPage.mockResolvedValue([
-        buildBookmark("bookmark-1", {
+    it("keeps each bookmark's meaningful lastmod instead of a shared index rebuild date", async () => {
+      vi.mocked(loadSlugMapping).mockResolvedValue(SAMPLE_SLUG_MAPPING);
+      mockBookmarkRows.mockResolvedValue([
+        {
           slug: "example-com-article",
-          url: "https://example.com/article",
-          title: "Great Article",
-          dateBookmarked: "2024-01-01T00:00:00Z",
-          tags: ["tech", "web"],
-        }),
-        buildBookmark("bookmark-2", {
+          modifiedAt: "2025-09-19T00:00:00Z",
+          dateCreated: null,
+          dateBookmarked: "2025-01-01T00:00:00Z",
+        },
+        {
           slug: "another-com-post",
-          url: "https://another.com/post",
-          title: "Another Post",
-          dateBookmarked: "2024-01-02T00:00:00Z",
-          tags: ["design"],
-        }),
+          modifiedAt: "2025-08-30T00:00:00Z",
+          dateCreated: null,
+          dateBookmarked: "2025-01-01T00:00:00Z",
+        },
       ]);
-
-      const sitemapEntries = await sitemap();
-      const bookmarkEntries = sitemapEntries.filter(
-        (entry) => entry.url.includes("/bookmarks/") && !entry.url.includes("/page/"),
-      );
-
+      const entries = await sitemap();
       expect(
-        bookmarkEntries.some(
-          (entry) =>
-            entry.url === `https://williamcallahan.com${buildBookmarkPath("example-com-article")}`,
-        ),
-      ).toBe(true);
+        entries.find((entry) => entry.url.endsWith(buildBookmarkPath("example-com-article")))
+          ?.lastModified,
+      ).toEqual(new Date("2025-09-19T00:00:00Z"));
       expect(
-        bookmarkEntries.some(
-          (entry) =>
-            entry.url === `https://williamcallahan.com${buildBookmarkPath("another-com-post")}`,
-        ),
-      ).toBe(true);
+        entries.find((entry) => entry.url.endsWith(buildBookmarkPath("another-com-post")))
+          ?.lastModified,
+      ).toEqual(new Date("2025-08-30T00:00:00Z"));
     });
 
-    it("includes bookmark entries even when NEXT_PHASE is phase-production-build", async () => {
-      process.env.NEXT_PHASE = "phase-production-build";
-
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({ count: 1, totalPages: 1, lastModified: "2024-01-02T00:00:00Z" }),
-      );
-
-      mockGetBookmarksPage.mockResolvedValue([
-        buildBookmark("bookmark-1", {
-          slug: "example-com-article",
-          url: "https://example.com/article",
-          title: "Great Article",
-          dateBookmarked: "2024-01-01T00:00:00Z",
-          tags: ["tech"],
-        }),
+    it("uses creation/bookmark dates for missing modifications and omits unknown lastmod", async () => {
+      mockBookmarkRows.mockResolvedValue([
+        {
+          slug: "created",
+          modifiedAt: "invalid",
+          dateCreated: "2025-02-01",
+          dateBookmarked: "2025-01-01",
+        },
+        {
+          slug: "bookmarked",
+          modifiedAt: null,
+          dateCreated: null,
+          dateBookmarked: "2025-03-01T12:00:00Z",
+        },
+        { slug: "unknown", modifiedAt: null, dateCreated: null, dateBookmarked: "invalid" },
       ]);
+      const entries = await sitemap();
+      expect(entries.find((entry) => entry.url.endsWith("/created"))?.lastModified).toEqual(
+        new Date("2025-02-01T23:59:59.999Z"),
+      );
+      expect(entries.find((entry) => entry.url.endsWith("/bookmarked"))?.lastModified).toEqual(
+        new Date("2025-03-01T12:00:00Z"),
+      );
+      expect(entries.find((entry) => entry.url.endsWith("/unknown"))).toMatchObject({
+        lastModified: undefined,
+      });
+    });
 
-      const sitemapEntries = await sitemap();
-
+    it("includes detail entries during phase-production-build", async () => {
+      vi.stubEnv("NEXT_PHASE", "phase-production-build");
+      mockBookmarkRows.mockResolvedValue([
+        {
+          slug: "example-com-article",
+          modifiedAt: null,
+          dateCreated: null,
+          dateBookmarked: "2024-01-01T00:00:00Z",
+        },
+      ]);
+      const entries = await sitemap();
       expect(
-        sitemapEntries.some(
+        entries.some(
           (entry) =>
             entry.url === `https://williamcallahan.com${buildBookmarkPath("example-com-article")}`,
         ),
       ).toBe(true);
-      expect(mockGetBookmarksPage).toHaveBeenCalledWith(1);
     });
   });
 
   describe("Tag Entries", () => {
-    it("creates tag sitemap entries by streaming tag pages", async () => {
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({
-          count: BOOKMARKS_PER_PAGE,
-          totalPages: 1,
-          lastModified: "2024-01-01T00:00:00Z",
-        }),
-      );
-
-      mockGetBookmarksPage.mockResolvedValue(
-        generateBookmarksList(BOOKMARKS_PER_PAGE, "bookmark", {
-          dateBookmarked: "2024-01-01T00:00:00Z",
-        }),
-      );
-
-      mockListBookmarkTagSlugs.mockResolvedValue(["example-tag"]);
-      mockListCanonicalTagPageCounts.mockResolvedValue([
-        { tagSlug: "example-tag", totalPages: 2, lastModified: "2024-02-01T00:00:00Z" },
-      ]);
-
-      const sitemapEntries = await sitemap();
-
-      expect(sitemapEntries).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            url: "https://williamcallahan.com/bookmarks/tags/example-tag",
-          }),
-          expect.objectContaining({
-            url: "https://williamcallahan.com/bookmarks/tags/example-tag/page/2",
-          }),
-        ]),
-      );
-
-      expect(mockGetTagBookmarksPage).not.toHaveBeenCalled();
-    });
-
-    it("emits paginated tag entries from one grouped count query regardless of tag count", async () => {
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({
-          count: BOOKMARKS_PER_PAGE,
-          totalPages: 1,
-          lastModified: "2024-01-01T00:00:00Z",
-        }),
-      );
-
-      mockGetBookmarksPage.mockResolvedValue(
-        generateBookmarksList(BOOKMARKS_PER_PAGE, "bookmark", {
-          dateBookmarked: "2024-01-01T00:00:00Z",
-        }),
-      );
-
-      const tagSlugs = Array.from({ length: 250 }, (_, i) => `tag-${i}`);
-      mockListBookmarkTagSlugs.mockResolvedValue(tagSlugs);
-      mockListCanonicalTagPageCounts.mockResolvedValue([
+    it("emits member-dated tag pagination regardless of tag count and omits empty tags", async () => {
+      mockTagSlugs.mockResolvedValue(Array.from({ length: 250 }, (_, index) => `tag-${index}`));
+      mockTagPageCounts.mockResolvedValue([
         { tagSlug: "tag-0", totalPages: 3, lastModified: "2024-02-01T00:00:00Z" },
       ]);
-
-      const sitemapEntries = await sitemap();
-      const urls = sitemapEntries.map((entry) => entry.url);
-
-      expect(mockListCanonicalTagPageCounts).toHaveBeenCalledTimes(1);
-      expect(urls).toContain("https://williamcallahan.com/bookmarks/tags/tag-0/page/2");
-      expect(urls).toContain("https://williamcallahan.com/bookmarks/tags/tag-0/page/3");
-      // Tags with zero bookmarks 404 at the route; the sitemap must not list them
-      expect(urls).not.toContain("https://williamcallahan.com/bookmarks/tags/tag-249");
+      const entries = await sitemap();
+      for (const suffix of ["", "/page/2", "/page/3"]) {
+        expect(
+          entries.find(
+            (entry) => entry.url === `https://williamcallahan.com/bookmarks/tags/tag-0${suffix}`,
+          ),
+        ).toMatchObject({ lastModified: new Date("2024-02-01T00:00:00Z") });
+      }
+      expect(entries.some((entry) => entry.url.endsWith("/tags/tag-249"))).toBe(false);
     });
   });
 
   describe("Project Entries", () => {
     it("lists canonical /projects/[slug] pages and no ?tag= query variants", async () => {
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({ count: 0, totalPages: 0, lastModified: undefined }),
-      );
-
-      const sitemapEntries = await sitemap();
-      const sitemapUrls = sitemapEntries.map((entry) => entry.url);
-
-      expect(sitemapUrls).toEqual(
+      const entries = await sitemap();
+      const urls = entries.map((entry) => entry.url);
+      expect(urls).toEqual(
         expect.arrayContaining([
           "https://williamcallahan.com/projects/aventure-vc",
           "https://williamcallahan.com/projects/researchly",
         ]),
       );
-      expect(sitemapUrls.filter((url) => url.includes("?tag="))).toHaveLength(0);
+      expect(urls.filter((url) => url.includes("?tag="))).toHaveLength(0);
     });
   });
 
   describe("Static Page Entries", () => {
     it("includes static pages and frontmatter-canonical blog URLs with metadata", async () => {
-      mockGetBookmarksIndex.mockResolvedValue(
-        buildBookmarksIndex({ count: 0, totalPages: 0, lastModified: undefined }),
-      );
-
-      const sitemapEntries = await sitemap();
-      const sitemapUrls = sitemapEntries.map((entry) => entry.url);
+      const entries = await sitemap();
       const posts = await getAllPostsMeta();
       const canonicalBlogUrls = posts.map(
         (post) => `https://williamcallahan.com/blog/${post.slug}`,
       );
-      const expectedPages = [
-        "https://williamcallahan.com/",
-        "https://williamcallahan.com/blog",
-        "https://williamcallahan.com/projects",
-        "https://williamcallahan.com/bookmarks",
-        "https://williamcallahan.com/experience",
-        "https://williamcallahan.com/education",
-        "https://williamcallahan.com/investments",
-      ];
-
-      for (const expectedUrl of expectedPages) {
-        const entry = sitemapEntries.find((e) => e.url === expectedUrl);
+      for (const route of [
+        "",
+        "/blog",
+        "/projects",
+        "/bookmarks",
+        "/experience",
+        "/education",
+        "/investments",
+      ]) {
+        const entry = entries.find(
+          (candidate) => candidate.url === `https://williamcallahan.com${route || "/"}`,
+        );
         expect(entry).toBeDefined();
         expect(entry?.changeFrequency).toBeDefined();
         expect(entry?.priority).toBeDefined();
       }
-
-      expect(sitemapUrls).toEqual(expect.arrayContaining(canonicalBlogUrls));
+      expect(entries.map((entry) => entry.url)).toEqual(expect.arrayContaining(canonicalBlogUrls));
     });
   });
 });
