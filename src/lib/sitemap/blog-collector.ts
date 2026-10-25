@@ -10,7 +10,8 @@ import type { MetadataRoute } from "next";
 
 import { getAllPostsMeta } from "@/lib/blog";
 import { BLOG_CHANGE_FREQUENCY, BLOG_POST_PRIORITY } from "@/lib/sitemap/constants";
-import { getSafeDate, getLatestDate, handleSitemapCollectorError } from "@/lib/sitemap/date-utils";
+import { handleSitemapCollectorError } from "@/lib/sitemap/date-utils";
+import { getSafeDate, getLatestDate } from "@/lib/utils/date-format";
 
 export const collectBlogSitemapData = async (
   siteUrl: string,

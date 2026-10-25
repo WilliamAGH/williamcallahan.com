@@ -13,7 +13,8 @@ import {
   formatTagDisplay,
 } from "@/lib/seo/dynamic-metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
-import { getAllPostsMeta, getAllTags } from "@/lib/blog";
+import { getAllPostsMeta } from "@/lib/blog";
+import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
 import type { Metadata } from "next";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
@@ -21,8 +22,14 @@ import { notFound } from "next/navigation";
 
 const BLOG_TAG_STATIC_PARAM_PLACEHOLDER = "__placeholder__";
 
+async function getPublishedTagPosts(tagSlug: string) {
+  const posts = await getAllPostsMeta(false);
+  return posts.filter((post) => post.tags.some((tag) => kebabCase(tag) === tagSlug));
+}
+
 export async function generateStaticParams(): Promise<Array<{ tagSlug: string }>> {
-  const tags = await getAllTags();
+  const posts = await getAllPostsMeta(false);
+  const tags = posts.flatMap((post) => post.tags);
   const uniqueTagSlugs = Array.from(
     new Set(tags.map((tag) => kebabCase(tag)).filter((tagSlug) => tagSlug.length > 0)),
   );
@@ -45,11 +52,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   // Await params in Next.js 16
   const { tagSlug } = await params;
-  if (tagSlug === BLOG_TAG_STATIC_PARAM_PLACEHOLDER) {
-    return {
-      title: "Tag Not Found",
-      description: "The requested blog tag could not be found.",
-    };
+  const posts =
+    tagSlug === BLOG_TAG_STATIC_PARAM_PLACEHOLDER ? [] : await getPublishedTagPosts(tagSlug);
+  if (tagSlug === BLOG_TAG_STATIC_PARAM_PLACEHOLDER || posts.length === 0) {
+    return getNotFoundMetadata("Blog Tag");
   }
   const tagName = formatTagDisplay(deslugify(tagSlug));
   const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
@@ -105,11 +111,10 @@ export default async function TagPage({
   if (tagSlug === BLOG_TAG_STATIC_PARAM_PLACEHOLDER) {
     notFound();
   }
-  const allPosts = await getAllPostsMeta();
-
-  const filteredPosts = allPosts.filter((post) =>
-    post.tags.some((tag) => kebabCase(tag) === tagSlug),
-  );
+  const filteredPosts = await getPublishedTagPosts(tagSlug);
+  if (filteredPosts.length === 0) {
+    notFound();
+  }
   const firstPost = filteredPosts[0];
   const canonicalTag = firstPost?.tags.find((tag) => kebabCase(tag) === tagSlug);
 

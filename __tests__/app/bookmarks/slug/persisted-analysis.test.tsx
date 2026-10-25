@@ -86,4 +86,30 @@ describe("bookmark detail page persisted analysis", () => {
       BookmarkPage({ params: Promise.resolve({ slug: bookmark.slug }) }),
     ).rejects.toThrow("CONNECT_TIMEOUT");
   });
+
+  it.each([
+    { body: undefined, expected: "none" },
+    { body: "Previously retrieved article text.", expected: persisted.metadata.generatedAt },
+  ])(
+    "keeps failed captures out of article analysis while preserving a healthy archive: $expected",
+    async ({ body, expected }) => {
+      mockGetBookmarkById.mockResolvedValue({
+        ...bookmark,
+        scrapedContentText: body,
+        content: {
+          type: "link",
+          url: bookmark.url,
+          title: bookmark.title,
+          description: bookmark.description,
+          crawlStatus: "blocked",
+        },
+      });
+      mockGetCachedAnalysis.mockResolvedValue(persisted);
+      const { default: BookmarkPage } = await import("@/app/bookmarks/[slug]/page");
+
+      render(await BookmarkPage({ params: Promise.resolve({ slug: bookmark.slug }) }));
+
+      expect(screen.getByTestId("bookmark-detail")).toHaveTextContent(expected);
+    },
+  );
 });

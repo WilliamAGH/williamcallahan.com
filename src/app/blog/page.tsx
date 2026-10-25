@@ -50,6 +50,10 @@ export default async function BlogPage() {
     datePublished: formattedCreated,
     dateModified: formattedModified,
     type: "collection" as const,
+    itemList: posts.map((post, index) => ({
+      url: `/blog/${post.slug}`,
+      position: index + 1,
+    })),
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/blog", name: "Blog" },
