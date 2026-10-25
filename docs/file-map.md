@@ -646,6 +646,7 @@ File/Path Functionality Description
   - [x] `page.tsx` `blog` - Blog index page (ISR)
   - [x] `[slug]/page.tsx` `blog` - Blog post page
   - [x] `tags/[tagSlug]/page.tsx` `blog` - Blog tag page
+  - [x] `tags/[tagSlug]/loading.tsx` `blog` - Segment boundary that streams the uncached tag page while the layout stays in the prerendered shell
 - [x] **bookmarks/**
   - [x] `page.tsx` `bookmarks` - Discover hub and server-sliced Latest query pagination with page-aware canonical/not-found metadata
   - [x] `loading.tsx` `bookmarks` - Loading UI for the bookmarks section
@@ -654,6 +655,7 @@ File/Path Functionality Description
   - [x] `domain/[domainSlug]/page.tsx` `bookmarks` - Legacy domain redirector page
   - [x] `tags/[tagSlug]/page.tsx` `bookmarks` - Bookmarks by tag page
 - [x] **books/**
+  - [x] `loading.tsx` `books` - Segment boundary that streams the uncached books index and book pages while the layout stays in the prerendered shell
   - [x] `[book-slug]/page.tsx` `books` - Book detail route with generated canonical metadata and permanent alias redirects
 - [x] **contact/**
   - [x] `page.tsx` `contact` - Contact page (ISR)
@@ -668,6 +670,8 @@ File/Path Functionality Description
 - [x] **projects/**
   - [x] `page.tsx` `projects` - Projects page (ISR) with defensive CDN screenshot schema generation (no render throw on missing CDN config)
   - [x] `[slug]/page.tsx` `projects` - Server-owned project detail shell without an optional analysis read above essential content
+- [x] **thoughts/**
+  - [x] `[slug]/loading.tsx` `thoughts` - Segment boundary that streams the uncached thought page while the layout stays in the prerendered shell
 - [ ] **sentry-example-page/**
   - [x] `page.tsx` `log-error-debug-handling` - Sentry example page
 
@@ -761,9 +765,12 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 - `__tests__/scripts/dokploy-deploy-image.test.ts`: real shell/HTTP deployment identity regression
   for unchanged requests versus corrected runtime configuration.
+- `__tests__/scheduler/indexnow-submit.test.ts`: the IndexNow request carries only sitemap URLs
+  modified within the last week.
 
 - [x] **e2e/**
   - [x] `blog-render.spec.ts` `blog` - Chromium route-layer checks for the shared blog render canaries, including declared interactions and browser failures
+  - [x] `crawler-visible-content.spec.ts` `seo` - With JavaScript disabled, the homepage and a blog canary show their heading and text, as crawlers that run no JavaScript see them
   - [x] `native-content.spec.ts` `seo` - No-JavaScript project/contact DOM checks with desktop and crawler user agents
   - [x] `seo-output.spec.ts` `seo` - Missing/draft-only blog tag not-found/noindex output and published-tag canonical/link checks
   - [x] `github-activity.spec.ts` `github-activity` - Real calendar desktop labels and mobile heatmap rendering at the route boundary
