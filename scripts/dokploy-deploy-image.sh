@@ -18,11 +18,12 @@ fi
 
 api="${DOKPLOY_URL%/}/api"
 dokploy_get() {
-  curl -fsS --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" "${api}/$1"
+  printf 'x-api-key: %s\n' "${DOKPLOY_API_KEY}" |
+    curl -fsS --connect-timeout 10 --max-time 30 -H @- "${api}/$1"
 }
 dokploy_post() {
   local response
-  if ! response="$(curl -sS --fail-with-body --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" \
+  if ! response="$(printf 'x-api-key: %s\n' "${DOKPLOY_API_KEY}" | curl -sS --fail-with-body --connect-timeout 10 --max-time 30 -H @- \
     -H 'content-type: application/json' -X POST --data "$2" "${api}/$1")"; then
     # Only the error message: a full response body can echo application configuration.
     echo "::error::Dokploy $1 failed: $(jq -r '.message // "no message"' <<<"${response}" 2>/dev/null || echo unparsable)" >&2
@@ -62,9 +63,10 @@ if [[ "${current_source}" != "docker" || "${current_image}" != "${image_ref}" ||
   dokploy_post application.update "${update_body}" >/dev/null
 fi
 
-# Dokploy reuses completed keys, so a label-only change must name a new desired deployment.
-deployment_key="$(jq -ncS --arg image "${image_ref}" --argjson labels "${target_labels}" \
-  '{image: $image, labels: $labels}' | sha256sum | cut -d ' ' -f 1)"
+# Runtime-reference repairs must not reuse a failed deployment for the same image.
+# Keep configuration on stdin, not argv or logs; unchanged desired state stays idempotent.
+deployment_key="$(jq -cS --arg image "${image_ref}" --argjson labels "${target_labels}" \
+  '{image: $image, labels: $labels, env: (.env // "")}' <<<"${application}" | sha256sum | cut -d ' ' -f 1)"
 deploy_body="$(jq -nc --arg id "${DOKPLOY_APPLICATION_ID}" --arg image "${image_ref}" --arg key "${deployment_key}" \
   --argjson labels "${target_labels}" \
   '{applicationId: $id, expectedDockerImage: $image, expectedLabelsSwarm: $labels, idempotencyKey: $key}')"

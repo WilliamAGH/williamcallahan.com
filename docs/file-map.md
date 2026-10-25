@@ -743,6 +743,9 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 ## Tests Directory
 
+- `__tests__/scripts/dokploy-deploy-image.test.ts`: real shell/HTTP deployment identity regression
+  for unchanged requests versus corrected runtime configuration.
+
 - [x] **e2e/**
   - [x] `blog-render.spec.ts` `blog` - Chromium route-layer checks for the shared blog render canaries, including declared interactions and browser failures
   - [x] `github-activity.spec.ts` `github-activity` - Real calendar desktop labels and mobile heatmap rendering at the route boundary
