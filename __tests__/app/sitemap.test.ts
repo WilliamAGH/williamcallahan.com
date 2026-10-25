@@ -85,6 +85,13 @@ describe("Sitemap Generation", () => {
   });
 
   describe("Bookmarks Listing", () => {
+    it("omits a fabricated lastModified for the runtime reading list", async () => {
+      const entries = await sitemap();
+      const books = entries.find((entry) => entry.url === "https://williamcallahan.com/books");
+      expect(books).toBeDefined();
+      expect(books?.lastModified).toBeUndefined();
+    });
+
     it("takes the /bookmarks lastModified from the bookmark index when it is newer", async () => {
       mockGetBookmarksIndex.mockResolvedValue(
         buildBookmarksIndex({ count: 5, totalPages: 1, lastModified: "2030-01-01T00:00:00.000Z" }),

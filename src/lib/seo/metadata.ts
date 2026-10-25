@@ -218,12 +218,6 @@ export function createArticleMetadata({
       [SEO_DATE_FIELDS.dublinCore.created]: formattedPublished,
       [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
       [SEO_DATE_FIELDS.dublinCore.issued]: formattedPublished,
-
-      // OpenGraph article dates (as meta properties)
-      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
-      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
-      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
-      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
     },
   };
 }
@@ -244,26 +238,8 @@ export function getStaticPageMetadata(
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
-  // Determine page type and breadcrumbs
+  // Page components own their rendered JSON-LD; metadata only selects the OG type.
   const isProfilePage = ["home", "experience", "education"].includes(pageKey);
-  const isCollectionPage = [
-    "blog",
-    "investments",
-    "bookmarks",
-    "projects",
-    "contact",
-    "books",
-    "thoughts",
-  ].includes(pageKey);
-  const isDatasetPage = pageKey === "investments";
-
-  const breadcrumbs =
-    path === "/"
-      ? undefined
-      : [
-          { path: "/", name: "Home" },
-          { path, name: pageMetadata.title },
-        ];
 
   // Look up the OG image key and path from our map. Fallback to default if not found.
   const ogImageKey = PAGE_OG_IMAGE_MAP[pageKey] || "ogDefault";
@@ -290,46 +266,6 @@ export function getStaticPageMetadata(
     type: "image/png", // Assuming all OG images are PNGs
   };
 
-  // Generate schema graph
-  const schemaParams: SchemaParams = {
-    path,
-    title: pageMetadata.title,
-    description: pageMetadata.description,
-    datePublished: formattedCreated,
-    dateModified: formattedModified,
-    type: isProfilePage
-      ? "profile"
-      : isDatasetPage
-        ? "dataset"
-        : isCollectionPage
-          ? "collection"
-          : undefined,
-    breadcrumbs,
-    image: {
-      url: siteMetadata.defaultImage.url,
-      width: siteMetadata.defaultImage.width,
-      height: siteMetadata.defaultImage.height,
-    },
-    // Add profile metadata if this is a profile page
-    ...(isProfilePage &&
-      "bio" in pageMetadata && {
-        profileMetadata: {
-          bio: (pageMetadata as { bio: string }).bio,
-          ...("alternateName" in pageMetadata && {
-            alternateName: (pageMetadata as { alternateName: string }).alternateName,
-          }),
-          ...("identifier" in pageMetadata && {
-            identifier: (pageMetadata as { identifier: string }).identifier,
-          }),
-          ...("profileImage" in pageMetadata && {
-            profileImage: (pageMetadata as { profileImage: string }).profileImage,
-          }),
-        },
-      }),
-  };
-
-  const schema = generateSchemaGraph(schemaParams);
-
   // Create type-safe OpenGraph object based on page type
   let openGraph: ExtendedOpenGraph;
 
@@ -346,34 +282,6 @@ export function getStaticPageMetadata(
       lastName: SITE_NAME.split(" ")[1],
       username: siteMetadata.social.twitter.replace("@", ""),
     };
-  } else if (isCollectionPage) {
-    if (pageKey === "blog") {
-      // Treat the main blog index as an article so platforms generate rich previews.
-      openGraph = {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
-        url: ensureAbsoluteUrl(path),
-        images: [socialImage],
-        siteName: SITE_NAME,
-        locale: "en_US",
-        type: "article",
-        article: {
-          publishedTime: formattedCreated,
-          modifiedTime: formattedModified,
-        },
-      } as ExtendedOpenGraph;
-    } else {
-      // Default: use "website" for other collection/listing pages.
-      openGraph = {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
-        url: ensureAbsoluteUrl(path),
-        images: [socialImage],
-        siteName: SITE_NAME,
-        locale: "en_US",
-        type: "website",
-      };
-    }
   } else {
     openGraph = {
       title: pageMetadata.title,
@@ -407,12 +315,6 @@ export function getStaticPageMetadata(
     alternates: {
       canonical: ensureAbsoluteUrl(path),
     },
-    script: [
-      {
-        type: "application/ld+json",
-        text: JSON.stringify(schema, null, process.env.NODE_ENV === "development" ? 2 : 0),
-      },
-    ],
     openGraph,
     twitter: {
       card: "summary_large_image",
@@ -431,12 +333,6 @@ export function getStaticPageMetadata(
       [SEO_DATE_FIELDS.dublinCore.created]: formattedCreated,
       [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
       [SEO_DATE_FIELDS.dublinCore.issued]: formattedCreated,
-
-      // OpenGraph article dates (as meta properties)
-      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedCreated,
-      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
-      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedCreated,
-      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
     },
     // Add bookmarks metadata for relevant pages
     ...(pageKey === "bookmarks" && {
@@ -570,12 +466,6 @@ export function createSoftwareApplicationMetadata({
       [SEO_DATE_FIELDS.dublinCore.created]: formattedPublished,
       [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
       [SEO_DATE_FIELDS.dublinCore.issued]: formattedPublished,
-
-      // OpenGraph article dates (as meta properties)
-      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
-      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
-      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
-      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
     },
   };
 }

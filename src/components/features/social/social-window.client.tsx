@@ -39,7 +39,6 @@ export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowC
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered,
   } = useRegisteredWindowState(SOCIAL_WINDOW_ID, Users, title, "normal");
 
   // Use provided handler or fall back to internal handler
@@ -48,8 +47,8 @@ export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowC
   // Assume mounted – React 18 handles hydration; suppress minor mismatches
   const hasMounted = true;
 
-  // Handle registration/state changes only when mounted
-  if (!isRegistered || windowState === "closed" || windowState === "minimized") {
+  // Render the normal window during SSR, before effect-driven registration.
+  if (windowState === "closed" || windowState === "minimized") {
     return null;
   }
 
