@@ -29,7 +29,7 @@ function createProxyRequest(url: string, method: "GET" | "POST"): NextRequest {
 }
 async function loadNextConfig(phase = PHASE_PRODUCTION_BUILD) {
   vi.resetModules();
-  vi.doMock("@sentry/nextjs", () => ({
+  vi.doMock("@sentry/nextjs/config", () => ({
     withSentryConfig: <T>(nextConfig: T): T => nextConfig,
   }));
   const configPath = "../../next.config";
@@ -61,7 +61,7 @@ describe("Cloudflare header enforcement", () => {
     else if (!Reflect.deleteProperty(NextResponse, "rewrite")) {
       throw new Error("Could not remove NextResponse.rewrite test implementation");
     }
-    for (const id of ["@sentry/nextjs", "node:child_process", "node:fs"]) vi.doUnmock(id);
+    for (const id of ["@sentry/nextjs/config", "node:child_process", "node:fs"]) vi.doUnmock(id);
     vi.resetModules();
   });
 
