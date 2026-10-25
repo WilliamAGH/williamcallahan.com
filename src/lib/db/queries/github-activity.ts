@@ -114,8 +114,10 @@ export async function readGitHubActivityRefreshPreconditionFromDb(
 /**
  * Read GitHub activity summary from PostgreSQL.
  */
-export async function readGitHubSummaryFromDb(): Promise<GitHubActivitySummary | null> {
-  const payload = await readPayload(db, "summary");
+export async function readGitHubSummaryFromDb(
+  executor: Pick<typeof db, "select"> = db,
+): Promise<GitHubActivitySummary | null> {
+  const payload = await readPayload(executor, "summary");
   if (payload === null) {
     return null;
   }
@@ -142,10 +144,10 @@ export async function readRepoWeeklyStatsFromDb(
 /**
  * Read aggregated weekly activity array from PostgreSQL.
  */
-export async function readAggregatedWeeklyActivityFromDb(): Promise<
-  AggregatedWeeklyActivity[] | null
-> {
-  const payload = await readPayload(db, "aggregated-weekly");
+export async function readAggregatedWeeklyActivityFromDb(
+  executor: Pick<typeof db, "select"> = db,
+): Promise<AggregatedWeeklyActivity[] | null> {
+  const payload = await readPayload(executor, "aggregated-weekly");
   if (payload === null) {
     return null;
   }

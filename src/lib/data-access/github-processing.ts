@@ -64,7 +64,7 @@ export function filterContributorStats(
   username: string,
 ): GithubContributorStatsEntry | undefined {
   const lowercaseUsername = username.toLowerCase();
-  return stats.find((stat) => stat.author.login.toLowerCase() === lowercaseUsername);
+  return stats.find((stat) => stat.author?.login.toLowerCase() === lowercaseUsername);
 }
 
 /**

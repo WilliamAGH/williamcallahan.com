@@ -49,6 +49,7 @@ function formatActivityView(
       totalContributions: cumulativeAllTimeData.totalContributions,
       linesAdded: cumulativeAllTimeData.linesAdded,
       linesRemoved: cumulativeAllTimeData.linesRemoved,
+      contributionCountSource: cumulativeAllTimeData.contributionCountSource,
     },
     priorYearCommits,
     lastRefreshed,

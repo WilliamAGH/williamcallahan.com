@@ -5,19 +5,6 @@ import type {
   RepoWeeklyStatCache,
 } from "@/types/schemas/github-storage";
 
-/** Input for calculating all-time commit counts */
-export type CommitCountInput = {
-  repos: GraphQLRepoNode[];
-  githubRepoOwner: string;
-  githubUserId?: string;
-};
-
-/** Result of fetching a page of commits */
-export type PageFetchResult =
-  | { status: "success"; count: number; hasMore: boolean }
-  | { status: "error"; message: string }
-  | { status: "invalid_data" };
-
 /** State for the checksum failure circuit breaker */
 export type ChecksumCircuitState = {
   consecutiveFailures: number;

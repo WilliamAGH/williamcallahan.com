@@ -5,7 +5,11 @@ import {
   GITHUB_ACTIVITY_DATA_TYPES,
   GITHUB_ACTIVITY_GLOBAL_QUALIFIER,
 } from "@/lib/db/schema/github-activity";
-import { readGitHubActivityRefreshPreconditionFromDb } from "@/lib/db/queries/github-activity";
+import {
+  readGitHubActivityRefreshPreconditionFromDb,
+  readGitHubSummaryFromDb,
+  readAggregatedWeeklyActivityFromDb,
+} from "@/lib/db/queries/github-activity";
 import { debugLog } from "@/lib/utils/debug";
 import {
   GITHUB_ACTIVITY_WRITE_INTENTS,
@@ -61,7 +65,9 @@ const classifyDataset = (d: GitHubActivityApiResponse | null | undefined) => {
   const isDataComplete = ty?.dataComplete;
 
   const isEmpty = !hasData && contributions <= 0;
-  const isIncomplete = !hasData || !hasCount || !isDataComplete;
+  // Calendar counts are complete even while independent repository LOC stats are pending.
+  const isIncomplete =
+    !hasData || !hasCount || !(isDataComplete || ty.contributionCountSource === "github-calendar");
 
   return { hasData, hasCount, contributions, isEmpty, isIncomplete, isComplete: !isIncomplete };
 };
@@ -106,7 +112,6 @@ function canPublishGitHubActivity(
 
       const existingContributions = Math.max(0, existingQ.contributions);
       const newContributions = Math.max(0, newQ.contributions);
-
       if (newContributions <= existingContributions) {
         debugLog("Non-degrading write: Preserving existing dataset with more data", "warn", {
           existingCount: existingContributions,
@@ -138,6 +143,32 @@ export async function writeGitHubActivityRefreshToDb(
     const existingActivity = await readGitHubActivityRefreshPreconditionFromDb(tx);
     if (!canPublishGitHubActivity(activity, intent, existingActivity)) {
       return false;
+    }
+
+    if (!activity.cumulativeAllTimeData.dataComplete && existingActivity) {
+      const [previousSummary, previousAggregate] = await Promise.all([
+        readGitHubSummaryFromDb(tx),
+        readAggregatedWeeklyActivityFromDb(tx),
+      ]);
+      if (previousSummary && previousAggregate) {
+        // Publish fresh calendars without replacing a coherent LOC snapshot with missing repos.
+        for (const segment of ["trailingYearData", "cumulativeAllTimeData"] as const) {
+          activity[segment] = {
+            ...activity[segment],
+            linesAdded: existingActivity[segment].linesAdded,
+            linesRemoved: existingActivity[segment].linesRemoved,
+          };
+        }
+        activity.cumulativeAllTimeData.allPriorYearCommits =
+          existingActivity.cumulativeAllTimeData.allPriorYearCommits;
+        summary = {
+          ...previousSummary,
+          totalContributions: summary.totalContributions,
+          lastUpdatedAtPacific: summary.lastUpdatedAtPacific,
+          dataComplete: false,
+        };
+        aggregatedActivity = previousAggregate;
+      }
     }
 
     const updatedAt = Date.now();

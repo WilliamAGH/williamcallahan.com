@@ -280,8 +280,7 @@ File/Path Functionality Description
   - [x] `bookmarks.ts` `json-handling` - Data access for bookmarks
   - [x] `github.ts` `json-handling` - GitHub orchestration (API fetch, processing, cache invalidation, and durable persistence flow)
   - [x] `github-activity-summaries.ts` `github-activity` - Writes the single all-time summary payload via PostgreSQL-backed storage
-  - [x] `github-commit-counts.ts` `github-activity` - All-time commit count aggregation (GraphQL + REST fallback)
-  - [x] `github-contributions.ts` `github-activity` - Contribution calendar fetch + flattening helpers
+  - [x] `github-contributions.ts` `github-activity` - Trailing calendar and disjoint historical contribution-year totals, independent of repository visibility
   - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
   - [x] `github-processing.ts` `github-activity` - Canonical weekly aggregation and line-of-code category processing
   - [x] `github-public-api.ts` `github-activity` - Projects validated stored activity into the aggregate-only public view
@@ -808,6 +807,9 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `bookmarks.test.ts` `bookmarks` - Bookmarks utility tests
     - [x] `select-best-image.test.ts` `bookmarks` - Bookmark image selection security tests
     - [x] `cache.test.ts` `caching` - Cache utility tests
+    - [x] `github-activity.test.ts` `github-activity` - Multi-year contribution refresh, failures, empty repository sets and category aggregation
+    - [x] `github-activity-persistence.test.ts` `github-activity` - Atomic publication, verified counts with retained LOC, integrity repair and rollback
+    - [x] `github-api.test.ts` `github-activity` - Upstream pagination, GraphQL failures, anonymous contributors and UTC calendar boundaries
     - [x] `cloudflare-headers.test.ts` `rate-limit-and-sanitize` - Cloudflare header guard tests
     - [x] **middleware/**
       - [x] `proxy-analytics.test.ts` `analytics` - Same-origin proxy delivery, header sanitization, timeout, and failure tests

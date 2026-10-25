@@ -7,10 +7,9 @@
 const MAX_CONTRIBUTION_LEVEL = 4;
 
 import { isDateInRange } from "@/lib/utils/date-format";
-import { createCategorizedError } from "@/lib/utils/error-utils";
 import type { GraphQLContributionDay, GraphQLContributionCalendar } from "@/types/github";
 import type { ContributionDay } from "@/types/schemas/github-storage";
-import { fetchContributionCalendar } from "./github-api";
+import { fetchContributionCalendar, fetchContributionYears } from "./github-api";
 
 // Contribution level mapping
 const CONTRIBUTION_LEVELS: Record<string, 0 | 1 | 2 | 3 | 4> = {
@@ -133,41 +132,41 @@ export async function fetchTrailingYearContributionCalendar({
   fromDate: Date;
   toDate: Date;
 }): Promise<{ totalContributions: number; contributionDays: ContributionDay[] }> {
-  let totalContributions = 0;
-  const contributionDays: ContributionDay[] = [];
+  const response = await fetchContributionCalendar(
+    githubRepoOwner,
+    fromDate.toISOString(),
+    toDate.toISOString(),
+  );
+  if (!response.user)
+    throw new Error(`GitHub contribution calendar unavailable for ${githubRepoOwner}`);
+  const calendar = response.user.contributionsCollection.contributionCalendar;
+  return {
+    totalContributions: calendar.totalContributions,
+    contributionDays: flattenContributionCalendar(calendar).toSorted((a, b) =>
+      a.date.localeCompare(b.date),
+    ),
+  };
+}
 
-  try {
-    console.log(
-      `[DataAccess/GitHub] Fetching contribution calendar for ${githubRepoOwner} via GraphQL API...`,
+/** GitHub limits collections to one year; sum disjoint UTC years before the calendar cutoff. */
+export async function fetchHistoricalContributionTotal(
+  username: string,
+  before: Date,
+): Promise<number> {
+  const years = await fetchContributionYears(username);
+  const historicalEnd = before.getTime() - 1;
+  let total = 0;
+  for (const year of new Set(years)) {
+    const start = Date.UTC(year, 0, 1);
+    if (start > historicalEnd) continue;
+    const end = Math.min(Date.UTC(year + 1, 0, 1) - 1, historicalEnd);
+    const response = await fetchContributionCalendar(
+      username,
+      new Date(start).toISOString(),
+      new Date(end).toISOString(),
     );
-
-    const gqlResponse = await fetchContributionCalendar(
-      githubRepoOwner,
-      fromDate.toISOString(),
-      toDate.toISOString(),
-    );
-
-    if (gqlResponse?.user?.contributionsCollection?.contributionCalendar) {
-      const calendar = gqlResponse.user.contributionsCollection.contributionCalendar;
-      totalContributions = calendar.totalContributions;
-
-      contributionDays.push(...flattenContributionCalendar(calendar));
-      contributionDays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      console.log(
-        `[DataAccess/GitHub] Successfully fetched contribution calendar. Total contributions (trailing year): ${totalContributions}`,
-      );
-    } else {
-      console.warn(
-        "[DataAccess/GitHub] Failed to fetch or parse GraphQL contribution calendar. Calendar data will be empty.",
-      );
-    }
-  } catch (gqlError: unknown) {
-    const categorizedError = createCategorizedError(gqlError, "github");
-    console.error(
-      "[DataAccess/GitHub] CRITICAL: Error fetching GraphQL contribution calendar:",
-      categorizedError.message,
-    );
+    if (!response.user) throw new Error(`GitHub historical calendar unavailable for ${username}`);
+    total += response.user.contributionsCollection.contributionCalendar.totalContributions;
   }
-
-  return { totalContributions, contributionDays };
+  return total;
 }

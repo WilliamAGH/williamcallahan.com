@@ -154,6 +154,8 @@ export async function processRepositoryStats({
 
   return {
     ...aggregated,
+    allTimeOverallDataComplete:
+      aggregated.allTimeOverallDataComplete && batchResults.failed.size === 0,
     failedRepoCount: batchResults.failed.size,
   };
 }
