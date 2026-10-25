@@ -156,9 +156,9 @@ RUN bash -c 'set -euo pipefail \
        echo "⚠️  NEXT_PUBLIC_S3_CDN_URL not set; skipping CDN connectivity check"; \
      fi'
 
-# After `next build`, scripts/archive-static-assets.ts copies .next/static to the CDN bucket, so
-# every release's hashed assets exist there before its rollout starts (docs/ops/deployment.md
-# "Static asset archive"); a failed copy fails the build.
+# After `next build`, scripts/archive-static-assets.ts copies .next/static/chunks to the CDN
+# bucket, so every release's hashed chunks exist there before its rollout starts
+# (docs/ops/deployment.md "Static asset archive"); a failed copy fails the build.
 # Credentials are mounted directly as environment variables. Public build
 # configuration uses canonical secret filenames and only replaces ARG/ENV values
 # when present, so absent optional secrets cannot erase build arguments.
