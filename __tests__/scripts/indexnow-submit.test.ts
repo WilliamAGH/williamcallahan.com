@@ -52,6 +52,19 @@ it("dry-run selects the recent canonical inventory without credentials or any HT
   );
 });
 
+it("retains the concurrent seven-day announcement window without resubmitting older URLs", async () => {
+  const day = 24 * 60 * 60 * 1000;
+  vi.mocked(sitemap).mockResolvedValue([
+    { url: `${SITE}blog/deployed-later`, lastModified: new Date(Date.now() - 6 * day) },
+    { url: `${SITE}blog/outside-window`, lastModified: new Date(Date.now() - 8 * day) },
+  ]);
+  await submitToIndexNow(SITE, KEY, `${KEY}.txt`, false, false);
+  const submission = requests.find((request) => request.method === "POST");
+  if (!submission) throw new Error("Missing IndexNow submission");
+  const payload: unknown = await submission.json();
+  expect(payload).toMatchObject({ urlList: [`${SITE}blog/deployed-later`] });
+});
+
 it.each([200, 202])(
   "treats HTTP %i as accepted and sends only recent sitemap URLs",
   async (status) => {

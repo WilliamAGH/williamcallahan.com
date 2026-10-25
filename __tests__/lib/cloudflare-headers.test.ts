@@ -342,6 +342,25 @@ describe("Cloudflare header enforcement", () => {
       const sitemapRule = headerRules.find((entry) => entry.source === "/sitemap.xml");
       expect(sitemapRule?.headers).toEqual([{ key: "X-Robots-Tag", value: "noindex" }]);
     });
+    it("permanently redirects renamed and WordPress-era URLs to their current pages", async () => {
+      const nextConfig = await loadNextConfig();
+      const redirects = await nextConfig.redirects();
+      expect(redirects).toEqual(
+        expect.arrayContaining([
+          {
+            source: "/blog/how-to-add-a-symlink-file",
+            destination: "/blog/how-to-add-a-symlink-file-from-one-to-another",
+            permanent: true,
+          },
+          { source: "/projects/aventurevc", destination: "/projects/aventure-vc", permanent: true },
+          {
+            source: "/the-dangers-of-proximity-signaling-in-venture-capital",
+            destination: "/blog/proximity-bias-in-venture-capital",
+            permanent: true,
+          },
+        ]),
+      );
+    });
     it("guards public asset and feed paths against edge-stored error responses", () => {
       interface CacheRule {
         expression: string;

@@ -12,8 +12,9 @@ const LOG_PREFIX = "[IndexNow]";
 
 // IndexNow announces recently added or updated URLs; resubmitting unchanged URLs is discouraged
 // (https://www.indexnow.org/faq). Submission runs once per scheduler start, which is once per
-// deploy, so a URL modified within the last day is announced only by that day's deploys.
-const RECENT_CHANGE_WINDOW_MS = 24 * 60 * 60 * 1000;
+// deploy. A date-only frontmatter value resolves to Pacific midnight and its deploy can trail it
+// by days, so a URL modified within the last week is announced by that week's deploys.
+const RECENT_CHANGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export class IndexNowSubmissionError extends Error {
   override name = "IndexNowSubmissionError";
@@ -75,7 +76,7 @@ export async function submitToIndexNow(
   }
 
   if (urlList.length === 0) {
-    console.info(`${LOG_PREFIX} No sitemap URL changed in the last day; nothing to submit.`);
+    console.info(`${LOG_PREFIX} No sitemap URL changed in the last week; nothing to submit.`);
     return;
   }
 

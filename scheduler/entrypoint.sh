@@ -71,6 +71,7 @@ else
     exit 1
 fi
 
+# Configure each provider independently; one rejected submission does not skip the other.
 echo "🗺️  [Entrypoint] Submitting sitemap..."
 if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ] && [ -n "${GOOGLE_SEARCH_CONSOLE_PROPERTY:-}" ]; then
     if run_bootstrap_step node --run submit-sitemap -- --google-only; then
