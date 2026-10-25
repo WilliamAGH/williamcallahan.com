@@ -658,6 +658,11 @@ File/Path Functionality Description
   - [x] `page.tsx` `investments` - Investments page (ISR)
 - [x] **projects/**
   - [x] `page.tsx` `projects` - Projects page (ISR) with defensive CDN screenshot schema generation (no render throw on missing CDN config)
+  - [x] `[slug]/loading.tsx` `projects` - Segment boundary that streams the uncached project page while the layout stays in the prerendered shell
+- [x] **books/**
+  - [x] `[book-slug]/loading.tsx` `books` - Segment boundary that streams the uncached book page while the layout stays in the prerendered shell
+- [x] **thoughts/**
+  - [x] `[slug]/loading.tsx` `thoughts` - Segment boundary that streams the uncached thought page while the layout stays in the prerendered shell
 - [ ] **sentry-example-page/**
   - [x] `page.tsx` `log-error-debug-handling` - Sentry example page
 
@@ -749,9 +754,12 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 - `__tests__/scripts/dokploy-deploy-image.test.ts`: real shell/HTTP deployment identity regression
   for unchanged requests versus corrected runtime configuration.
+- `__tests__/scheduler/indexnow-submit.test.ts`: the IndexNow request carries only sitemap URLs
+  modified within the last week.
 
 - [x] **e2e/**
   - [x] `blog-render.spec.ts` `blog` - Chromium route-layer checks for the shared blog render canaries, including declared interactions and browser failures
+  - [x] `crawler-visible-content.spec.ts` `seo` - With JavaScript disabled, the homepage and a blog canary show their heading and text, as crawlers that run no JavaScript see them
   - [x] `github-activity.spec.ts` `github-activity` - Real calendar desktop labels and mobile heatmap rendering at the route boundary
 - [x] \***\*tests**/\*\*
   - [x] `README.md` `project-mgmt` - Tests documentation

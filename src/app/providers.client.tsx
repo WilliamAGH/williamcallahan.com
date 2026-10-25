@@ -11,7 +11,6 @@
 import { ClerkProvider, useClerk } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { ThemeProvider, useTheme } from "@/components/ui/theme/theme-provider.client";
-import { Suspense } from "react";
 import { ClerkSafeProvider, noOpClerk } from "@/hooks/use-clerk-safe.client";
 
 /**
@@ -69,9 +68,7 @@ function ConfiguredClerkSafeProvider({ children }: { children: React.ReactNode }
 function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider disableTransitionOnChange enableSystem attribute="class" defaultTheme="system">
-      <Suspense fallback={<div className="min-h-screen" aria-hidden="true" />}>
-        <ThemedClerkProvider>{children}</ThemedClerkProvider>
-      </Suspense>
+      <ThemedClerkProvider>{children}</ThemedClerkProvider>
     </ThemeProvider>
   );
 }
