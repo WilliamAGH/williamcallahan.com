@@ -72,6 +72,9 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 
 1. `selectBestImage` (bookmarks) or `selectBestOpenGraphImage` (OG fetch path) chooses between CDN hashes, Karakeep `imageAssetId`, `screenshotAssetId`, or standard OG URLs.
 2. `/api/assets/[assetId]` (Karakeep proxy) validates UUID, resolves S3 keys by canonical `assetId + extension`, and writes missing assets using `createMonitoredStream` + `writeBinaryS3`.
+   The client and persistence tee branches retain the 20-second read and 50 MiB size limits.
+   A failed consumer cancels its branch without awaiting its sibling; the client receives
+   the error immediately, and upstream cancellation completes when both branches cancel.
 3. `/api/og-image` handles S3 keys, asset IDs, direct URLs, and bookmark fallbacks. It uses `openGraphUrlSchema`, `sanitizePath`, `IMAGE_SECURITY_HEADERS`, and `getUnifiedImageService().getImage()` for external fetches. Generic image requests preserve the supplied URL; only explicit `getLogo()` calls start domain-level logo discovery.
 4. `<OptimizedCardImage>` uses Next/Image to render whichever URL results. If the URL points to `/api/assets` or `/api/og-image`, the API response returns a CDN redirect or raw bytes with 1-year TTLs.
 
