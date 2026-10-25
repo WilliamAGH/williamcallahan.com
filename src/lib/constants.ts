@@ -148,7 +148,7 @@ export const BOOKMARKS_API_CONFIG = {
   REQUEST_TIMEOUT_MS: 10_000,
 } as const;
 
-/** Number of bookmarks displayed per page in paginated views (used in sitemap.ts, bookmarks/*) */
+/** Number of bookmarks displayed per page in paginated views (used in bookmarks/*) */
 export const BOOKMARKS_PER_PAGE = 24;
 
 /** Default options for getBookmarks calls - explicit parameters for clarity and ZERO TEMPERATURE compliance */

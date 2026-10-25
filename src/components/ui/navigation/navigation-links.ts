@@ -12,7 +12,7 @@
 import type { NavigationLink } from "@/types/navigation";
 
 // Bookshelf (/books) is being incrementally added to the site.
-// The page routes are live and indexed in sitemap.xml with dynamic book locations.
+// The page routes are live; book detail pages stay out of search (lib/seo/search-exclusion).
 // Navigation exposure will be enabled after further production testing is complete.
 const isProduction = process.env.NODE_ENV === "production";
 

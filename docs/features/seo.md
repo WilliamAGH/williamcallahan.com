@@ -290,7 +290,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 - **`scheduler/submit-sitemap.ts`**: Submits the sitemap once per scheduler start, which is once
   per deploy (`scheduler/entrypoint.sh`); indexable pages change only when a deploy ships them
   - **Google Search Console**: Uses Webmasters API v3 with Service Account authentication
-  - **Bing IndexNow**: POSTs only sitemap URLs modified within the last day, and nothing when none
+  - **Bing IndexNow**: POSTs only sitemap URLs modified within the last week, and nothing when none
     changed; IndexNow is for recently added or updated URLs, not the full URL list
   - Production-only execution (checks `NEXT_PUBLIC_SITE_URL`)
   - Command line options: `--google-only`, `--indexnow-only`, `--debug`
@@ -405,7 +405,7 @@ graph TD
     subgraph "Submission (scheduler/submit-sitemap.ts)"
         H --> I{Production Check}
         I -->|Yes| K[Google Client]
-        I -->|Yes| L[IndexNow: URLs changed in the last day]
+        I -->|Yes| L[IndexNow: URLs changed in the last week]
     end
 
     subgraph "External APIs"
@@ -449,7 +449,7 @@ graph TD
 2. **Production Check**: Verifies `NEXT_PUBLIC_SITE_URL` matches the canonical production URL
 3. **Submission**:
    - Google: PUT to the Webmasters API sitemaps endpoint
-   - IndexNow: POST of the sitemap URLs modified within the last day; skipped when there are none
+   - IndexNow: POST of the sitemap URLs modified within the last week; skipped when there are none
 
 ## Operations & Maintenance
 

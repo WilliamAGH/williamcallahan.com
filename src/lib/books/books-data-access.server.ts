@@ -14,11 +14,7 @@
  * from "returning stale/empty data due to infrastructure failure."
  */
 
-// Runtime guard instead of the "server-only" package: this module is also loaded
-// by tsx runtime scripts (sitemap collectors → scheduler/submit-sitemap.ts), where
-// the package's bundler-condition export always throws.
-import { assertServerOnly } from "@/lib/utils/ensure-server-only";
-assertServerOnly();
+import "server-only";
 
 import { readBooksFromDb } from "@/lib/db/queries/books";
 import { envLogger } from "@/lib/utils/env-logger";
@@ -92,23 +88,6 @@ export async function fetchBooksWithFallback(
 ): Promise<{ books: Book[]; isFallback: boolean; fetchedAt: number }> {
   const { books, isFallback } = await fetchBooksInternal();
   return { books, isFallback, fetchedAt: 0 };
-}
-
-/**
- * Fetch all books (simple wrapper).
- * Used by sitemap.ts and other consumers that don't need fallback metadata.
- * Logs a warning when returning stale/fallback data so callers are aware.
- */
-export async function fetchBooks(): Promise<Book[]> {
-  const { books, isFallback } = await fetchBooksInternal();
-  if (isFallback) {
-    envLogger.log(
-      "fetchBooks() returning stale/fallback data due to database failure",
-      { bookCount: books.length },
-      { category: "Books" },
-    );
-  }
-  return books;
 }
 
 /**
