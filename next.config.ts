@@ -243,8 +243,8 @@ function createNextConfig(releaseId: string | null) {
       ];
     },
     // A start-first rollout, or a replica of the other CPU architecture, can render a document
-    // whose hashed chunks only another image holds. The image build archives `.next/static/chunks`
-    // to the CDN bucket before rollout (scripts/archive-static-assets.ts); a chunk this replica
+    // whose hashed chunks or media only another image holds. The image build archives both
+    // to the CDN bucket before rollout (scripts/archive-static-assets.ts); an asset this replica
     // lacks is answered by the archive relay route on the same relative path.
     async rewrites() {
       if (process.env.NODE_ENV !== "production") return [];
@@ -252,7 +252,11 @@ function createNextConfig(releaseId: string | null) {
         beforeFiles: [],
         afterFiles: [],
         fallback: [
-          { source: "/_next/static/chunks/:path*", destination: "/api/static-archive/:path*" },
+          {
+            source: "/_next/static/chunks/:path*",
+            destination: "/api/static-archive/chunks/:path*",
+          },
+          { source: "/_next/static/media/:path*", destination: "/api/static-archive/media/:path*" },
         ],
       };
     },
