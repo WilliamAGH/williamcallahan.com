@@ -115,7 +115,7 @@ export interface CollectionPageEntity extends SchemaBase {
   creator: { "@id": string };
   datePublished: PacificDateString;
   dateModified: PacificDateString;
-  mainEntity: {
+  mainEntity?: {
     "@type": "ItemList";
     itemListElement: Array<{
       "@type": "ListItem";

@@ -17,6 +17,7 @@ import { processSummaryText, removeCitations } from "@/lib/utils/formatters";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { extractDomainWithoutWww } from "@/lib/utils/url-utils";
 import { normalizeScrapedContentText } from "./scraped-content";
+import { isAccessChallenge } from "@/lib/opengraph/validation";
 
 const READING_SPEED_WPM = 200;
 
@@ -67,14 +68,20 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
   }
 
   try {
-    const bestTitle = raw.title || raw.content?.title || "Untitled Bookmark";
-    // Prefer backend-provided description over summary to avoid AI text overriding clean descriptions
-    const bestDescription = raw.content?.description || raw.summary || "No description available.";
     // Extract raw HTML for text normalization; access via index since it's not in the Zod schema
     const rawHtml = raw.content?.htmlContent;
-    const scrapedContentText = normalizeScrapedContentText(
+    const sourceText = [
+      raw.summary,
+      raw.content?.description,
       typeof rawHtml === "string" ? rawHtml : null,
-    );
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const blocked =
+      isAccessChallenge(raw.content?.title, sourceText) || isAccessChallenge(raw.title, sourceText);
+    const scrapedContentText = blocked
+      ? null
+      : normalizeScrapedContentText(typeof rawHtml === "string" ? rawHtml : null);
     const bookmarkUrlResult = unifiedBookmarkSchema.shape.url.safeParse(raw.content.url);
     if (!bookmarkUrlResult.success) {
       envLogger.log(
@@ -91,6 +98,15 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
     const bookmarkUrl = bookmarkUrlResult.data;
     const domainCandidate = bookmarkUrl ? extractDomainWithoutWww(bookmarkUrl) : "";
     const domain = domainCandidate && domainCandidate !== bookmarkUrl ? domainCandidate : undefined;
+    const bestTitle = blocked
+      ? raw.title && !isAccessChallenge(raw.title, sourceText)
+        ? raw.title
+        : `Saved link from ${domain ?? bookmarkUrl}`
+      : raw.title || raw.content?.title || "Untitled Bookmark";
+    // Never promote a failed-capture summary to the article's description.
+    const bestDescription = blocked
+      ? "Source content is unavailable because the publisher returned an access challenge."
+      : raw.content?.description || raw.summary || "No description available.";
     const wordCount = computeWordCount(scrapedContentText);
     const readingTime = computeReadingTime(wordCount);
 
@@ -114,10 +130,12 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       title: bestTitle || "Untitled Bookmark",
       description: bestDescription || "No description available.",
       contentAssetId: raw.content?.contentAssetId,
-      crawlStatus: raw.content?.crawlStatus,
-      imageUrl: raw.content?.imageUrl,
-      imageAssetId: raw.content?.imageAssetId ?? bannerAsset?.id,
-      screenshotAssetId: raw.content?.screenshotAssetId ?? screenshotAsset?.id,
+      crawlStatus: blocked ? "blocked" : raw.content?.crawlStatus,
+      imageUrl: blocked ? undefined : raw.content?.imageUrl,
+      imageAssetId: blocked ? undefined : (raw.content?.imageAssetId ?? bannerAsset?.id),
+      screenshotAssetId: blocked
+        ? undefined
+        : (raw.content?.screenshotAssetId ?? screenshotAsset?.id),
       favicon: raw.content?.favicon,
       crawledAt: raw.content?.crawledAt,
       author: raw.content?.author,
@@ -134,7 +152,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       title: bestTitle,
       description: bestDescription,
       tags: normalizedTags,
-      ogImage: raw.content?.imageUrl || undefined, // Will be enhanced with OpenGraph data
+      ogImage: blocked ? undefined : raw.content?.imageUrl || undefined,
       dateBookmarked: raw.createdAt,
       datePublished: raw.content?.datePublished,
       dateCreated: raw.createdAt,
@@ -145,7 +163,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       // Process note: remove citations but keep as single paragraph
       note: raw.note ? removeCitations(raw.note) : raw.note,
       // Process summary: remove citations and add paragraph breaks every 2 sentences
-      summary: raw.summary ? processSummaryText(raw.summary) : raw.summary,
+      summary: blocked ? null : raw.summary ? processSummaryText(raw.summary) : raw.summary,
       content: unifiedContent,
       scrapedContentText: scrapedContentText ?? undefined,
       wordCount,

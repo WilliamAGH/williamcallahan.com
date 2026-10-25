@@ -19,6 +19,7 @@ import { OPENGRAPH_FETCH_CONFIG } from "@/lib/constants";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 import type { ValidatedKarakeepImageFallback } from "@/types/seo/opengraph";
 import { SOCIAL_PLATFORMS } from "@/types/social";
+import { isAccessChallenge } from "./validation";
 // OgMetadata type not needed in parser - only returns raw Record<string, string | null>
 
 /**
@@ -63,6 +64,7 @@ export function extractOpenGraphTags(
   }
 
   const $ = cheerio.load(processedHtml);
+  if (isAccessChallenge($("title").first().text(), html)) return {};
   const domain = getDomainType(url);
 
   const getMetaContent = (selectors: string[]): string | null => {

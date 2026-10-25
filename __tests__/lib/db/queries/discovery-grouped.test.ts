@@ -130,7 +130,7 @@ describe("filterRecentlyAdded", () => {
 });
 
 describe("dedupeDiscoverSections", () => {
-  it("keeps the first occurrence based on discover rendering order", () => {
+  it("deduplicates previews in rendering order without changing full topic counts", () => {
     const bookmarkA = makeScoredRow(
       "bookmark-a",
       { slug: "ai", name: "AI" },
@@ -179,6 +179,6 @@ describe("dedupeDiscoverSections", () => {
     expect(result.rankedSections[0]?.bookmarks.map((bookmark) => bookmark.id)).toEqual([
       "bookmark-c",
     ]);
-    expect(result.rankedSections[0]?.totalCount).toBe(1);
+    expect(result.rankedSections[0]?.totalCount).toBe(3);
   });
 });

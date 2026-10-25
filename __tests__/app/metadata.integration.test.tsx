@@ -7,33 +7,39 @@
 import type { Metadata } from "next";
 import { generateMetadata as generateBookmarkDetailMetadata } from "@/app/bookmarks/[slug]/page";
 import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page";
+import { getBookmarkById, getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import { generateMetadata as generateBlogTagMetadata } from "@/app/blog/tags/[tagSlug]/page";
-import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
-import { unifiedBookmarkSchema } from "@/types/schemas/bookmark";
+import { bookmarksIndexSchema, unifiedBookmarkSchema } from "@/types/schemas/bookmark";
 import type { getStaticPageMetadata } from "@/lib/seo/metadata";
 
-const { mockGetBookmarkById, mockGetStaticPageMetadata, mockResolveBookmarkIdFromSlug } =
-  vi.hoisted(() => ({
-    mockGetBookmarkById: vi.fn<typeof getBookmarkById>(),
-    mockResolveBookmarkIdFromSlug: vi.fn<typeof resolveBookmarkIdFromSlug>(),
-    mockGetStaticPageMetadata: vi.fn<typeof getStaticPageMetadata>(() => ({
+const {
+  mockGetBookmarkById,
+  mockGetBookmarksIndex,
+  mockGetStaticPageMetadata,
+  mockResolveBookmarkIdFromSlug,
+} = vi.hoisted(() => ({
+  mockGetBookmarkById: vi.fn<typeof getBookmarkById>(),
+  mockGetBookmarksIndex: vi.fn<typeof getBookmarksIndex>(),
+  mockResolveBookmarkIdFromSlug: vi.fn<typeof resolveBookmarkIdFromSlug>(),
+  mockGetStaticPageMetadata: vi.fn<typeof getStaticPageMetadata>(() => ({
+    title: "Bookmarks",
+    description: "A collection of bookmarks",
+    openGraph: {
       title: "Bookmarks",
       description: "A collection of bookmarks",
-      openGraph: {
-        title: "Bookmarks",
-        description: "A collection of bookmarks",
-        url: "https://williamcallahan.com/bookmarks",
-      },
-      alternates: {
-        canonical: "https://williamcallahan.com/bookmarks",
-      },
-    })),
-  }));
+      url: "https://williamcallahan.com/bookmarks",
+    },
+    alternates: {
+      canonical: "https://williamcallahan.com/bookmarks",
+    },
+  })),
+}));
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarkById: mockGetBookmarkById,
+  getBookmarksIndex: mockGetBookmarksIndex,
 }));
 
 vi.mock("@/lib/bookmarks/slug-helpers", () => ({
@@ -53,8 +59,8 @@ describe("Metadata Integration Tests", () => {
     process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
   });
 
-  it("generates root bookmarks metadata without pagination links", () => {
-    const metadata = generateBookmarksMetadata();
+  it("generates root bookmarks metadata without pagination links", async () => {
+    const metadata = await generateBookmarksMetadata({ searchParams: Promise.resolve({}) });
 
     expect(mockGetStaticPageMetadata).toHaveBeenCalledWith("/bookmarks", "bookmarks");
     expect(metadata.title).toBeDefined();
@@ -63,13 +69,60 @@ describe("Metadata Integration Tests", () => {
     expect(metadata.icons).toBeUndefined();
   });
 
-  it("includes required SEO metadata fields for root bookmarks", () => {
-    const metadata = generateBookmarksMetadata();
+  it("includes required SEO metadata fields for root bookmarks", async () => {
+    const metadata = await generateBookmarksMetadata({ searchParams: Promise.resolve({}) });
 
     expect(metadata.title).toBeDefined();
     expect(metadata.description).toBeDefined();
     expect(metadata.openGraph).toBeDefined();
     expect(metadata.openGraph?.url).toBe("https://williamcallahan.com/bookmarks");
+  });
+
+  it("gives a valid latest-feed page its own canonical rather than consolidating it into the hub", async () => {
+    mockGetBookmarksIndex.mockResolvedValue(
+      bookmarksIndexSchema.parse({
+        count: 66,
+        totalPages: 3,
+        pageSize: 24,
+        lastModified: "2026-01-01T00:00:00Z",
+        lastFetchedAt: 1,
+        lastAttemptedAt: 1,
+        checksum: "fixture",
+      }),
+    );
+    const actual = await vi.importActual<typeof import("@/lib/seo/metadata")>("@/lib/seo/metadata");
+    mockGetStaticPageMetadata.mockImplementationOnce(actual.getStaticPageMetadata);
+
+    const metadata = await generateBookmarksMetadata({
+      searchParams: Promise.resolve({ feed: "latest", page: "2" }),
+    });
+
+    expect(metadata.alternates?.canonical).toBe(
+      "https://williamcallahan.com/bookmarks?feed=latest&page=2",
+    );
+    expect(metadata.openGraph?.url).toBe(metadata.alternates?.canonical);
+    expect(metadata.title).toContain("Page 2");
+  });
+
+  it("does not advertise a canonical for a latest-feed page outside its real range", async () => {
+    mockGetBookmarksIndex.mockResolvedValue(
+      bookmarksIndexSchema.parse({
+        count: 66,
+        totalPages: 3,
+        pageSize: 24,
+        lastModified: "2026-01-01T00:00:00Z",
+        lastFetchedAt: 1,
+        lastAttemptedAt: 1,
+        checksum: "fixture",
+      }),
+    );
+
+    const metadata = await generateBookmarksMetadata({
+      searchParams: Promise.resolve({ feed: "latest", page: "4" }),
+    });
+
+    expect(metadata.robots).toMatchObject({ index: false });
+    expect(metadata.alternates?.canonical).toBeNull();
   });
 
   it("generates URL-less bookmark metadata without logging a URL parsing error", async () => {
@@ -198,8 +251,8 @@ function simulateMetadataToHTML(metadata: Metadata): string[] {
 }
 
 describe("Metadata HTML Output Verification", () => {
-  it("does not render prev/next link tags for root bookmarks", () => {
-    const metadata = generateBookmarksMetadata();
+  it("does not render prev/next link tags for root bookmarks", async () => {
+    const metadata = await generateBookmarksMetadata({ searchParams: Promise.resolve({}) });
     const htmlTags = simulateMetadataToHTML(metadata);
 
     expect(htmlTags.some((tag) => tag.includes('rel="prev"'))).toBe(false);

@@ -4,6 +4,9 @@
 
 ## Contract and Version Evidence
 
+Priority navigation links use Next.js automatic prefetch (`null`), not full
+prefetch (`true`), so optional dynamic content does not block prefetch validation.
+
 This is the operational contract for framework work in this repository. Verify a
 claim against the installed source and current framework documentation before changing
 application behavior; do not infer behavior from a major-version label.
@@ -138,6 +141,29 @@ page/layout `dynamic` exports or `unstable_noStore()` to force rendering behavio
   Handler may use it only when request-time execution is its explicit contract.
 - Keep bookmark and sitemap reads bounded. Do not reintroduce build-phase
   `NEXT_PHASE` guards that remove sitemap sections or production/build local fallbacks.
+
+### Essential HTML and Optional Short-Lived Caches
+
+`src/lib/ai-analysis/reader.server.ts` gives missing analysis a one-second cache
+profile (`stale: 0, revalidate: 1, expire: 1`). Such a short expiry becomes a PPR
+dynamic hole, not static shell content. Awaiting that optional read above essential
+content can therefore defer the whole subtree. Keep project headings, descriptions,
+and destination links in the server-owned `project-detail.tsx`; only
+`project-detail-analysis.server.tsx` reads analysis under its own Suspense boundary.
+Parallax belongs to `project-detail-image.client.tsx`, not the text/link shell.
+Contact windows/cards must render their normal initial state without waiting for
+effect-based registration or mount timers.
+
+Keep Cache Components and metadata streaming enabled. Query-dependent Latest
+bookmark content stays under Suspense while the server resolves the requested slice.
+Verify native DOM/HTML, not matching text inside serialized Flight data:
+`e2e/native-content.spec.ts` covers no-JavaScript project/contact rendering and
+`scripts/native-content-smoke.ts` supplies the existing production smoke's markup checks.
+
+Evidence: installed `next/dist/server/use-cache/use-cache-wrapper.js:1683-1722` and
+`next/dist/docs/01-app/03-api-reference/04-functions/cacheLife.md#prerendering-behavior`;
+official `cacheLife` guidance retrieved through Context7 on 2026-10-25 confirms
+`expire` below five minutes is excluded from prerenders and requires Suspense.
 
 ### Activity-Preserved Route DOM
 

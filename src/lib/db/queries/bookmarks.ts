@@ -1,4 +1,6 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
+import { BOOKMARK_TAG_ALIAS_CTE } from "@/lib/db/bookmark-tag-aliases.mjs";
+import { getLatestBookmarkLastModified } from "@/lib/bookmarks/content-dates";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import {
   mapBookmarkSelectToUnifiedBookmark,
@@ -7,7 +9,6 @@ import {
 import { db } from "@/lib/db/connection";
 import {
   bookmarkIndexState,
-  bookmarkTagAliasLinks,
   bookmarkTagIndexState,
   bookmarkTagLinks,
   bookmarkTags,
@@ -23,6 +24,11 @@ import {
 import type { BookmarksIndex, UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const GLOBAL_BOOKMARK_INDEX_STATE_ID = "global";
+const canonicalAliases = sql`(
+  ${sql.raw(BOOKMARK_TAG_ALIAS_CTE)}
+  SELECT source_tag_slug, target_tag_slug FROM canonical_tag_aliases
+) AS canonical_alias`;
+const canonicalTagSlug = sql<string>`coalesce(canonical_alias.target_tag_slug, ${bookmarkTags.tagSlug})`;
 
 const assertPositiveInteger = (value: number, label: string): void => {
   if (!Number.isInteger(value) || value <= 0) {
@@ -49,13 +55,17 @@ const mapBookmarkIndexStateToBookmarksIndex = (
   changeDetected: row.changeDetected,
 });
 
-const buildFallbackIndex = (count: number, pageSize: number): BookmarksIndex => {
+const buildFallbackIndex = (
+  count: number,
+  pageSize: number,
+  lastModified: string | null,
+): BookmarksIndex => {
   const timestamp = Date.now();
   return {
     count,
     totalPages: Math.ceil(count / pageSize),
     pageSize,
-    lastModified: new Date(timestamp).toISOString(),
+    lastModified: lastModified ?? "",
     lastFetchedAt: timestamp,
     lastAttemptedAt: timestamp,
     checksum: `count:${count}`,
@@ -74,37 +84,17 @@ async function resolveCanonicalTagSlugInternal(tagSlug: string): Promise<Bookmar
     };
   }
 
-  const aliasRows = await db
-    .select({
-      canonicalSlug: bookmarkTagAliasLinks.targetTagSlug,
-      canonicalTagName: bookmarkTags.tagName,
-    })
-    .from(bookmarkTagAliasLinks)
-    .innerJoin(bookmarkTags, eq(bookmarkTags.tagSlug, bookmarkTagAliasLinks.targetTagSlug))
-    .where(
-      and(
-        eq(bookmarkTagAliasLinks.sourceTagSlug, requestedSlug),
-        eq(bookmarkTagAliasLinks.linkType, "alias"),
-      ),
-    )
-    .limit(1);
-  const aliasRow = aliasRows[0];
-
-  if (aliasRow) {
-    return {
-      requestedSlug,
-      canonicalSlug: aliasRow.canonicalSlug,
-      canonicalTagName: aliasRow.canonicalTagName,
-      isAlias: aliasRow.canonicalSlug !== requestedSlug,
-    };
-  }
-
   const tagRows = await db
     .select({
-      tagSlug: bookmarkTags.tagSlug,
-      tagName: bookmarkTags.tagName,
+      canonicalSlug: canonicalTagSlug,
+      canonicalTagName: sql<string>`coalesce(canonical_tag.tag_name, ${bookmarkTags.tagName})`,
     })
     .from(bookmarkTags)
+    .leftJoin(canonicalAliases, sql`canonical_alias.source_tag_slug = ${bookmarkTags.tagSlug}`)
+    .leftJoin(
+      sql`bookmarks_tags AS canonical_tag`,
+      sql`canonical_tag.tag_slug = ${canonicalTagSlug}`,
+    )
     .where(eq(bookmarkTags.tagSlug, requestedSlug))
     .limit(1);
   const tagRow = tagRows[0];
@@ -120,9 +110,9 @@ async function resolveCanonicalTagSlugInternal(tagSlug: string): Promise<Bookmar
 
   return {
     requestedSlug,
-    canonicalSlug: requestedSlug,
-    canonicalTagName: tagRow.tagName,
-    isAlias: false,
+    canonicalSlug: tagRow.canonicalSlug,
+    canonicalTagName: tagRow.canonicalTagName,
+    isAlias: tagRow.canonicalSlug !== requestedSlug,
   };
 }
 
@@ -164,23 +154,36 @@ export const lightweightBookmarkColumns = {
 } as const;
 
 const tagAliasJoinCondition = () =>
-  and(
-    eq(bookmarkTagAliasLinks.sourceTagSlug, bookmarkTagLinks.tagSlug),
-    eq(bookmarkTagAliasLinks.linkType, "alias"),
-  );
+  sql`canonical_alias.source_tag_slug = ${bookmarkTagLinks.tagSlug}`;
+const canonicalTagLinkSlug = sql<string>`coalesce(canonical_alias.target_tag_slug, ${bookmarkTagLinks.tagSlug})`;
 
-const canonicalTagLinkSlug = sql<string>`coalesce(${bookmarkTagAliasLinks.targetTagSlug}, ${bookmarkTagLinks.tagSlug})`;
+// Compact date projections, not content/asset payloads; grouped once for all tags.
+const memberContentDates = sql<
+  Array<Pick<BookmarkSelect, "modifiedAt" | "dateCreated" | "dateBookmarked">>
+>`
+  jsonb_agg(DISTINCT jsonb_build_object(
+    'modifiedAt', ${bookmarks.modifiedAt}, 'dateCreated', ${bookmarks.dateCreated},
+    'dateBookmarked', ${bookmarks.dateBookmarked}
+  ))`;
 
 const tagLinkMatchesCanonicalSlug = (canonicalSlug: string) =>
   sql`${canonicalTagLinkSlug} = ${canonicalSlug}`;
 
-async function countBookmarksForCanonicalTag(canonicalSlug: string): Promise<number> {
+async function getCanonicalTagContentState(canonicalSlug: string) {
   const countRows = await db
-    .select({ count: sql<number>`count(distinct ${bookmarkTagLinks.bookmarkId})::int` })
+    .select({
+      count: sql<number>`count(distinct ${bookmarkTagLinks.bookmarkId})::int`,
+      contentDates: memberContentDates,
+    })
     .from(bookmarkTagLinks)
-    .leftJoin(bookmarkTagAliasLinks, tagAliasJoinCondition())
+    .leftJoin(canonicalAliases, tagAliasJoinCondition())
+    .innerJoin(bookmarks, eq(bookmarks.id, bookmarkTagLinks.bookmarkId))
     .where(tagLinkMatchesCanonicalSlug(canonicalSlug));
-  return countRows[0]?.count ?? 0;
+  const row = countRows[0];
+  return {
+    count: row?.count ?? 0,
+    lastModified: getLatestBookmarkLastModified(row?.contentDates ?? []),
+  };
 }
 
 export async function resolveCanonicalTagSlug(tagSlug: string): Promise<BookmarkTagResolution> {
@@ -255,6 +258,19 @@ export async function getSlugMappingRowsFromDatabase(
     .orderBy(asc(bookmarks.id));
 }
 
+/** One fixed-size-per-bookmark projection for sitemap URLs and content dates. */
+export async function getBookmarkSitemapRowsFromDatabase() {
+  return db
+    .select({
+      slug: bookmarks.slug,
+      modifiedAt: bookmarks.modifiedAt,
+      dateCreated: bookmarks.dateCreated,
+      dateBookmarked: bookmarks.dateBookmarked,
+    })
+    .from(bookmarks)
+    .orderBy(asc(bookmarks.id));
+}
+
 export async function getBookmarksPage(
   pageNumber: number,
   pageSize: number,
@@ -291,7 +307,7 @@ export async function getBookmarksPageByTag(
       dateBookmarked: bookmarkTagLinks.dateBookmarked,
     })
     .from(bookmarkTagLinks)
-    .leftJoin(bookmarkTagAliasLinks, tagAliasJoinCondition())
+    .leftJoin(canonicalAliases, tagAliasJoinCondition())
     .where(tagLinkMatchesCanonicalSlug(resolution.canonicalSlug))
     .orderBy(bookmarkTagLinks.bookmarkId, desc(bookmarkTagLinks.dateBookmarked))
     .as("matching_bookmark_tag_links");
@@ -332,8 +348,12 @@ export async function getBookmarksIndexFromDatabase(
     return mapBookmarkIndexStateToBookmarksIndex(stateRow);
   }
 
-  const count = await getBookmarksCount();
-  return buildFallbackIndex(count, pageSize);
+  const contentRows = await getBookmarkSitemapRowsFromDatabase();
+  return buildFallbackIndex(
+    contentRows.length,
+    pageSize,
+    getLatestBookmarkLastModified(contentRows),
+  );
 }
 
 export async function getTagBookmarksIndexFromDatabase(
@@ -352,7 +372,7 @@ export async function getTagBookmarksIndexFromDatabase(
     .from(bookmarkTagIndexState)
     .where(eq(bookmarkTagIndexState.tagSlug, resolution.canonicalSlug))
     .limit(1);
-  const count = await countBookmarksForCanonicalTag(resolution.canonicalSlug);
+  const { count, lastModified } = await getCanonicalTagContentState(resolution.canonicalSlug);
   if (count === 0) {
     return null;
   }
@@ -360,20 +380,21 @@ export async function getTagBookmarksIndexFromDatabase(
   if (stateRow) {
     return {
       ...mapBookmarkIndexStateToBookmarksIndex(stateRow),
+      lastModified: lastModified ?? "",
       count,
       totalPages: Math.ceil(count / pageSize),
       pageSize,
     };
   }
-  return buildFallbackIndex(count, pageSize);
+  return buildFallbackIndex(count, pageSize, lastModified);
 }
 
 export async function listTagSlugsFromDatabase(): Promise<string[]> {
   const tagRows = await db
-    .select({ tagSlug: bookmarkTags.tagSlug })
+    .selectDistinct({ tagSlug: canonicalTagSlug })
     .from(bookmarkTags)
-    .where(eq(bookmarkTags.tagStatus, "primary"))
-    .orderBy(asc(bookmarkTags.tagSlug));
+    .leftJoin(canonicalAliases, sql`canonical_alias.source_tag_slug = ${bookmarkTags.tagSlug}`)
+    .orderBy(asc(canonicalTagSlug));
   return tagRows.map((row) => row.tagSlug);
 }
 

@@ -33,8 +33,8 @@ export function NavigationLink({
   // Track navigation state
   const [isNavigating, setIsNavigating] = useState(false);
 
-  // Determine if this link should be prefetched
-  const shouldPrefetch = PRIORITY_PATHS.has(path);
+  // Automatic prefetch stops at dynamic boundaries; full prefetch pulls uncached work into navigation.
+  const shouldPrefetch = PRIORITY_PATHS.has(path) ? null : false;
 
   // Click handler (no hook dependency warnings)
   const handleClick = (e: MouseEvent) => {
