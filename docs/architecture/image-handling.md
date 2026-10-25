@@ -108,7 +108,7 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 - **`lib/image-handling/shared-image-processing.ts`** – format detection, SVG sanitization, metadata-derived content types.
 - **`lib/image-handling/twitter-image-policy.ts`** – canonical Twitter CDN root/format validation, upstream-path normalization, and storage category selection.
 - **`lib/image-handling/image-analysis.ts` / `image-compare.ts`** – brightness estimation, placeholder detection, perceptual hashing for dedupe/globe detection.
-- **`lib/image-handling/image-manifest-loader.ts` / `cached-manifest-loader.ts`** – load and cache manifest JSON for logos/OG/blog images; aware of build-phase constraints and production runtime safeguards that avoid request-path lazy S3 loads when manifests are missing.
+- **`lib/image-handling/image-manifest-loader.ts`** – loads logo/OG/blog manifests directly from PostgreSQL during startup; `cached-manifest-loader.ts` owns only the request-time tagged logo-manifest cache. Build-phase and production runtime safeguards avoid lazy loading when manifests are missing.
 - **`lib/services/image-streaming.ts`** – Node stream -> S3 upload pipeline with timeouts and byte monitoring.
 - **`components/ui/logo-image.client.tsx`** – client watchdog: inlined placeholders, dev logging, on-error fetch triggers, CSS inversion toggles.
 - **`components/features/*`** – feed selection helpers (bookmarks/blog/investments/education/experience) and ensure width/height/sizes align with Next config.

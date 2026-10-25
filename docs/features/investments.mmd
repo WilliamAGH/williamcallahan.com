@@ -13,7 +13,7 @@ graph TD
     subgraph "Client-Side"
         I[InvestmentsClient] -- "Receives pre-rendered cards" --> J[Rendered HTML from Server];
         J -- "Renders" --> H;
-        H -- "Styled by" --> K[ThemeWrapper];
+        H -- "Styled by" --> K[Theme-aware CSS variants];
         I -- "Manages" --> L{Window State};
     end
 
@@ -22,4 +22,4 @@ graph TD
     
     style A fill:#fef,stroke:#333,stroke-width:2px
     style B fill:#ccf,stroke:#333,stroke-width:2px
-    style I fill:#f9f,stroke:#333,stroke-width:2px 
+    style I fill:#f9f,stroke:#333,stroke-width:2px

@@ -102,14 +102,13 @@ File/Path Functionality Description
     - [x] `index.ts` `investments` - Removed; import `investments.server.tsx` directly
     - [x] `investment-card.{client,server}.tsx` `investments` - ind card for each investment made
     - [x] `investments.{client,server}.tsx` `investments` - list investments
-    - [x] `theme-wrapper.client.tsx` `investments` - theme wrapper for investments list
   - [x] **projects/**
     - [x] `index.ts` `projects` - Removed; import projects components from concrete files
     - [x] `project-ai-analysis.client.tsx` `projects` - AI analysis component for projects with SSR cache support
-    - [x] `project-card.{client,server}.tsx` `projects` - Individual project cards; client cards disable detail-link prefetch and fall back safely when CDN config is missing
+    - [x] `project-card.client.tsx` `projects` - Individual project cards; disable detail-link prefetch and fall back safely when CDN config is missing
     - [x] `project-detail.tsx` `projects` - Project detail view with AI analysis integration
     - [x] `project-tags.client.tsx` `projects` - Project tag filter UI
-    - [x] `projects-list.{client,server}.tsx` `projects` - List all projects
+    - [x] `projects-list.client.tsx` `projects` - List all projects; exports the ProjectsListServer alias consumed by ProjectsWindow
     - [x] `projects-window.client.tsx` `projects` - Projects window wrapper
     - [x] `projects.client.tsx` `projects` - Projects feature wrapper
   - [x] **social/**
@@ -167,7 +166,7 @@ File/Path Functionality Description
     - [x] `theme-provider.client.tsx` `theming` - Theme provider using next-themes
     - [x] `theme-toggle.tsx` `theming` - Button to toggle light/dark theme
   - [x] **code-block/**
-    - [x] `code-block.client.tsx` `code-block` - Main code block component
+    - [x] `code-block.client.tsx` `code-block` - Code display and interaction; MDX wrapper owns SVG transform processing
     - [x] `copy-button.client.tsx` `code-block` - Copy button for code blocks
     - [x] `mdx-code-block-wrapper.client.tsx` `code-block` - MDX wrapper for code blocks
     - [x] `mdx-code-block.server.tsx` `code-block` - Renders MDX code blocks on the server
@@ -221,7 +220,7 @@ File/Path Functionality Description
   - [ ] `unified-ai-service.ts` `ai-shared-services` - Main AI service singleton
   - [ ] `unified-search-service.ts` `ai-shared-services` - Main search service singleton
   - [ ] `types.ts` `ai-shared-services` - Shared type definitions
-- [ ] `async-operations-monitor.ts` `instrumentation-monitoring` - Global async operations tracker & timeout guard
+- [ ] `async-operations-monitor.ts` `instrumentation-monitoring` - Singleton operation tracker and monitoredAsync timeout wrapper
 - [x] `blog.ts` `blog` - Blog data helper functions
 - [x] `bookmarks.{client,server}.ts` `json-handling` - Helper functions for bookmarks
 - [x] `bookmarks.ts` `json-handling` - Core bookmarks logic
@@ -352,7 +351,7 @@ File/Path Functionality Description
   - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
 - [x] **image-handling/**
-  - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component manifest readers for logo/OG/blog maps
+  - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component logo manifest reader; startup loads all manifests directly
   - [x] `twitter-image-policy.ts` `image-handling` - Canonical Twitter image root, format, path, and S3 category policy
   - [x] `image-manifest-loader.ts` `image-handling` - Manifest warm-up + in-memory lookup helpers; production request paths skip lazy S3 loads when warm-up is unavailable
 - [ ] **imageAnalysis/**

@@ -16,7 +16,6 @@ The `code-block` functionality provides interactive code display components with
   - **Interactions**:
     - Uses `useWindowSize` hook for responsive control sizing.
     - Manages state for visibility, minimization, and maximization.
-    - Processes SVG transforms within code content.
   - **UI Notes**:
     - Container uses `rounded-lg shadow-sm md:shadow-md border border-gray-200/80 dark:border-gray-800/80 ring-1 ring-black/5 dark:ring-white/5`.
     - Header has `px-3 py-2` and a subtle `border-b` for separation.
@@ -86,4 +85,4 @@ The `code-block` functionality provides interactive code display components with
 
 - Syntax highlighting is applied at build time, reducing client-side JavaScript overhead.
 - The design prioritizes accessibility with proper tabindex settings for keyboard navigation.
-- SVG transform fixes are applied to ensure correct rendering of graphical code snippets.
+- SVG transform processing belongs to `MDXCodeBlock`, not the generic `CodeBlock` component.
