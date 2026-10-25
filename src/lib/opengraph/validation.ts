@@ -20,6 +20,13 @@ export function isAccessChallenge(
   title: string | null | undefined,
   content?: string | null,
 ): boolean {
+  if (
+    /^(?:enable javascript and cookies to continue[.!]?|this is a bot verification page\b[\s\S]*actual article(?: content)? (?:was )?not retrieved[\s\S]*)$/i.test(
+      content?.trim() ?? "",
+    )
+  ) {
+    return true;
+  }
   const challengeTitle =
     /^(?:just a moment(?:\.{3}|…)?|attention required!?|access denied|security verification)$/i.test(
       title?.trim() ?? "",

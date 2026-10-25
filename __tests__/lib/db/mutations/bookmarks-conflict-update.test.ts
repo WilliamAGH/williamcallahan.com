@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { is, SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import {
-  BOOKMARK_ENRICHMENT_FIELDS,
-  mapUnifiedBookmarkToBookmarkInsert,
-} from "@/lib/db/bookmark-record-mapper";
+import { mapUnifiedBookmarkToBookmarkInsert } from "@/lib/db/bookmark-record-mapper";
 import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/bookmark";
 import type { assertDatabaseWriteAllowed } from "@/lib/db/connection";
 import type { getBookmarkBySlugFromDatabase } from "@/lib/db/queries/bookmarks";
@@ -24,7 +21,11 @@ const mocks = vi.hoisted(() => {
     events.push("lock");
     return [];
   });
-  const transactionExecutor = { delete: deleteRows, execute, insert };
+  const readPrior = vi.fn<(condition: unknown) => Promise<unknown[]>>(async () => []);
+  const select = vi.fn<() => { from: () => { where: typeof readPrior } }>(() => ({
+    from: () => ({ where: readPrior }),
+  }));
+  const transactionExecutor = { delete: deleteRows, execute, insert, select };
   const transaction = vi.fn<
     (operation: (executor: unknown) => Promise<unknown>) => Promise<unknown>
   >(async (operation) => {
@@ -52,6 +53,7 @@ const mocks = vi.hoisted(() => {
     transactionExecutor,
     values,
     where,
+    readPrior,
   };
 });
 
@@ -112,22 +114,13 @@ beforeEach(() => {
   mocks.transaction.mockClear();
   mocks.values.mockClear();
   mocks.where.mockClear();
+  mocks.readPrior.mockReset().mockResolvedValue([]);
 });
 
 describe("buildBookmarkConflictUpdate", () => {
-  it("wraps every enrichment-owned column in COALESCE so incoming NULL keeps the stored value", () => {
-    const set = buildBookmarkConflictUpdate(buildInsert());
-    const dialect = new PgDialect();
-
-    for (const key of BOOKMARK_ENRICHMENT_FIELDS) {
-      const value = set[key];
-      if (!is(value, SQL)) {
-        throw new Error(`${key} must be a SQL expression`);
-      }
-      const rendered = dialect.sqlToQuery(value).sql;
-      expect(rendered).toContain("coalesce(excluded.");
-      expect(rendered).toContain('"bookmarks".');
-    }
+  it("keeps the locked hydration result including explicit rejected-field nulls", () => {
+    const set = buildBookmarkConflictUpdate(buildInsert({ scrapedContentText: undefined }));
+    expect(set.scrapedContentText).toBeNull();
   });
 
   it("passes source-owned Karakeep fields through for overwrite", () => {
@@ -143,6 +136,50 @@ describe("buildBookmarkConflictUpdate", () => {
 });
 
 describe("bookmark refresh writes", () => {
+  it("preserves healthy archived enrichment for a blocked recapture inside the write transaction", async () => {
+    mocks.readPrior.mockResolvedValueOnce([
+      buildInsert({
+        scrapedContentText: "A healthy original article.",
+        ogTitle: "Original article",
+      }),
+    ]);
+    await upsertUnifiedBookmark(
+      buildBookmark({
+        content: {
+          type: "link",
+          url: "https://example.com/article",
+          title: "Saved link from example.com",
+          description: "Source unavailable",
+          crawlStatus: "blocked",
+        },
+      }),
+    );
+    expect(mocks.values.mock.calls[0]?.[0]).toMatchObject({
+      scrapedContentText: "A healthy original article.",
+      ogTitle: "Original article",
+    });
+  });
+
+  it("does not resurrect a custom-titled challenge body during a clean partial recapture", async () => {
+    mocks.readPrior.mockResolvedValueOnce([
+      buildInsert({
+        title: "My paper",
+        scrapedContentText: "Enable JavaScript and cookies to continue",
+        ogTitle: "Just a moment...",
+      }),
+    ]);
+    await upsertUnifiedBookmark(buildBookmark());
+    expect(mocks.values.mock.calls[0]?.[0]).toMatchObject({
+      scrapedContentText: null,
+      ogTitle: null,
+    });
+  });
+
+  it("does not write when the locked archive read fails", async () => {
+    mocks.readPrior.mockRejectedValueOnce(new Error("database unavailable"));
+    await expect(upsertUnifiedBookmark(buildBookmark())).rejects.toThrow("database unavailable");
+    expect(mocks.values).not.toHaveBeenCalled();
+  });
   it("locks before reading slug ownership and writes the reconciled dataset in that transaction", async () => {
     mocks.persistedSlugs.push({
       id: "removed-bookmark",

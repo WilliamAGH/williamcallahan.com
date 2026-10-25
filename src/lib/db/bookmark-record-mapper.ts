@@ -5,8 +5,8 @@ import { unifiedBookmarkSchema, type UnifiedBookmark } from "@/types/schemas/boo
  * Canonical list of bookmark fields owned by enrichment/backfill pipelines
  * (OpenGraph, logos, computed fields, scraped content) rather than the
  * Karakeep source payload. Consumers must bind this list instead of
- * restating it: the upsert preserves these columns via COALESCE and the
- * refresh pipeline hydrates them from prior rows before re-enrichment.
+ * restating it: hydration preserves healthy prior fields before enrichment
+ * and again inside the locked write transaction, rejecting challenge data.
  */
 export const BOOKMARK_ENRICHMENT_FIELDS = [
   "ogImage",

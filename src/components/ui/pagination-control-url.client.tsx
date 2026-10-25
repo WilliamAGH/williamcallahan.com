@@ -15,7 +15,6 @@ const LinkButton = ({
   className: btnClassName,
   ariaLabel,
   getPageUrl,
-  onPageChange,
   disabled,
   isLoading,
   currentPage,
@@ -26,7 +25,6 @@ const LinkButton = ({
   className?: string;
   ariaLabel?: string;
   getPageUrl: (page: number) => string;
-  onPageChange?: (page: number) => void;
   disabled: boolean;
   isLoading: boolean;
   currentPage: number;
@@ -48,29 +46,7 @@ const LinkButton = ({
   }
 
   return (
-    <Link
-      href={getPageUrl(page)}
-      className={btnClassName}
-      aria-label={ariaLabel}
-      prefetch={false}
-      onClick={
-        onPageChange
-          ? (event) => {
-              if (
-                event.button !== 0 ||
-                event.metaKey ||
-                event.ctrlKey ||
-                event.shiftKey ||
-                event.altKey
-              ) {
-                return;
-              }
-              event.preventDefault();
-              onPageChange(page);
-            }
-          : undefined
-      }
-    >
+    <Link href={getPageUrl(page)} className={btnClassName} aria-label={ariaLabel} prefetch={false}>
       {children}
     </Link>
   );
@@ -115,7 +91,6 @@ function PaginationLinks({
   maxVisiblePages = 5,
   className = "",
   getPageHref: getPageUrl,
-  onPageChange,
 }: PaginationControlUrlProps & { getPageHref: (page: number) => string }) {
   const getVisiblePages = () => {
     if (totalPages <= maxVisiblePages) {
@@ -173,7 +148,6 @@ function PaginationLinks({
           <LinkButton
             page={1}
             getPageUrl={getPageUrl}
-            onPageChange={onPageChange}
             disabled={disabled}
             isLoading={isLoading}
             currentPage={currentPage}
@@ -192,7 +166,6 @@ function PaginationLinks({
         <LinkButton
           page={currentPage - 1}
           getPageUrl={getPageUrl}
-          onPageChange={onPageChange}
           disabled={disabled}
           isLoading={isLoading}
           currentPage={currentPage}
@@ -214,7 +187,6 @@ function PaginationLinks({
               <LinkButton
                 page={1}
                 getPageUrl={getPageUrl}
-                onPageChange={onPageChange}
                 disabled={disabled}
                 isLoading={isLoading}
                 currentPage={currentPage}
@@ -252,7 +224,6 @@ function PaginationLinks({
                 key={page}
                 page={page}
                 getPageUrl={getPageUrl}
-                onPageChange={onPageChange}
                 disabled={disabled}
                 isLoading={isLoading}
                 currentPage={currentPage}
@@ -284,7 +255,6 @@ function PaginationLinks({
                   <LinkButton
                     page={totalPages}
                     getPageUrl={getPageUrl}
-                    onPageChange={onPageChange}
                     disabled={disabled}
                     isLoading={isLoading}
                     currentPage={currentPage}
@@ -307,7 +277,6 @@ function PaginationLinks({
         <LinkButton
           page={currentPage + 1}
           getPageUrl={getPageUrl}
-          onPageChange={onPageChange}
           disabled={disabled}
           isLoading={isLoading}
           currentPage={currentPage}
@@ -326,7 +295,6 @@ function PaginationLinks({
           <LinkButton
             page={totalPages}
             getPageUrl={getPageUrl}
-            onPageChange={onPageChange}
             disabled={disabled}
             isLoading={isLoading}
             currentPage={currentPage}
