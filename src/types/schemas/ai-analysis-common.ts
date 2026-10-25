@@ -9,6 +9,18 @@
 
 import { z } from "zod/v4";
 
+/** Generation budgets shared by request schemas, prompts, and server validation. */
+export const ANALYSIS_LENGTH_LIMITS = {
+  stringField: 320,
+  listItem: 180,
+  detailField: 140,
+} as const;
+
+export const ANALYSIS_LENGTH_INSTRUCTIONS =
+  `Keep every top-level string within ${ANALYSIS_LENGTH_LIMITS.stringField} characters, ` +
+  `every list item within ${ANALYSIS_LENGTH_LIMITS.listItem} characters, and ` +
+  `every non-null contextualDetails or technicalDetails string within ${ANALYSIS_LENGTH_LIMITS.detailField} characters.`;
+
 /** Non-empty string containing at least one letter or number (trimmed) */
 export const meaningfulStringSchema = z
   .string()
