@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TopicSection } from "./topic-section.client";
 import { TerminalContext } from "@/components/ui/context-notes/terminal-context.client";
@@ -255,6 +256,13 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
       >
         <div className="flex items-center gap-3 mb-1.5">
           <h1 className="text-sm font-medium text-foreground shrink-0">Bookmarks</h1>
+          <Link
+            href="/bookmarks?feed=latest"
+            className="text-sm text-muted-foreground hover:text-foreground"
+            prefetch={false}
+          >
+            Latest
+          </Link>
           <TerminalContext type="bookmark" />
         </div>
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">

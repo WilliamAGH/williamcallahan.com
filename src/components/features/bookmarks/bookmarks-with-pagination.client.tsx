@@ -192,6 +192,11 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     isLoading: isLoading || isLoadingMore,
     baseUrl,
     useUrlPagination,
+    getPageHref:
+      isRootBookmarksRoute && feedMode === "latest" && !tag
+        ? (page: number) =>
+            page === 1 ? "/bookmarks?feed=latest" : `/bookmarks?feed=latest&page=${page}`
+        : undefined,
     onPageChange: handlePageChange,
   };
 

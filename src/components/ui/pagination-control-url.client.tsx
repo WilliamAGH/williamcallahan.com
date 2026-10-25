@@ -15,6 +15,7 @@ const LinkButton = ({
   className: btnClassName,
   ariaLabel,
   getPageUrl,
+  onPageChange,
   disabled,
   isLoading,
   currentPage,
@@ -25,6 +26,7 @@ const LinkButton = ({
   className?: string;
   ariaLabel?: string;
   getPageUrl: (page: number) => string;
+  onPageChange?: (page: number) => void;
   disabled: boolean;
   isLoading: boolean;
   currentPage: number;
@@ -46,13 +48,62 @@ const LinkButton = ({
   }
 
   return (
-    <Link href={getPageUrl(page)} className={btnClassName} aria-label={ariaLabel} prefetch={false}>
+    <Link
+      href={getPageUrl(page)}
+      className={btnClassName}
+      aria-label={ariaLabel}
+      prefetch={false}
+      onClick={
+        onPageChange
+          ? (event) => {
+              if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              ) {
+                return;
+              }
+              event.preventDefault();
+              onPageChange(page);
+            }
+          : undefined
+      }
+    >
       {children}
     </Link>
   );
 };
 
-export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
+export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = (props) =>
+  props.getPageHref ? (
+    <PaginationLinks {...props} getPageHref={props.getPageHref} />
+  ) : (
+    <PaginationControlUrlWithQuery {...props} />
+  );
+
+function PaginationControlUrlWithQuery({
+  baseUrl = "/bookmarks",
+  ...props
+}: PaginationControlUrlProps) {
+  const searchParams = useSearchParams();
+
+  const getPageHref = (page: number) => {
+    // Preserve the existing path-pagination URLs and current query parameters.
+    const params = new URLSearchParams(searchParams);
+    if (page === 1) {
+      return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+    }
+    return params.toString()
+      ? `${baseUrl}/page/${page}?${params.toString()}`
+      : `${baseUrl}/page/${page}`;
+  };
+
+  return <PaginationLinks {...props} getPageHref={getPageHref} />;
+}
+
+function PaginationLinks({
   currentPage = 1,
   totalPages = 10,
   totalItems = 100,
@@ -63,25 +114,9 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
   showPageInfo = true,
   maxVisiblePages = 5,
   className = "",
-  baseUrl = "/bookmarks",
-}) => {
-  const searchParams = useSearchParams();
-
-  const getPageUrl = (page: number) => {
-    // Preserve query parameters
-    const params = new URLSearchParams(searchParams);
-
-    // For page 1, use the base URL without page number
-    if (page === 1) {
-      return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
-    }
-
-    // For other pages, append the page number with /page/ prefix
-    return params.toString()
-      ? `${baseUrl}/page/${page}?${params.toString()}`
-      : `${baseUrl}/page/${page}`;
-  };
-
+  getPageHref: getPageUrl,
+  onPageChange,
+}: PaginationControlUrlProps & { getPageHref: (page: number) => string }) {
   const getVisiblePages = () => {
     if (totalPages <= maxVisiblePages) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -138,6 +173,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
           <LinkButton
             page={1}
             getPageUrl={getPageUrl}
+            onPageChange={onPageChange}
             disabled={disabled}
             isLoading={isLoading}
             currentPage={currentPage}
@@ -156,6 +192,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
         <LinkButton
           page={currentPage - 1}
           getPageUrl={getPageUrl}
+          onPageChange={onPageChange}
           disabled={disabled}
           isLoading={isLoading}
           currentPage={currentPage}
@@ -177,6 +214,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
               <LinkButton
                 page={1}
                 getPageUrl={getPageUrl}
+                onPageChange={onPageChange}
                 disabled={disabled}
                 isLoading={isLoading}
                 currentPage={currentPage}
@@ -214,6 +252,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
                 key={page}
                 page={page}
                 getPageUrl={getPageUrl}
+                onPageChange={onPageChange}
                 disabled={disabled}
                 isLoading={isLoading}
                 currentPage={currentPage}
@@ -245,6 +284,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
                   <LinkButton
                     page={totalPages}
                     getPageUrl={getPageUrl}
+                    onPageChange={onPageChange}
                     disabled={disabled}
                     isLoading={isLoading}
                     currentPage={currentPage}
@@ -267,6 +307,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
         <LinkButton
           page={currentPage + 1}
           getPageUrl={getPageUrl}
+          onPageChange={onPageChange}
           disabled={disabled}
           isLoading={isLoading}
           currentPage={currentPage}
@@ -285,6 +326,7 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
           <LinkButton
             page={totalPages}
             getPageUrl={getPageUrl}
+            onPageChange={onPageChange}
             disabled={disabled}
             isLoading={isLoading}
             currentPage={currentPage}
@@ -301,4 +343,4 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
       </div>
     </div>
   );
-};
+}

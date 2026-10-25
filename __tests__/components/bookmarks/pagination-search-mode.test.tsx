@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { SWRConfig } from "swr";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
 import { BookmarksWithOptions } from "@/components/features/bookmarks/bookmarks-with-options.client";
@@ -118,9 +119,13 @@ describe("Search-mode client pagination", () => {
     );
 
     expect(screen.getByRole("heading", { name: "AI Post 0" })).toBeInTheDocument();
-    const [nextPageButton] = screen.getAllByRole("button", { name: "Go to next page" });
-    if (!nextPageButton) throw new Error("Expected latest-feed pagination");
-    fireEvent.click(nextPageButton);
+    const [nextPageLink] = screen.getAllByRole("link", { name: "Go to next page" });
+    if (!nextPageLink) throw new Error("Expected latest-feed pagination");
+    expect(nextPageLink).toHaveAttribute("href", "/bookmarks?feed=latest&page=2");
+    fireEvent.click(nextPageLink, { ctrlKey: true });
+    expect(screen.getByRole("heading", { name: "AI Post 0" })).toBeInTheDocument();
+    expect(screen.getByText("Showing 1-24 of 66 bookmarks")).toBeInTheDocument();
+    fireEvent.click(nextPageLink);
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "AI Post 24" })).toBeInTheDocument();
@@ -132,15 +137,55 @@ describe("Search-mode client pagination", () => {
       expect(currentPageButton).toHaveTextContent("2");
     }
 
-    const [previousPageButton] = screen.getAllByRole("button", { name: "Go to previous page" });
-    if (!previousPageButton) throw new Error("Expected previous-page navigation");
-    fireEvent.click(previousPageButton);
+    const [previousPageLink] = screen.getAllByRole("link", { name: "Go to previous page" });
+    if (!previousPageLink) throw new Error("Expected previous-page navigation");
+    expect(previousPageLink).toHaveAttribute("href", "/bookmarks?feed=latest");
+    expect(screen.getAllByRole("link", { name: "Go to page 3" })[0]).toHaveAttribute(
+      "href",
+      "/bookmarks?feed=latest&page=3",
+    );
+    fireEvent.click(previousPageLink);
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "AI Post 0" })).toBeInTheDocument();
       expect(screen.queryByRole("heading", { name: "AI Post 24" })).not.toBeInTheDocument();
       expect(screen.getByText("Showing 1-24 of 66 bookmarks")).toBeInTheDocument();
     });
+  });
+
+  it("includes reachable latest-feed pagination links in server HTML", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToStaticMarkup(
+      <BookmarksWithPagination
+        bookmarks={mockBookmarks.slice(0, 24)}
+        initialBookmarks={mockBookmarks.slice(0, 24)}
+        enableInfiniteScroll={false}
+        showFilterBar={false}
+        feedMode="latest"
+        totalPages={3}
+        totalCount={mockBookmarks.length}
+      />,
+    );
+
+    for (const link of within(container).getAllByRole("link", { name: "Go to next page" })) {
+      expect(link).toHaveAttribute("href", "/bookmarks?feed=latest&page=2");
+    }
+    for (const link of within(container).getAllByRole("link", { name: "Go to page 3" })) {
+      expect(link).toHaveAttribute("href", "/bookmarks?feed=latest&page=3");
+    }
+    for (const link of within(container).getAllByRole("link", { name: "Go to last page" })) {
+      expect(link).toHaveAttribute("href", "/bookmarks?feed=latest&page=3");
+    }
+    for (const button of within(container).getAllByRole("button", { name: "Go to first page" })) {
+      expect(button).toBeDisabled();
+    }
+    for (const button of within(container).getAllByRole("button", { name: "Current page 1" })) {
+      expect(button).toHaveAttribute("aria-current", "page");
+    }
+    expect(within(container).getAllByText("Showing 1-24 of 66 bookmarks")).toHaveLength(1);
+    expect(within(container).getAllByRole("button", { name: "Go to previous page" })).toHaveLength(
+      2,
+    );
   });
 
   it("renders bookmarks and displays pagination info", async () => {
