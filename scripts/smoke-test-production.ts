@@ -5,7 +5,7 @@ import { bookmarkDiagnosticsResponseSchema, healthResponseSchema } from "@/types
 import { validateBlogRenderHtml } from "./blog-render-smoke";
 const CONVERGENCE_SAMPLE_COUNT = 5;
 const EXPECTED_RELEASE_ID_PREFIX = "--expected-release-id=";
-export function fetchStaticScript(
+export function fetchStaticAsset(
   url: string,
   fetchImplementation: typeof fetch = fetch,
 ): Promise<Response> {
@@ -15,7 +15,7 @@ export function fetchStaticScript(
     signal: AbortSignal.timeout(10000),
   });
 }
-export async function validateAdvertisedJavaScript(
+export async function validateAdvertisedStaticAssets(
   responses: readonly Response[],
   baseUrl: string,
   expectedReleaseId: string | undefined,
@@ -25,12 +25,12 @@ export async function validateAdvertisedJavaScript(
     responses.map(async (response) => ({ html: await response.text(), status: response.status })),
   );
   const samplePaths = samples.map((sample) =>
-    [...sample.html.matchAll(/src=["'](\/_next\/static\/[^"']+\.js[^"']*)["']/g)].flatMap(
-      (match) => (match[1] === undefined ? [] : [match[1]]),
-    ),
+    [
+      ...sample.html.matchAll(/(?:src|href)=["'](\/_next\/static\/[^"']+\.(?:js|css)[^"']*)["']/g),
+    ].flatMap((match) => (match[1] === undefined ? [] : [match[1]])),
   );
-  const scripts = [...new Set(samplePaths.flat())].map((path) => new URL(path, baseUrl));
-  const deploymentIds = new Set(scripts.map((script) => script.searchParams.get("dpl")));
+  const assets = [...new Set(samplePaths.flat())].map((path) => new URL(path, baseUrl));
+  const deploymentIds = new Set(assets.map((asset) => asset.searchParams.get("dpl")));
   if (
     !samples.every(
       (sample) => sample.status === 200 && sample.html.includes("Investment Portfolio"),
@@ -43,8 +43,8 @@ export async function validateAdvertisedJavaScript(
     return false;
   }
   const assetChecks = await Promise.all(
-    scripts.map(async (script) => {
-      const response = await fetchAsset(script.href);
+    assets.map(async (asset) => {
+      const response = await fetchAsset(asset.href);
       const body = await response.text();
       const contentType = response.headers
         .get("content-type")
@@ -53,9 +53,11 @@ export async function validateAdvertisedJavaScript(
         .toLowerCase();
       return (
         response.status === 200 &&
-        response.url === script.href &&
+        response.url === asset.href &&
         body.length > 0 &&
-        (contentType === "application/javascript" || contentType === "text/javascript")
+        (asset.pathname.endsWith(".css")
+          ? contentType === "text/css"
+          : contentType === "application/javascript" || contentType === "text/javascript")
       );
     }),
   );
@@ -180,7 +182,7 @@ class ProductionSmokeTests {
       await this.record(`Blog article render: ${canary.slug}`, `/blog/${canary.slug}`, {
         validateResponse: async (response) => validateBlogRenderHtml(await response.text(), canary),
       });
-    await this.record("Investment release identity and scripts converge", "/investments", {
+    await this.record("Investment release identity and static assets converge", "/investments", {
       validateResponse: async (response) => {
         const responses = [
           response,
@@ -190,11 +192,11 @@ class ProductionSmokeTests {
             ),
           )),
         ];
-        return validateAdvertisedJavaScript(
+        return validateAdvertisedStaticAssets(
           responses,
           this.baseUrl,
           this.expectedReleaseId,
-          fetchStaticScript,
+          fetchStaticAsset,
         );
       },
     });

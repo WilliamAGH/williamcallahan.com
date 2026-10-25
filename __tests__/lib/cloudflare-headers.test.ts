@@ -6,9 +6,9 @@ import { getClientIp, validateCloudflareHeaders } from "@/lib/utils/request-util
 import { GET as getIp } from "@/app/api/ip/route";
 import { config as proxyConfig, proxy } from "@/proxy";
 import {
-  fetchStaticScript,
+  fetchStaticAsset,
   parseSmokeTestArguments,
-  validateAdvertisedJavaScript,
+  validateAdvertisedStaticAssets,
 } from "../../scripts/smoke-test-production";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER } from "next/constants";
@@ -42,7 +42,7 @@ function responseAt(url: string, body: string, contentType: string): Response {
   return response;
 }
 function investmentResponses(releaseId: string): Response[] {
-  const html = `<h1>Investment Portfolio</h1><script src="/_next/static/chunks/app.js?dpl=${releaseId}"></script>`;
+  const html = `<h1>Investment Portfolio</h1><link rel="stylesheet" href="/_next/static/chunks/app.css?dpl=${releaseId}"><script src="/_next/static/chunks/app.js?dpl=${releaseId}"></script>`;
   return Array.from({ length: 5 }, () => new Response(html));
 }
 describe("Cloudflare header enforcement", () => {
@@ -348,30 +348,32 @@ describe("Cloudflare header enforcement", () => {
     const baseUrl = "https://williamcallahan.com";
     const releaseId = "release_2026-07-13";
     const scriptUrl = `${baseUrl}/_next/static/chunks/app.js?dpl=release-123`;
-    it("accepts converged HTML and a redirect-free exact nonempty JavaScript asset", async () => {
+    it("accepts converged HTML and redirect-free exact nonempty script and stylesheet assets", async () => {
       let redirect: RequestRedirect | undefined;
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, options) => {
         redirect = options?.redirect;
         return responseAt(url.toString(), "console.log('release')", "application/javascript");
       });
       try {
-        await fetchStaticScript(scriptUrl);
+        await fetchStaticAsset(scriptUrl);
       } finally {
         fetchSpy.mockRestore();
       }
       expect(redirect).toBe("error");
-      const fetchAsset = vi.fn<(url: string) => Promise<Response>>(async (url) => {
-        return responseAt(url, "console.log('release')", "application/javascript; charset=utf-8");
-      });
+      const fetchAsset = vi.fn<(url: string) => Promise<Response>>(async (url) =>
+        url.includes(".css?")
+          ? responseAt(url, "body{margin:0}", "text/css; charset=utf-8")
+          : responseAt(url, "console.log('release')", "application/javascript; charset=utf-8"),
+      );
       await expect(
-        validateAdvertisedJavaScript(
+        validateAdvertisedStaticAssets(
           investmentResponses(releaseId),
           baseUrl,
           releaseId,
           fetchAsset,
         ),
       ).resolves.toBe(true);
-      expect(fetchAsset).toHaveBeenCalledOnce();
+      expect(fetchAsset).toHaveBeenCalledTimes(2);
       expect(
         parseSmokeTestArguments(["williamcallahan.com", `--expected-release-id=${releaseId}`])
           ?.expectedReleaseId,
@@ -398,14 +400,21 @@ describe("Cloudflare header enforcement", () => {
         expectedReleaseId: releaseId,
       });
     });
-    it("rejects wrong, skewed, and scriptless release HTML", async () => {
+    it("rejects wrong, skewed, scriptless, and unstyled release HTML", async () => {
       const fetchAsset = async (url: string) =>
-        responseAt(url, "export {};", "application/javascript");
+        url.includes(".css?")
+          ? responseAt(url, "body{margin:0}", "text/css")
+          : responseAt(url, "export {};", "application/javascript");
       await expect(
-        validateAdvertisedJavaScript(investmentResponses(releaseId), baseUrl, "other", fetchAsset),
+        validateAdvertisedStaticAssets(
+          investmentResponses(releaseId),
+          baseUrl,
+          "other",
+          fetchAsset,
+        ),
       ).resolves.toBe(false);
       await expect(
-        validateAdvertisedJavaScript(
+        validateAdvertisedStaticAssets(
           [...investmentResponses(releaseId), ...investmentResponses("different-release")],
           baseUrl,
           releaseId,
@@ -415,15 +424,16 @@ describe("Cloudflare header enforcement", () => {
       const scriptless = investmentResponses(releaseId).slice(0, 4);
       scriptless.push(new Response("<h1>Investment Portfolio</h1>"));
       await expect(
-        validateAdvertisedJavaScript(scriptless, baseUrl, releaseId, fetchAsset),
+        validateAdvertisedStaticAssets(scriptless, baseUrl, releaseId, fetchAsset),
       ).resolves.toBe(false);
       for (const [url, body, contentType] of [
         [`${baseUrl}/login`, "export {};", "application/javascript"],
         [scriptUrl, "<html>login</html>", "text/html"],
         [scriptUrl, "", "application/javascript"],
+        [`${baseUrl}/_next/static/chunks/app.css?dpl=${releaseId}`, "Not Found", "text/plain"],
       ]) {
         await expect(
-          validateAdvertisedJavaScript(
+          validateAdvertisedStaticAssets(
             investmentResponses(releaseId),
             baseUrl,
             releaseId,
