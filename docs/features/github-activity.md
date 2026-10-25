@@ -82,6 +82,20 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
 - **Schedule**: Daily at midnight Pacific Time (`0 7 * * *` in UTC).
 - **Mechanism**: A `scheduler.ts` script uses `node-cron` to trigger the `data-updater.ts` script. A lock is acquired to prevent multiple concurrent refresh operations.
 
+The refresh has one **10-minute total collection budget**, including CSV repair, repository discovery,
+contribution history, REST statistics, permit waits, and retries. This is over twice the observed
+266-second successful refresh and below the scheduler's 15-minute startup allowance; it is not the
+old 300-second per-repository monitor. Scheduler preserved-data retries share the same budget;
+direct refresh calls create their own. Expiry aborts active GitHub requests and retry timers, drains
+the active repository batch, and prevents another page, year, repository batch, or publication.
+Publication checks cancellation inside its existing transaction, including after the insert so
+an expired transaction rolls back. Database commands/commit are not HTTP-abortable and must finish
+under the database's own limits; this is not a hard wall-clock bound on an unavailable database.
+With validated retained activity, collection expiry returns a typed degraded `refresh-deadline`
+outcome without advancing freshness or invalidating caches. A missing/invalid retained record or
+configuration/schema/persistence failure remains a failure. Per-request upstream timeout is a
+separate `upstream-timeout` reason, not a label applied to total-budget cancellation.
+
 ## API Endpoints
 
 - `GET /api/github-activity`: Retrieves the currently cached GitHub activity data. The public response includes the contribution calendar and aggregate totals; repository identifiers and per-repository metrics remain private.

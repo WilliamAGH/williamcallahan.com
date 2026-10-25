@@ -281,6 +281,7 @@ File/Path Functionality Description
   - [x] `github.ts` `json-handling` - GitHub orchestration (API fetch, processing, cache invalidation, and durable persistence flow)
   - [x] `github-activity-summaries.ts` `github-activity` - Writes the single all-time summary payload via PostgreSQL-backed storage
   - [x] `github-contributions.ts` `github-activity` - Trailing calendar and disjoint historical contribution-year totals, independent of repository visibility
+  - [x] `github-refresh-budget.ts` `github-activity` - Shared collection deadline, cancellable retry waits, and GitHub-specific retry ownership
   - [x] `github-csv-repair.ts` `github-activity` - CSV integrity checks and repair workflow
   - [x] `github-processing.ts` `github-activity` - Canonical weekly aggregation and line-of-code category processing
   - [x] `github-public-api.ts` `github-activity` - Projects validated stored activity into the aggregate-only public view
@@ -744,6 +745,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 - [x] **e2e/**
   - [x] `blog-render.spec.ts` `blog` - Chromium route-layer checks for the shared blog render canaries, including declared interactions and browser failures
+  - [x] `github-activity.spec.ts` `github-activity` - Real calendar desktop labels and mobile heatmap rendering at the route boundary
 - [x] \***\*tests**/\*\*
   - [x] `README.md` `project-mgmt` - Tests documentation
   - [x] \***\*mocks**/\*\*
@@ -768,6 +770,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
         - [x] `entity-route.test.ts` `opengraph` - Unified OG image route handler dispatch and validation tests
       - [x] **logo/**
         - [x] `cache.test.ts` `image-handling` - Tests for logo caching
+        - [x] `route.test.ts` `image-handling` - Image bytes, CDN/S3 metadata paths, bounded upstream failures, and success-only caching
       - [x] **twitter-image/**
         - [x] `route.test.ts` `image-handling` - Twitter image root, format, forwarding, and category tests
     - [x] `pages.smoke.test.ts` `app-layout` - Smoke tests for all pages
@@ -795,6 +798,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
         - [x] `terminal.test.tsx` `terminal` - Terminal component tests
         - [x] `terminalSelectionView.test.tsx` `terminal` - Terminal selection view tests
   - [x] **lib/**
+    - [x] `books/generate.test.ts` `books` - Original ABS failures, successful-empty libraries, and preservation of published book data
     - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
     - [x] `ai-harmony-sanitizer.test.ts` `ai-shared-services` - Marker-based Harmony channel-control sanitation coverage
     - [x] `ai-openai-compatible-client-timeout.test.ts` `ai-shared-services` - Cached-client request-policy coverage for non-stream, Chat stream, and Responses stream calls
