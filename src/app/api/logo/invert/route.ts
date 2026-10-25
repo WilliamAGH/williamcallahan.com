@@ -13,7 +13,8 @@ import {
   type UnifiedImageService,
 } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
-import { IMAGE_CDN_CACHE_HEADERS } from "@/lib/validators/url";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { createLogoImageResponse } from "@/lib/image-handling/logo-response.server";
 import logger from "@/lib/utils/logger";
 
 /**
@@ -49,7 +50,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const forceRefresh = searchParams.get("forceRefresh") === "true";
 
   if (!domain) {
-    return NextResponse.json({ error: "Domain parameter required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Domain parameter required" },
+      { status: 400, headers: NO_STORE_HEADERS },
+    );
   }
 
   try {
@@ -64,31 +68,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const error = logoMeta.error || "Inverted logo not found";
       return new NextResponse(null, {
         status: 404,
-        headers: { "x-logo-error": error },
+        headers: { ...NO_STORE_HEADERS, "x-logo-error": error },
       });
     }
 
-    // Always redirect to CDN if available
-    if (logoMeta.cdnUrl) {
-      return NextResponse.redirect(logoMeta.cdnUrl, {
-        status: 301,
-        headers: {
-          "Cache-Control": "public, max-age=31536000, immutable",
-          ...IMAGE_CDN_CACHE_HEADERS,
-        },
-      });
-    }
-
-    return new NextResponse(null, {
-      status: 404,
-      headers: { "x-logo-error": "No content available for inverted logo" },
-    });
+    const logoUrl =
+      logoMeta.cdnUrl ??
+      (logoMeta.s3Key ? buildCdnUrl(logoMeta.s3Key, getCdnConfigFromEnv()) : null);
+    if (!logoUrl) return new NextResponse(null, { status: 404, headers: NO_STORE_HEADERS });
+    return await createLogoImageResponse(logoUrl, domain);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error(`[API Logo Invert] Error for domain ${domain}:`, errorMessage);
     return new NextResponse(null, {
       status: 500,
-      headers: { "x-logo-error": errorMessage },
+      headers: { ...NO_STORE_HEADERS, "x-logo-error": "Internal server error" },
     });
   }
 }

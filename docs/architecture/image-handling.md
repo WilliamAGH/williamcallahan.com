@@ -66,8 +66,9 @@ _Not included_: raw S3 object layout (see `s3-object-storage`), CSS/layout of ca
 5. `image-analysis.ts` / `image-compare.ts` flag globe icons, `FailureTracker` tracks domains via `LOGO_BLOCKLIST_STORE_KEY` on repeated failures.
 6. Result is persisted/streamed to S3, CDN URL returned, placeholder fallback used only if every source fails.
 
-`/api/logo` streams validated first-party CDN image bytes with a bounded fetch, rather than
-redirecting: Next's internal optimizer does not follow a local route's redirect. Only successful
+`/api/logo` and `/api/logo/invert` share `lib/image-handling/logo-response.server.ts` to stream
+validated first-party CDN image bytes with a bounded fetch, rather than redirecting: Next's
+internal optimizer does not follow a local route's redirect. Only successful
 images receive immutable caching. The proxy leaves optimizer caching to Next, and Cloudflare
 image rules exclude 4xx/5xx responses from edge storage.
 

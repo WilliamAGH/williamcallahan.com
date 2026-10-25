@@ -353,6 +353,7 @@ File/Path Functionality Description
   - [x] `use-window-size.client.ts` `state-theme-window-providers` - Hook for tracking window size
   - [x] `use-window-state.client.ts` `state-theme-window-providers` - Hook for managing window state
 - [x] **image-handling/**
+  - [x] `logo-response.server.ts` `image-handling` - Shared bounded CDN byte delivery for normal and inverted logo routes
   - [x] `cached-manifest-loader.ts` `image-handling` - Next.js cache-component logo manifest reader; startup loads all manifests directly
   - [x] `twitter-image-policy.ts` `image-handling` - Canonical Twitter image root, format, path, and S3 category policy
   - [x] `image-manifest-loader.ts` `image-handling` - Manifest warm-up + in-memory lookup helpers; production request paths skip lazy S3 loads when warm-up is unavailable

@@ -52,9 +52,13 @@ describe("ABS books generation outcomes", () => {
       error: "AudioBookShelf API error: 503 Service Unavailable",
     });
     expect(writeBooksSnapshot).not.toHaveBeenCalled();
-    expect(errorOutput).toHaveBeenCalledWith(expect.stringContaining("[ERROR] [Books]"));
+    expect(errorOutput).toHaveBeenCalledWith(
+      expect.stringContaining("[ERROR] [Books]"),
+      expect.any(Error),
+    );
     expect(errorOutput).toHaveBeenCalledWith(
       expect.stringContaining("Error: AudioBookShelf API error: 503 Service Unavailable"),
+      expect.any(Error),
     );
   });
 
@@ -74,12 +78,14 @@ describe("ABS books generation outcomes", () => {
     const cause = new Error("connection refused");
     const failure = new TypeError("fetch failed", { cause });
     vi.spyOn(globalThis, "fetch").mockRejectedValue(failure);
+    const errorOutput = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const result = await fetchBooksWithFallback({ allowStale: false });
 
     expect(result).toMatchObject({ books: [], isFallback: true, fetchedAt: 0 });
     expect(result.error).toBe(failure);
     expect(result.error?.cause).toBe(cause);
+    expect(errorOutput).toHaveBeenCalledWith(expect.stringContaining("[ERROR] [Books]"), failure);
   });
 
   it.each([

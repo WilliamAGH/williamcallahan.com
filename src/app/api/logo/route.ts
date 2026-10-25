@@ -13,53 +13,11 @@ import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
 import { createErrorResponse, NO_STORE_HEADERS, preventCaching } from "@/lib/utils/api-utils";
 import { NextResponse, type NextRequest } from "next/server";
-import { buildCdnUrl, getCdnConfigFromEnv, isOurCdnUrl } from "@/lib/utils/cdn-utils";
-import { IMAGE_CDN_CACHE_HEADERS, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { parseS3Key } from "@/lib/utils/hash-utils";
-import { logoUrlSchema } from "@/types/schemas/url";
-import { fetchWithTimeout } from "@/lib/utils/http-client";
-import { createMonitoredStream } from "@/lib/utils/stream-utils";
-
-// Match the existing image cache route's CDN fetch deadline, including body reads.
-const LOGO_FETCH_TIMEOUT_MS = 15_000;
-
-/** Local Next.js image fetches require bytes, not a CDN redirect. */
-async function serveLogoImage(url: string, domain: string): Promise<NextResponse> {
-  const validatedUrl = logoUrlSchema.parse(url);
-  if (!isOurCdnUrl(validatedUrl, getCdnConfigFromEnv())) {
-    throw new Error("Logo URL is outside the configured CDN");
-  }
-
-  const signal = AbortSignal.timeout(LOGO_FETCH_TIMEOUT_MS);
-  try {
-    // Persisted CDN URLs are canonical; do not follow a redirect to another identity.
-    const upstream = await fetchWithTimeout(validatedUrl, { signal, followRedirects: false });
-    const contentType = upstream.headers.get("content-type");
-    if (upstream.status !== 200 || !upstream.body || !contentType?.startsWith("image/")) {
-      await upstream.body?.cancel();
-      logger.warn(`[Logo API] Invalid CDN image response for ${domain}: ${upstream.status}`);
-      return new NextResponse(null, { status: 502, headers: NO_STORE_HEADERS });
-    }
-
-    return new NextResponse(createMonitoredStream(upstream.body, `logo:${domain}`), {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-        ...IMAGE_CDN_CACHE_HEADERS,
-        ...IMAGE_SECURITY_HEADERS,
-      },
-    });
-  } catch (error) {
-    logger.warn(`[Logo API] CDN image fetch failed for ${domain}:`, error);
-    return new NextResponse(null, {
-      status: signal.aborted ? 504 : 502,
-      headers: NO_STORE_HEADERS,
-    });
-  }
-}
+import { createLogoImageResponse } from "@/lib/image-handling/logo-response.server";
 
 /**
  * GET handler for logo fetching
@@ -160,7 +118,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       logger.error(`[Logo API] No content available for logo of domain: ${domain}`);
       logoUrl = getStaticImageUrl("/images/opengraph-placeholder.png");
     }
-    return await serveLogoImage(logoUrl, domain);
+    return await createLogoImageResponse(logoUrl, domain);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Logo API] Unexpected error:", errorMessage);

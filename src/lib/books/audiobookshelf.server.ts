@@ -185,6 +185,7 @@ export async function fetchBooksWithFallback(
     if (snapshotBooks) {
       logger.warn(
         `[Books] AudioBookShelf fetch failed; serving stale snapshot: ${failure.name}: ${failure.message}`,
+        failure,
       );
       return {
         books: snapshotBooks,
@@ -197,6 +198,7 @@ export async function fetchBooksWithFallback(
     // Return empty array instead of throwing - allows page to render gracefully
     logger.error(
       `[Books] AudioBookShelf unavailable and no snapshot - returning empty books list: ${failure.name}: ${failure.message}`,
+      failure,
     );
     return { books: [], isFallback: true, fetchedAt: 0, error: failure };
   }
@@ -249,6 +251,7 @@ export async function fetchBookListItemsWithFallback(
     if (snapshotBooks) {
       logger.warn(
         `[Books] AudioBookShelf book list fetch failed; serving stale snapshot: ${failure.name}: ${failure.message}`,
+        failure,
       );
       const books = snapshotBooks.map(({ id, title, authors, coverUrl, coverBlurDataURL }) => ({
         id,
@@ -269,6 +272,7 @@ export async function fetchBookListItemsWithFallback(
     // This allows the page to render with an "unavailable" state
     logger.error(
       `[Books] AudioBookShelf unavailable and no snapshot - returning empty book list: ${failure.name}: ${failure.message}`,
+      failure,
     );
     return { books: [], isFallback: true, fetchedAt: 0, error: failure };
   }
@@ -353,6 +357,7 @@ export async function fetchBookByIdWithFallback(
     const failure = error instanceof Error ? error : new Error(String(error), { cause: error });
     logger.error(
       `[Books] AudioBookShelf single-book fetch failed for ${id}: ${failure.name}: ${failure.message}`,
+      failure,
     );
   }
 

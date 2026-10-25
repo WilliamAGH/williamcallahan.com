@@ -57,7 +57,7 @@ Example schemas:
 - Scheduled bookmark refresh summaries are owned by `src/lib/bookmarks/data-fetch-refresh.server.ts`; the batch manager orchestrates that operation through the bookmark service's refresh locking, without a separate job queue.
 - Search indexes load from PostgreSQL `search_index_artifacts` and hydrate with build-time MiniSearch options for consistent scoring (see `search.md`).
 - Image streaming fallbacks re-fetch before buffering to respect single-use Response bodies (see `image-handling.md`).
-- `/api/logo` returns first-party image bytes for Next's local optimizer, not redirects; optimizer errors are never given immutable proxy caching.
+- `/api/logo` and `/api/logo/invert` share bounded first-party byte delivery in `lib/image-handling/logo-response.server.ts`; optimizer errors are never given immutable proxy caching.
 - ABS refresh/index callers distinguish upstream failure from an authoritative empty library and preserve prior persisted data on failure (see `features/books.md`).
 - AI analysis request schemas, initial/repair prompts, and server checks share character budgets from `src/types/schemas/ai-analysis-common.ts`.
 - Asset tee consumers report timeout/size errors without awaiting sibling cancellation; both failed branches cancel upstream (see `image-handling.md`).

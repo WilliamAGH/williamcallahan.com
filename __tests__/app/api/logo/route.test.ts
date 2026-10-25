@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/logo/route";
+import { GET as getInvertedLogo } from "@/app/api/logo/invert/route";
 import type { UnifiedImageService } from "@/lib/services/unified-image-service";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
@@ -94,7 +95,7 @@ describe("Logo image delivery", () => {
     );
 
     const pending = GET(request());
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(15_000);
     const response = await pending;
 
     expect(response.status).toBe(502);
@@ -112,5 +113,19 @@ describe("Logo image delivery", () => {
     expect(response.headers.get("x-logo-domain")).toBe("example.com");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("cdn-cache-control")).toBeNull();
+  });
+
+  it("serves inverted S3-key logos through the same optimizer-compatible byte contract", async () => {
+    getLogo.mockResolvedValue({
+      source: "google",
+      contentType: "image/png",
+      s3Key: "images/logos/example_com_inverted.png",
+    });
+    const response = await getInvertedLogo(
+      new NextRequest("https://williamcallahan.com/api/logo/invert?domain=example.com"),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(imageBytes);
   });
 });
