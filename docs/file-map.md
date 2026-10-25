@@ -628,6 +628,7 @@ File/Path Functionality Description
     - [x] **blog/`route.ts`** `search` - Blog search API (connection() for request-time execution)
     - [x] **bookmarks/`route.ts`** `search` - Bookmark search API (connection() for request-time execution)
     - [x] **[scope]/`route.ts`** `search` - Scoped search API (connection() for request-time execution)
+  - [x] **static-archive/`[...path]`/`route.ts`** `caching` - Answers a `/_next/static/chunks` file the replica lacks from the CDN static archive (fallback rewrite target)
   - [x] **sentry-example-api/`route.ts`** `log-error-debug-handling` - Sentry example API (debug endpoint)
   - [x] **tunnel/`route.ts`** `log-error-debug-handling` - Sentry tunnel API
   - [x] **twitter-image/[...path]/`route.ts`** `blog-article` - Twitter image proxy API
