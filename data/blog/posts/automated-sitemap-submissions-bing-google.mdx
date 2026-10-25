@@ -1,9 +1,9 @@
 ---
 title: "Automated Sitemap Submissions: Bing & Google Guide"
 slug: "automated-sitemap-submissions-bing-google"
-excerpt: "Configure a Node.js/TypeScript application to automatically submit sitemaps to Bing (IndexNow) and Google Search Console using service account credentials, with error handling and development mode awareness."
+excerpt: "Submit sitemaps through Google Search Console, register them with Bing, and notify IndexNow about changed page URLs—not sitemap files—with Node.js and TypeScript examples."
 publishedAt: "2025-06-03"
-updatedAt: "2025-06-04"
+updatedAt: "2026-10-25"
 author: "william-callahan"
 tags:
   [
@@ -21,251 +21,174 @@ tags:
 coverImage: "/images/posts/google-search-indexing-api-bing-indexnow.png"
 ---
 
-<BackgroundInfo title="Purpose of this Guide">
-  Automating sitemap submissions to search engines like Bing (via IndexNow) and Google Search
-  Console helps them discover your content updates faster. This guide details how to set up a
-  Node.js/TypeScript script for this, including private key handling and development environment
-  considerations.
-</BackgroundInfo>
+## Sitemaps and IndexNow Are Different Workflows
 
-### Understanding the APIs
+A sitemap lists URLs you want search engines to discover. IndexNow notifies participating search engines about individual URLs that were added, updated, or deleted. **Sending `/sitemap.xml` to IndexNow does not submit the URLs inside that sitemap.**
 
-#### 1. Google Search Console API
+For an ordinary website or blog:
 
-The Google Search Console API allows programmatic interaction with Google Search Console. For sitemap submission, it enables an application to inform Google about new or updated sitemaps without manual intervention in the Search Console interface, which can help Google schedule crawls more efficiently.
+- **Google:** submit the sitemap through Search Console or its Sitemaps API.
+- **Bing:** register the sitemap in Bing Webmaster Tools or advertise it in `robots.txt`.
+- **IndexNow:** send changed content URLs to a participating endpoint. Google is not an IndexNow participant.
 
-#### 2. Bing IndexNow API
+These are discovery signals, not guarantees of crawling, indexing, rankings, or a particular turnaround time.
 
-IndexNow is an initiative by Microsoft Bing, Yandex, and other search engines allowing websites to notify search engines whenever their website content is created, updated, or deleted. Submitting a sitemap URL via IndexNow alerts participating search engines to update their index quickly.
+> **Correction, October 25, 2026:** An earlier version conflated IndexNow with sitemap submission and suggested Google's Indexing API for ordinary pages. It also showed placeholder runner functions and command-line flags without implementations. The examples below replace those instructions with separate API building blocks.
 
-### Setting Up Sitemap Submissions
+## 1. Submit a Sitemap to Google Search Console
 
-**Set Up Google Service Account & API Access for Sitemap Submission**
+### Authentication and Property Access
 
-To submit sitemaps to Google programmatically, a Service Account with access to the Google Search Console API is required. The process involves several steps in Google Cloud Platform (GCP).
+The [Search Console API](https://developers.google.com/webmaster-tools/v1/how-tos/authorizing) uses OAuth 2.0. A service account is one option for unattended automation; it is not the only authentication method.
 
-- **Enable API**: In your GCP project, enable the "Google Search Console API" and optionally the "Search Indexing API." The 'Google Search Console API' is for submitting the sitemap file, while the 'Search Indexing API' can be used for submitting individual URLs for faster updates, if supported by your script.
-- **Create Service Account**: In GCP, navigate to "IAM & Admin" > "Service Accounts." Create a new service account with a descriptive name. Granting a project-level role at this stage is typically not necessary for this specific purpose.
-- **Download JSON Key**: After creating the service account, generate a JSON key and download it. This file contains the credentials for the script, including the private key and client email. Store this file securely.
-- **Grant Search Console Permissions**: In Google Search Console, navigate to your verified property. Go to "Settings" > "Users and permissions." Add a new user with the service account's email address (e.g., `your-service-account-email@your-project-id.iam.gserviceaccount.com`). Grant this service account "Owner" or "Full" permission to allow sitemap submissions for that property.
+1. Enable the **Google Search Console API** in your Google Cloud project. The separate Indexing API is not needed for sitemap submission.
+2. For a service-account setup, create the account and give its email **Full** access to the intended property under Search Console → Settings → Users and permissions. The [permissions matrix](https://support.google.com/webmasters/answer/7687615?hl=en) allows sitemap submission for Full users; Owner access is unnecessary for this task. A Google Cloud project role does not grant Search Console property access.
+3. Supply credentials only to your server-side job. The example uses Application Default Credentials: for a downloaded service-account JSON key, set `GOOGLE_APPLICATION_CREDENTIALS` to its private filesystem path. Do not put that file in `public/`, commit it, expose it through client-side environment variables, or log it. Use only a trusted credential configuration you control.
 
-<BackgroundInfo title="Important Note on siteUrl">
-  **Important**: The `siteUrl` used in API calls (as shown in script examples) must exactly match a
-  property verified in Google Search Console (e.g., `https://your-production-domain.com`).
-  Submissions for properties not associated with the service account or against `localhost` will be
-  rejected by the API.
-</BackgroundInfo>
+Use the exact Search Console property identifier, **separately from the site's origin**:
 
-#### 2. Prepare IndexNow Verification (Bing)
-
-IndexNow uses a simple verification step. This involves placing a text file in the site's `public` root directory (or equivalent static file directory), where the filename acts as the key.
-
-1.  **Generate/Choose Your Key**: Decide on a unique key string. This will be the value of your `INDEXNOW_KEY` environment variable and the name of the verification file (without the `.txt` extension).
-2.  **Create the file**: In your project's `public` directory, create a text file named `YOUR_KEY.txt` (e.g., if your key is `abcdef12345`, create `public/abcdef12345.txt`).
-3.  **File content**: The file must contain _only_ the key itself (e.g., `abcdef12345`), with no extra characters, spaces, or the `.txt` extension.
-
-<BackgroundInfo title="Public Accessibility for IndexNow">
-  **Accessibility**: This verification file must be publicly accessible on your live domain (e.g.,
-  `https://your-production-domain.com/YOUR_KEY.txt`). IndexNow checks for this file to verify
-  submissions. Submissions may fail (e.g., with a 403 Forbidden error) if the file is not accessible
-  or if submissions are attempted against `localhost`.
-</BackgroundInfo>
-
-### Implementing the Submission Script
-
-To automate the submission process, a script, such as one written in Node.js/TypeScript, can be used.
-
-#### 1. Install `googleapis` Client Library (Example)
-
-For interacting with the Google Search Console API, a common library is `googleapis`.
-
-```bash
-npm install googleapis
-# or: bun install googleapis / yarn add googleapis / pnpm install googleapis
+```text
+URL-prefix property: https://example.com/
+Domain property:     sc-domain:example.com
+Sitemap URL:         https://example.com/sitemap.xml
 ```
 
-#### 2a. Core API Interaction Examples
+Protocol, hostname, path, and trailing slash matter for URL-prefix properties. A Domain property identifier is not a URL: do not pass it to `new URL()` or append `/sitemap.xml` to it. The authenticated account must have access to that property, and the sitemap must be valid for it.
 
-Below are simplified excerpts demonstrating core interactions with Google Search Console and Bing's IndexNow API. These functions would typically be part of a larger script with error handling, environment checks, and authentication setup.
+### TypeScript API Example
 
-**Submitting to Google Search Console:**
+Install Google's authentication library and a TypeScript runner:
+
+```bash
+npm install google-auth-library
+npm install --save-dev tsx typescript @types/node
+```
+
+This function calls the documented [Sitemaps: submit](https://developers.google.com/webmaster-tools/v1/sitemaps/submit) endpoint. It uses the write-capable `webmasters` scope; neither the read-only scope nor the Indexing API's scope is a substitute.
 
 ```typescript
-import { google, type Auth } from "googleapis";
+import { GoogleAuth } from "google-auth-library";
 
-async function submitSitemapToGoogle(
-  authClient: Auth.JWT,
-  siteUrl: string,
+export async function submitSitemapToGoogle(
+  propertyId: string,
   sitemapUrl: string,
-): Promise<boolean> {
-  try {
-    // Ensure 'webmasters' and 'indexing' scopes are included when creating the authClient
-    const webmasters = google.webmasters({ version: "v3", auth: authClient });
-    await webmasters.sitemaps.submit({
-      siteUrl: siteUrl, // e.g., "https://your-production-domain.com"
-      feedpath: sitemapUrl, // e.g., "https://your-production-domain.com/sitemap.xml"
-    });
-    console.log(
-      `[SitemapSubmitGoogle] ✅ Successfully submitted sitemap (${sitemapUrl}) to Google for site ${siteUrl}`,
-    );
-    return true;
-  } catch (error) {
-    // In a production script, 'error' would likely be an instance of GaxiosError or similar
-    // console.error("[SitemapSubmitGoogle] ❌ Error submitting to Google:", error.message, error.response?.data);
-    console.error("[SitemapSubmitGoogle] ❌ Error submitting to Google:", (error as Error).message);
-    return false;
-  }
+): Promise<void> {
+  const auth = new GoogleAuth({
+    scopes: ["https://www.googleapis.com/auth/webmasters"],
+  });
+
+  await auth.request({
+    method: "PUT",
+    url:
+      "https://www.googleapis.com/webmasters/v3/sites/" +
+      encodeURIComponent(propertyId) +
+      "/sitemaps/" +
+      encodeURIComponent(sitemapUrl),
+    timeout: 30_000,
+  });
+
+  console.log("Google accepted the sitemap submission; processing is separate.");
 }
 ```
 
-**Submitting to Bing (IndexNow):**
+A successful submission has an empty response body. It does not mean Google has fetched or processed the sitemap, let alone indexed its entries. Check the Search Console Sitemaps report for processing errors, and follow Google's [sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap).
+
+### What This Does Not Do
+
+- Google's [Indexing API](https://developers.google.com/search/apis/indexing-api/v3/using-api) is restricted to pages with `JobPosting`, or `BroadcastEvent` embedded in `VideoObject`. It is not a general-purpose submission API for blog posts, product pages, or other ordinary URLs.
+- The [URL Inspection API](https://developers.google.com/webmaster-tools/v1/urlInspection.index/inspect) reports information about Google's indexed version. It does **not** request indexing or provide a live crawl. For a few URLs, use the manual Request indexing workflow in Search Console; there is no equivalent general-purpose API for ordinary pages.
+- Google's [old unauthenticated sitemap ping endpoint](https://developers.google.com/search/blog/2023/06/sitemaps-lastmod-ping) is deprecated and returns `404`. Use Search Console or a `Sitemap:` declaration in `robots.txt` instead.
+
+## 2. Register the Sitemap With Bing
+
+For Bing, submit the sitemap in the **Sitemaps** section of Bing Webmaster Tools. Bing's [sitemap guidance](https://blogs.bing.com/webmaster/2025/7/Keeping-Content-Discoverable-with-Sitemaps-in-AI-Powered-Search/) also explains discovery through your site's `robots.txt`:
+
+```text
+Sitemap: https://example.com/sitemap.xml
+```
+
+Bing also documents a separate authenticated [Bing Webmaster API SubmitFeed method](https://learn.microsoft.com/en-us/dotnet/api/microsoft.bing.webmaster.api.interfaces.iwebmasterapi.submitfeed?view=bing-webmaster-dotnet). That is a sitemap-submission API using Webmaster API credentials, not an IndexNow key. Bing's old anonymous sitemap-ping method was [retired in 2022](https://blogs.bing.com/webmaster/2022/5/Spring-cleaning-Removed-Bing-anonymous-sitemap-submission/).
+
+Keep the sitemap reachable by search engines, use absolute canonical URLs, and maintain accurate `lastmod` values for meaningful content changes. Do not reset every entry's modification time on every build.
+
+## 3. Notify IndexNow About Changed Content URLs
+
+Follow the [IndexNow protocol](https://www.indexnow.org/documentation) to notify participating engines about pages that changed. A deletion notification uses the deleted page's URL too; the endpoint has no separate “delete” flag. The page should return the appropriate HTTP status when an engine checks it.
+
+### Host the Verification Key
+
+Choose a key of **8–128 characters**, using ASCII letters, digits, and hyphens. Host a UTF-8 text file named `<key>.txt` at the root of the same host, containing the key. For example, `public/<key>.txt` in a framework that serves `public/` at the origin root.
+
+The file must be publicly reachable without authentication. The IndexNow key is intentionally public proof of control of that host, not a Google service-account secret. An alternate file location can be supplied with `keyLocation`; its directory limits which URL paths it can authorize. A root key file avoids that narrower path scope. Subdomains are separate hosts.
+
+### TypeScript Batch Example
+
+This helper accepts **1–10,000 changed URLs per request** on one HTTPS origin. The same-origin restriction is a deliberate simplification for this example. It sends a JSON POST rather than putting a sitemap URL in a GET request.
 
 ```typescript
-async function submitSitemapToBing(siteUrl: string, sitemapUrl: string): Promise<boolean> {
-  const indexNowKey = process.env.INDEXNOW_KEY; // From an environment variable
-  if (!indexNowKey) {
-    console.error(
-      "[SitemapSubmitBing] ❌ INDEXNOW_KEY not set. Skipping Bing/IndexNow submission.",
-    );
-    return false;
+export async function notifyIndexNow(
+  siteOrigin: string,
+  key: string,
+  changedUrls: string[],
+): Promise<void> {
+  const site = new URL(siteOrigin);
+  if (site.protocol !== "https:" || site.port || site.username || site.password) {
+    throw new Error("Use the public HTTPS origin without credentials or a custom port.");
   }
-  try {
-    const host = new URL(siteUrl).host;
-    const indexnowUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(sitemapUrl)}&key=${indexNowKey}&host=${host}`;
-    const response = await fetch(indexnowUrl, { method: "GET" });
-    if (response.ok) {
-      console.log(
-        `[SitemapSubmitBing] ✅ Successfully submitted sitemap (${sitemapUrl}) via IndexNow to Bing`,
-      );
-      return true;
+  if (!/^[a-zA-Z0-9-]{8,128}$/.test(key)) {
+    throw new Error("IndexNow keys must contain 8–128 letters, digits, or hyphens.");
+  }
+  const urls = [...new Set(changedUrls)];
+  if (urls.length === 0 || urls.length > 10_000) {
+    throw new Error("Send between 1 and 10,000 distinct changed URLs per batch.");
+  }
+  for (const value of urls) {
+    const url = new URL(value);
+    if (url.origin !== site.origin || url.username || url.password || url.hash) {
+      throw new Error("Each URL must be on the configured origin, without credentials or a fragment.");
     }
-    console.error(
-      `[SitemapSubmitBing] ❌ IndexNow submission failed: ${response.status} ${response.statusText}`,
-    );
-    return false;
-  } catch (error) {
-    console.error(
-      "[SitemapSubmitBing] ❌ Error submitting via IndexNow to Bing:",
-      (error as Error).message,
-    );
-    return false;
+  }
+
+  const response = await fetch("https://api.indexnow.org/indexnow", {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify({
+      host: site.hostname,
+      key,
+      keyLocation: `${site.origin}/${key}.txt`,
+      urlList: urls,
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (response.status === 202) {
+    console.log("IndexNow received the URLs; key validation is pending.");
+  } else if (response.status === 200) {
+    console.log("IndexNow accepted the URL notification; indexing is not guaranteed.");
+  } else {
+    throw new Error(`IndexNow submission failed with HTTP ${response.status}.`);
   }
 }
 ```
 
-_Note: The `authClient` for Google requires proper setup with credentials and scopes (e.g., `https://www.googleapis.com/auth/webmasters`). A complete submission script should handle this, along with additional environment checks._
+The protocol also supports single-URL GET submissions using `url` and `key`, with optional `keyLocation`. For batch POST requests, `host`, `key`, and `urlList` belong in the JSON body, with optional `keyLocation` as shown. Use **one** participating endpoint; participating engines share notifications, so sending the same batch to each engine is unnecessary. See the [IndexNow FAQ](https://www.indexnow.org/faq) for participation and ownership details.
 
-#### 2. Set Up Submission Script Logic
+IndexNow documents `400` for an invalid request, `403` for an invalid or unavailable key, `422` for URL/host or key-scope problems, and `429` for too many requests. Fix the request or key configuration for client errors; use bounded backoff for rate limits or transient server/network failures. Do not treat `202` as completed validation or either success status as proof of indexing.
 
-<BackgroundInfo>
-  <div>A submission script might export primary functions such as:</div>
-  <ul>
-    <li>
-      <code>submitSitemapFilesToSearchEngines()</code>: Submits a generated <code>/sitemap.xml</code> file to both
-      Google Search Console and Bing (IndexNow), respecting production environment checks.
-    </li>
-    <li>
-      <code>submitIndividualUrlsToGoogle()</code>: Iterates sitemap entries (for example, from a Next.js sitemap),
-      selects recently updated pages (for example, last 14 days), checks Google's last crawl date for each URL, and
-      resubmits only URLs needing an update.
-    </li>
-  </ul>
-</BackgroundInfo>
+## 4. Integrate These Helpers Into a Deployment Job
 
-Once a submission script (e.g., `path/to/your/submit-sitemap.ts`) is prepared with the necessary functions, it can be invoked. The following illustrates a simple runner script:
+These are API building blocks, **not a complete CLI**. Save them in your own server-side submission module and write a runner that loads and validates your deployment configuration, then calls the desired helper. No `--sitemaps-only` or `--individual-only` flags are implemented here.
 
-```typescript
-import "dotenv/config"; // For loading environment variables
-import {
-  submitSitemapFilesToSearchEngines,
-  submitIndividualUrlsToGoogle,
-} from "./path/to/your/submit-sitemap"; // Adjust path as needed
+- Keep the intended production origin, Search Console property identifier, and sitemap URL as separate configuration values. Do not derive the Google property identifier from the origin unless you know that exact URL-prefix property exists.
+- Require an explicit submission opt-in in the deployment job and compare the configured origin with your known production origin. Skip local, preview, and staging jobs independently of `NODE_ENV`; production-mode builds can run in all three.
+- Run after the **public deployment is available**, not merely after compilation. Publish the sitemap and IndexNow key file before sending notifications.
+- Register a stable sitemap URL once and keep its contents current. Google can revisit a known sitemap; resubmitting it daily or after every build is not required. Submit again when the sitemap's location changes or when troubleshooting a processing issue warrants it.
+- Drive IndexNow from a publish/update/delete event or a durable change list. Send changed URLs, not every unchanged sitemap entry on a daily loop. Split larger change sets into batches and retain failed batches for bounded retries.
+- Let failures propagate to the job. A top-level handler should set `process.exitCode = 1`; catching errors and returning `false` without checking it makes failed submissions look successful to CI.
+- Never print credentials or complete authenticated request/error objects. Record the engine, HTTP status, counts, and a sanitized diagnostic instead.
 
-(async () => {
-  await submitSitemapFilesToSearchEngines();
-  await submitIndividualUrlsToGoogle(); // Optional, if implementing individual URL submission
-})();
-```
+Run a TypeScript entrypoint with `npx tsx scripts/submit-search-updates.ts` (using your actual filename), or compile it before running JavaScript. Recent Node.js releases can strip some TypeScript directly, but do not assume `node file.ts` supports every TypeScript feature or `tsconfig` setting. See [Node.js TypeScript support](https://nodejs.org/api/typescript.html).
 
-#### 3. Example: Submitting the Sitemap File Only
+Using a credential file through Application Default Credentials avoids hand-copying PEM strings into `.env`. If your platform instead supplies a private key as text, its parser may produce actual newlines or literal `\n` sequences. Normalize only literal `\n` sequences when needed; do not assume all environment loaders behave identically. Base64 encoding is a transport representation, not encryption.
 
-```bash
-# Example command using Node.js; adapt for your runtime (e.g., Bun, Deno)
-node path/to/your/submit-sitemap.ts --sitemaps-only
-```
-
-#### 4. Example: Submitting Recently Updated URLs Only
-
-```bash
-node path/to/your/submit-sitemap.ts --individual-only
-```
-
-#### 5. Example: Submitting Both (Default Behavior)
-
-```bash
-node path/to/your/submit-sitemap.ts
-```
-
-> **Note on script logic:** Your script should include logic to skip submissions if `NODE_ENV` is 'development' AND the `SITE_URL` points to localhost. This prevents accidental submissions during local development. It should also log a warning if `NODE_ENV` is 'production' but the `SITE_URL` doesn't match the intended production site URL.
-
-### Configuration & Environment Details
-
-#### 1. Configure Environment Variables
-
-The script will rely on environment variables for API keys, service account details, and site URLs. These should be defined in your project's `.env` file (and templated in a `.env.example` or similar).
-
-```bash
-# For Bing's IndexNow
-# The key chosen/generated for the IndexNow verification file.
-INDEXNOW_KEY="your-generated-indexnow-key" # e.g., abcdef12345
-
-# For Google Search Console API (values from the downloaded Service Account JSON key)
-# Ensure these variable names match those used in the script.
-GOOGLE_PROJECT_ID="your-gcp-project-id"
-GOOGLE_SEARCH_INDEXING_SA_EMAIL="your-service-account-email@your-project-id.iam.gserviceaccount.com"
-
-# CRITICAL: GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY must be the complete string
-# from the "private_key" field in the JSON key file, including -----BEGIN PRIVATE KEY-----
-# and -----END PRIVATE KEY-----. All
- characters from the JSON string must be
-# preserved literally within the double quotes.
-# The entire multi-line key must be enclosed in a SINGLE pair of double quotes.
-GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvg...your...entire...key...goes...here...with...all...the...\n...sequences...preserved...exactly...as...in...the...JSON...file...including...the...final...\n...-----END PRIVATE KEY-----\n"
-
-# Site's main URL (e.g., your Next.js public URL), used by the script to construct sitemap URLs.
-# Ensure this matches a verified property in Google Search Console for Google submissions.
-SITE_URL="https://your-production-domain.com" # e.g., https://williamcallahan.com (NEXT_PUBLIC_SITE_URL is a common convention for Next.js)
-
-# Node environment, used by the script to conditionally skip submissions.
-NODE_ENV="development" # Set to "production" in deployment environments
-```
-
-**Key Points for `GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY`**:
-
-- Copy the _entire_ string value from the `private_key` field in the downloaded Service Account JSON key.
-- This includes `-----BEGIN PRIVATE KEY-----`, all base64 encoded lines, and `-----END PRIVATE KEY-----`.
-- All `\n` characters from the JSON string must be preserved as literal `\n` sequences within the value in the `.env` file. If the `.env` parser or shell has issues with this, alternative methods like base64 encoding the key for storage and decoding in the script, or using a secrets manager, may be necessary. Direct string with literal `\n` is often supported.
-- The entire value should be enclosed in a _single pair of double quotes_ in the `.env` file.
-- The script logic should process this private key string, replacing `\n` with actual newline characters, which is essential for Google Auth libraries.
-
-#### 2. Automate Script Execution
-
-To ensure sitemaps are submitted regularly or after content updates, integrate the submission script into your workflow:
-
-- **Post-build script**: Run as part of the deployment process after the site and sitemap are built.
-- **Scheduled task/Cron job**: Set up a recurring job (e.g., daily) to execute the script.
-- **Webhook**: Trigger the script via a webhook from a CMS when content is published or updated.
-
-Example `package.json` script entry:
-
-```json
-{
-  "scripts": {
-    "submit-sitemaps": "node path/to/your/submit-sitemap.ts"
-  }
-}
-```
-
-This can then be run, for example, with `npm run submit-sitemaps`.
-
-This setup automates sitemap submissions to Google and Bing, covering private key formatting and the difference between development and production environments.
+The useful distinction is simple: **register sitemap files with Google and Bing; notify IndexNow about changed content URLs.** Monitor processing and crawl results separately from submission acknowledgments.

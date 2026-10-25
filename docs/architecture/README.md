@@ -52,6 +52,8 @@ Example schemas:
   headers; `unstable_noStore()` is not the route-level contract under Cache Components.
 - Blog runtime content comes from `data/blog/posts/*.mdx`, with frontmatter, slug syntax, and
   ingestion inputs owned by `src/types/schemas/blog-frontmatter.ts`.
+- Draft visibility and the sitemap/IndexNow article's example scope are documented in
+  [`features/blog.md`](../features/blog.md#notes); draft status does not restrict direct URLs.
 - `config/blog-render-canaries.ts` owns the two blog article render canaries. The
   Chromium E2E test and production smoke helper import that one catalog; `pnpm run verify`
   is the local browser-free gate and GitHub CI owns `pnpm run verify:browser`.

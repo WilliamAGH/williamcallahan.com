@@ -715,6 +715,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 - [ ] **blog/**
   - [ ] **posts/**
     - [x] `*.mdx` `blog-article` - Blog post content files
+    - [x] `how-to-add-a-symlink-file.mdx` `blog` - Draft article; canonical slug differs from filename
+    - [x] `automated-sitemap-submissions-bing-google.mdx` `blog` - Cited Google/Bing sitemap and IndexNow changed-URL guide; API helpers, not scheduler CLI instructions
 - [ ] `*.ts` `data` - Data configuration files
 - [x] `book-enrichments.ts` `books` - Manual per-book enrichment data keyed by ABS item ID
 - [x] `projects.ts` `projects` - Project metadata source (includes ComposerAI asset metadata)
