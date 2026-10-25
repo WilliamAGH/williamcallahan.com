@@ -75,7 +75,8 @@ describe("Sitemap Generation", () => {
       // Tagged posts exist, so blog tag pages exist and could be listed.
       expect(posts.some((post) => post.tags.length > 0)).toBe(true);
 
-      const urls = (await sitemap()).map((entry) => entry.url);
+      const entries = await sitemap();
+      const urls = entries.map((entry) => entry.url);
 
       expect(urls.filter((url) => /\/bookmarks\/.+/.test(url))).toEqual([]);
       expect(urls.filter((url) => url.includes("/blog/tags/"))).toEqual([]);
@@ -89,7 +90,8 @@ describe("Sitemap Generation", () => {
         buildBookmarksIndex({ count: 5, totalPages: 1, lastModified: "2030-01-01T00:00:00.000Z" }),
       );
 
-      const entry = (await sitemap()).find(
+      const entries = await sitemap();
+      const entry = entries.find(
         (sitemapEntry) => sitemapEntry.url === "https://williamcallahan.com/bookmarks",
       );
 
@@ -99,7 +101,8 @@ describe("Sitemap Generation", () => {
 
   describe("Thought Entries", () => {
     it("omits the /thoughts listing while no thought is published", async () => {
-      const urls = (await sitemap()).map((entry) => entry.url);
+      const entries = await sitemap();
+      const urls = entries.map((entry) => entry.url);
 
       expect(urls).not.toContain("https://williamcallahan.com/thoughts");
     });
@@ -121,7 +124,8 @@ describe("Sitemap Generation", () => {
         },
       ]);
 
-      const urls = (await sitemap()).map((entry) => entry.url);
+      const entries = await sitemap();
+      const urls = entries.map((entry) => entry.url);
 
       expect(urls).toContain("https://williamcallahan.com/thoughts");
       expect(urls).toContain("https://williamcallahan.com/thoughts/first-thought");
@@ -131,7 +135,8 @@ describe("Sitemap Generation", () => {
 
   describe("Project Entries", () => {
     it("lists canonical /projects/[slug] pages and no ?tag= query variants", async () => {
-      const sitemapUrls = (await sitemap()).map((entry) => entry.url);
+      const entries = await sitemap();
+      const sitemapUrls = entries.map((entry) => entry.url);
 
       expect(sitemapUrls).toEqual(
         expect.arrayContaining([
