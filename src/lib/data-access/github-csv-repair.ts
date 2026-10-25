@@ -136,7 +136,7 @@ async function repairFromApi(
 ): Promise<boolean> {
   let contributorStats: GithubContributorStatsEntry[];
   try {
-    contributorStats = await fetchContributorStats(repoOwner, repoName, signal);
+    contributorStats = await fetchContributorStats(repoOwner, repoName, GITHUB_REPO_OWNER, signal);
   } catch (error: unknown) {
     signal?.throwIfAborted();
     if (error instanceof GitHubContributorStatsPendingError) {

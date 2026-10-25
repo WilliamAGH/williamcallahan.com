@@ -137,6 +137,11 @@ describe("GitHub activity refresh", () => {
 
     mockIsGitHubApiConfigured.mockReturnValue(true);
     mockIsOperationAllowed.mockReturnValue(true);
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      repositories: [],
+      dataComplete: true,
+    });
     mockFetchContributionYears.mockResolvedValue([]);
     mockFetchContributionCalendar.mockResolvedValue(calendarResponse(0));
     mockProcessSingleRepository.mockReset();
@@ -225,12 +230,16 @@ describe("GitHub activity refresh", () => {
     expect(mockProcessSingleRepository).toHaveBeenCalledTimes(5);
   });
 
-  it("does not publish when cancellation arrives during the final aggregate read", async () => {
+  it("drains the first aggregate read on abort without querying later repos or publishing", async () => {
     const controller = new AbortController();
     const deadline = new Error("collection deadline");
     mockFetchContributedRepositories.mockResolvedValue({
       userId: "user-id",
-      repositories: [createGraphQLRepositoryFixture("repo")],
+      dataComplete: true,
+      repositories: [
+        createGraphQLRepositoryFixture("first"),
+        createGraphQLRepositoryFixture("later"),
+      ],
     });
     mockProcessSingleRepository.mockResolvedValue(createRepositoryProcessingResult(10, 1, true));
     mockReadRepoWeeklyStatsRecord.mockImplementation(async () => {
@@ -238,6 +247,7 @@ describe("GitHub activity refresh", () => {
       return null;
     });
     await expect(refreshGitHubActivityDataFromApi(controller.signal)).rejects.toBe(deadline);
+    expect(mockReadRepoWeeklyStatsRecord).toHaveBeenCalledExactlyOnceWith("test-owner", "first");
     expect(mockWriteGitHubActivityRefreshRecord).not.toHaveBeenCalled();
   });
 
@@ -246,6 +256,7 @@ describe("GitHub activity refresh", () => {
     try {
       mockFetchContributedRepositories.mockResolvedValue({
         userId: "user-id",
+        dataComplete: true,
         repositories: [createGraphQLRepositoryFixture("current-repo")],
       });
       mockProcessSingleRepository.mockResolvedValue({
@@ -276,7 +287,6 @@ describe("GitHub activity refresh", () => {
   });
 
   it("retains historical contributions even without currently visible repositories", async () => {
-    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
     mockFetchContributionYears.mockResolvedValue([2022]);
     mockFetchContributionCalendar.mockImplementation(async (_username, from) =>
       calendarResponse(from?.startsWith("2022-") ? 75 : 0),
@@ -287,9 +297,24 @@ describe("GitHub activity refresh", () => {
     expect(persistedRefresh?.[3]).toBe(GITHUB_ACTIVITY_WRITE_INTENTS.PRESERVE_HEALTHY_ACTIVITY);
   });
 
+  it("publishes verified calendars without certifying incomplete repository coverage", async () => {
+    mockFetchContributedRepositories.mockResolvedValue({
+      userId: "user-id",
+      repositories: [],
+      dataComplete: false,
+    });
+    mockFetchContributionCalendar.mockResolvedValue(calendarResponse(75));
+
+    const result = await refreshGitHubActivityDataFromApi();
+    expect(result?.allTimeData.totalContributions).toBe(75);
+    expect(result?.allTimeData.dataComplete).toBe(false);
+    expect(persistedRefresh?.[1].dataComplete).toBe(false);
+  });
+
   it("marks LOC incomplete if aggregate cache reads fail after successful repository processing", async () => {
     mockFetchContributedRepositories.mockResolvedValue({
       userId: "user-id",
+      dataComplete: true,
       repositories: [createGraphQLRepositoryFixture("current-repo")],
     });
     mockProcessSingleRepository.mockResolvedValue(createRepositoryProcessingResult(100, 25, true));
@@ -304,7 +329,6 @@ describe("GitHub activity refresh", () => {
   });
 
   it("does not publish zero history when a historical calendar request fails", async () => {
-    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
     mockFetchContributionYears.mockResolvedValue([2022]);
     const failure = new Error("Historical calendar unavailable");
     mockFetchContributionCalendar.mockImplementation(async (_username, from) => {
@@ -321,8 +345,6 @@ describe("GitHub activity refresh", () => {
       trailingYearData: zeroSegment,
       allTimeData: zeroSegment,
     };
-    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
-
     await expect(refreshGitHubActivityDataFromApi()).resolves.toEqual(expectedResult);
     if (persistedRefresh === undefined) {
       throw new Error("The zero-repository refresh was not persisted.");
@@ -346,7 +368,6 @@ describe("GitHub activity refresh", () => {
   });
 
   it("classifies an empty-set write refusal as preserved", async () => {
-    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
     mockWriteGitHubActivityRefreshRecord.mockResolvedValue(false);
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toBeInstanceOf(
@@ -358,7 +379,6 @@ describe("GitHub activity refresh", () => {
 
   it("propagates an empty-set persistence failure unchanged", async () => {
     const persistenceFailure = new Error("GitHub activity persistence unavailable");
-    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
     mockWriteGitHubActivityRefreshRecord.mockRejectedValue(persistenceFailure);
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toBe(persistenceFailure);
@@ -383,7 +403,6 @@ describe("GitHub activity refresh", () => {
 
   it("does not persist a partial refresh in dry-run mode", async () => {
     process.env.DRY_RUN = "true";
-    mockFetchContributedRepositories.mockResolvedValue({ userId: "user-id", repositories: [] });
 
     await expect(refreshGitHubActivityDataFromApi()).rejects.toThrow(
       "skipped aggregate calculation in dry-run mode",
@@ -454,6 +473,7 @@ describe("GitHub activity refresh", () => {
     const repository = createGraphQLRepositoryFixture("pending-repo");
     mockFetchContributedRepositories.mockResolvedValue({
       userId: "user-id",
+      dataComplete: true,
       repositories: [repository],
     });
     mockProcessSingleRepository.mockResolvedValue(

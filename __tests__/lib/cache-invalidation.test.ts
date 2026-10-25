@@ -242,7 +242,7 @@ describe("GitHub data access", () => {
 
       try {
         const { fetchContributorStats } = await import("@/lib/data-access/github-api");
-        await expect(fetchContributorStats("owner", "repo")).resolves.toEqual([]);
+        await expect(fetchContributorStats("owner", "repo", "owner")).resolves.toEqual([]);
         expect(githubHttpClient).toHaveBeenCalledExactlyOnceWith(
           "https://api.github.com/repos/owner/repo/stats/contributors",
           expect.objectContaining({ headers: expect.any(Object) }),

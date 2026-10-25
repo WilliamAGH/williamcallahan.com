@@ -142,6 +142,7 @@ export async function writeGitHubActivityRefreshToDb(
   signal?.throwIfAborted();
   const published = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${GITHUB_ACTIVITY_REFRESH_LOCK}))`);
+    signal?.throwIfAborted();
     const existingActivity = await readGitHubActivityRefreshPreconditionFromDb(tx);
     signal?.throwIfAborted();
     if (!canPublishGitHubActivity(activity, intent, existingActivity)) {

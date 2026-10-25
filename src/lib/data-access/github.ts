@@ -118,10 +118,8 @@ async function collectGitHubActivity(signal: AbortSignal): Promise<{
   console.log(
     `[DataAccess/GitHub] Fetching list of contributed repositories and user ID for ${GITHUB_REPO_OWNER} via GraphQL API...`,
   );
-  const { repositories: uniqueRepoArray } = await fetchContributedRepositories(
-    GITHUB_REPO_OWNER,
-    signal,
-  );
+  const { repositories: uniqueRepoArray, dataComplete: inventoryComplete } =
+    await fetchContributedRepositories(GITHUB_REPO_OWNER, signal);
   signal.throwIfAborted();
 
   const trailingYearFromDate = getTrailingYearDate(now);
@@ -142,7 +140,7 @@ async function collectGitHubActivity(signal: AbortSignal): Promise<{
   signal.throwIfAborted();
   const lifetimeContributions = yearTotalContributions + historicalContributions;
 
-  if (uniqueRepoArray.length === 0 && lifetimeContributions === 0) {
+  if (inventoryComplete && uniqueRepoArray.length === 0 && lifetimeContributions === 0) {
     console.warn("[DataAccess/GitHub] No non-forked repositories contributed to found for user.");
     const emptyActivityData: GitHubActivitySegment = {
       source: "api",
@@ -162,7 +160,7 @@ async function collectGitHubActivity(signal: AbortSignal): Promise<{
       totalRepositoriesContributedTo: 0,
       linesOfCodeByCategory: createEmptyCategoryStats(),
     });
-    const aggregate = await calculateAggregatedWeeklyActivity([]);
+    const aggregate = await calculateAggregatedWeeklyActivity([], signal);
     signal.throwIfAborted();
     if (aggregate === null) {
       throw new Error("GitHub activity refresh skipped aggregate calculation in dry-run mode.");
@@ -212,7 +210,7 @@ async function collectGitHubActivity(signal: AbortSignal): Promise<{
     contributionCountSource: "github-calendar",
     linesAdded: yearLinesAdded,
     linesRemoved: yearLinesRemoved,
-    dataComplete: allTimeOverallDataComplete,
+    dataComplete: allTimeOverallDataComplete && inventoryComplete,
   };
 
   console.log(
@@ -238,12 +236,13 @@ async function collectGitHubActivity(signal: AbortSignal): Promise<{
     contributionCountSource: "github-calendar",
     linesAdded: allTimeLinesAdded,
     linesRemoved: allTimeLinesRemoved,
-    dataComplete: allTimeOverallDataComplete,
+    dataComplete: allTimeOverallDataComplete && inventoryComplete,
     allPriorYearCommits: priorYearCommitStats,
   };
 
   const aggregate = await calculateAggregatedWeeklyActivity(
     uniqueRepoArray.map((repository) => repository.nameWithOwner),
+    signal,
   );
   signal.throwIfAborted();
   if (aggregate === null) {

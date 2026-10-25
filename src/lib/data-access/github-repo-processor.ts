@@ -36,7 +36,7 @@ async function fetchRepoStats(
   githubRepoOwner: string,
   signal?: AbortSignal,
 ): Promise<{ stats: RepoRawWeeklyStat[]; status: RepoWeeklyStatCache["status"] }> {
-  const contributors = await fetchContributorStats(repoOwner, repoName, signal);
+  const contributors = await fetchContributorStats(repoOwner, repoName, githubRepoOwner, signal);
   const ownerStats = filterContributorStats(contributors, githubRepoOwner);
 
   if (!ownerStats?.weeks?.length) {

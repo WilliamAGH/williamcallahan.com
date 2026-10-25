@@ -345,7 +345,7 @@ describe("GET /api/github-activity", () => {
       mockedGetGithubActivityCached.mockRejectedValueOnce(
         new Error("GitHub activity data access failed"),
       );
-    } else {
+    } else if (status === 200) {
       mockedGetGithubActivityCached.mockResolvedValueOnce(unavailableGitHubActivity);
     }
     const response = await getGitHubActivity(new NextRequest(`${githubActivityUrl}${query}`));

@@ -8,7 +8,7 @@
  */
 
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // Import ExtendedMetadata from base to avoid circular dependencies
 import type { ExtendedMetadata } from "./base";
@@ -53,7 +53,6 @@ const isoDateString = z.string().refine((val) => !Number.isNaN(Date.parse(val)),
  * All production URLs should use HTTPS for SEO
  */
 const httpsUrl = z
-  .string()
   .url()
   .refine((url) => url.startsWith("https://"), { message: "URLs must use HTTPS protocol" });
 
@@ -109,7 +108,7 @@ export const profilePageMetadataSchema = basePageMetadataSchema.extend({
     })
     .optional(),
 
-  profileImage: z.string().url().optional(),
+  profileImage: z.url().optional(),
   alternateName: z.string().optional(),
   identifier: z.string().optional(),
 });
@@ -133,7 +132,7 @@ export const collectionPageMetadataSchema = basePageMetadataSchema.extend({
  * For validating image objects in metadata
  */
 export const imageMetadataSchema = z.object({
-  url: z.string().url(),
+  url: z.url(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   alt: z.string().min(1, "Alt text is required for accessibility"),
@@ -195,38 +194,6 @@ export const metadataSchema = z.object({
 });
 
 /**
- * Page metadata schemas map
- * Maps page keys to their appropriate schema
- */
-export const pageMetadataSchemas = {
-  home: profilePageMetadataSchema,
-  experience: profilePageMetadataSchema,
-  cv: profilePageMetadataSchema,
-  education: profilePageMetadataSchema,
-  investments: collectionPageMetadataSchema,
-  bookmarks: collectionPageMetadataSchema,
-  blog: collectionPageMetadataSchema,
-  projects: collectionPageMetadataSchema,
-  contact: collectionPageMetadataSchema,
-  books: collectionPageMetadataSchema,
-  thoughts: collectionPageMetadataSchema,
-} as const;
-
-/**
- * Validate page metadata configuration
- * @param pageKey - The page key to validate
- * @param metadata - The metadata to validate
- * @returns Validated metadata or throws ZodError
- */
-export function validatePageMetadata<K extends keyof typeof pageMetadataSchemas>(
-  pageKey: K,
-  metadata: unknown,
-): z.infer<(typeof pageMetadataSchemas)[K]> {
-  const schema = pageMetadataSchemas[pageKey];
-  return schema.parse(metadata);
-}
-
-/**
  * Validate the entire metadata configuration
  * @param metadata - The metadata object to validate
  * @returns Validated metadata or throws ZodError
@@ -245,7 +212,7 @@ export function safeValidateMetadata(metadata: unknown) {
 
   if (!result.success) {
     // Format errors for better readability
-    const errors = result.error.errors.map((err) => ({
+    const errors = result.error.issues.map((err) => ({
       path: err.path.join("."),
       message: err.message,
       code: err.code,

@@ -113,7 +113,7 @@ image rules exclude 4xx/5xx responses from edge storage.
 - **`lib/image-handling/shared-image-processing.ts`** – format detection, SVG sanitization, metadata-derived content types.
 - **`lib/image-handling/twitter-image-policy.ts`** – canonical Twitter CDN root/format validation, upstream-path normalization, and storage category selection.
 - **`lib/image-handling/image-analysis.ts` / `image-compare.ts`** – brightness estimation, placeholder detection, perceptual hashing for dedupe/globe detection.
-- **`lib/image-handling/image-manifest-loader.ts` / `cached-manifest-loader.ts`** – load and cache manifest JSON for logos/OG/blog images; aware of build-phase constraints and production runtime safeguards that avoid request-path lazy S3 loads when manifests are missing.
+- **`lib/image-handling/image-manifest-loader.ts`** – loads logo/OG/blog manifests directly from PostgreSQL during opt-in startup warm-up; `cached-manifest-loader.ts` owns only the request-time tagged logo-manifest cache. Unwarmed asynchronous logo lookups use that cache when enabled, then load directly from PostgreSQL if caching is disabled or fails.
 - **`lib/services/image-streaming.ts`** – Node stream -> S3 upload pipeline with timeouts and byte monitoring.
 - **`components/ui/logo-image.client.tsx`** – client watchdog: inlined placeholders, dev logging, on-error fetch triggers, CSS inversion toggles.
 - **`components/features/*`** – feed selection helpers (bookmarks/blog/investments/education/experience) and ensure width/height/sizes align with Next config.

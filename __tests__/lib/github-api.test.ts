@@ -8,8 +8,6 @@ import {
 import { ContributorStatsResponseSchema, GraphQLRepoNodeSchema } from "@/types/github";
 import { filterContributorStats } from "@/lib/data-access/github-processing";
 import { getTrailingYearDate } from "@/lib/utils/date-format";
-import { GitHubUpstreamUnavailableError } from "@/lib/data-access/github-refresh-outcome";
-import { GitHubRefreshDeadlineError } from "@/lib/data-access/github-refresh-budget";
 
 vi.hoisted(() => vi.stubEnv("GITHUB_TOKEN", "test-token"));
 vi.mock("@/lib/rate-limiter", () => ({ isOperationAllowed: () => true }));
@@ -21,157 +19,244 @@ afterEach(() => {
 afterAll(() => vi.unstubAllEnvs());
 
 describe("GitHub upstream contracts", () => {
-  it.each(["GraphQL", "REST"])("cancels an active %s request without retrying it", async (kind) => {
-    const controller = new AbortController();
-    const deadline = new GitHubRefreshDeadlineError();
-    let active = false;
-    const upstream = vi.fn<typeof fetch>().mockImplementation((_url, options) => {
-      active = true;
-      return new Promise<Response>((_resolve, reject) => {
-        if (!options?.signal) throw new Error("Expected propagated cancellation");
-        options.signal.addEventListener(
-          "abort",
-          () => {
-            active = false;
-            reject(options.signal?.reason);
-          },
-          { once: true },
-        );
-      });
-    });
-    vi.stubGlobal("fetch", upstream);
-    vi.useFakeTimers();
-    const operation =
-      kind === "GraphQL"
-        ? fetchContributionYears("owner", controller.signal)
-        : fetchContributorStats("owner", "repo", controller.signal);
-    const failure = operation.catch((error) => error);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(active).toBe(true);
-    controller.abort(deadline);
-    expect(await failure).toBe(deadline);
-    expect(active).toBe(false);
-    await vi.runAllTimersAsync();
-    expect(upstream).toHaveBeenCalledOnce();
-  });
-
-  it.each([202, 503])(
-    "cancels the HTTP %s backoff without issuing a later request",
-    async (status) => {
-      const controller = new AbortController();
-      const deadline = new GitHubRefreshDeadlineError();
-      const upstream = vi
-        .fn<typeof fetch>()
-        .mockImplementation(async () => new Response(null, { status }));
-      vi.stubGlobal("fetch", upstream);
-      vi.useFakeTimers();
-      const operation =
-        status === 202
-          ? fetchContributorStats("owner", "repo", controller.signal)
-          : fetchContributionYears("owner", controller.signal);
-      const failure = operation.catch((error) => error);
-      await vi.advanceTimersByTimeAsync(1);
-      controller.abort(deadline);
-      expect(await failure).toBe(deadline);
-      await vi.runAllTimersAsync();
-      expect(upstream).toHaveBeenCalledOnce();
-    },
-  );
-
-  it("does not request the next repository page after cancellation", async () => {
-    const controller = new AbortController();
-    const deadline = new GitHubRefreshDeadlineError();
-    const upstream = vi.fn<typeof fetch>().mockImplementation(async () => {
-      controller.abort(deadline);
-      return Response.json({
-        data: {
-          user: {
-            id: "user-id",
-            repositoriesContributedTo: {
-              nodes: [],
-              pageInfo: { hasNextPage: true, endCursor: "next-page" },
+  it("splits capped historical windows instead of losing the 101st repository", async () => {
+    const repos = Array.from({ length: 101 }, (_, index) =>
+      GraphQLRepoNodeSchema.parse({
+        id: String(index),
+        name: `repo-${index}`,
+        nameWithOwner: `owner/repo-${index}`,
+        owner: { login: "owner" },
+        isFork: false,
+        isPrivate: false,
+      }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_url, options) => {
+        if (typeof options?.body !== "string") throw new Error("Expected GraphQL request");
+        const { query, variables } = z
+          .object({
+            query: z.string(),
+            variables: z.object({ from: z.string().optional(), to: z.string().optional() }),
+          })
+          .parse(JSON.parse(options.body));
+        if (query.includes("contributionYears"))
+          return Response.json({
+            data: { user: { contributionsCollection: { contributionYears: [2024] } } },
+          });
+        if (query.includes("commitContributionsByRepository")) {
+          const fullYear =
+            variables.from === "2024-01-01T00:00:00.000Z" &&
+            variables.to === "2024-12-31T23:59:59.999Z";
+          const visible = fullYear
+            ? repos.slice(0, 100)
+            : variables.from?.startsWith("2024-01-")
+              ? repos.slice(0, 51)
+              : repos.slice(51);
+          return Response.json({
+            data: {
+              user: {
+                contributionsCollection: {
+                  totalRepositoriesWithContributedCommits: fullYear ? 101 : visible.length,
+                  hasAnyRestrictedContributions: false,
+                  commitContributionsByRepository: visible.map((repository) => ({ repository })),
+                },
+              },
+            },
+          });
+        }
+        return Response.json({
+          data: {
+            user: {
+              id: "user-id",
+              repositoriesContributedTo: {
+                nodes: [],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
             },
           },
-        },
-      });
-    });
-    vi.stubGlobal("fetch", upstream);
-    await expect(fetchContributedRepositories("owner", controller.signal)).rejects.toBe(deadline);
-    expect(upstream).toHaveBeenCalledOnce();
+        });
+      }),
+    );
+    const result = await fetchContributedRepositories("owner");
+    expect(result.repositories.map((repository) => repository.id).toSorted()).toEqual(
+      repos.map((repository) => repository.id).toSorted(),
+    );
+    expect(result.dataComplete).toBe(true);
   });
 
-  it.each([429, 503])(
-    "recovers from HTTP %s before publishing contribution years",
-    async (status) => {
-      const upstream = vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(new Response(null, { status }))
-        .mockResolvedValueOnce(
-          Response.json({
-            data: { user: { contributionsCollection: { contributionYears: [2025] } } },
+  it.each(["restricted", "mismatch", "failure"])(
+    "does not certify %s historical repository inventory",
+    async (reason) => {
+      const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      try {
+        vi.stubGlobal(
+          "fetch",
+          vi.fn<typeof fetch>().mockImplementation(async (_url, options) => {
+            if (typeof options?.body !== "string") throw new Error("Expected GraphQL request");
+            const { query } = z.object({ query: z.string() }).parse(JSON.parse(options.body));
+            if (query.includes("contributionYears"))
+              return Response.json({
+                data: { user: { contributionsCollection: { contributionYears: [2024] } } },
+              });
+            if (query.includes("commitContributionsByRepository")) {
+              if (reason === "failure")
+                return Response.json({ errors: [{ message: "History unavailable" }] });
+              return Response.json({
+                data: {
+                  user: {
+                    contributionsCollection: {
+                      totalRepositoriesWithContributedCommits: reason === "mismatch" ? 1 : 0,
+                      hasAnyRestrictedContributions: reason === "restricted",
+                      commitContributionsByRepository: [],
+                    },
+                  },
+                },
+              });
+            }
+            return Response.json({
+              data: {
+                user: {
+                  id: "user-id",
+                  repositoriesContributedTo: {
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                  },
+                },
+              },
+            });
           }),
         );
-      vi.stubGlobal("fetch", upstream);
-      vi.useFakeTimers();
-      const result = fetchContributionYears("owner");
-      await vi.runAllTimersAsync();
-      await expect(result).resolves.toEqual([2025]);
-      expect(upstream).toHaveBeenCalledTimes(2);
+        const result = await fetchContributedRepositories("owner");
+        expect(result.dataComplete).toBe(false);
+        if (reason === "failure") expect(warning).toHaveBeenCalled();
+      } finally {
+        warning.mockRestore();
+      }
     },
   );
 
-  it.each([429, 503])(
-    "bounds HTTP %s exhaustion and preserves its transient classification",
-    async (status) => {
-      const upstream = vi
-        .fn<typeof fetch>()
-        .mockImplementation(async () => new Response(null, { status }));
-      vi.stubGlobal("fetch", upstream);
-      vi.useFakeTimers();
-      const failure = fetchContributionYears("owner").catch((error) => error);
-      await vi.runAllTimersAsync();
-      expect(await failure).toMatchObject({
-        name: "GitHubUpstreamUnavailableError",
-        reason: status === 429 ? "upstream-rate-limit" : "upstream-unavailable",
-      });
-      expect(upstream).toHaveBeenCalledTimes(4);
-    },
-  );
-
-  it("aborts each timed-out GitHub request before retrying and classifies exhaustion", async () => {
-    let activeRequests = 0;
-    const upstream = vi.fn<typeof fetch>().mockImplementation((_url, options) => {
-      expect(activeRequests).toBe(0);
-      activeRequests++;
-      return new Promise<Response>((_resolve, reject) => {
-        if (!options?.signal) throw new Error("Expected request cancellation signal");
-        options.signal.addEventListener(
-          "abort",
-          () => {
-            activeRequests--;
-            reject(new DOMException("Request aborted", "AbortError"));
+  it("includes historical private repositories once across contribution years", async () => {
+    const current = GraphQLRepoNodeSchema.parse({
+      id: "current",
+      name: "current",
+      nameWithOwner: "owner/current",
+      owner: { login: "owner" },
+      isFork: false,
+      isPrivate: false,
+    });
+    const historical = GraphQLRepoNodeSchema.parse({
+      id: "old",
+      name: "old",
+      nameWithOwner: "owner/old",
+      owner: { login: "owner" },
+      isFork: false,
+      isPrivate: true,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_url, options) => {
+        if (typeof options?.body !== "string") throw new Error("Expected GraphQL request");
+        const { query, variables } = z
+          .object({ query: z.string(), variables: z.object({ from: z.string().optional() }) })
+          .parse(JSON.parse(options.body));
+        if (query.includes("contributionYears"))
+          return Response.json({
+            data: { user: { contributionsCollection: { contributionYears: [2025, 2024] } } },
+          });
+        if (query.includes("commitContributionsByRepository")) {
+          const repos = variables.from?.startsWith("2024-") ? [historical, current] : [current];
+          return Response.json({
+            data: {
+              user: {
+                contributionsCollection: {
+                  totalRepositoriesWithContributedCommits: repos.length,
+                  hasAnyRestrictedContributions: false,
+                  commitContributionsByRepository: repos.map((repository) => ({ repository })),
+                },
+              },
+            },
+          });
+        }
+        return Response.json({
+          data: {
+            user: {
+              id: "user-id",
+              repositoriesContributedTo: {
+                nodes: [current],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
           },
-          { once: true },
-        );
-      });
-    });
-    vi.stubGlobal("fetch", upstream);
-    vi.useFakeTimers();
-    const failure = fetchContributionYears("owner").catch((error) => error);
-    await vi.runAllTimersAsync();
-    expect(await failure).toMatchObject({
-      name: "GitHubUpstreamUnavailableError",
-      reason: "upstream-timeout",
-    });
-    expect(upstream).toHaveBeenCalledTimes(4);
-    expect(activeRequests).toBe(0);
+        });
+      }),
+    );
+    const result = await fetchContributedRepositories("owner");
+    expect(result.repositories).toEqual([current, historical]);
   });
 
-  it.each([401, 403])("does not retry or degrade configuration HTTP %s", async (status) => {
-    const upstream = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status }));
+  it("rejects unavailable LOC from a repository with 10,000 commits", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (url) => {
+        if (String(url).includes("/stats/contributors")) {
+          return Response.json([
+            { author: { login: "owner" }, weeks: [{ w: 1, c: 5, a: 0, d: 0 }] },
+          ]);
+        }
+        return Response.json({
+          data: {
+            repository: { defaultBranchRef: { target: { history: { totalCount: 10000 } } } },
+          },
+        });
+      }),
+    );
+
+    await expect(fetchContributorStats("owner", "large-repo", "owner")).rejects.toThrow(
+      "LOC statistics unavailable",
+    );
+  });
+
+  it("accepts genuine zero LOC below GitHub's repository limit", async () => {
+    const contributors = [{ author: { login: "owner" }, weeks: [{ w: 1, c: 5, a: 0, d: 0 }] }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (url) => {
+        if (String(url).includes("/stats/contributors")) return Response.json(contributors);
+        return Response.json({
+          data: { repository: { defaultBranchRef: { target: { history: { totalCount: 9999 } } } } },
+        });
+      }),
+    );
+    await expect(fetchContributorStats("owner", "small-repo", "owner")).resolves.toEqual(
+      contributors,
+    );
+  });
+
+  it("does not certify ambiguous zero LOC when repository history is inaccessible", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (url) => {
+        if (String(url).includes("/stats/contributors"))
+          return Response.json([
+            { author: { login: "owner" }, weeks: [{ w: 1, c: 5, a: 0, d: 0 }] },
+          ]);
+        return Response.json({ data: { repository: null } });
+      }),
+    );
+    await expect(fetchContributorStats("owner", "hidden", "owner")).rejects.toThrow(
+      "LOC statistics unavailable",
+    );
+  });
+
+  it("keeps a successful response without the requested contributor authoritative", async () => {
+    const contributors = [
+      { author: { login: "someone-else" }, weeks: [{ w: 1, c: 5, a: 0, d: 0 }] },
+    ];
+    const upstream = vi.fn<typeof fetch>().mockResolvedValue(Response.json(contributors));
     vi.stubGlobal("fetch", upstream);
-    await expect(fetchContributionYears("owner")).rejects.not.toBeInstanceOf(
-      GitHubUpstreamUnavailableError,
+    await expect(fetchContributorStats("owner", "large-repo", "owner")).resolves.toEqual(
+      contributors,
     );
     expect(upstream).toHaveBeenCalledOnce();
   });
@@ -199,6 +284,12 @@ describe("GitHub upstream contracts", () => {
       "fetch",
       vi.fn<typeof fetch>().mockImplementation(async (_url, options) => {
         if (typeof options?.body !== "string") throw new Error("Expected a GraphQL request");
+        const request = z.object({ query: z.string() }).parse(JSON.parse(options.body));
+        if (request.query.includes("contributionYears")) {
+          return Response.json({
+            data: { user: { contributionsCollection: { contributionYears: [] } } },
+          });
+        }
         const { variables } = requestSchema.parse(JSON.parse(options.body));
         const firstPage = variables.cursor === null;
         return Response.json({

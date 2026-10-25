@@ -6,14 +6,14 @@
  * @see @link {types/accelerator.ts}
  */
 
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /**
  * Schema for accelerator programs
  */
 export const acceleratorSchema = z.object({
   program: z.enum(["techstars", "ycombinator"], {
-    errorMap: () => ({ message: "Program must be either 'techstars' or 'ycombinator'" }),
+    error: "Program must be either 'techstars' or 'ycombinator'",
   }),
   batch: z.string().min(1, "Batch is required"),
   location: z.string().min(1, "Location is required"),
