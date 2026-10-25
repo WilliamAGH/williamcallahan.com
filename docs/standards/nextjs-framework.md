@@ -113,6 +113,17 @@ source), `next/dist/server/lib/streaming-metadata.js` (the pattern decides strea
 `next/dist/build/templates/app-page-runtime.js:342-348` (`shouldForceDynamicPPRRender`), and the
 official `htmlLimitedBots` reference retrieved on 2026-10-25.
 
+The root layout has no `<Suspense>`, so page content renders into the prerendered shell, where
+crawlers that skip JavaScript read it. React emits a completed boundary larger than its
+progressive chunk size as a hidden segment that a script reveals, so a boundary around a whole
+page hides that page from those crawlers. A route whose content can resolve after the shell owns
+a segment `loading.tsx`; without one, its build fails with `blocking-prerender-dynamic`. The blog
+tag route owns one because its shared post-list read missed the shell in a production build on a
+saturated host. Evidence: installed
+`next/dist/compiled/react-dom/cjs/react-dom-server.node.production.js` defaults
+`progressiveChunkSize` to 12800 and outlines a boundary when
+`flushedByteSize + boundary.byteSize > request.progressiveChunkSize`.
+
 `next.config.ts` is the application configuration owner. Cache components invert the
 old route-config workflow: cache explicitly with `'use cache'`; do not use old
 page/layout `dynamic` exports or `unstable_noStore()` to force rendering behavior.

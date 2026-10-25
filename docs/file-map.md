@@ -639,6 +639,7 @@ File/Path Functionality Description
   - [x] `page.tsx` `blog` - Blog index page (ISR)
   - [x] `[slug]/page.tsx` `blog` - Blog post page
   - [x] `tags/[tagSlug]/page.tsx` `blog` - Blog tag page
+  - [x] `tags/[tagSlug]/loading.tsx` `blog` - Segment boundary that streams a tag page whose post list misses the prerendered shell
 - [x] **bookmarks/**
   - [x] `page.tsx` `bookmarks` - Main page for the bookmarks section
   - [x] `loading.tsx` `bookmarks` - Loading UI for the bookmarks section
