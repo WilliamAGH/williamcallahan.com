@@ -506,16 +506,16 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 
 ### Production Dependencies
 
-| Package               | Version | Purpose      | Usage in SEO                                |
-| --------------------- | ------- | ------------ | ------------------------------------------- |
-| `next`                | 15.1.5  | Framework    | Metadata API, App Router, dynamic routes    |
-| `react`               | 19.1.0  | UI library   | Server components for SEO tags              |
-| `zod`                 | 3.25.67 | Validation   | Metadata validation, external data parsing  |
-| `cheerio`             | 1.1.0   | HTML parsing | OpenGraph tag extraction from HTML          |
-| `node-cron`           | 4.2.0   | Scheduling   | Scheduled data refresh jobs                 |
-| `@aws-sdk/client-s3`  | 3.840.0 | S3 client    | OG image persistence, metadata storage      |
-| `google-auth-library` | 10.1.0  | Google APIs  | Search Console API authentication           |
-| `schema-dts`          | 1.1.5   | Schema types | TypeScript types for Schema.org             |
+| Package               | Version | Purpose      | Usage in SEO                               |
+| --------------------- | ------- | ------------ | ------------------------------------------ |
+| `next`                | 15.1.5  | Framework    | Metadata API, App Router, dynamic routes   |
+| `react`               | 19.1.0  | UI library   | Server components for SEO tags             |
+| `zod`                 | 3.25.67 | Validation   | Metadata validation, external data parsing |
+| `cheerio`             | 1.1.0   | HTML parsing | OpenGraph tag extraction from HTML         |
+| `node-cron`           | 4.2.0   | Scheduling   | Scheduled data refresh jobs                |
+| `@aws-sdk/client-s3`  | 3.840.0 | S3 client    | OG image persistence, metadata storage     |
+| `google-auth-library` | 10.1.0  | Google APIs  | Search Console API authentication          |
+| `schema-dts`          | 1.1.5   | Schema types | TypeScript types for Schema.org            |
 
 ### Platform-Specific Requirements
 
