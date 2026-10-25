@@ -7,7 +7,7 @@
  * @see @link {types/education.ts}
  */
 
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /**
  * Base schema for education-related items
@@ -28,7 +28,7 @@ const educationBaseSchema = z.object({
     .max(new Date().getFullYear() + 10, "Year cannot be more than 10 years in the future"),
 
   /** Institution website URL */
-  website: z.string().url("Website must be a valid URL"),
+  website: z.url("Website must be a valid URL"),
 
   /** Location (city, state) */
   location: z.string().min(1, "Location is required"),
@@ -75,7 +75,7 @@ export const certificationSchema = educationBaseSchema.extend({
  * Schema for processed logo data
  */
 export const educationLogoDataSchema = z.object({
-  url: z.string().url("Logo URL must be valid"),
+  url: z.url("Logo URL must be valid"),
   source: z.string().nullable(),
   needsInversion: z.boolean().optional(),
 });

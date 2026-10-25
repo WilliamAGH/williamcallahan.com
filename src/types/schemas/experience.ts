@@ -7,7 +7,7 @@
  * @see @link {types/experience.ts}
  */
 
-import { z } from "zod";
+import { z } from "zod/v4";
 import { acceleratorSchema } from "./accelerator";
 
 /**
@@ -24,13 +24,10 @@ const experienceBaseSchema = z.object({
   period: z.string().min(1, "Period is required"),
 
   /** ISO date string for when the position started */
-  startDate: z.string().datetime({ message: "Start date must be a valid ISO datetime string" }),
+  startDate: z.iso.datetime({ error: "Start date must be a valid ISO datetime string" }),
 
   /** ISO date string for when the position ended (undefined for current positions) */
-  endDate: z
-    .string()
-    .datetime({ message: "End date must be a valid ISO datetime string" })
-    .optional(),
+  endDate: z.iso.datetime({ error: "End date must be a valid ISO datetime string" }).optional(),
 
   /** Job title and description */
   role: z.string().min(1, "Role is required"),
@@ -39,7 +36,7 @@ const experienceBaseSchema = z.object({
   logo: z.string().optional(),
 
   /** Company website URL */
-  website: z.string().url("Website must be a valid URL").optional(),
+  website: z.url("Website must be a valid URL").optional(),
 
   /** Associated accelerator program */
   accelerator: acceleratorSchema.optional(),
@@ -82,7 +79,7 @@ export const experienceSchema = experienceBaseSchema.refine(
  */
 export const processedExperienceItemSchema = experienceBaseSchema.extend({
   logoData: z.object({
-    url: z.string().url("Logo URL must be valid"),
+    url: z.url("Logo URL must be valid"),
     source: z.string().nullable(),
   }),
   error: z.string().optional(),
