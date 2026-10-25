@@ -11,6 +11,16 @@ Both entrypoints share the DATABASE_URL rewrite + readiness gate via `scripts/en
 
 ## Graceful Shutdown
 
+Image deployment identity includes the configured runtime environment as well as the image
+and revision labels. Correcting a runtime vault reference therefore submits a new deployment,
+instead of returning an earlier failed deployment for the same image. Configuration is hashed
+inside the deployment process and is never printed or passed as command-line arguments.
+
+Scheduler bootstrap requires all three `AUDIOBOOKSHELF_*` settings already used by the web
+application: `URL`, `API_KEY`, and `LIBRARY_ID`. Wire their existing production vault references
+into the scheduler's Dokploy environment; do not replace a missing dependency with an empty
+books/index success or disable the bootstrap health gate.
+
 Each `CMD` invokes the real long-running program so that `exec "$@"` leaves it as PID 1:
 `node ./node_modules/next/dist/bin/next start` for web, `node --import tsx
 scheduler/scheduler.ts` for the scheduler. Neither may be wrapped in `node --run <script>`
