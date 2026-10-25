@@ -4,15 +4,11 @@
  */
 
 import { NextRequest } from "next/server";
-import { POST as persistAiAnalysis } from "@/app/api/ai/analysis/[domain]/[id]/route";
 import { buildRagContextForChat, validateRequest } from "@/app/api/ai/chat/[feature]/chat-helpers";
 import { isAbortError } from "@/app/api/ai/chat/[feature]/upstream-error";
-import { persistAnalysis as writeAnalysis } from "@/lib/ai-analysis/writer.server";
-import { resolveDatabaseAccessMode } from "@/lib/db/connection";
 import { buildContextForQuery } from "@/lib/ai/rag";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import { aiFeatureIdentifierSchema } from "@/types/schemas/ai-feature";
-import type { envLogger } from "@/lib/utils/env-logger";
 
 vi.mock("@/lib/ai/rag", () => ({
   buildContextForQuery: vi.fn<typeof buildContextForQuery>().mockImplementation((query) =>
@@ -28,54 +24,8 @@ vi.mock("@/lib/ai/rag", () => ({
 vi.mock("@/lib/rate-limiter", () => ({
   isOperationAllowed: vi.fn<typeof isOperationAllowed>().mockReturnValue(true),
 }));
-vi.mock("@/lib/ai-analysis/writer.server", () => ({
-  persistAnalysis: vi.fn<typeof writeAnalysis>().mockResolvedValue(undefined),
-}));
-vi.mock("@/lib/db/connection", () => ({
-  resolveDatabaseAccessMode: vi.fn<typeof resolveDatabaseAccessMode>().mockReturnValue({
-    allowWrites: true,
-    environment: "production",
-    source: "NEXT_PUBLIC_SITE_URL",
-  }),
-}));
-vi.mock("@/lib/utils/env-logger", () => ({
-  envLogger: {
-    log: vi.fn<typeof envLogger.log>(),
-  },
-}));
 const mockedBuildContextForQuery = vi.mocked(buildContextForQuery);
-const mockedWriteAnalysis = vi.mocked(writeAnalysis);
-const mockedResolveDatabaseAccessMode = vi.mocked(resolveDatabaseAccessMode);
-const mockedIsOperationAllowed = vi.mocked(isOperationAllowed);
 const conversationId = "77777777-7777-4777-8777-777777777777";
-const bookmarkAnalysis = {
-  summary: "Useful technical resource for practical implementation decisions.",
-  category: "Technology",
-  highlights: ["Explains the implementation tradeoffs clearly."],
-  contextualDetails: {
-    primaryDomain: "Programming",
-    format: "Article",
-    accessMethod: "Free",
-  },
-  relatedResources: ["Related implementation reference"],
-  targetAudience: "Developers",
-};
-
-function buildAnalysisPersistRequest(origin: string): NextRequest {
-  return Object.assign(
-    new NextRequest("https://williamcallahan.com/api/ai/analysis/bookmarks/bookmark-1", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        origin,
-      },
-    }),
-    {
-      json: () => Promise.resolve({ analysis: bookmarkAnalysis }),
-    },
-  );
-}
-
 describe("AI Chat RAG Helpers", () => {
   beforeEach(() => {
     mockedBuildContextForQuery.mockClear();
@@ -157,65 +107,5 @@ describe("AI Chat Abort Detection", () => {
 
   it("does not classify generic errors as abort errors", () => {
     expect(isAbortError(new Error("Boom"))).toBe(false);
-  });
-});
-
-describe("AI Analysis Persistence Route", () => {
-  beforeEach(() => {
-    mockedWriteAnalysis.mockClear();
-    mockedResolveDatabaseAccessMode.mockReset();
-    mockedResolveDatabaseAccessMode.mockReturnValue({
-      allowWrites: true,
-      environment: "production",
-      source: "NEXT_PUBLIC_SITE_URL",
-    });
-    mockedIsOperationAllowed.mockClear();
-    mockedIsOperationAllowed.mockReturnValue(true);
-  });
-
-  it("rejects cross-origin persistence before rate limiting or writing", async () => {
-    const request = buildAnalysisPersistRequest("https://attacker.example");
-
-    const response = await persistAiAnalysis(request, {
-      params: Promise.resolve({ domain: "bookmarks", id: "bookmark-1" }),
-    });
-
-    expect(response.status).toBe(403);
-    expect(mockedIsOperationAllowed).not.toHaveBeenCalled();
-    expect(mockedWriteAnalysis).not.toHaveBeenCalled();
-  });
-
-  it("persists valid same-origin analysis", async () => {
-    const request = buildAnalysisPersistRequest("https://williamcallahan.com");
-
-    const response = await persistAiAnalysis(request, {
-      params: Promise.resolve({ domain: "bookmarks", id: "bookmark-1" }),
-    });
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ success: true, persisted: true });
-    expect(mockedWriteAnalysis).toHaveBeenCalledWith(
-      "bookmarks",
-      "bookmark-1",
-      expect.objectContaining({ summary: bookmarkAnalysis.summary }),
-      { modelVersion: undefined },
-    );
-  });
-
-  it("reports intentional read-only skips without calling the writer", async () => {
-    mockedResolveDatabaseAccessMode.mockReturnValue({
-      allowWrites: false,
-      environment: "development",
-      source: "NEXT_PUBLIC_SITE_URL",
-    });
-    const request = buildAnalysisPersistRequest("https://dev.williamcallahan.com");
-
-    const response = await persistAiAnalysis(request, {
-      params: Promise.resolve({ domain: "bookmarks", id: "bookmark-1" }),
-    });
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ success: true, persisted: false });
-    expect(mockedWriteAnalysis).not.toHaveBeenCalled();
   });
 });

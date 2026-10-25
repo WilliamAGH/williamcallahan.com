@@ -57,6 +57,16 @@ export type SseStreamConfig = {
   logContext: ChatLogContext;
   ragContextStatus: RagContextStatus;
   runUpstream: (onStreamEvent?: (event: AiChatModelStreamUpdate) => void) => Promise<string>;
+  /** Aborts the queued or running upstream request; also wired into `runUpstream`. */
+  upstreamAbort: AbortController;
+  /** Set for analysis requests: once started, the server finishes and persists the result. */
+  analysisTarget: AnalysisPersistTarget | null;
+};
+
+/** The analysis feature and entity a server-finished generation persists to. */
+export type AnalysisPersistTarget = {
+  feature: AnalysisFeatureId;
+  entityId: string;
 };
 
 /** Pipeline result containing everything needed to dispatch an AI chat request */

@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect, useEffectEvent, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { aiQueueStatsSchema } from "@/types/schemas/ai-openai-compatible-client";
 import { aiChat } from "@/lib/ai/openai-compatible/browser-client";
-import { parseLlmJson, persistAnalysis } from "@/lib/ai/analysis-client-utils";
+import { parseLlmJson } from "@/lib/ai/analysis-client-utils";
 import type { AnalysisState, UseAiAnalysisArgs, UseAiAnalysisResult } from "@/types/ai-analysis";
 
 const AUTO_TRIGGER_QUEUE_THRESHOLD = 5;
@@ -18,7 +17,6 @@ export function useAiAnalysis<TEntity, TAnalysis>(
     entity,
     entityId,
     featureName,
-    persistenceKey,
     loadingMessages,
     extractContext,
     buildSystemPrompt,
@@ -28,7 +26,6 @@ export function useAiAnalysis<TEntity, TAnalysis>(
     autoTrigger,
     initialAnalysis,
   } = args;
-  const router = useRouter();
 
   const [state, setState] = useState<AnalysisState<TAnalysis>>(() => {
     if (initialAnalysis?.analysis) {
@@ -76,6 +73,7 @@ export function useAiAnalysis<TEntity, TAnalysis>(
             userText: userPrompt,
             priority: 0,
             response_format: responseFormat,
+            analysisEntityId: entityId,
           },
           {
             signal,
@@ -156,21 +154,9 @@ export function useAiAnalysis<TEntity, TAnalysis>(
 
         if (signal?.aborted) throw new DOMException("Analysis aborted", "AbortError");
 
-        // Persistence is an optimization, not a precondition for display.
-        // Read-only environments report a successful skip; real failures are
-        // captured inside persistAnalysis without discarding generated output.
-        const persistResult = await persistAnalysis(persistenceKey, entityId, parsedAnalysis);
-
-        if (signal?.aborted) throw new DOMException("Analysis aborted", "AbortError");
-
+        // The chat route persists the validated analysis server-side (it finishes a
+        // started generation even after this view goes away), so display only.
         setState({ status: "success", analysis: parsedAnalysis, error: null });
-        if ("message" in persistResult) {
-          console.warn(
-            `[useAiAnalysis] Analysis displayed but not persisted: ${persistResult.message}`,
-          );
-        } else if (persistResult.persisted) {
-          router.refresh();
-        }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         const message = error instanceof Error ? error.message : "Failed to generate analysis";
@@ -181,13 +167,11 @@ export function useAiAnalysis<TEntity, TAnalysis>(
       entity,
       entityId,
       featureName,
-      persistenceKey,
       extractContext,
       buildSystemPrompt,
       buildUserPrompt,
       responseFormat,
       responseSchema,
-      router,
     ],
   );
 

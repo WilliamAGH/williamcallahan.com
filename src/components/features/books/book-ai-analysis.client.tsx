@@ -32,7 +32,6 @@ import type { AnalysisRenderHelpers } from "@/types/ai-analysis";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AI_FEATURE_NAME = "book-analysis";
-const PERSISTENCE_KEY = "books";
 
 const LOADING_MESSAGES = [
   "Analyzing literary context...",
@@ -177,7 +176,6 @@ export function BookAiAnalysis({
       entity={book}
       entityId={book.id}
       featureName={AI_FEATURE_NAME}
-      persistenceKey={PERSISTENCE_KEY}
       loadingMessages={LOADING_MESSAGES}
       extractContext={extractBookAnalysisContext}
       buildSystemPrompt={buildBookAnalysisSystemPrompt}

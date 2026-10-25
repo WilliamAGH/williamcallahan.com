@@ -35,6 +35,7 @@ This system is designed to support multiple AI-backed site features where each f
 - `src/app/api/ai/chat/[feature]/upstream-runner.ts` — Multi-turn upstream orchestration for tool calls, model fallback, and deterministic post-processing.
 - `src/app/api/ai/chat/[feature]/analysis-output-config.ts` — Analysis feature schema/field metadata used by structured-output validation.
 - `src/app/api/ai/chat/[feature]/analysis-output-validation.ts` — Structured analysis output parsing, normalization, prompt-leakage checks, and schema validation.
+- `src/app/api/ai/chat/[feature]/analysis-persistence.ts` — Persists the validated analysis for the request's `analysisEntityId` through `writer.server.ts`. The SSE handler drops an analysis request still waiting in the queue when the browser disconnects, but once the upstream has started it keeps the run (and its queue slot) until completion and persists the result, so a visitor leaving mid-stream never wastes the generation. Non-analysis features still stop when the client disconnects.
 
 ### Public API routes (App Router Route Handlers)
 
@@ -181,6 +182,7 @@ All requests to `POST /api/ai/chat/[feature]` are queued by upstream target so w
 - `__tests__/api/ai/chat-upstream-pipeline-tools.test.ts` asserts tool-call rounds and deterministic search fallback behavior.
 - `__tests__/api/ai/chat-upstream-pipeline-analysis-validation.test.ts` verifies JSON/schema retry paths, coercion, and fallback normalization for bookmark analysis.
 - `__tests__/components/ui/terminal/commands.test.ts` confirms terminal one-shot flow against the SSE-only contract.
-- `__tests__/lib/ai-openai-compatible.test.ts` exercises browser SSE parsing, OpenAI-compatible transport behavior, and client-side analysis persistence (persistAnalysis success/error paths).
+- `__tests__/lib/ai-openai-compatible.test.ts` exercises browser SSE parsing, OpenAI-compatible transport behavior, and analysis JSON parsing.
+- `__tests__/api/ai/chat-analysis-finish-after-disconnect.test.ts` proves a started analysis is persisted after the browser disconnects and a still-queued one is dropped.
 - `__tests__/lib/ai-harmony-sanitizer.test.ts` covers marker-based Harmony channel-control cleanup.
 - `__tests__/lib/ai-openai-compatible-client-timeout.test.ts` verifies that cached clients do not own request policy: non-stream calls retain bounded retries while Chat and Responses streams receive one 180-second attempt.
