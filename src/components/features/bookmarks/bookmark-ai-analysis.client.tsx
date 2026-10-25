@@ -40,7 +40,6 @@ import type { AnalysisRenderHelpers } from "@/types/ai-analysis";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AI_FEATURE_NAME = "bookmark-analysis";
-const PERSISTENCE_KEY = "bookmarks";
 
 const LOADING_MESSAGES = [
   "Reading content...",
@@ -233,7 +232,6 @@ export function BookmarkAiAnalysis({
       entity={bookmark}
       entityId={bookmark.id}
       featureName={AI_FEATURE_NAME}
-      persistenceKey={PERSISTENCE_KEY}
       loadingMessages={LOADING_MESSAGES}
       extractContext={extractBookmarkAnalysisContext}
       buildSystemPrompt={buildBookmarkAnalysisSystemPrompt}

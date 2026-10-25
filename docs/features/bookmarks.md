@@ -124,7 +124,7 @@ DEPLOYMENT_ENV=production NODE_ENV=production node scripts/backfill-bookmark-emb
 ### Runtime Fetch Strategy
 
 - Builds no longer hydrate bookmark JSON locally. Docker images and workstation builds read bookmarks from PostgreSQL in runtime paths.
-- `lib/sitemap/bookmark-collectors.ts` reads compact slug/date rows through `getBookmarkSitemapRowsFromDatabase()`, not global-index dates, full bookmark payloads, or a page-fetch fallback. Canonical tag page counts/dates come from one grouped member query.
+- `lib/sitemap/bookmark-collectors.ts` reads the bookmark index date for the `/bookmarks` hub. The existing search-exclusion policy omits detail/tag URLs. Per-tag indexes still derive counts and dates from deduplicated canonical members; the global index fallback uses compact content-date rows rather than inventing freshness.
 - All bookmark data is served from PostgreSQL at runtime; no local JSON snapshot step is required.
 - `lib/bookmarks/content-dates.ts` owns meaningful bookmark freshness: the latest valid `modifiedAt`, `dateCreated`, or `dateBookmarked`. Index rebuilds and canonical tag `lastModified` derive from member content; source-update, fetch, and attempt timestamps are operational, not freshness. Generic parsing/comparison belongs to `lib/utils/date-format.ts`, without compatibility exports from `lib/sitemap/date-utils.ts`.
 

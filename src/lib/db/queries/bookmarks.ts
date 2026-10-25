@@ -186,34 +186,6 @@ async function getCanonicalTagContentState(canonicalSlug: string) {
   };
 }
 
-/**
- * Page counts for every canonical tag in one grouped query.
- * Partition semantics match getCanonicalTagContentState: each tag link
- * folds to its canonical slug via the alias map before counting, so the
- * totals agree with the per-tag index and page lookups. Dates come from
- * canonical member content, never an index rebuild/fetch timestamp.
- */
-export async function listCanonicalTagPageCountsFromDatabase(
-  pageSize: number = BOOKMARKS_PER_PAGE,
-): Promise<Array<{ tagSlug: string; totalPages: number; lastModified: string | null }>> {
-  assertPositiveInteger(pageSize, "pageSize");
-  const rows = await db
-    .select({
-      tagSlug: canonicalTagLinkSlug,
-      count: sql<number>`count(distinct ${bookmarkTagLinks.bookmarkId})::int`,
-      contentDates: memberContentDates,
-    })
-    .from(bookmarkTagLinks)
-    .leftJoin(canonicalAliases, tagAliasJoinCondition())
-    .innerJoin(bookmarks, eq(bookmarks.id, bookmarkTagLinks.bookmarkId))
-    .groupBy(canonicalTagLinkSlug);
-  return rows.map((row) => ({
-    tagSlug: row.tagSlug,
-    totalPages: Math.ceil(row.count / pageSize),
-    lastModified: getLatestBookmarkLastModified(row.contentDates),
-  }));
-}
-
 export async function resolveCanonicalTagSlug(tagSlug: string): Promise<BookmarkTagResolution> {
   return resolveCanonicalTagSlugInternal(tagSlug);
 }

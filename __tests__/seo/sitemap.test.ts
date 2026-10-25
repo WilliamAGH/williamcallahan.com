@@ -1,38 +1,21 @@
 /**
  * Sitemap Generation Tests
  *
- * Tests for sitemap generation including bookmark tags with special characters
+ * Tests for bookmark route and tag slug URL safety, and the bookmark-listing sitemap collector
  */
 
 import type { MockedFunction } from "vitest";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import {
-  listBookmarkTagSlugs,
-  type getBookmarksPage,
-  type listCanonicalTagPageCounts,
-} from "@/lib/bookmarks/service.server";
-import { getBookmarkSitemapRowsFromDatabase } from "@/lib/db/queries/bookmarks";
+import { getBookmarksIndex } from "@/lib/bookmarks/service.server";
 import { bookmarkDetailSlugSchema, bookmarkTagSchema } from "@/types/schemas/bookmark";
-import {
-  collectBookmarkSitemapData,
-  collectTagSitemapData,
-} from "@/lib/sitemap/bookmark-collectors";
+import { collectBookmarksLastModified } from "@/lib/sitemap/bookmark-collectors";
 
 vi.mock("@/lib/bookmarks/service.server", () => ({
-  getBookmarksPage: vi.fn<typeof getBookmarksPage>(),
-  listBookmarkTagSlugs: vi.fn<typeof listBookmarkTagSlugs>(),
-  listCanonicalTagPageCounts: vi.fn<typeof listCanonicalTagPageCounts>().mockResolvedValue([]),
+  getBookmarksIndex: vi.fn<typeof getBookmarksIndex>(),
 }));
 
-vi.mock("@/lib/db/queries/bookmarks", () => ({
-  getBookmarkSitemapRowsFromDatabase: vi.fn<typeof getBookmarkSitemapRowsFromDatabase>(),
-}));
-
-const mockBookmarkRows = vi.mocked(getBookmarkSitemapRowsFromDatabase);
-const mockListBookmarkTagSlugs = listBookmarkTagSlugs as MockedFunction<
-  typeof listBookmarkTagSlugs
->;
+const mockGetBookmarksIndex = getBookmarksIndex as MockedFunction<typeof getBookmarksIndex>;
 
 describe("Sitemap URL Generation", () => {
   const siteUrl = "https://williamcallahan.com";
@@ -88,18 +71,6 @@ describe("Sitemap URL Generation", () => {
       }
     });
 
-    it("should generate valid paginated URLs for tags", () => {
-      const tag = "React Native";
-      const slug = tagToSlug(tag);
-      const pageNumbers = [2, 3, 10, 100];
-
-      for (const page of pageNumbers) {
-        const url = `${siteUrl}/bookmarks/tags/${slug}/page/${page}`;
-        expect(url).toBe(`https://williamcallahan.com/bookmarks/tags/react-native/page/${page}`);
-        expect(url).toMatch(/^https:\/\/[a-zA-Z0-9.-]+\/bookmarks\/tags\/[a-z0-9-]+\/page\/\d+$/);
-      }
-    });
-
     it("should handle edge cases in tag slugs", () => {
       const edgeCases = [
         { tag: "", expectedSlug: "" },
@@ -139,51 +110,9 @@ describe("Sitemap URL Generation", () => {
       expect(uniqueSlugs.size).toBe(slugs.length);
     });
   });
-
-  describe("Sitemap Entry Structure", () => {
-    it("should include all required fields for bookmark tag entries", () => {
-      const tagSlug = tagToSlug("React Native");
-      const lastModified = new Date("2025-01-01");
-
-      const entry = {
-        url: `${siteUrl}/bookmarks/tags/${tagSlug}`,
-        lastModified: lastModified,
-        changeFrequency: "weekly" as const,
-        priority: 0.6,
-      };
-
-      expect(entry.url).toBe("https://williamcallahan.com/bookmarks/tags/react-native");
-      expect(entry.lastModified).toBeInstanceOf(Date);
-      expect(entry.changeFrequency).toBe("weekly");
-      expect(entry.priority).toBe(0.6);
-    });
-
-    it("should include paginated entries with correct priority", () => {
-      const tagSlug = tagToSlug("TypeScript");
-      const lastModified = new Date("2025-01-01");
-
-      const mainEntry = {
-        url: `${siteUrl}/bookmarks/tags/${tagSlug}`,
-        lastModified: lastModified,
-        changeFrequency: "weekly" as const,
-        priority: 0.6,
-      };
-
-      const paginatedEntry = {
-        url: `${siteUrl}/bookmarks/tags/${tagSlug}/page/2`,
-        lastModified: lastModified,
-        changeFrequency: "weekly" as const,
-        priority: 0.55, // Lower than main page
-      };
-
-      expect(paginatedEntry.priority).toBeLessThan(mainEntry.priority);
-      expect(paginatedEntry.url).toContain("/page/2");
-    });
-  });
 });
 
 describe("Sitemap Collector Error Handling", () => {
-  const siteUrl = "https://williamcallahan.com";
   let originalVitest: string | undefined;
   let originalTest: string | undefined;
 
@@ -194,7 +123,6 @@ describe("Sitemap Collector Error Handling", () => {
     vi.stubEnv("NODE_ENV", "test");
     process.env.VITEST = "true";
     process.env.TEST = "true";
-    mockBookmarkRows.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -211,41 +139,19 @@ describe("Sitemap Collector Error Handling", () => {
     }
   });
 
-  it("throws in production when bookmark collection fails", async () => {
-    const outage = new Error("S3 outage");
+  it("throws in production when the bookmark index read fails", async () => {
+    const outage = new Error("database outage");
     vi.stubEnv("NODE_ENV", "production");
     process.env.VITEST = "false";
     process.env.TEST = "false";
-    mockBookmarkRows.mockRejectedValue(outage);
+    mockGetBookmarksIndex.mockRejectedValue(outage);
 
-    await expect(collectBookmarkSitemapData(siteUrl)).rejects.toThrow("S3 outage");
+    await expect(collectBookmarksLastModified()).rejects.toThrow("database outage");
   });
 
-  it("throws in production when tag collection fails", async () => {
-    const outage = new Error("S3 outage");
-    vi.stubEnv("NODE_ENV", "production");
-    process.env.VITEST = "false";
-    process.env.TEST = "false";
-    mockListBookmarkTagSlugs.mockRejectedValue(outage);
+  it("returns no lastModified in tests when the bookmark index read fails", async () => {
+    mockGetBookmarksIndex.mockRejectedValue(new Error("database outage"));
 
-    await expect(collectTagSitemapData(siteUrl)).rejects.toThrow("S3 outage");
-  });
-
-  it("returns empty fallback in tests when bookmark collection fails", async () => {
-    mockBookmarkRows.mockRejectedValue(new Error("S3 outage"));
-
-    await expect(collectBookmarkSitemapData(siteUrl)).resolves.toEqual({
-      entries: [],
-      latestBookmarkUpdateTime: undefined,
-    });
-  });
-
-  it("returns empty fallback in tests when tag collection fails", async () => {
-    mockListBookmarkTagSlugs.mockRejectedValue(new Error("S3 outage"));
-
-    await expect(collectTagSitemapData(siteUrl)).resolves.toEqual({
-      tagEntries: [],
-      paginatedTagEntries: [],
-    });
+    await expect(collectBookmarksLastModified()).resolves.toBeUndefined();
   });
 });

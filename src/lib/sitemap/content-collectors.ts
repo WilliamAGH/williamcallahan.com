@@ -1,63 +1,18 @@
 /**
- * Book & Thought Sitemap Collectors
+ * Thought Sitemap Collector
  * @module lib/sitemap/content-collectors
  * @description
- * Collects sitemap entries for individual book detail pages and thought pages.
+ * Collects sitemap entries for published thought pages. Book detail pages are
+ * excluded from search indexing (`lib/seo/search-exclusion`).
  */
 
 import type { MetadataRoute } from "next";
 
-import { fetchBooks } from "@/lib/books/books-data-access.server";
-import { generateBookSlug } from "@/lib/books/slug-helpers";
 import { getThoughtListItems } from "@/lib/thoughts/service.server";
-import { PAGE_METADATA } from "@/data/metadata";
 
-import {
-  BOOK_CHANGE_FREQUENCY,
-  BOOK_PRIORITY,
-  THOUGHT_CHANGE_FREQUENCY,
-  THOUGHT_PRIORITY,
-} from "@/lib/sitemap/constants";
+import { THOUGHT_CHANGE_FREQUENCY, THOUGHT_PRIORITY } from "@/lib/sitemap/constants";
 import { sanitizePathSegment, handleSitemapCollectorError } from "@/lib/sitemap/date-utils";
 import { getSafeDate, getLatestDate } from "@/lib/utils/date-format";
-
-export const collectBookSitemapData = async (
-  siteUrl: string,
-): Promise<{
-  entries: MetadataRoute.Sitemap;
-  latestBookUpdateTime?: Date;
-}> => {
-  try {
-    const books = await fetchBooks();
-    if (!Array.isArray(books) || books.length === 0) {
-      return { entries: [], latestBookUpdateTime: undefined };
-    }
-
-    const entries: MetadataRoute.Sitemap = books.map((book) => {
-      const slug = generateBookSlug(book.title, book.id, book.authors, book.isbn13, book.isbn10);
-      return {
-        url: `${siteUrl}/books/${slug}`,
-        changeFrequency: BOOK_CHANGE_FREQUENCY,
-        priority: BOOK_PRIORITY,
-      } satisfies MetadataRoute.Sitemap[number];
-    });
-
-    return {
-      entries,
-      latestBookUpdateTime: getSafeDate(PAGE_METADATA.books?.dateModified),
-    };
-  } catch (error) {
-    return handleSitemapCollectorError(
-      "Failed to collect book sitemap entries",
-      error,
-      {
-        entries: [],
-        latestBookUpdateTime: undefined,
-      },
-      "throw-in-production",
-    );
-  }
-};
 
 export const collectThoughtSitemapData = async (
   siteUrl: string,

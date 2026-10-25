@@ -152,6 +152,7 @@ export interface ProfilePageEntity extends SchemaBase {
   datePublished?: PacificDateString;
   mainEntity: {
     "@type": "Person";
+    "@id": string;
     name: string;
     alternateName?: string;
     identifier?: string;

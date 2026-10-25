@@ -17,7 +17,7 @@ test.describe("blog tag SEO", () => {
   test("preserves a published tag and its article links", async ({ page }) => {
     const response = await page.goto("/blog/tags/cloud", { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole("heading", { level: 1, name: "Cloud Posts" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Cloud", exact: true })).toBeVisible();
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
       /\/blog\/tags\/cloud$/,

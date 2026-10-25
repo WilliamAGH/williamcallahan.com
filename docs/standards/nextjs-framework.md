@@ -104,6 +104,17 @@ warning; enabling Partial Prefetching changes existing full-prefetch semantics a
 separate migration. Evidence: installed `next/dist/server/config.js:449-458` and the
 official `partialPrefetching`/adoption guides retrieved through Context7 on 2026-10-25.
 
+`htmlLimitedBots` decides which user agents receive blocking `<head>` metadata instead of
+metadata streamed into `<body>`. Next leaves plain `Googlebot` off its default list because
+Googlebot renders JavaScript, yet Google ignores a `rel=canonical` outside `<head>`. The option
+replaces the default list, so `next.config.ts` extends Next's own `HTML_LIMITED_BOT_UA_RE` with
+`Googlebot` rather than copying the list. A bot match changes metadata placement only; dynamic
+rendering for bots follows Next's separate `getBotType` check. Evidence: installed
+`next/dist/server/config.js:1402-1405` (the RegExp is serialized to its source),
+`next/dist/server/lib/streaming-metadata.js` (the pattern decides streaming),
+`next/dist/server/base-server.js:1247-1249`, and the official `htmlLimitedBots` reference
+retrieved on 2026-10-25.
+
 `next.config.ts` is the application configuration owner. Cache components invert the
 old route-config workflow: cache explicitly with `'use cache'`; do not use old
 page/layout `dynamic` exports or `unstable_noStore()` to force rendering behavior.

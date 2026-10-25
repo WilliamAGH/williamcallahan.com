@@ -189,7 +189,7 @@ File/Path Functionality Description
 ## Lib Directory
 
 - [~] **ai/** `ai-shared-services` - Unified AI provider and web search services
-  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing via `JSON.parse`, PostgreSQL persistence)
+  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing)
   - [x] **openai-compatible/**
     - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution, preferred-model resolution, and shared upstream queue-key builder
     - [x] `embeddings-client.ts` `ai-shared-services` - Endpoint-compatible `/v1/embeddings` client for chunk-safe batch embedding generation
@@ -321,7 +321,7 @@ File/Path Functionality Description
     - [x] `content-embeddings.ts` `bookmarks` - Content embeddings and deferred upstream-failure checkpoint tables for pgvector cosine ANN (Qwen3-Embedding-4B, 2560-d halfvec)
     - [x] `image-manifests.ts` `image-handling` - Image manifests keyed by type (logos/opengraph/blog)
   - [x] **queries/**
-    - [x] `bookmarks.ts` `bookmarks` - Bookmark reads, compact sitemap slug/date projection, canonical tag counts/pages and member-derived dates
+    - [x] `bookmarks.ts` `bookmarks` - Bookmark reads, compact fallback date projection, canonical tag counts/pages and member-derived dates
     - [x] `discovery-scores.ts` `bookmarks` - Discovery score computation and ranked bookmark retrieval (recency-primary + engagement)
     - [x] `embedding-similarity.ts` `bookmarks` - Pgvector cosine ANN search and blended ranking for related content
     - [x] `cross-domain-similarity.ts` `bookmarks` - Cross-domain similarity queries (fallback path for tag co-occurrence)
@@ -408,6 +408,7 @@ File/Path Functionality Description
   - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
   - [x] `schema.ts` `seo` - Schema.org graphs with actual collection members or omitted lists, bookmark-item detail entities, and no fabricated profile statistics
+  - [x] `search-exclusion.ts` `seo` - `noindex, follow` directive for bookmark, tag and book pages kept out of search
   - [x] `text-truncation.ts` `seo` - Smart text truncation utilities
   - [x] `utils.ts` `seo` - SEO utility functions
 - [x] **server/**
@@ -421,8 +422,8 @@ File/Path Functionality Description
     - [x] `logo-fetcher.ts` `image-handling` - Logo fetch orchestration
     - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
 - [x] **sitemap/**
-  - [x] `blog-collector.ts` `seo` - Asynchronous projection of canonical `getAllPostsMeta()` inventory into blog post/tag sitemap entries
-  - [x] `bookmark-collectors.ts` `seo` - Compact bookmark slug/date projection and canonical member-dated tag/page sitemap entries
+  - [x] `blog-collector.ts` `seo` - Canonical published blog inventory projected into post sitemap entries
+  - [x] `bookmark-collectors.ts` `seo` - Meaningful bookmark index date for the hub; detail/tag URLs remain excluded
   - [x] `constants.ts` `seo` - Shared sitemap constants (change frequencies, priorities, cache TTL)
   - [x] `content-collectors.ts` `seo` - Book and thought sitemap entry collectors
   - [x] `date-utils.ts` `seo` - Sitemap path sanitization, error handling, and test-environment detection; no date compatibility exports
@@ -610,7 +611,8 @@ File/Path Functionality Description
       - [x] **`[feature]`/`tool-registry.ts`** `ai-shared-services` - Central tool registry for all content-scope search tools; generates both Chat Completions and Responses API schemas
       - [x] **`[feature]`/`tool-dispatch.ts`** `ai-shared-services` - Generic tool dispatch: executes tool calls by looking up registered searcher functions
       - [x] **`[feature]`/`bookmark-tool.ts`** `ai-shared-services` - Bookmark-specific helpers: link formatting, URL sanitization, search pattern matching, query extraction
-      - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field configuration metadata shared by validation helpers
+      - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field/domain configuration metadata shared by validation and persistence helpers
+      - [x] **`[feature]`/`analysis-persistence.ts`** `ai-shared-services` - Persists a finished, validated analysis server-side so a started generation survives the viewer leaving
       - [x] **`[feature]`/`analysis-output-validation.ts`** `ai-shared-services` - Structured analysis output parse/normalize/leakage validation and repair prompt builder
   - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (bearer auth)
   - [x] **github-activity/**

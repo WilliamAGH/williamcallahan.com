@@ -2,18 +2,14 @@
  * Blog Sitemap Collector
  * @module lib/sitemap/blog-collector
  * @description
- * Projects the canonical blog inventory into post and tag sitemap entries.
+ * Projects the canonical blog inventory into post sitemap entries. Blog tag
+ * pages are excluded from search indexing (`lib/seo/search-exclusion`).
  */
 
 import type { MetadataRoute } from "next";
 
 import { getAllPostsMeta } from "@/lib/blog";
-import { kebabCase } from "@/lib/utils/formatters";
-import {
-  BLOG_CHANGE_FREQUENCY,
-  BLOG_POST_PRIORITY,
-  BLOG_TAG_PRIORITY,
-} from "@/lib/sitemap/constants";
+import { BLOG_CHANGE_FREQUENCY, BLOG_POST_PRIORITY } from "@/lib/sitemap/constants";
 import { handleSitemapCollectorError } from "@/lib/sitemap/date-utils";
 import { getSafeDate, getLatestDate } from "@/lib/utils/date-format";
 
@@ -21,11 +17,9 @@ export const collectBlogSitemapData = async (
   siteUrl: string,
 ): Promise<{
   blogPostEntries: MetadataRoute.Sitemap;
-  blogTagEntries: MetadataRoute.Sitemap;
   latestPostUpdateTime?: Date;
 }> => {
-  const postsData: { slug: string; lastModified?: Date; tags: string[] }[] = [];
-  const tagLastModifiedMap: Record<string, Date> = {};
+  const postsData: { slug: string; lastModified?: Date }[] = [];
   let latestPostUpdateTime: Date | undefined;
 
   try {
@@ -39,30 +33,14 @@ export const collectBlogSitemapData = async (
         console.warn(`Sitemap: Could not determine lastModified date for post: ${post.slug}`);
       }
 
-      postsData.push({
-        slug: post.slug,
-        lastModified: postLastModified,
-        tags: post.tags,
-      });
-
+      postsData.push({ slug: post.slug, lastModified: postLastModified });
       latestPostUpdateTime = getLatestDate(latestPostUpdateTime, postLastModified);
-
-      if (postLastModified) {
-        for (const tag of post.tags) {
-          const tagSlug = kebabCase(tag);
-          tagLastModifiedMap[tagSlug] =
-            getLatestDate(tagLastModifiedMap[tagSlug], postLastModified) ?? postLastModified;
-        }
-      }
     }
   } catch (error) {
     return handleSitemapCollectorError(
       "Error reading blog posts directory",
       error,
-      {
-        blogPostEntries: [],
-        blogTagEntries: [],
-      },
+      { blogPostEntries: [] },
       "throw-in-production",
     );
   }
@@ -74,14 +52,5 @@ export const collectBlogSitemapData = async (
     priority: BLOG_POST_PRIORITY,
   }));
 
-  const blogTagEntries: MetadataRoute.Sitemap = Object.entries(tagLastModifiedMap).map(
-    ([tagSlug, lastModified]) => ({
-      url: `${siteUrl}/blog/tags/${tagSlug}`,
-      lastModified,
-      changeFrequency: BLOG_CHANGE_FREQUENCY,
-      priority: BLOG_TAG_PRIORITY,
-    }),
-  );
-
-  return { blogPostEntries, blogTagEntries, latestPostUpdateTime };
+  return { blogPostEntries, latestPostUpdateTime };
 };

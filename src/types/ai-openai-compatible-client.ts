@@ -23,6 +23,8 @@ export interface AiChatRequest {
    * Range is enforced server-side (currently -100..100).
    */
   priority?: number;
+  /** Entity whose analysis this request generates; the server persists the validated result. */
+  analysisEntityId?: string;
 }
 
 export interface AiChatClientOptions {

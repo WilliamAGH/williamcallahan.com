@@ -246,8 +246,11 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageEntity {
     description: params.description,
     dateCreated: params.datePublished, // Using datePublished as dateCreated
     dateModified: params.dateModified,
+    // The canonical @id merges this node with the graph's Person entity instead of
+    // describing a second, unidentified person.
     mainEntity: {
       "@type": "Person",
+      "@id": createIdUrl("/", "person"),
       name: SITE_NAME,
       ...(profileMetadata.alternateName && { alternateName: profileMetadata.alternateName }),
       ...(profileMetadata.identifier && { identifier: profileMetadata.identifier }),

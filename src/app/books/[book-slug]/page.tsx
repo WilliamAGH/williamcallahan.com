@@ -31,6 +31,7 @@ import { getCachedAnalysis } from "@/lib/ai-analysis/reader.server";
 import type { BookAiAnalysisResponse } from "@/types/schemas/book-ai-analysis";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
+import { SEARCH_EXCLUDED_ROBOTS } from "@/lib/seo/search-exclusion";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -136,6 +137,7 @@ export async function generateMetadata({ params }: BookPageProps): Promise<Metad
     alternates: {
       canonical: ensureAbsoluteUrl(path),
     },
+    robots: SEARCH_EXCLUDED_ROBOTS,
   };
 }
 

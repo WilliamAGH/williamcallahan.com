@@ -122,7 +122,6 @@ export interface UseAiAnalysisArgs<TEntity, TAnalysis> {
   entity: TEntity;
   entityId: string;
   featureName: string;
-  persistenceKey: AnalysisDomain;
   loadingMessages: string[];
   extractContext: (entity: TEntity) => unknown;
   buildSystemPrompt: () => string;
@@ -149,8 +148,6 @@ export interface AiAnalysisTerminalProps<TEntity, TAnalysis> {
   entityId: string;
   /** AI feature name for API routing (e.g., "bookmark-analysis") */
   featureName: string;
-  /** Domain key for PostgreSQL persistence (e.g., "bookmarks") */
-  persistenceKey: AnalysisDomain;
   /** Loading messages to cycle through */
   loadingMessages: string[];
   /** Extract context from entity for prompts */

@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { generateMetadata as generateBookmarkDetailMetadata } from "@/app/bookmarks/[slug]/page";
 import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page";
 import { getBookmarkById, getBookmarksIndex } from "@/lib/bookmarks/service.server";
+import { generateMetadata as generateBlogTagMetadata } from "@/app/blog/tags/[tagSlug]/page";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { bookmarksIndexSchema, unifiedBookmarkSchema } from "@/types/schemas/bookmark";
@@ -153,6 +154,34 @@ describe("Metadata Integration Tests", () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it("keeps bookmark detail pages out of search indexes while their links stay crawlable", async () => {
+    const slug = "example-com-article";
+    const bookmark = unifiedBookmarkSchema.parse({
+      id: "indexed-bookmark",
+      url: "https://example.com/article",
+      title: "Example Article",
+      description: "An article saved from example.com",
+      slug,
+      tags: [],
+      dateBookmarked: "2026-07-13T00:00:00.000Z",
+      sourceUpdatedAt: "2026-07-13T00:00:00.000Z",
+    });
+    mockedResolveBookmarkIdFromSlug.mockResolvedValue(bookmark.id);
+    mockedGetBookmarkById.mockResolvedValue(bookmark);
+
+    const metadata = await generateBookmarkDetailMetadata({ params: Promise.resolve({ slug }) });
+
+    expect(metadata.robots).toEqual({ index: false, follow: true });
+  });
+
+  it("keeps blog tag pages out of search indexes while their links stay crawlable", async () => {
+    const metadata = await generateBlogTagMetadata({
+      params: Promise.resolve({ tagSlug: "nextjs" }),
+    });
+
+    expect(metadata.robots).toEqual({ index: false, follow: true });
   });
 
   describe("Robots.txt Environment Detection", () => {
