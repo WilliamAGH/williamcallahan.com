@@ -5,6 +5,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { metadata, PAGE_METADATA } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
+import { SEARCH_EXCLUDED_ROBOTS } from "@/lib/seo/search-exclusion";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import {
   generateDynamicTitle,
@@ -67,6 +68,7 @@ export async function generateMetadata({
     alternates: {
       canonical: url,
     },
+    robots: SEARCH_EXCLUDED_ROBOTS,
     openGraph: {
       title: title,
       description: description,

@@ -186,7 +186,7 @@ File/Path Functionality Description
 ## Lib Directory
 
 - [~] **ai/** `ai-shared-services` - Unified AI provider and web search services
-  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing via `JSON.parse`, PostgreSQL persistence)
+  - [x] `analysis-client-utils.ts` `ai-shared-services` - Shared client utilities for AI analysis (LLM JSON parsing)
   - [x] **openai-compatible/**
     - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution, preferred-model resolution, and shared upstream queue-key builder
     - [x] `embeddings-client.ts` `ai-shared-services` - Endpoint-compatible `/v1/embeddings` client for chunk-safe batch embedding generation
@@ -402,6 +402,7 @@ File/Path Functionality Description
   - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
   - [x] `schema.ts` `seo` - Schema.org generation helpers
+  - [x] `search-exclusion.ts` `seo` - `noindex, follow` directive for bookmark, tag and book pages kept out of search
   - [x] `text-truncation.ts` `seo` - Smart text truncation utilities
   - [x] `utils.ts` `seo` - SEO utility functions
 - [x] **server/**
@@ -603,7 +604,8 @@ File/Path Functionality Description
       - [x] **`[feature]`/`tool-registry.ts`** `ai-shared-services` - Central tool registry for all content-scope search tools; generates both Chat Completions and Responses API schemas
       - [x] **`[feature]`/`tool-dispatch.ts`** `ai-shared-services` - Generic tool dispatch: executes tool calls by looking up registered searcher functions
       - [x] **`[feature]`/`bookmark-tool.ts`** `ai-shared-services` - Bookmark-specific helpers: link formatting, URL sanitization, search pattern matching, query extraction
-      - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field configuration metadata shared by validation helpers
+      - [x] **`[feature]`/`analysis-output-config.ts`** `ai-shared-services` - Analysis schema/field/domain configuration metadata shared by validation and persistence helpers
+      - [x] **`[feature]`/`analysis-persistence.ts`** `ai-shared-services` - Persists a finished, validated analysis server-side so a started generation survives the viewer leaving
       - [x] **`[feature]`/`analysis-output-validation.ts`** `ai-shared-services` - Structured analysis output parse/normalize/leakage validation and repair prompt builder
   - [x] **debug/`posts`/`route.ts`** `log-error-debug-handling` - Debug API for posts (bearer auth)
   - [x] **github-activity/**

@@ -16,6 +16,8 @@ export const requestBodySchema = z
     apiMode: aiUpstreamApiModeSchema.optional(),
     conversationId: z.uuid().optional(),
     priority: z.number().int().min(-100).max(100).optional(),
+    /** Entity whose analysis this request generates; the server persists the validated result. */
+    analysisEntityId: z.string().min(1).max(100).optional(),
     messages: z
       .array(
         z.object({

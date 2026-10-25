@@ -238,36 +238,6 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageEntity {
   // Get profile-specific metadata if available
   const profileMetadata = params.profileMetadata || {};
 
-  // Process interaction statistics to ensure proper typing
-  const interactionStats = profileMetadata.interactionStats;
-  const interactionStatistics = interactionStats?.follows
-    ? [
-        {
-          "@type": "InteractionCounter" as const,
-          interactionType: "https://schema.org/FollowAction",
-          userInteractionCount: interactionStats.follows,
-        },
-        ...(interactionStats?.likes
-          ? [
-              {
-                "@type": "InteractionCounter" as const,
-                interactionType: "https://schema.org/LikeAction",
-                userInteractionCount: interactionStats.likes,
-              },
-            ]
-          : []),
-      ]
-    : undefined;
-
-  // Create agent interaction statistic with proper typing
-  const agentInteractionStatistic = interactionStats?.posts
-    ? {
-        "@type": "InteractionCounter" as const,
-        interactionType: "https://schema.org/WriteAction",
-        userInteractionCount: interactionStats.posts,
-      }
-    : undefined;
-
   return {
     "@type": "ProfilePage",
     "@id": createIdUrl(params.path, "profile"),
@@ -275,8 +245,11 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageEntity {
     description: params.description,
     dateCreated: params.datePublished, // Using datePublished as dateCreated
     dateModified: params.dateModified,
+    // The canonical @id merges this node with the graph's Person entity instead of
+    // describing a second, unidentified person.
     mainEntity: {
       "@type": "Person",
+      "@id": createIdUrl("/", "person"),
       name: SITE_NAME,
       ...(profileMetadata.alternateName && { alternateName: profileMetadata.alternateName }),
       ...(profileMetadata.identifier && { identifier: profileMetadata.identifier }),
@@ -285,8 +258,6 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageEntity {
       ...(profileMetadata.profileImage
         ? { image: ensureAbsoluteUrl(profileMetadata.profileImage) }
         : params.image && { image: ensureAbsoluteUrl(params.image.url) }),
-      ...(interactionStatistics && { interactionStatistic: interactionStatistics }),
-      ...(agentInteractionStatistic && { agentInteractionStatistic }),
     },
   };
 }

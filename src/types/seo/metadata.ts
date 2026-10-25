@@ -100,14 +100,6 @@ export const profilePageMetadataSchema = basePageMetadataSchema.extend({
       `Bio should be under ${SEO_LIMITS.OG_DESCRIPTION_MAX} characters`,
     ),
 
-  interactionStats: z
-    .object({
-      follows: z.number().int().nonnegative().optional(),
-      likes: z.number().int().nonnegative().optional(),
-      posts: z.number().int().nonnegative().optional(),
-    })
-    .optional(),
-
   profileImage: z.url().optional(),
   alternateName: z.string().optional(),
   identifier: z.string().optional(),

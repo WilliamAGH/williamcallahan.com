@@ -152,22 +152,13 @@ export interface ProfilePageEntity extends SchemaBase {
   datePublished?: PacificDateString;
   mainEntity: {
     "@type": "Person";
+    "@id": string;
     name: string;
     alternateName?: string;
     identifier?: string;
     description: string;
     image?: string;
     sameAs?: string[];
-    interactionStatistic?: Array<{
-      "@type": "InteractionCounter";
-      interactionType: string;
-      userInteractionCount: number;
-    }>;
-    agentInteractionStatistic?: {
-      "@type": "InteractionCounter";
-      interactionType: string;
-      userInteractionCount: number;
-    };
   };
 }
 
@@ -293,11 +284,6 @@ export interface SchemaParams {
     alternateName?: string;
     identifier?: string;
     profileImage?: string;
-    interactionStats?: {
-      follows?: number;
-      likes?: number;
-      posts?: number;
-    };
   };
   softwareMetadata?: {
     name: string;

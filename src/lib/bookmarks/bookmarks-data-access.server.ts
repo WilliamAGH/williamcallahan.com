@@ -235,13 +235,6 @@ export async function listTagSlugs(): Promise<string[]> {
   return listTagSlugsFromDatabase();
 }
 
-export async function listCanonicalTagPageCounts(
-  pageSize?: number,
-): Promise<Array<{ tagSlug: string; totalPages: number; lastModified: string | null }>> {
-  const { listCanonicalTagPageCountsFromDatabase } = await loadBookmarkQueryModule();
-  return listCanonicalTagPageCountsFromDatabase(pageSize);
-}
-
 export async function resolveBookmarkTagSlug(tagSlug: string): Promise<{
   requestedSlug: string;
   canonicalSlug: string;

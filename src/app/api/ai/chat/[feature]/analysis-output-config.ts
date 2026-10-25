@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { AnalysisDomain } from "@/types/ai-analysis";
 import type { AnalysisFeatureId } from "@/types/features/ai-chat";
 import { bookAiAnalysisResponseSchema } from "@/types/schemas/book-ai-analysis";
 import { bookmarkAiAnalysisResponseSchema } from "@/types/schemas/bookmark-ai-analysis";
@@ -15,6 +16,12 @@ export const ANALYSIS_SCHEMA_BY_FEATURE = {
   | typeof bookAiAnalysisResponseSchema
   | typeof projectAiAnalysisResponseSchema
 >;
+
+export const ANALYSIS_DOMAIN_BY_FEATURE = {
+  "bookmark-analysis": "bookmarks",
+  "book-analysis": "books",
+  "project-analysis": "projects",
+} satisfies Record<AnalysisFeatureId, AnalysisDomain>;
 
 export const ANALYSIS_FIELD_CONFIG: Record<
   AnalysisFeatureId,

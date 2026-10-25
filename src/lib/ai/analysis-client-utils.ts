@@ -3,14 +3,10 @@
  * @module lib/ai/analysis-client-utils
  * @description
  * Shared utilities for AI analysis client components.
- * Includes JSON parsing for LLM responses and PostgreSQL persistence helpers.
+ * JSON parsing for LLM responses.
  */
 
-import * as Sentry from "@sentry/nextjs";
 import { jsonrepair } from "jsonrepair";
-import { persistAnalysisSuccessResponseSchema } from "@/types/schemas/ai-analysis-persisted";
-import type { AnalysisDomain } from "@/types/ai-analysis";
-import type { PersistAnalysisSuccessResponse } from "@/types/schemas/ai-analysis-persisted";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JSON Parsing Utilities
@@ -169,87 +165,4 @@ export function parseLlmJson(rawText: string): unknown {
 
   const firstError = parseErrors[0] ?? "No parse candidates were produced from model output.";
   throw new Error(`Unable to parse LLM JSON response: ${firstError}`);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PostgreSQL Persistence
-// ─────────────────────────────────────────────────────────────────────────────
-
-function getPersistErrorMessage(response: Response, responseText: string): string {
-  const text = responseText.trim();
-  if (!text) return response.statusText || `HTTP ${response.status}`;
-
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (typeof parsed === "object" && parsed !== null) {
-      // StandardApiErrorResponse shape (e.g. 429 buildApiRateLimitResponse,
-      // 503 buildApiServiceBusyResponse): { code, message, retryAfterSeconds, ... }
-      if ("message" in parsed && typeof parsed.message === "string" && parsed.message.trim()) {
-        return parsed.message;
-      }
-      // createErrorResponse shape: { error: string }
-      if ("error" in parsed && typeof parsed.error === "string" && parsed.error.trim()) {
-        return parsed.error;
-      }
-    }
-  } catch {
-    return text;
-  }
-
-  return text;
-}
-
-/**
- * Persist analysis to PostgreSQL via API endpoint.
- *
- * @param domain - The analysis domain (bookmarks, books, projects)
- * @param id - The item ID
- * @param analysis - The analysis data to persist
- */
-export async function persistAnalysis(
-  domain: AnalysisDomain,
-  id: string,
-  analysis: unknown,
-): Promise<PersistAnalysisSuccessResponse | { success: false; message: string; status?: number }> {
-  const context = { id, domain };
-
-  try {
-    const response = await fetch(`/api/ai/analysis/${domain}/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysis }),
-    });
-
-    if (!response.ok) {
-      const responseText = await response.text();
-      const message = getPersistErrorMessage(response, responseText);
-      Sentry.captureMessage(`${domain} AI analysis persist failed`, {
-        level: "warning",
-        extra: { ...context, status: response.status, statusText: response.statusText, message },
-      });
-      return { success: false, message, status: response.status };
-    }
-
-    const responseBody: unknown = await response.json();
-    const parsedResponse = persistAnalysisSuccessResponseSchema.safeParse(responseBody);
-    if (!parsedResponse.success) {
-      const message = "Invalid analysis persistence response";
-      Sentry.captureMessage(`${domain} AI analysis persist returned invalid data`, {
-        level: "warning",
-        extra: { ...context, status: response.status, issues: parsedResponse.error.issues },
-      });
-      return { success: false, message, status: response.status };
-    }
-
-    return parsedResponse.data;
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: context,
-      tags: { feature: "ai-analysis-persist" },
-    });
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Unable to persist analysis",
-    };
-  }
 }

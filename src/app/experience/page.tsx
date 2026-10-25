@@ -67,7 +67,6 @@ export default async function ExperiencePage() {
       bio: pageMetadata.bio,
       alternateName: pageMetadata.alternateName,
       profileImage: pageMetadata.profileImage,
-      interactionStats: pageMetadata.interactionStats,
     },
   };
 

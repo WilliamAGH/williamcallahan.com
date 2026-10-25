@@ -60,7 +60,6 @@ export default async function HomePage() {
       bio: pageMetadata.bio,
       alternateName: pageMetadata.alternateName,
       profileImage: pageMetadata.profileImage,
-      interactionStats: pageMetadata.interactionStats,
     },
   };
 
