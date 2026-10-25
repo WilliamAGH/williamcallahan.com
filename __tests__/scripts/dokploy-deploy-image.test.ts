@@ -7,7 +7,7 @@ it("reuses unchanged desired deployments but submits a new identity after runtim
   const image = `registry.example.com/scheduler:reviewed@sha256:${"a".repeat(64)}`;
   let runtimeEnv = "AUDIOBOOKSHELF_URL=${{vault.production.AUDIOBOOKSHELF_URL}}";
   const keys: string[] = [];
-  const server = createServer(async (request, response) => {
+  const server = createServer((request, response) => {
     response.setHeader("content-type", "application/json");
     const path = request.url?.split("?")[0];
     if (path === "/api/application.one") {
@@ -26,19 +26,23 @@ it("reuses unchanged desired deployments but submits a new identity after runtim
       );
     } else if (path === "/api/application.deploy") {
       let body = "";
-      for await (const chunk of request) body += String(chunk);
-      const parsed: unknown = JSON.parse(body);
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        "idempotencyKey" in parsed &&
-        typeof parsed.idempotencyKey === "string"
-      ) {
-        keys.push(parsed.idempotencyKey);
-        response.end(JSON.stringify({ deploymentId: "deployment" }));
-      } else {
-        response.writeHead(400).end();
-      }
+      request.on("data", (chunk: Buffer) => {
+        body += chunk.toString();
+      });
+      request.on("end", () => {
+        const parsed: unknown = JSON.parse(body);
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          "idempotencyKey" in parsed &&
+          typeof parsed.idempotencyKey === "string"
+        ) {
+          keys.push(parsed.idempotencyKey);
+          response.end(JSON.stringify({ deploymentId: "deployment" }));
+        } else {
+          response.writeHead(400).end();
+        }
+      });
     } else if (path === "/api/deployment.all") {
       response.end(JSON.stringify([{ deploymentId: "deployment", status: "done" }]));
     } else {
