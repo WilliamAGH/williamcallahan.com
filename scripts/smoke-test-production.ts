@@ -309,7 +309,9 @@ export function parseSmokeTestArguments(args: string[]) {
   const releaseArguments = args.filter((argument) =>
     argument.startsWith(EXPECTED_RELEASE_ID_PREFIX),
   );
-  const positionalArguments = args.filter((argument) => !releaseArguments.includes(argument));
+  const positionalArguments = args.filter(
+    (argument) => argument !== "--" && !releaseArguments.includes(argument),
+  );
   if (
     releaseArguments.length > 1 ||
     releaseArguments[0] === EXPECTED_RELEASE_ID_PREFIX ||
