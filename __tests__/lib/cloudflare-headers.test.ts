@@ -376,6 +376,17 @@ describe("Cloudflare header enforcement", () => {
       expect(
         parseSmokeTestArguments(["williamcallahan.com", "--expected-release-id="]),
       ).toBeUndefined();
+      expect(
+        parseSmokeTestArguments([
+          "--",
+          "williamcallahan.com",
+          `--expected-release-id=${releaseId}`,
+        ]),
+      ).toEqual({
+        authToken: undefined,
+        baseUrl: "https://williamcallahan.com",
+        expectedReleaseId: releaseId,
+      });
     });
     it("rejects wrong, skewed, and scriptless release HTML", async () => {
       const fetchAsset = async (url: string) =>
