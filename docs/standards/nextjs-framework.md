@@ -19,7 +19,7 @@ application behavior; do not infer behavior from a major-version label.
 | next-mdx-remote         | `package.json`, `node_modules/next-mdx-remote`         | 6.0.0            |
 | remark-gfm              | `package.json`, `node_modules/remark-gfm/package.json` | 4.0.1            |
 | Node package floor      | `node_modules/next/package.json`                       | `>=20.9.0`       |
-| Container Node manifest | `package.json` (`engines.node`, `runtime.node.linux`)  | exactly 24.18.0  |
+| Container Node manifest | `package.json` (`engines.node`, `runtime.node.linux`)  | exactly 24.22.1  |
 
 `package.json` owns the exact Node version and Linux artifact checksums. Both Dockerfiles
 parse that manifest with `jq`; `docs/ops/deployment.md` owns the operational procedure.
@@ -42,7 +42,7 @@ parse that manifest with `jq`; `docs/ops/deployment.md` owns the operational pro
 
 ## Production Node Runtime and the TransformStream Incident
 
-Both container images project exactly Node.js 24.18.0 from `package.json`'s
+Both container images project exactly Node.js 24.22.1 from `package.json`'s
 `engines.node`. The operational runtime contract, the TransformStream incident rationale,
 and the image verification commands are owned by
 [`docs/ops/deployment.md#node-runtime`](../ops/deployment.md#node-runtime).

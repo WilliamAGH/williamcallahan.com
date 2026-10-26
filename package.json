@@ -258,12 +258,12 @@
     },
     "runtime": {
       "name": "node",
-      "version": "24.18.0",
+      "version": "24.22.1",
       "onFail": "download"
     }
   },
   "engines": {
-    "node": "24.18.0",
+    "node": "24.22.1",
     "pnpm": ">=12.0.0"
   },
   "packageManager": "pnpm@12.3.4",
@@ -271,10 +271,10 @@
     "node": {
       "linux": {
         "amd64": {
-          "sha256": "55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742"
+          "sha256": "6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6"
         },
         "arm64": {
-          "sha256": "58c9520501f6ae2b52d5b210444e24b9d0c029a58c5011b797bc1fe7105886f6"
+          "sha256": "dbabf7a1cbf947e6059ffad2c27b80041db97dea1e553b62afdee7f13fca336e"
         }
       }
     }
