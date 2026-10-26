@@ -16,6 +16,7 @@ import {
   fetchContributorStats,
   GitHubContributorStatsPendingError,
   GitHubContributorStatsRateLimitError,
+  GitHubContributorStatsUnavailableError,
   getGitHubUsername,
   isGitHubApiConfigured,
 } from "./github-api";
@@ -143,6 +144,10 @@ async function repairFromApi(
       console.info(`[GitHub-CSV] Stats generating for ${repoOwner}/${repoName}`);
     } else if (error instanceof GitHubContributorStatsRateLimitError) {
       console.info(`[GitHub-CSV] Rate limited for ${repoOwner}/${repoName}`);
+    } else if (error instanceof GitHubContributorStatsUnavailableError) {
+      console.info(
+        `[GitHub-CSV] LOC unavailable for ${repoOwner}/${repoName} (GitHub 10,000-commit limit)`,
+      );
     } else {
       const categorized = createCategorizedError(error, "github");
       console.warn(`[GitHub-CSV] API error for ${repoOwner}/${repoName}:`, categorized.message);
