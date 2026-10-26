@@ -109,7 +109,10 @@ export async function handleTestEnvironment(): Promise<UnifiedBookmark[] | null>
 
 /** Fetches all pages from the bookmarks API with pagination. */
 export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<RawApiBookmark[]> {
-  console.log(`[refreshBookmarksData] Fetching all bookmarks from API: ${ctx.apiUrl}`);
+  const apiUrl = new URL(ctx.apiUrl);
+  const upstream = `${apiUrl.origin}${apiUrl.pathname}`;
+  const deadlineMs = BOOKMARKS_API_CONFIG.REQUEST_TIMEOUT_MS;
+  console.log(`[refreshBookmarksData] Fetching all bookmarks from API: ${upstream}`);
   const allRawBookmarks: RawApiBookmark[] = [];
   let cursor: string | null = null;
   let pageCount = 0;
@@ -119,51 +122,66 @@ export async function fetchAllPagesFromApi(ctx: BookmarksApiContext): Promise<Ra
     const pageUrl = cursor
       ? `${ctx.apiUrl}?cursor=${encodeURIComponent(cursor)}&includeContent=true`
       : `${ctx.apiUrl}?includeContent=true`;
-    console.log(`[refreshBookmarksData] Fetching page ${pageCount}: ${pageUrl}`);
+    console.log(`[refreshBookmarksData] Fetching page ${pageCount}: ${upstream}`);
+    let attempt = 0;
+    let phase = "fetch";
+    const pageContext = () =>
+      `upstream=${upstream} page=${pageCount} phase=${phase} deadlineMs=${deadlineMs} attempt=${attempt}`;
 
-    const pageResponse = await retryWithThrow(
-      () =>
-        fetch(pageUrl, {
-          method: "GET",
-          headers: ctx.requestHeaders,
-          signal: AbortSignal.timeout(BOOKMARKS_API_CONFIG.REQUEST_TIMEOUT_MS),
-          redirect: "follow",
-        }),
-      {
-        maxRetries: 1,
-        baseDelay: 1_000,
-        maxBackoff: 1_000,
-        isRetryable: isTransientPageFetchFailure,
-        onRetry: (error) =>
-          console.warn(
-            `[refreshBookmarksData] Retrying page ${pageCount} after transient failure: ${String(error)}`,
-          ),
-      },
-    );
-
-    if (!pageResponse.ok) {
-      const responseText = await pageResponse.text();
-      throw new Error(
-        `API request to ${pageUrl} failed with status ${pageResponse.status}: ${responseText}`,
+    try {
+      const pageResponse = await retryWithThrow(
+        () => {
+          attempt += 1;
+          return fetch(pageUrl, {
+            method: "GET",
+            headers: ctx.requestHeaders,
+            signal: AbortSignal.timeout(deadlineMs),
+            redirect: "follow",
+          });
+        },
+        {
+          maxRetries: 1,
+          baseDelay: 1_000,
+          maxBackoff: 1_000,
+          isRetryable: isTransientPageFetchFailure,
+          onRetry: (error) =>
+            console.warn(`[refreshBookmarksData] Retrying page (${pageContext()})`, error),
+        },
       );
-    }
 
-    const raw = (await pageResponse.json()) as unknown;
-    const parsed = bookmarksApiResponseSchema.safeParse(raw);
-    if (!parsed.success) {
-      console.error(
-        "[refreshBookmarksData] Invalid API response shape:",
-        parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; "),
+      phase = "response-body";
+      if (!pageResponse.ok) {
+        const responseText = await pageResponse.text();
+        throw new Error(
+          `API request to ${upstream} failed with status ${pageResponse.status}: ${responseText}`,
+        );
+      }
+
+      const raw: unknown = await pageResponse.json();
+      phase = "response-validation";
+      const parsed = bookmarksApiResponseSchema.safeParse(raw);
+      if (!parsed.success) {
+        console.error(
+          "[refreshBookmarksData] Invalid API response shape:",
+          parsed.error.issues
+            .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+            .join("; "),
+        );
+        throw new Error("Invalid bookmarks API response shape");
+      }
+
+      const apiResponse: ApiResponse = parsed.data;
+      console.log(
+        `[refreshBookmarksData] Retrieved ${apiResponse.bookmarks.length} bookmarks from page ${pageCount}.`,
       );
-      throw new Error("Invalid bookmarks API response shape");
+      allRawBookmarks.push(...apiResponse.bookmarks);
+      cursor = apiResponse.nextCursor;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`[refreshBookmarksData] Page request failed (${pageContext()}): ${message}`, {
+        cause: error,
+      });
     }
-
-    const apiResponse: ApiResponse = parsed.data;
-    console.log(
-      `[refreshBookmarksData] Retrieved ${apiResponse.bookmarks.length} bookmarks from page ${pageCount}.`,
-    );
-    allRawBookmarks.push(...apiResponse.bookmarks);
-    cursor = apiResponse.nextCursor;
   } while (cursor);
 
   console.log(

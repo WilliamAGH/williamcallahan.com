@@ -12,6 +12,26 @@ The application uses a cron-based scheduler (`scheduler/scheduler.ts`) that runs
 
 ## Architecture Decisions
 
+Bookmark page requests retain their 10-second default. `BOOKMARKS_API_REQUEST_TIMEOUT_MS` accepts
+positive integer milliseconds; terminal diagnostics identify the safe upstream origin/path, page,
+request/body/validation phase, deadline and attempt while retaining the original cause. A higher
+configured limit is not itself a diagnosis of upstream latency.
+
+The tag-ingestion child keeps its original stderr stream. `scheduler/lib/bookmark-tag-task.ts`
+also carries its final `[BookmarkTagIngestion] Failed:` cause into the parent operation result,
+including abnormal termination signals, rather than reporting an unexplained exit code alone.
+
+Embedding throttles whose `Retry-After` exceeds the caller's inline backoff cap return immediately
+to the existing durable retry checkpoint. Do not shorten the provider's cooldown to fit a capped
+sleep or add an overlapping retry queue. Ordinary short retries keep their current policy.
+
+GitHub retained-data results remain typed degraded successes rather than ordinary fresh successes.
+The data-updater summary and development attempt details preserve that distinction; unsuccessful
+or degraded attempts do not advance the development successful-run marker. The database activity
+timestamp remains owned by successful publication. The upstream collection deadline does not
+pretend to cancel an already-issued SQL statement or COMMIT; active work drains under the existing
+scheduler exclusion rather than being abandoned behind a timer race.
+
 1. **Startup Bootstrap**: After the database readiness gate, `scheduler/entrypoint.sh` runs
    `node --run update-data` with no operation flags. That invokes the canonical default
    data-updater operation set, including books and search indexes. After success, the

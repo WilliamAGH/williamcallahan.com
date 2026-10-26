@@ -8,6 +8,9 @@
 
 import { z } from "zod/v4";
 
+/** Environment-configured per-page bookmark API deadline, in milliseconds. */
+export const bookmarkApiTimeoutSchema = z.int().positive();
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Primitive / Shared Schemas
 // ─────────────────────────────────────────────────────────────────────────────

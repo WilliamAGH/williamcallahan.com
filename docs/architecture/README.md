@@ -1,5 +1,8 @@
 # Project Architecture Entrypoint
 
+`architecture/batch-processing.md` owns bookmark fetch deadlines, tag-child terminal diagnostics,
+embedding cooldown deferral and the distinction between retained-data degradation and fresh success.
+
 Card image slot sizing belongs to the book and bookmark topic grids; the shared image helper
 forwards their optional `sizes` without changing hero/feed defaults (see `image-handling.md`).
 

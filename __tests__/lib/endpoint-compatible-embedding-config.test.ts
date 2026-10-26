@@ -1,5 +1,6 @@
 import {
   embedTextsWithEndpointCompatibleModel,
+  getEndpointCompatibleEmbeddingRetryAfterMilliseconds,
   resolveEndpointCompatibleEmbeddingTimeoutMs,
 } from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
@@ -269,6 +270,34 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
 
     await expect(embeddings).resolves.toEqual([[3, 4]]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([429, 400])("does not retry HTTP %s before a long Retry-After", async (status) => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementation(
+        async () =>
+          new Response("capacity exhausted", { status, headers: { "Retry-After": "60" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const outcome = embedTextsWithEndpointCompatibleModel({
+        config: embeddingConfig,
+        input: ["alpha"],
+        tier: "batch",
+        workload: "williamcallahan.com:bookmarkIndexEmbedding:batch",
+        retry: { maxRetries: 2, baseDelayMs: 1_000, maxDelayMs: 15_000 },
+      }).catch((error: unknown) => error);
+      await vi.runAllTimersAsync();
+      const error = await outcome;
+      expect(error).toMatchObject({ status, message: expect.stringContaining(`HTTP ${status}`) });
+      expect(getEndpointCompatibleEmbeddingRetryAfterMilliseconds(error)).toBe(60_000);
+      expect(fetchMock).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("returns bounded upstream context for a terminal HTTP error", async () => {
