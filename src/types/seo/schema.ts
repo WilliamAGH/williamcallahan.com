@@ -17,9 +17,41 @@ interface SchemaBase {
 }
 
 /**
+ * Organization, school, or accelerator the site owner is affiliated with
+ */
+export interface OrganizationReference {
+  "@type": "Organization" | "CollegeOrUniversity";
+  "@id"?: string;
+  name: string;
+  url?: string;
+}
+
+/**
+ * Professional credential held by the site owner
+ */
+export interface CredentialReference {
+  "@type": "EducationalOccupationalCredential";
+  name: string;
+  credentialCategory: string;
+}
+
+/**
+ * Knowledge Graph facts that disambiguate the site owner from others of the same name
+ */
+export interface PersonKnowledgeGraphFacts {
+  jobTitle: string;
+  worksFor: OrganizationReference;
+  founder: OrganizationReference[];
+  alumniOf: OrganizationReference[];
+  hasCredential: CredentialReference[];
+  homeLocation: { "@type": "Place"; name: string };
+  knowsAbout: string[];
+}
+
+/**
  * Person entity representing the website owner
  */
-export interface PersonEntity extends SchemaBase {
+export interface PersonEntity extends SchemaBase, PersonKnowledgeGraphFacts {
   "@type": "Person";
   name: string;
   description: string;
@@ -84,6 +116,27 @@ export interface ArticleEntity extends SchemaBase {
   inLanguage: string;
   articleBody: string;
   keywords?: string | string[];
+}
+
+/**
+ * Bookmark detail page; the bookmarked resource is a third-party work, never one the site owner authored
+ */
+export interface BookmarkWebPageEntity extends SchemaBase {
+  "@type": "WebPage";
+  url: string;
+  name: string;
+  description: string;
+  datePublished: PacificDateString;
+  dateModified: PacificDateString;
+  isPartOf: { "@id": string };
+  image?: { "@id": string };
+  keywords?: string;
+  about: {
+    "@type": "CreativeWork";
+    name: string;
+    url: string;
+    author?: { "@type": "Person"; name: string };
+  };
 }
 
 /**
@@ -230,6 +283,7 @@ export interface SchemaGraph {
   "@graph": Array<
     | WebPageBase
     | ArticleEntity
+    | BookmarkWebPageEntity
     | PersonEntity
     | ImageObjectEntity
     | WebSiteEntity
@@ -269,6 +323,11 @@ export interface SchemaParams {
     url?: string;
   }>;
   mainEntityOfPage?: { "@id": string };
+  /** The third-party resource a bookmark-item page points to */
+  bookmark?: {
+    url: string;
+    author?: string;
+  };
   type?:
     | "article"
     | "profile"

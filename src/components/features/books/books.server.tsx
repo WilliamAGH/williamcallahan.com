@@ -30,6 +30,8 @@ export async function BooksServer({
   title,
   description,
   disclaimer,
+  showHeader,
+  withWindow,
 }: BooksServerProps): Promise<JSX.Element> {
   let books: BookBrief[] = [];
   let error: string | null = null;
@@ -54,6 +56,8 @@ export async function BooksServer({
       disclaimer={disclaimer}
       error={error}
       isStale={isStale}
+      showHeader={showHeader}
+      withWindow={withWindow}
     />
   );
 }

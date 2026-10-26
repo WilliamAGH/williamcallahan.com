@@ -37,6 +37,8 @@ export default function robots(): MetadataRoute.Robots {
     "/comments/feed/",
     "/legacy-homepage/",
     "/author/",
+    "/api/admin/",
+    "/api/upload/",
   ];
 
   // Paths that should be explicitly allowed for crawling

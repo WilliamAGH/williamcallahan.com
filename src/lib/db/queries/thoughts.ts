@@ -153,3 +153,13 @@ export async function readThoughtListItems(): Promise<ThoughtBrief[]> {
 
   return rows.map(mapRowToListItem);
 }
+
+/** Check indexability without loading or excerpting every published markdown body. */
+export async function hasPublishedThoughts(): Promise<boolean> {
+  const rows = await db
+    .select({ id: thoughts.id })
+    .from(thoughts)
+    .where(eq(thoughts.draft, false))
+    .limit(1);
+  return rows.length > 0;
+}

@@ -184,7 +184,7 @@ export function EducationClient({
             onMinimize={minimizeWindow}
             onMaximize={maximizeWindow}
           />
-          <h1 className="text-xl font-mono ml-4">~/education</h1>
+          <div className="text-xl font-mono ml-4">~/education</div>
         </div>
       </div>
 
@@ -196,6 +196,9 @@ export function EducationClient({
           isMaximized ? "overflow-y-auto flex-grow" : "",
         )}
       >
+        <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">
+          Education &amp; Certifications
+        </h1>
         {/* Degrees Section (Featured Cards) */}
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-6">University Degrees</h2>

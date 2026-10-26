@@ -255,7 +255,7 @@ export function DiscoverFeed({ data }: Readonly<DiscoverFeedProps>) {
         aria-label="Topic navigation"
       >
         <div className="flex items-center gap-3 mb-1.5">
-          <h1 className="text-sm font-medium text-foreground shrink-0">Bookmarks</h1>
+          <span className="text-sm font-medium text-foreground shrink-0">Topics</span>
           <Link
             href="/bookmarks?feed=latest"
             className="text-sm text-muted-foreground hover:text-foreground"

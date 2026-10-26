@@ -7,17 +7,17 @@
  *
  */
 
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cacheLife, cacheTag } from "next/cache";
 import type { BlogPostPageProps, SoftwarePostDetails } from "@/types/blog";
 // Import blog post retrieval utilities from the main blog library
 import { getAllPostsMeta, getPostBySlug, getPostMetaBySlug } from "@/lib/blog.ts";
 import { isValidBlogSlug } from "@/lib/blog/validation";
-import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
+import { createArticleMetadata } from "@/lib/seo/metadata.ts";
 import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/url-utils";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
-import type { ExtendedMetadata } from "@/types/seo";
 import { notFound } from "next/navigation";
 import { BlogArticle } from "@/components/features/blog/blog-article/blog-article.client";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -88,7 +88,7 @@ function resolveAuthorUrl(authorUrl: string | null | undefined): string {
  * @see {@link "https://schema.org/NewsArticle"} - Schema.org NewsArticle specification
  * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication specification
  */
-export async function generateMetadata({ params }: BlogPostPageProps): Promise<ExtendedMetadata> {
+export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   // params is already resolved here by Next.js
   const { slug } = await params;
   if (slug === BLOG_STATIC_PARAM_PLACEHOLDER || !isValidBlogSlug(slug)) {
@@ -104,12 +104,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   // Full URL for the blog post
   const postUrl = ensureAbsoluteUrl(`/blog/${post.slug}`);
 
-  // Check if this is a software post (use canonical post.slug, not route param)
-  const softwareDetails = getSoftwareDetails(post.slug);
-
-  const authorUrl = resolveAuthorUrl(post.author.url);
-
-  const baseArticleParams = {
+  const articleMetadata = createArticleMetadata({
     title: post.title,
     description: post.excerpt,
     url: postUrl,
@@ -117,30 +112,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
     datePublished: post.publishedAt,
     dateModified: post.updatedAt || post.publishedAt,
     tags: post.tags,
-    articleBody: post.rawContent ?? post.excerpt,
-    authors: [
-      {
-        name: post.author.name,
-        url: authorUrl,
-      },
-    ],
-  };
-
-  const articleMetadata = softwareDetails
-    ? createSoftwareApplicationMetadata({
-        ...baseArticleParams,
-        softwareName: softwareDetails.name,
-        operatingSystem: softwareDetails.operatingSystem,
-        applicationCategory: softwareDetails.applicationCategory,
-        isFree: true,
-        downloadUrl: softwareDetails.downloadUrl,
-        softwareVersion: softwareDetails.softwareVersion,
-        screenshot: softwareDetails.screenshot,
-      })
-    : createArticleMetadata({
-        ...baseArticleParams,
-        useNewsArticle: true,
-      });
+  });
 
   // Build dynamic OG image with branded layout
   const ogImageUrl = buildOgImageUrl("blog", {
@@ -151,7 +123,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
   });
   const ogImage = { url: ogImageUrl, width: 1200, height: 630, alt: post.title };
 
-  const metadata: ExtendedMetadata = {
+  return {
     title: articleMetadata.title,
     description: articleMetadata.description,
     alternates: articleMetadata.alternates,
@@ -163,10 +135,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<E
       ...articleMetadata.twitter,
       images: [ogImage],
     },
-    ...(articleMetadata.script && { script: articleMetadata.script }),
   };
-
-  return metadata;
 }
 
 /**

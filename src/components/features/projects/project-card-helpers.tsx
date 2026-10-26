@@ -47,13 +47,12 @@ export function PlaceholderImageTop(): JSX.Element {
     <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-500 rounded-md">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        aria-label="Placeholder image"
+        aria-hidden="true"
         className="h-16 w-16 opacity-50"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
       >
-        <title>Placeholder image</title>
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

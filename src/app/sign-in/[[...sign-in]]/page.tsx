@@ -7,8 +7,15 @@
  * @see https://clerk.com/docs/references/nextjs/custom-sign-in-page
  */
 
+import type { Metadata } from "next";
 import { SignIn } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "Sign In",
+  robots: { index: false, follow: false },
+  alternates: { canonical: null },
+};
 
 /**
  * Check if Clerk is configured (publishable key available)

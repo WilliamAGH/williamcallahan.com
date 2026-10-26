@@ -204,7 +204,7 @@ class ProductionSmokeTests {
     await this.record("Native contact cards", "/contact", {
       validateResponse: async (response) =>
         validateNativeContentHtml(await response.text(), {
-          heading: "~/contact",
+          heading: "Social Media Profiles",
           destination: "https://github.com/WilliamAGH",
           destinationScope: ".social-card",
         }),

@@ -13,17 +13,22 @@ import { cacheLife } from "next/cache";
 import { ThoughtsWindow } from "@/components/features/thoughts/thoughts-window.client";
 import { ThoughtsListServer } from "@/components/features/thoughts/thoughts-list.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { SEARCH_EXCLUDED_ROBOTS } from "@/lib/seo/search-exclusion";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getThoughtListItems } from "@/lib/thoughts/service.server";
+import { hasPublishedThoughts } from "@/lib/db/queries/thoughts";
 
 /**
- * Generate static metadata for the Thoughts page
+ * Generate metadata for the Thoughts page; an empty list stays out of search indexes.
  */
-export const metadata: Metadata = getStaticPageMetadata("/thoughts", "thoughts");
+export async function generateMetadata(): Promise<Metadata> {
+  const base = getStaticPageMetadata("/thoughts", "thoughts");
+  return (await hasPublishedThoughts()) ? base : { ...base, robots: SEARCH_EXCLUDED_ROBOTS };
+}
 
 /**
  * Thoughts list page component

@@ -88,12 +88,14 @@ export function BookmarksClientWithWindow({
     normalizedBaseUrl === "/bookmarks";
   const unifiedBookmarks: UnifiedBookmark[] = convertSerializableBookmarksToUnified(bookmarks);
 
-  // Title is currently unused in this component, acknowledge to satisfy linter rules (no underscore prefixes allowed)
-  void title;
-
   return (
     <BookmarksWindow titleSlug={titleSlug} feedMode={resolvedFeedMode} showFeedToggle={!titleSlug}>
       <div className="w-full mx-auto py-8">
+        {title ? (
+          <h1 className="px-4 sm:px-6 lg:px-8 mb-6 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            {title}
+          </h1>
+        ) : null}
         <Suspense fallback={<BookmarksLoading />}>
           <BookmarksClient
             key={resolvedFeedMode}

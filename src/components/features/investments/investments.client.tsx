@@ -79,11 +79,16 @@ export function InvestmentsClient({
                 onMinimize={minimizeWindow}
                 onMaximize={maximizeWindow}
               />
-              <h1 className="text-xl font-mono ml-4">~/investments</h1>
+              <div className="text-xl font-mono ml-4">~/investments</div>
             </div>
           </div>
-          <div className="p-6 text-center text-gray-500 dark:text-gray-400">
-            No investments to display
+          <div className="p-6">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">
+              Startup Investments
+            </h1>
+            <p className="text-center text-gray-500 dark:text-gray-400">
+              No investments to display
+            </p>
           </div>
         </div>
       </div>
@@ -114,7 +119,7 @@ export function InvestmentsClient({
             onMinimize={minimizeWindow}
             onMaximize={maximizeWindow}
           />
-          <h1 className="text-xl font-mono ml-4">~/investments</h1>
+          <div className="text-xl font-mono ml-4">~/investments</div>
         </div>
       </div>
 
@@ -122,6 +127,9 @@ export function InvestmentsClient({
       <div className={cn("p-6", isMaximized ? "overflow-y-auto flex-grow" : "")}>
         {/* Original content */}
         <>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">
+            Startup Investments
+          </h1>
           <div className="prose dark:prose-invert max-w-none mb-8">
             <p>
               Below is the data (periodically updated) on all of my private startup investments
