@@ -139,4 +139,30 @@ describe("submitToIndexNow", () => {
       expect(submissions()).toEqual([expect.objectContaining({ urlList: [`${SITE}bookmarks`] })]);
     });
   });
+
+  it("merges graduated bookmark sitemap entries from extraSitemapEntriesLoader", async () => {
+    mockSitemap.mockResolvedValue([{ url: `${SITE}blog/new-post`, lastModified: new Date() }]);
+    const submissions = stubNetwork();
+
+    await submitToIndexNow(SITE, KEY, `${KEY}.txt`, false, false, false, undefined, async () => [
+      {
+        url: "https://williamcallahan.com/bookmarks/agents-md",
+        lastModified: new Date(),
+      },
+      {
+        url: "https://williamcallahan.com/bookmarks/tags/claude-code",
+        lastModified: new Date(),
+      },
+    ]);
+
+    expect(submissions()).toEqual([
+      expect.objectContaining({
+        urlList: expect.arrayContaining([
+          `${SITE}blog/new-post`,
+          "https://williamcallahan.com/bookmarks/agents-md",
+          "https://williamcallahan.com/bookmarks/tags/claude-code",
+        ]),
+      }),
+    ]);
+  });
 });

@@ -10,10 +10,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
+import { BookmarkTopicHubOverview } from "@/components/features/bookmarks/bookmark-topic-hub-overview";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { SEARCH_EXCLUDED_ROBOTS } from "@/lib/seo/search-exclusion";
+import {
+  MIN_TAG_HUB_BOOKMARKS,
+  evaluateTagHubIndexability,
+  buildGraduatedTagHubDescription,
+} from "@/lib/seo/bookmark-seo-policy";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -31,6 +37,22 @@ import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { redirect, notFound } from "next/navigation";
 import { resolveBookmarkTagSlug } from "@/lib/bookmarks/service.server";
+import { cacheContextGuards } from "@/lib/cache";
+import type { BookmarkTopicHubEvidence } from "@/types/schemas/bookmark-seo";
+
+const TOPIC_HUB_CACHE_SECONDS = 3600;
+const FIRST_TAG_PAGE = 1;
+const NON_FIRST_TAG_PAGE = 2;
+
+async function loadCachedTopicHubEvidence(
+  canonicalSlug: string,
+): Promise<BookmarkTopicHubEvidence | null> {
+  "use cache";
+  cacheContextGuards.cacheLife("BookmarkTopicHub", { revalidate: TOPIC_HUB_CACHE_SECONDS });
+  cacheContextGuards.cacheTag("BookmarkTopicHub", "bookmarks", `bookmark-tag-${canonicalSlug}`);
+  const { getBookmarkTopicHubEvidence } = await import("@/lib/db/queries/bookmark-seo");
+  return getBookmarkTopicHubEvidence(canonicalSlug);
+}
 
 /**
  * Parse page number from URL segments
@@ -99,11 +121,17 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   const activeTagSlug = tagState.canonicalSlug;
 
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
-  const { bookmarks, totalPages } = await getBookmarksByTag(activeTagSlug, pageNumber);
+  const { bookmarks, totalCount, totalPages } = await getBookmarksByTag(activeTagSlug, pageNumber);
 
   // Determine canonical page for metadata
   // If there are zero pages for this tag, canonicalize to page 1 (base tag path)
-  const effectivePage = totalPages === 0 ? 1 : pageNumber > totalPages ? totalPages : pageNumber;
+  const effectivePage =
+    totalPages === 0 ? FIRST_TAG_PAGE : pageNumber > totalPages ? totalPages : pageNumber;
+  const hubVerdict = evaluateTagHubIndexability({
+    totalCount,
+    pageNumber: page ? Math.max(pageNumber, NON_FIRST_TAG_PAGE) : effectivePage,
+    isAlias: tagState.isAlias || tagState.sanitizedSlug !== tagSlug,
+  });
 
   let path = `/bookmarks/tags/${activeTagSlug}`;
   if (effectivePage > 1) {
@@ -122,8 +150,10 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   const displayTag = formatTagDisplay(
     tagState.canonicalTagName?.trim() || activeTagSlug.replace(/-/g, " "),
   );
-  const pageTitle =
-    effectivePage > 1
+  const hubEvidence = hubVerdict.indexable ? await loadCachedTopicHubEvidence(activeTagSlug) : null;
+  const pageTitle = hubVerdict.indexable
+    ? `${displayTag}: Curated Engineering & AI Resources`
+    : effectivePage > FIRST_TAG_PAGE
       ? `${displayTag} Bookmarks (Page ${effectivePage})`
       : `${displayTag} Bookmarks`;
 
@@ -131,14 +161,24 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     isTag: true,
   });
   const baseDescription = generateTagDescription(displayTag, "bookmarks");
-  const customDescription =
-    effectivePage > 1 ? `${baseDescription} — Page ${effectivePage}.` : baseDescription;
+  const customDescription = hubVerdict.indexable
+    ? buildGraduatedTagHubDescription({
+        displayTag,
+        totalCount,
+        annotatedCount: hubEvidence?.annotatedCount,
+        topDomains: hubEvidence?.topDomains,
+      })
+    : effectivePage > FIRST_TAG_PAGE
+      ? `${baseDescription} — Page ${effectivePage}.`
+      : baseDescription;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   const ogImageUrl = buildOgImageUrl("collection", {
     title: pageTitle,
     section: "bookmarks",
-    subtitle: `${bookmarks.length} bookmark${bookmarks.length === 1 ? "" : "s"}`,
+    subtitle: hubVerdict.indexable
+      ? `${totalCount} curated resources`
+      : `${bookmarks.length} bookmark${bookmarks.length === 1 ? "" : "s"}`,
   });
   const ogImage = { url: ogImageUrl, width: 1200, height: 630, alt: customTitle };
 
@@ -163,7 +203,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     alternates: {
       canonical: ensureAbsoluteUrl(path),
     },
-    robots: SEARCH_EXCLUDED_ROBOTS,
+    robots: hubVerdict.robots,
   };
 }
 
@@ -228,6 +268,16 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     notFound();
   }
 
+  const hubVerdict = evaluateTagHubIndexability({
+    totalCount: result.totalCount,
+    pageNumber: currentPage,
+    isAlias: false,
+  });
+  const hubEvidence =
+    hubVerdict.indexable && result.totalCount >= MIN_TAG_HUB_BOOKMARKS
+      ? await loadCachedTopicHubEvidence(activeTagSlug)
+      : null;
+
   const canonicalTag =
     result.bookmarks[0]?.tags.find(
       (t) => (typeof t === "string" ? tagToSlug(t) : tagToSlug(t.name)) === activeTagSlug,
@@ -237,7 +287,8 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     typeof canonicalTag === "string" ? canonicalTag : canonicalTag ? canonicalTag.name : null;
 
   // Use canonical name if found, otherwise convert slug back to spaced form for display.
-  const finalTagDisplayName = canonicalTagName ?? activeTagSlug.replace(/-/g, " ");
+  const finalTagDisplayName =
+    tagState.canonicalTagName?.trim() || canonicalTagName || activeTagSlug.replace(/-/g, " ");
   // formatTagDisplay handles casing; don't replace hyphens again as canonical names may contain them (e.g., "C-suite")
   const displayTag = formatTagDisplay(finalTagDisplayName);
 
@@ -248,7 +299,16 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
 
   const pageBaseDescription = generateTagDescription(displayTag, "bookmarks");
   const pageDescription =
-    currentPage > 1 ? `${pageBaseDescription} — Page ${currentPage}.` : pageBaseDescription;
+    hubVerdict.indexable && hubEvidence
+      ? buildGraduatedTagHubDescription({
+          displayTag,
+          totalCount: result.totalCount,
+          annotatedCount: hubEvidence.annotatedCount,
+          topDomains: hubEvidence.topDomains,
+        })
+      : currentPage > FIRST_TAG_PAGE
+        ? `${pageBaseDescription} — Page ${currentPage}.`
+        : pageBaseDescription;
 
   // Generate schema for this tagged bookmarks page
   let path = `/bookmarks/tags/${activeTagSlug}`;
@@ -300,6 +360,9 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
             initialTag={finalTagDisplayName}
             tag={finalTagDisplayName}
           />
+          {hubEvidence && (
+            <BookmarkTopicHubOverview displayTag={displayTag} evidence={hubEvidence} />
+          )}
           {firstBookmark && (
             <Suspense fallback={<RelatedContentFallback />}>
               <RelatedContent

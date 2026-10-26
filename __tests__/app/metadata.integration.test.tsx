@@ -203,8 +203,55 @@ describe("Metadata Integration Tests", () => {
         userAgent: "*",
         allow: expect.arrayContaining(["/"]),
       });
-      expect(result.sitemap).toBe("https://williamcallahan.com/sitemap.xml");
+      expect(result.sitemap).toEqual([
+        "https://williamcallahan.com/sitemap.xml",
+        "https://williamcallahan.com/bookmarks-sitemap.xml",
+      ]);
     });
+
+    it("omits sitemap discovery and disallows all crawling outside production", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      process.env.NEXT_PUBLIC_SITE_URL = "https://dev.williamcallahan.com";
+      process.env.API_BASE_URL = "https://dev.williamcallahan.com";
+
+      const { default: robots } = await import("@/app/robots");
+      const result = robots();
+
+      expect(result.sitemap).toBeUndefined();
+      expect(result.rules).toEqual({ userAgent: "*", disallow: "/" });
+    });
+  });
+
+  it("graduates practitioner-annotated bookmark metadata with note-led search copy", async () => {
+    const note =
+      "We study this guide to compare agent workflows and verify changes before shipping reliable software.";
+    const bookmark = unifiedBookmarkSchema.parse({
+      id: "annotated-bookmark",
+      url: "https://example.com/agent-workflows",
+      title: "Agent workflow comparison",
+      description: "A practical comparison of agent workflows and review techniques.",
+      slug: "agent-workflows",
+      note,
+      summary:
+        "The resource explains repository instructions, review checkpoints, and repeatable checks that help maintainers compare tools without losing the context needed to make an informed decision.",
+      tags: [],
+      dateBookmarked: "2026-07-13T00:00:00.000Z",
+      sourceUpdatedAt: "2026-07-13T00:00:00.000Z",
+    });
+    mockedResolveBookmarkIdFromSlug.mockResolvedValue(bookmark.id);
+    mockedGetBookmarkById.mockResolvedValue(bookmark);
+
+    const metadata = await generateBookmarkDetailMetadata({
+      params: Promise.resolve({ slug: bookmark.slug }),
+    });
+
+    expect(metadata.robots).toEqual({ index: true, follow: true });
+    expect(metadata.title).toContain("Field Notes");
+    expect(metadata.description?.startsWith(note)).toBe(true);
+    expect(metadata.description?.length).toBeLessThanOrEqual(160);
+    expect(metadata.alternates?.canonical).toBe(
+      "https://williamcallahan.com/bookmarks/agent-workflows",
+    );
   });
 });
 

@@ -13,7 +13,11 @@ import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
-import { SEARCH_EXCLUDED_ROBOTS } from "@/lib/seo/search-exclusion";
+import {
+  evaluateBookmarkIndexability,
+  buildGraduatedBookmarkTitle,
+  buildGraduatedBookmarkDescription,
+} from "@/lib/seo/bookmark-seo-policy";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -133,12 +137,25 @@ export async function generateMetadata({ params }: BookmarkPageContext): Promise
   }
 
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
-  const customTitle = generateDynamicTitle(bookmark.title || "Bookmark", "bookmarks");
-
   const domainName = getDisplayHostname(bookmark.url);
-
-  const customDescription =
-    bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
+  const graduationVerdict = evaluateBookmarkIndexability({
+    note: bookmark.note,
+    summary: bookmark.summary,
+    description: bookmark.description,
+    sourceUnavailable: isBookmarkSourceUnavailable(bookmark),
+  });
+  const titleCore = graduationVerdict.indexable
+    ? buildGraduatedBookmarkTitle(bookmark.title || "Bookmark", domainName)
+    : bookmark.title || "Bookmark";
+  const customTitle = generateDynamicTitle(titleCore, "bookmarks");
+  const customDescription = graduationVerdict.indexable
+    ? buildGraduatedBookmarkDescription({
+        note: bookmark.note,
+        summary: bookmark.summary,
+        description: bookmark.description,
+        domainName,
+      })
+    : bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
 
   let screenshotUrl: string | undefined;
   try {
@@ -188,7 +205,7 @@ export async function generateMetadata({ params }: BookmarkPageContext): Promise
     alternates: {
       canonical: ensureAbsoluteUrl(path),
     },
-    robots: SEARCH_EXCLUDED_ROBOTS,
+    robots: graduationVerdict.robots,
   };
 }
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
@@ -244,6 +261,12 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   }
 
   const domainName = getDisplayHostname(foundBookmark.url);
+  const graduationVerdict = evaluateBookmarkIndexability({
+    note: foundBookmark.note,
+    summary: foundBookmark.summary,
+    description: foundBookmark.description,
+    sourceUnavailable: isBookmarkSourceUnavailable(foundBookmark),
+  });
 
   const pageTitle = "Bookmark";
   const pageDescription = domainName
@@ -256,9 +279,21 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   const schemaParams = {
     path,
     title: foundBookmark.title || pageTitle,
-    description: foundBookmark.description || pageDescription,
-    datePublished: formatSeoDate(pageMetadata.dateCreated),
-    dateModified: formatSeoDate(pageMetadata.dateModified),
+    description: graduationVerdict.indexable
+      ? buildGraduatedBookmarkDescription({
+          note: foundBookmark.note,
+          summary: foundBookmark.summary,
+          description: foundBookmark.description,
+          domainName,
+        })
+      : foundBookmark.description || pageDescription,
+    datePublished: formatSeoDate(foundBookmark.dateBookmarked || pageMetadata.dateCreated),
+    dateModified: formatSeoDate(
+      foundBookmark.modifiedAt ||
+        foundBookmark.sourceUpdatedAt ||
+        foundBookmark.dateBookmarked ||
+        pageMetadata.dateModified,
+    ),
     type: "bookmark-item" as const,
     bookmark: {
       url: foundBookmark.url,

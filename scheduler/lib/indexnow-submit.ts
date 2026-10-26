@@ -103,24 +103,32 @@ export async function submitToIndexNow(
   debugMode: boolean,
   dryRun = false,
   ledgerFilePath = DEFAULT_LEDGER_FILE_PATH,
+  extraSitemapEntriesLoader?: () => Promise<Awaited<ReturnType<typeof sitemap>>>,
 ): Promise<void> {
   if (!dryRun && !indexNowKeyEnv) {
     console.warn(`${LOG_PREFIX} Skipping submission – INDEXNOW_KEY env var is not set.`);
     return;
   }
-  const [sitemapData, announced] = await Promise.all([
+  const [coreSitemapEntries, extraSitemapEntries, announced] = await Promise.all([
     sitemap(),
+    extraSitemapEntriesLoader ? extraSitemapEntriesLoader() : Promise.resolve([]),
     ledgerFilePath ? readAnnouncedLedger(ledgerFilePath) : Promise.resolve<IndexNowLedger>({}),
   ]);
   const changedSince = Date.now() - RECENT_CHANGE_WINDOW_MS;
   const changed: Record<string, string> = {};
-  for (const entry of sitemapData) {
+  for (const entry of [...coreSitemapEntries, ...extraSitemapEntries]) {
     if (entry.lastModified === undefined) continue;
     const lastModified = new Date(entry.lastModified);
     const lastModifiedMs = lastModified.getTime();
     if (Number.isNaN(lastModifiedMs) || lastModifiedMs < changedSince) continue;
     const lastModifiedIso = lastModified.toISOString();
-    if (announced[entry.url] !== lastModifiedIso) changed[entry.url] = lastModifiedIso;
+    const previousLastModifiedIso = changed[entry.url];
+    if (!previousLastModifiedIso || lastModifiedMs > new Date(previousLastModifiedIso).getTime()) {
+      changed[entry.url] = lastModifiedIso;
+    }
+  }
+  for (const [url, lastModifiedIso] of Object.entries(changed)) {
+    if (announced[url] === lastModifiedIso) delete changed[url];
   }
   const urlList = Object.keys(changed);
   const host = new URL(siteUrlCanonical).host;

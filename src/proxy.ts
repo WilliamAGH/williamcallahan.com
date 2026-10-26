@@ -286,14 +286,14 @@ export const config = {
      * - _next/static (static files)
      * - favicon.ico (favicon file)
      * - robots.txt
-     * - sitemap.xml
+     * - sitemap.xml and bookmarks-sitemap.xml
      * But include:
      * - api routes (for Clerk auth and other APIs)
      * - api/debug (for security checks)
      * - _next/image (image optimization files)
      * - all other paths
      */
-    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|api/ai/chat|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/((?!_next/static|favicon.ico|robots.txt|sitemap.xml|bookmarks-sitemap.xml|api/ai/chat|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api(?!/ai/chat)|trpc)(.*)",
     "/_next/image(.*)",
     "/stats/:path*",

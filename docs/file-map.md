@@ -40,6 +40,7 @@ File/Path Functionality Description
     - [x] `bookmark-card.client.tsx` `bookmarks` - Bookmark card UI (2025-06: unified OG images)
     - [x] `bookmark-pagination-nav.client.tsx` `bookmarks` - Native Latest-feed pagination navigation; tag URL/callback controls
     - [x] `bookmark-refresh-alerts.client.tsx` `bookmarks` - Refresh status alerts
+    - [x] `bookmark-topic-hub-overview.tsx` `bookmark-seo` - Server-rendered topic synthesis and resource comparison table
     - [x] `bookmarks-client-with-window.tsx` `bookmarks` - Bookmarks window entrypoint; derives feed mode from URL
     - [x] `bookmarks-paginated.client.tsx` `bookmarks` - Pagination/options routing wrapper
     - [x] `bookmarks-window.client.tsx` `bookmarks` - UI for the bookmarks window with feed toggle
@@ -322,6 +323,7 @@ File/Path Functionality Description
     - [x] `image-manifests.ts` `image-handling` - Image manifests keyed by type (logos/opengraph/blog)
   - [x] **queries/**
     - [x] `bookmarks.ts` `bookmarks` - Bookmark reads, compact fallback date projection, canonical tag counts/pages and member-derived dates
+    - [x] `bookmark-seo.ts` `bookmark-seo` - PostgreSQL selection of graduated bookmarks and canonical topic hubs
     - [x] `discovery-scores.ts` `bookmarks` - Discovery score computation and ranked bookmark retrieval (recency-primary + engagement)
     - [x] `embedding-similarity.ts` `bookmarks` - Pgvector cosine ANN search and blended ranking for related content
     - [x] `cross-domain-similarity.ts` `bookmarks` - Cross-domain similarity queries (fallback path for tag co-occurrence)
@@ -400,6 +402,7 @@ File/Path Functionality Description
   - [x] `objects.ts` `s3-object-storage` - Raw S3 object operations
   - [x] `stream.ts` `s3-object-storage` - Bounded stream-to-buffer conversion with premature-close cleanup
 - [x] **seo/**
+  - [x] `bookmark-seo-policy.ts` `bookmark-seo` - Shared graduation thresholds, robots directives, and note-led metadata copy
   - [x] `constants.ts` `seo` - SEO constants
   - [x] `dynamic-metadata.ts` `seo` - Dynamic title generation with length limits
   - [x] `index.ts` `seo` - Removed; import SEO utilities from concrete modules
@@ -423,7 +426,7 @@ File/Path Functionality Description
     - [x] `logo-source-priority.ts` `image-handling` - Logo source priority ordering
 - [x] **sitemap/**
   - [x] `blog-collector.ts` `seo` - Canonical published blog inventory projected into post sitemap entries
-  - [x] `bookmark-collectors.ts` `seo` - Meaningful bookmark index date for the hub; detail/tag URLs remain excluded
+  - [x] `bookmark-collectors.ts` `bookmark-seo` - Bookmark hub content date and canonical graduated entries for the segmented sitemap
   - [x] `constants.ts` `seo` - Shared sitemap constants (change frequencies, priorities, cache TTL)
   - [x] `content-collectors.ts` `seo` - Book and thought sitemap entry collectors
   - [x] `date-utils.ts` `seo` - Sitemap path sanitization, error handling, and test-environment detection; no date compatibility exports
@@ -473,6 +476,7 @@ File/Path Functionality Description
 - [x] **db/**
   - [x] `bookmarks.ts` `bookmarks` - Drizzle bookmark row/insert type exports for DB modules
 - [ ] **schemas/**
+  - [x] `bookmark-seo.ts` `bookmark-seo` - Zod validation of bookmark SEO boundary data
   - [x] `ai-feature.ts` `ai-shared-services` - Canonical AI feature identifiers for request validation, logging, and workload attribution
   - [x] `api.ts` `log-error-debug-handling` - Canonical Zod schemas for API errors, client-error telemetry, and shared route response contracts
   - [x] `blog-frontmatter.ts` `blog` - Zod single owner of MDX frontmatter and `blogSlugSchema`; runtime MDX and Node seed ingestion parse through it
@@ -483,6 +487,7 @@ File/Path Functionality Description
   - [x] `matchers.d.ts` `testing-config` - Custom matcher type definitions
   - [x] `window.d.ts` `state-theme-window-providers` - Augmentations for the global `Window` object
 - [x] **seo/**
+  - [x] `bookmark-graduation.ts` `bookmark-seo` - Bookmark and tag hub graduation type contracts
   - [x] `metadata.ts` `seo` - SEO metadata schemas and inferred types; profile/collection validation uses the schemas directly
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
   - [x] `schema.ts` `seo` - Types for Schema.org
@@ -591,6 +596,7 @@ File/Path Functionality Description
 - [x] `providers.client.tsx` `state-theme-window-providers` - Client-side providers
 - [x] `robots.ts` `seo` - `robots.txt` generator
 - [x] `sitemap.ts` `seo` - `sitemap.xml` orchestrator (delegates to `lib/sitemap/` collectors)
+- [x] `bookmarks-sitemap.xml/route.ts` `bookmark-seo` - Graduated bookmark XML sitemap with cache and noindex response headers
 - [~] **api/**
   - [x] **assets/`[assetId]`/`route.ts`** `image-handling` - API route for serving assets
   - [x] **bookmarks/**
@@ -754,6 +760,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
   - [x] `README.md` `overview` - Architecture entrypoint
   - [x] `*.md` `` - System architecture documentation
 - [ ] **features/**
+  - [x] `bookmark-seo.md` `bookmark-seo` - Graduation policy, topic-hub synthesis, segmented sitemap, and submission contracts
   - [x] `*.md` `` - Feature-specific documentation
 - [ ] **standards/**
   - [x] `coding-standards.md` `linting-formatting` - Code style and linting rules
@@ -797,6 +804,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `node-fetch.js` `log-error-debug-handling` - Mock for node-fetch
     - [x] `sentry.js` `log-error-debug-handling` - Mock for Sentry error tracking
   - [x] **app/**
+    - [x] `bookmarks-sitemap.test.ts` `bookmark-seo` - Collector URLs, XML response semantics, escaping, and production query failures
     - [x] **api/**
       - [x] **ai/**
         - [x] `chat-rag-helpers.test.ts` `ai-shared-services` - RAG context, abort detection, and request-validation tests for AI chat helpers
@@ -818,6 +826,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `pages.smoke.test.ts` `app-layout` - Smoke tests for all pages
   - [x] **blog/**
     - [x] `blog.smoke.test.ts` `blog` - Blog smoke tests
+  - [x] **seo/**
+    - [x] `bookmark-seo-policy.test.ts` `bookmark-seo` - Graduation threshold boundaries and note-led metadata copy
   - [x] `bookmarks.backend.connection.test.ts` `bookmarks` - Backend connection tests for bookmarks
   - [x] **components/**
     - [x] **analytics/**

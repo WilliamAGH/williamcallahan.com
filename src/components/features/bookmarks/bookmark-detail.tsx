@@ -152,6 +152,26 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
             </div>
           </div>
 
+          {bookmark.note && bookmark.note.trim().length > 0 && (
+            <motion.section
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="mb-6 sm:mb-8 p-4 sm:p-5 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                Personal Notes
+              </h2>
+              <div className="relative pl-4">
+                <Quote className="absolute -left-1 -top-1 w-5 h-5 text-amber-500/30 dark:text-amber-400/20 rotate-180" />
+                <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
+                  {bookmark.note}
+                </p>
+              </div>
+            </motion.section>
+          )}
+
           {!isBookmarkSourceUnavailable(bookmark) && (
             <motion.section
               initial={false}
@@ -226,7 +246,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
 
               {usableAnalysis && <BookmarkAiContext analysis={usableAnalysis} />}
 
-              {!hasAnalysis && (bookmark.summary || bookmark.description) && (
+              {(bookmark.summary || bookmark.description) && (
                 <motion.section
                   initial={false}
                   animate={{ opacity: 1, y: 0 }}
@@ -234,7 +254,7 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                   className="p-4 sm:p-5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
                 >
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 sm:mb-3">
-                    Summary
+                    {hasAnalysis ? "Source Overview" : "Summary"}
                   </h2>
                   <div className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300 space-y-3">
                     {(() => {
@@ -247,33 +267,17 @@ export function BookmarkDetail({ bookmark, cachedAnalysis }: Readonly<BookmarkDe
                 </motion.section>
               )}
 
-              {bookmark.note && (
-                <motion.section
-                  initial={false}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.5 }}
-                  className="p-4 sm:p-5 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800"
-                >
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-2 sm:mb-3 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    Personal Notes
-                  </h2>
-                  <div className="relative pl-4">
-                    <Quote className="absolute -left-1 -top-1 w-5 h-5 text-amber-500/30 dark:text-amber-400/20 rotate-180" />
-                    <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap text-blue-900 dark:text-blue-100">
-                      {bookmark.note}
-                    </p>
+              {!bookmark.description &&
+                !bookmark.summary &&
+                !bookmark.note?.trim() &&
+                !featuredImage &&
+                !hasAnalysis && (
+                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <Bookmark className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                    <p>No additional details available for this bookmark.</p>
+                    <p className="text-sm mt-2">Visit the original site to explore the content.</p>
                   </div>
-                </motion.section>
-              )}
-
-              {!bookmark.description && !bookmark.note && !featuredImage && (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  <Bookmark className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                  <p>No additional details available for this bookmark.</p>
-                  <p className="text-sm mt-2">Visit the original site to explore the content.</p>
-                </div>
-              )}
+                )}
             </div>
 
             <div className="space-y-4 lg:space-y-6">

@@ -18,7 +18,7 @@
  */
 
 import sitemap from "../src/app/sitemap";
-import type { MetadataRoute } from "next";
+import { collectGraduatedBookmarksSitemapEntries } from "@/lib/sitemap/bookmark-collectors";
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -143,20 +143,29 @@ async function processBatch(
 async function main() {
   console.log("\n📋 Loading sitemap...");
 
-  // Load the actual sitemap
-  const sitemapEntries: MetadataRoute.Sitemap = await sitemap();
+  // Load both sitemap segments.
+  const [coreEntries, bookmarkEntries] = await Promise.all([
+    sitemap(),
+    collectGraduatedBookmarksSitemapEntries(),
+  ]);
 
   // Convert sitemap URLs to use the target base URL
-  const urls = sitemapEntries.map((entry) => {
-    // Replace the sitemap's base URL with our test target
-    const url = new URL(entry.url);
-    const targetUrl = new URL(BASE_URL);
-    url.protocol = targetUrl.protocol;
-    url.host = targetUrl.host;
-    return url.toString();
-  });
+  const urls = Array.from(
+    new Set(
+      [...coreEntries, ...bookmarkEntries].map((entry) => {
+        // Replace the sitemap's base URL with our test target
+        const url = new URL(entry.url);
+        const targetUrl = new URL(BASE_URL);
+        url.protocol = targetUrl.protocol;
+        url.host = targetUrl.host;
+        return url.toString();
+      }),
+    ),
+  );
 
-  console.log(`Found ${urls.length} URLs in sitemap`);
+  console.log(`Core sitemap: ${coreEntries.length} URLs`);
+  console.log(`Graduated bookmark/hub sitemap: ${bookmarkEntries.length} URLs`);
+  console.log(`Found ${urls.length} unique URLs across both sitemaps`);
 
   // Sample URLs if requested
   const urlsToTest =
