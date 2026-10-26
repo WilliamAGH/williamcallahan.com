@@ -45,7 +45,7 @@ for (const agent of agents) {
         await expect(page.getByText(project.description, { exact: true })).toBeVisible();
         await expect(
           page.getByRole("link", { name: "Visit Project", exact: true }),
-        ).toHaveAttribute("href", project.url);
+        ).toHaveAttribute("href", new URL(project.url).href);
         if (project.shortSummary) {
           await expect(page.getByText(project.shortSummary, { exact: true })).toBeVisible();
         }

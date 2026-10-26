@@ -18,6 +18,15 @@ it("accepts native project content and its actual destination", () => {
   expect(validateNativeContentHtml(native, expected)).toBe(true);
 });
 
+it("matches the serialized root URL when trusted project data omits its trailing slash", () => {
+  expect(
+    validateNativeContentHtml('<h1>Project</h1><a href="https://example.com/">Visit Project</a>', {
+      heading: "Project",
+      destination: "https://example.com",
+    }),
+  ).toBe(true);
+});
+
 it("does not mistake the same content inside Flight scripts for native markup", () => {
   expect(validateNativeContentHtml(`<script>${JSON.stringify(native)}</script>`, expected)).toBe(
     false,

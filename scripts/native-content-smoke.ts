@@ -11,15 +11,14 @@ export function validateNativeContentHtml(
   },
 ): boolean {
   const $ = load(html);
+  const destination = new URL(expected.destination).href;
   const hasHeading = $("h1")
     .toArray()
     .some((node) => $(node).text().trim() === expected.heading);
   const links = expected.destinationScope
     ? $(expected.destinationScope).find("a[href]")
     : $("a[href]");
-  const hasDestination = links
-    .toArray()
-    .some((node) => $(node).attr("href") === expected.destination);
+  const hasDestination = links.toArray().some((node) => $(node).attr("href") === destination);
   const hasDescription =
     expected.description === undefined ||
     $("p")
