@@ -22,6 +22,7 @@ import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 loadEnvironmentWithMultilineSupport();
 
 import { JWT } from "google-auth-library";
+import { collectGraduatedBookmarksSitemapEntries } from "@/lib/sitemap/bookmark-collectors";
 import {
   GoogleCredentialError,
   createAuthClient,
@@ -96,11 +97,14 @@ const main = async (): Promise<void> => {
   const siteUrlCanonical = submissionSiteUrl.endsWith("/")
     ? submissionSiteUrl
     : `${submissionSiteUrl}/`;
-  const sitemapUrl = `${siteUrlCanonical}sitemap.xml`;
+  const sitemapUrls = [
+    `${siteUrlCanonical}sitemap.xml`,
+    `${siteUrlCanonical}bookmarks-sitemap.xml`,
+  ];
 
   if (DRY_RUN && !SKIP_GOOGLE) {
     console.info(
-      `${LOG_PREFIX.google} Dry run: selected 1 sitemap for ${new URL(siteUrlCanonical).host}.`,
+      `${LOG_PREFIX.google} Dry run: selected ${sitemapUrls.length} sitemaps for ${new URL(siteUrlCanonical).host}.`,
     );
   }
 
@@ -108,7 +112,9 @@ const main = async (): Promise<void> => {
   if (authClient) {
     const property = process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY;
     if (property) {
-      await submitGoogleSitemap(authClient, sitemapUrl, property);
+      for (const sitemapUrl of sitemapUrls) {
+        await submitGoogleSitemap(authClient, sitemapUrl, property);
+      }
     } else {
       const msg =
         "GOOGLE_SEARCH_CONSOLE_PROPERTY env var is missing. Set it to your " +
@@ -133,6 +139,8 @@ const main = async (): Promise<void> => {
       isLocalhost,
       DEBUG_MODE,
       DRY_RUN,
+      undefined,
+      () => collectGraduatedBookmarksSitemapEntries(siteUrlCanonical.replace(/\/+$/, "")),
     );
   else if (DEBUG_MODE) console.info(`${LOG_PREFIX.indexNow} Skipped due to CLI flag.`);
 };

@@ -13,7 +13,11 @@ import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { getNotFoundMetadata } from "@/lib/seo/not-found-metadata";
-import { SEARCH_EXCLUDED_ROBOTS } from "@/lib/seo/search-exclusion";
+import {
+  evaluateBookmarkIndexability,
+  buildGraduatedBookmarkTitle,
+  buildGraduatedBookmarkDescription,
+} from "@/lib/seo/bookmark-seo-policy";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
@@ -22,7 +26,7 @@ import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { buildBookmarkPath, selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
@@ -125,20 +129,38 @@ async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null>
  */
 export async function generateMetadata({ params }: BookmarkPageContext): Promise<Metadata> {
   const { slug } = await params;
-  const path = buildBookmarkPath(slug);
   const bookmark = await findBookmarkBySlug(slug);
 
   if (!bookmark) {
     return getNotFoundMetadata("Bookmark");
   }
 
-  const baseMetadata = getStaticPageMetadata(path, "bookmarks");
-  const customTitle = generateDynamicTitle(bookmark.title || "Bookmark", "bookmarks");
-
+  const canonicalSlug = bookmark.slug?.trim() || slug;
+  const canonicalPath = buildBookmarkPath(canonicalSlug);
+  const isCanonicalSlug = canonicalSlug === slug;
+  const baseMetadata = getStaticPageMetadata(canonicalPath, "bookmarks");
   const domainName = getDisplayHostname(bookmark.url);
-
-  const customDescription =
-    bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
+  const graduationVerdict = evaluateBookmarkIndexability({
+    note: bookmark.note,
+    summary: bookmark.summary,
+    description: bookmark.description,
+    archived: bookmark.archived,
+    isPrivate: bookmark.isPrivate,
+    isCanonicalSlug,
+    sourceUnavailable: isBookmarkSourceUnavailable(bookmark),
+  });
+  const titleCore = graduationVerdict.indexable
+    ? buildGraduatedBookmarkTitle(bookmark.title || "Bookmark", domainName)
+    : bookmark.title || "Bookmark";
+  const customTitle = generateDynamicTitle(titleCore, "bookmarks");
+  const customDescription = graduationVerdict.indexable
+    ? buildGraduatedBookmarkDescription({
+        note: bookmark.note,
+        summary: bookmark.summary,
+        description: bookmark.description,
+        domainName,
+      })
+    : bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
 
   let screenshotUrl: string | undefined;
   try {
@@ -175,7 +197,7 @@ export async function generateMetadata({ params }: BookmarkPageContext): Promise
       title: customTitle,
       description: customDescription,
       type: "website",
-      url: ensureAbsoluteUrl(path),
+      url: ensureAbsoluteUrl(canonicalPath),
       images: [ogImage],
     },
     twitter: {
@@ -186,9 +208,9 @@ export async function generateMetadata({ params }: BookmarkPageContext): Promise
       images: [ogImage],
     },
     alternates: {
-      canonical: ensureAbsoluteUrl(path),
+      canonical: ensureAbsoluteUrl(canonicalPath),
     },
-    robots: SEARCH_EXCLUDED_ROBOTS,
+    robots: graduationVerdict.robots,
   };
 }
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
@@ -219,6 +241,11 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     return notFound();
   }
 
+  const canonicalSlug = foundBookmark.slug?.trim() || slug;
+  if (canonicalSlug !== slug) {
+    return permanentRedirect(buildBookmarkPath(canonicalSlug));
+  }
+
   envLogger.log(
     `Found bookmark`,
     {
@@ -244,6 +271,15 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   }
 
   const domainName = getDisplayHostname(foundBookmark.url);
+  const graduationVerdict = evaluateBookmarkIndexability({
+    note: foundBookmark.note,
+    summary: foundBookmark.summary,
+    description: foundBookmark.description,
+    archived: foundBookmark.archived,
+    isPrivate: foundBookmark.isPrivate,
+    isCanonicalSlug: true,
+    sourceUnavailable: isBookmarkSourceUnavailable(foundBookmark),
+  });
 
   const pageTitle = "Bookmark";
   const pageDescription = domainName
@@ -251,14 +287,26 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     : "This is a bookmark I saved and found useful.";
 
   // Generate schema for this individual bookmark page
-  const path = buildBookmarkPath(slug);
+  const path = buildBookmarkPath(canonicalSlug);
   const pageMetadata = PAGE_METADATA.bookmarks;
   const schemaParams = {
     path,
     title: foundBookmark.title || pageTitle,
-    description: foundBookmark.description || pageDescription,
-    datePublished: formatSeoDate(pageMetadata.dateCreated),
-    dateModified: formatSeoDate(pageMetadata.dateModified),
+    description: graduationVerdict.indexable
+      ? buildGraduatedBookmarkDescription({
+          note: foundBookmark.note,
+          summary: foundBookmark.summary,
+          description: foundBookmark.description,
+          domainName,
+        })
+      : foundBookmark.description || pageDescription,
+    datePublished: formatSeoDate(foundBookmark.dateBookmarked || pageMetadata.dateCreated),
+    dateModified: formatSeoDate(
+      foundBookmark.modifiedAt ||
+        foundBookmark.sourceUpdatedAt ||
+        foundBookmark.dateBookmarked ||
+        pageMetadata.dateModified,
+    ),
     type: "bookmark-item" as const,
     bookmark: {
       url: foundBookmark.url,

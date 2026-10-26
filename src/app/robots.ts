@@ -58,7 +58,10 @@ export default function robots(): MetadataRoute.Robots {
           }),
     },
     ...(isProd && {
-      sitemap: "https://williamcallahan.com/sitemap.xml",
+      sitemap: [
+        "https://williamcallahan.com/sitemap.xml",
+        "https://williamcallahan.com/bookmarks-sitemap.xml",
+      ],
     }),
   };
 }

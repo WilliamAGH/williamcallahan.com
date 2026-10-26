@@ -9,6 +9,10 @@ forwards their optional `sizes` without changing hero/feed defaults (see `image-
 Cloudflare Accept-variant and degraded-OG caching contracts live in `ops/deployment.md`;
 front-end SEO parity decisions and indexing/heading boundaries live in `features/seo.md`.
 
+[Bookmark SEO Graduation](../features/bookmark-seo.md) complements
+[SEO architecture](../features/seo.md) with annotation and canonical topic-hub
+indexability gates, the segmented bookmark sitemap, and dual-sitemap submission.
+
 Bookmark feed cache selection is governed by `features/bookmarks.md`; durable historical rows
 are retained independently. `ops/deployment.md` owns hashed chunk/media retention, and
 `architecture/ai-services.md` owns stable analysis warning/terminal execution correlation.
@@ -114,7 +118,7 @@ Example schemas:
 - AI upstream pipeline tests are split by responsibility (streaming, tools, analysis validation) and share a dedicated harness module for DRY fixture/mocking (`__tests__/api/ai/upstream-pipeline-test-harness.ts`).
 - OpenAI-compatible request policy is per call: interactive streams use one 180-second attempt while cached client identity remains independent of timeout and retry behavior (see `architecture/ai-services.md`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
-- Sitemap generation uses domain collectors under `src/lib/sitemap/` and the thin cached `src/app/sitemap.ts` orchestrator. Existing search-exclusion policy omits bookmark detail, tag and book detail URLs; the bookmark hub uses meaningful index dates. Content freshness belongs to `src/lib/bookmarks/content-dates.ts`, generic date helpers to `src/lib/utils/date-format.ts`. `src/app/llms.txt/route.ts` serves `/llms.txt`, the plain-text index of canonical pages for LLM crawlers; IndexNow re-announces only URLs whose `lastModified` changed since the ledger in `scheduler/lib/indexnow-submit.ts` recorded them (see `features/seo.md`).
+- Sitemap generation uses domain collectors under `src/lib/sitemap/` and the thin cached `src/app/sitemap.ts` orchestrator. The core sitemap omits bookmark detail, tag and book detail URLs; graduated bookmarks and tags use `/bookmarks-sitemap.xml`. The bookmark hub uses meaningful index dates. Content freshness belongs to `src/lib/bookmarks/content-dates.ts`, generic date helpers to `src/lib/utils/date-format.ts`. `src/app/llms.txt/route.ts` serves `/llms.txt`, the plain-text index of canonical pages for LLM crawlers; IndexNow re-announces only URLs whose `lastModified` changed since the ledger in `scheduler/lib/indexnow-submit.ts` recorded them (see `features/seo.md`).
 - Project detail text/links remain server-owned; optional analysis streams under its own Suspense boundary and parallax is an image-only client leaf. Contact windows/cards render their normal initial HTML without effect-mount gates (see `standards/nextjs-framework.md`).
 - SEO graphs use actual collection members or omit the member list, never breadcrumb substitutes or fabricated profile statistics. Book aliases redirect to generated canonical slugs; unknown/draft-only blog tags use not-found/noindex metadata (see `features/seo.md`).
 - Publisher challenges are detected by `src/lib/opengraph/validation.ts`; normalization clears failed-capture enrichment while hydration preserves genuinely healthy archives. Blocked bookmarks without retrieved bodies do not display cached article analysis (see `features/bookmarks.md`).
