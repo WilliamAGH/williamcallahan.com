@@ -3,7 +3,7 @@
  *
  * Redirects from old domain-based URLs to the new slug-based URLs.
  *
- * @module app/bookmarks/domain/[domainSlug]/page
+ * @module app/bookmarks/domain/[domainSlug]/route
  */
 
 import { getBookmarks } from "@/lib/bookmarks/service.server";
@@ -12,12 +12,9 @@ import { getDomainSlug } from "@/lib/utils/domain-utils";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 
-import type { DomainPageRedirectorProps } from "@/types/api";
+import type { DomainBookmarkContext } from "@/types/api";
 
-export async function GET(
-  request: Request,
-  { params }: { params: DomainPageRedirectorProps["params"] },
-): Promise<Response> {
+export async function GET(request: Request, { params }: DomainBookmarkContext): Promise<Response> {
   // Load slug mapping - REQUIRED for idempotency
   const slugMapping = await loadSlugMapping();
   if (!slugMapping) {

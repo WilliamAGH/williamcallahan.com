@@ -42,9 +42,9 @@ export interface BookmarkPageContext {
 }
 
 /**
- * Context for domain-filtered bookmark routes ([domainSlug])
- * @usage - Page components for domain-specific bookmark listings
- * @route - /bookmarks/domain/[domainSlug]/page.tsx
+ * Context for domain-filtered bookmark redirect route ([domainSlug])
+ * @usage - Route handler for domain-specific bookmark redirects
+ * @route - /bookmarks/domain/[domainSlug]/route.ts
  * @note - Params are Promise due to Next.js instrumentation
  */
 export interface DomainBookmarkContext {
@@ -71,16 +71,6 @@ export type BookmarkTagPageContext = {
 export interface ErrorPageProps {
   error: Error & { digest?: string };
   reset: () => void;
-}
-
-/**
- * Domain page redirector props with search params
- * @usage - Domain bookmark redirector page that handles search params
- * @route - /bookmarks/domain/[domainSlug]/page.tsx
- * @note - Extends domain context with additional search functionality
- */
-export interface DomainPageRedirectorProps extends DomainBookmarkContext {
-  searchParams: Promise<{ id?: string | string[] }>;
 }
 
 // Cache clear API is now simplified to only support cache clearing operations

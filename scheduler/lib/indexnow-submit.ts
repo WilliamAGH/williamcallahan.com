@@ -108,8 +108,10 @@ export async function submitToIndexNow(
     console.warn(`${LOG_PREFIX} Skipping submission – INDEXNOW_KEY env var is not set.`);
     return;
   }
-  const sitemapData = await sitemap();
-  const announced = ledgerFilePath ? await readAnnouncedLedger(ledgerFilePath) : {};
+  const [sitemapData, announced] = await Promise.all([
+    sitemap(),
+    ledgerFilePath ? readAnnouncedLedger(ledgerFilePath) : Promise.resolve<IndexNowLedger>({}),
+  ]);
   const changedSince = Date.now() - RECENT_CHANGE_WINDOW_MS;
   const changed: Record<string, string> = {};
   for (const entry of sitemapData) {

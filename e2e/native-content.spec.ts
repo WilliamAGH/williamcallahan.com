@@ -52,15 +52,16 @@ for (const agent of agents) {
       });
     }
 
-    test("contact has a native window heading before registration", async ({ page }) => {
+    test("contact has a single semantic heading and native profile links before registration", async ({
+      page,
+    }) => {
       const response = await page.goto("/contact", { waitUntil: "domcontentloaded" });
       expect(response?.status()).toBe(200);
+      await expect(page.locator("h1")).toHaveCount(1);
       await expect(
-        page.getByRole("heading", { level: 1, name: "~/contact", exact: true }),
+        page.getByRole("heading", { level: 1, name: "Social Media Profiles", exact: true }),
       ).toBeVisible();
-      await expect(
-        page.getByRole("heading", { name: "Social Media Profiles", exact: true }),
-      ).toBeVisible();
+      await expect(page.getByText("~/contact", { exact: true })).toBeVisible();
       await expect(page.locator(".social-card")).not.toHaveCount(0);
       await expect(
         page.locator('.social-card a[href="https://github.com/WilliamAGH"]').first(),
