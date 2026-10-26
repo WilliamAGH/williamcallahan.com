@@ -1,5 +1,35 @@
 # SEO Architecture
 
+## Crawler-visible index shells
+
+The `/books` and `/bookmarks` headings and introductions sit outside their data-grid Suspense
+boundaries. Segment loading boundaries live under book details, bookmark details, and bookmark
+tags, not the collection roots: a root `loading.tsx` can outline the whole collection into a
+hidden React segment even when its heading is synchronous. Verify visible `<main>` content in
+non-JavaScript HTTP HTML as well as the hydrated page.
+
+Legacy `/bookmarks/domain/[domainSlug]` redirects use a GET Route Handler, not a suspended page:
+successful resolutions return an actual HTTP308 with a relative Location, rather than HTTP200
+with a streamed meta refresh. Explicit IDs resolve from the current slug mapping even when the
+separately cached feed is stale; missing IDs, unmatched domains, and unavailable mappings remain
+temporary307 redirects rather than permanently pinning a lookup failure to the hub.
+
+Thoughts metadata and content derive from one cached snapshot, so their empty/nonempty decisions
+cannot expire independently. Bookmark detail graphs contain one canonical WebPage with the
+third-party CreativeWork in `about`, not two WebPage identities for the same URL. The static
+bookmark collection heading is page-level context outside the optional Latest window; its
+Discover/Latest navigation copy applies to either feed mode.
+
+Indexability headers use the HTTP Host authority, not a client-supplied `X-Forwarded-Host` value.
+The canonical production hostname is the only public indexable host; an unredirected `www` alias
+is excluded too. No custom forwarded-host cache variation is needed.
+
+IndexNow runs once at scheduler startup, not every two-hour data refresh. Its default temporary
+announcement ledger deduplicates repeated commands within that container; it is not durable across
+replacement containers (the production scheduler has no filesystem mounts). The seven-day sitemap
+change filter remains the cross-deployment selection rule; this does not promise exactly-once
+announcements or demonstrate historical submission abuse.
+
 ## Verified front-end parity contracts
 
 - Blog collection JSON-LD lists published article URLs, not breadcrumb navigation. Blog listing
@@ -94,6 +124,7 @@ All SEO images defined in `data/metadata.ts` via `SEO_IMAGES` constant:
   - Author and publisher entity deduplication
   - Collection `ItemList` members come only from explicit actual items; omit the list when unavailable, never derive members from breadcrumbs
   - Profile graphs do not fabricate interaction statistics; individual bookmark detail graphs use `bookmark-item`, not a collection
+  - Founder facts use JSON-LD `@reverse.founder`: each Organization was founded by the Person, not the other way around. `/llms.txt` reuses the factual organization list without changing its meaning.
 
 - **`types/seo/schema.ts`** (234 lines): Schema.org type definitions
   - Comprehensive interfaces for all entity types
@@ -297,11 +328,27 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
   serve `noindex, follow` and stay out of the sitemap. They repeat third-party titles,
   descriptions and AI summaries or only list other pages; thousands of them indexed beside a few
   dozen original posts read as scaled, low-value content and dragged down the whole site.
-- **`next.config.ts` `htmlLimitedBots`**: Next streams metadata into `<body>` for Googlebot because
-  it renders JavaScript, and Google ignores a `rel=canonical` outside `<head>`. The option replaces
-  Next's default bot list, so the config extends Next's own `HTML_LIMITED_BOT_UA_RE` with
-  `Googlebot` (installed source: `node_modules/next/dist/server/lib/streaming-metadata.js`;
-  docs: nextjs.org/docs/app/api-reference/config/next-config-js/htmlLimitedBots).
+- **`next.config.ts` `htmlLimitedBots`**: Next streams metadata into `<body>` for any user agent
+  its bot list misses, and Google ignores a `rel=canonical` outside `<head>`. Extending
+  `HTML_LIMITED_BOT_UA_RE` across search, AI, SEO-audit and CLI user agents renders `<title>`,
+  canonical, robots and OpenGraph tags synchronously in `<head>` for crawlers, unfurlers and HTTP
+  probes while keeping partially prerendered static shells for interactive browsers (installed
+  source: `node_modules/next/dist/server/lib/streaming-metadata.js`,
+  `node_modules/next/dist/build/templates/app-page-runtime.js:347-348`; docs:
+  nextjs.org/docs/app/api-reference/config/next-config-js/htmlLimitedBots).
+- **Non-canonical hosts**: Responses served from any host other than `williamcallahan.com` carry
+  `X-Robots-Tag: noindex`, so preview, staging and alternate hostnames never compete with the
+  canonical URL.
+- **`app/llms.txt/route.ts`**: Serves `/llms.txt`, a plain-text index of the canonical pages for
+  LLM crawlers and answer engines.
+- **Rendered HTML contracts**: Every page renders exactly one semantic `<h1>`; window chrome titles
+  are not headings, and MDX post bodies start at `##` because `BlogHeader` renders the post title.
+  `/bookmarks` and `/books` render their `<main>`, `<h1>` and introduction outside `<Suspense>`, so
+  the prerendered shell carries them. `images.deviceSizes` stops at `1920`, so no `srcset`
+  candidate exceeds the widest rendered layout.
+- **Structured data**: Pages reference one `Person` entity by `@id` (`/#person`) as author and
+  publisher, the Knowledge Graph identity for the site owner. Bookmark pages describe the saved
+  third-party page as a `WebPage`/`CreativeWork` and never claim authorship of it.
 - **`next.config.ts` `LEGACY_URL_REDIRECTS`**: Permanent redirects for URLs search engines still
   hold: posts first published under their MDX filename, projects slugged before the current
   name-derived scheme, and WordPress-era posts with a migrated equivalent. Without them a renamed
@@ -314,7 +361,11 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
   per deploy (`scheduler/entrypoint.sh`); indexable pages change only when a deploy ships them
   - **Google Search Console**: Uses Webmasters API v3 with Service Account authentication
   - **Bing IndexNow**: POSTs only sitemap URLs modified within the last week, and nothing when none
-    changed; IndexNow is for recently added or updated URLs, not the full URL list
+    changed; IndexNow is for recently added or updated URLs, not the full URL list. A ledger in
+    `os.tmpdir()` records each accepted URL with its `lastModified`, so a later run re-announces
+    only URLs whose `lastModified` moved (the `/bookmarks` feed refresh included); entries older
+    than 14 days are pruned. The ledger lives in the container's writable layer, so a new
+    container starts with an empty one
   - Production-only execution (checks `NEXT_PUBLIC_SITE_URL`)
   - Command line options: `--google-only`, `--indexnow-only`, `--debug`
 - **`scheduler/scheduler.ts`**: Orchestrates automated tasks
@@ -486,7 +537,7 @@ graph TD
 2. **Production Check**: Verifies `NEXT_PUBLIC_SITE_URL` matches the canonical production URL
 3. **Submission**:
    - Google: PUT to the Webmasters API sitemaps endpoint
-   - IndexNow: POST of the sitemap URLs modified within the last week; skipped when there are none
+   - IndexNow: POST of the sitemap URLs modified within the last week and not already in the ledger; skipped when there are none
 
 ## Operations & Maintenance
 

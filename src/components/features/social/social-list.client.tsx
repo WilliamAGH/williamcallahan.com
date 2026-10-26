@@ -20,9 +20,9 @@ export function SocialListClient() {
   return (
     <div className="p-6 sm:p-4">
       <section>
-        <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
           Social Media Profiles
-        </h2>
+        </h1>
         <div className="prose dark:prose-invert max-w-none mb-8 text-sm sm:text-base">
           <p>
             Here are some of the places I can be found online. I share content about technology,

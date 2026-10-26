@@ -7,14 +7,11 @@
  * SEO best practices through validation.
  */
 
+import type { Metadata } from "next";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 import { z } from "zod/v4";
 
-// Import ExtendedMetadata from base to avoid circular dependencies
-import type { ExtendedMetadata } from "./base";
-
-// Extend if needed for backward compatibility
-export interface ArticleMetadata extends Omit<ExtendedMetadata, "openGraph"> {
+export interface ArticleMetadata extends Omit<Metadata, "openGraph"> {
   openGraph?: OpenGraph;
 }
 

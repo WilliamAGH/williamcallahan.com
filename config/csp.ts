@@ -19,7 +19,6 @@
  * - next.config.ts remotePatterns: For Next.js Image Optimization
  */
 
-const RAILWAY_TEST_DEPLOYMENTS = "https://*.up.railway.app";
 export const UMAMI_ORIGIN = "https://umami.iocloudhost.net";
 /** Retained for reactivation, but the retired Umami service is currently disabled. */
 export const UMAMI_ENABLED = false;
@@ -70,7 +69,6 @@ export const CSP_DIRECTIVES = {
     "https://*.x.com",
     ...CLERK_DOMAINS.scripts,
     "blob:",
-    RAILWAY_TEST_DEPLOYMENTS,
   ],
   connectSrc: [
     "'self'",
@@ -91,11 +89,7 @@ export const CSP_DIRECTIVES = {
     "https://*.digitaloceanspaces.com",
     "https://*.sfo3.digitaloceanspaces.com",
     "https://williamcallahan-com.sfo3.digitaloceanspaces.com",
-    "https://alpha.williamcallahan.com",
-    "https://sandbox.williamcallahan.com",
-    "https://dev.williamcallahan.com",
     "https://*.williamcallahan.com",
-    "https://williamcallahancom-production.up.railway.app",
     // Self-hosted infrastructure (popos-sf1 through sf7) - AudioBookShelf, media servers, etc.
     "https://*.popos-sf1.com",
     "https://*.popos-sf2.com",
@@ -104,7 +98,6 @@ export const CSP_DIRECTIVES = {
     "https://*.popos-sf5.com",
     "https://*.popos-sf6.com",
     "https://*.popos-sf7.com",
-    RAILWAY_TEST_DEPLOYMENTS,
   ],
   workerSrc: ["'self'", "blob:"],
   imgSrc: [
@@ -127,7 +120,6 @@ export const CSP_DIRECTIVES = {
     "https://*.popos-sf5.com",
     "https://*.popos-sf6.com",
     "https://*.popos-sf7.com",
-    RAILWAY_TEST_DEPLOYMENTS,
   ],
   styleSrc: [
     "'self'",
@@ -136,7 +128,6 @@ export const CSP_DIRECTIVES = {
     "https://*.twimg.com",
     "https://*.x.com",
     ...CLERK_DOMAINS.scripts,
-    RAILWAY_TEST_DEPLOYMENTS,
   ],
   styleSrcAttr: ["'unsafe-inline'"],
   styleSrcElem: [
@@ -146,7 +137,6 @@ export const CSP_DIRECTIVES = {
     "https://*.twimg.com",
     "https://*.x.com",
     ...CLERK_DOMAINS.scripts,
-    RAILWAY_TEST_DEPLOYMENTS,
   ],
   fontSrc: [
     "'self'",
@@ -154,14 +144,8 @@ export const CSP_DIRECTIVES = {
     "https://platform.twitter.com",
     "https://*.twimg.com",
     "https://*.x.com",
-    RAILWAY_TEST_DEPLOYMENTS,
   ],
-  frameSrc: [
-    "https://platform.twitter.com",
-    "https://*.x.com",
-    ...CLERK_DOMAINS.frames,
-    RAILWAY_TEST_DEPLOYMENTS,
-  ],
+  frameSrc: ["https://platform.twitter.com", "https://*.x.com", ...CLERK_DOMAINS.frames],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],

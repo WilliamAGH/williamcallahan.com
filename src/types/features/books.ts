@@ -90,6 +90,10 @@ export interface BooksClientGridProps {
   disclaimer?: string;
   error?: string | null;
   isStale?: boolean;
+  /** Render the title, description, and disclaimer block (default true) */
+  showHeader?: boolean;
+  /** Wrap the grid in the `~/books` window chrome (default true) */
+  withWindow?: boolean;
 }
 
 // =============================================================================
@@ -104,4 +108,6 @@ export interface BooksServerProps {
   title: string;
   description: string;
   disclaimer?: string;
+  showHeader?: boolean;
+  withWindow?: boolean;
 }

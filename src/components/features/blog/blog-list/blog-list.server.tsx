@@ -29,6 +29,9 @@ const PRELOAD_COUNT = 2;
 export function BlogListServer({ posts }: BlogListServerProps): JSX.Element {
   return (
     <div className="space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+        Blog
+      </h1>
       {/* Article count */}
       <p className="text-gray-500 dark:text-gray-400">
         {posts.length} {posts.length === 1 ? "article" : "articles"}

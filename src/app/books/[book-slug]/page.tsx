@@ -74,8 +74,12 @@ function buildBookOgImageUrl(book: Book): string {
 
 export async function generateMetadata({ params }: BookPageProps): Promise<Metadata> {
   const { "book-slug": slug } = await params;
-  const { book } = await getBookBySlug(slug, { includeBlurPlaceholders: false });
+  const { book, isFallback } = await getBookBySlug(slug, { includeBlurPlaceholders: false });
 
+  // A data-source outage must surface as a 5xx, never as a cacheable noindex 404.
+  if (!book && isFallback) {
+    throw new Error(`Books data source unavailable for slug "${slug}"`);
+  }
   if (!book) {
     return getNotFoundMetadata("Book");
   }
@@ -145,6 +149,9 @@ export default async function BookPage({ params }: BookPageProps) {
   const { "book-slug": slug } = await params;
   const { book, isFallback } = await getBookBySlug(slug, { includeBlurPlaceholders: true });
 
+  if (!book && isFallback) {
+    throw new Error(`Books data source unavailable for slug "${slug}"`);
+  }
   if (!book) {
     return notFound();
   }

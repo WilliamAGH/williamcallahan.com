@@ -1,0 +1,70 @@
+/**
+ * Legacy Domain-based Bookmark Page Redirector
+ *
+ * Redirects from old domain-based URLs to the new slug-based URLs.
+ *
+ * @module app/bookmarks/domain/[domainSlug]/route
+ */
+
+import { getBookmarks } from "@/lib/bookmarks/service.server";
+import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
+import { getDomainSlug } from "@/lib/utils/domain-utils";
+import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
+import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
+
+import type { DomainBookmarkContext } from "@/types/api";
+
+export async function GET(request: Request, { params }: DomainBookmarkContext): Promise<Response> {
+  // Load slug mapping - REQUIRED for idempotency
+  const slugMapping = await loadSlugMapping();
+  if (!slugMapping) {
+    console.error("[DomainRedirect] CRITICAL: No slug mapping found");
+    return new Response(null, { status: 307, headers: { Location: "/bookmarks" } });
+  }
+
+  const { domainSlug } = await params;
+  const id = new URL(request.url).searchParams.get("id");
+
+  // Explicit IDs resolve from the authoritative mapping, not a separately cached feed.
+  if (id) {
+    const uniqueSlug = getSlugForBookmark(slugMapping, id);
+    if (uniqueSlug) {
+      return new Response(null, {
+        status: 308,
+        headers: { Location: buildBookmarkPath(uniqueSlug) },
+      });
+    }
+    return new Response(null, { status: 307, headers: { Location: "/bookmarks" } });
+  }
+
+  const allBookmarks = await getBookmarks({
+    ...DEFAULT_BOOKMARK_OPTIONS,
+    includeImageData: false,
+    skipExternalFetch: false,
+    force: false,
+  });
+
+  // Otherwise, find the first bookmark matching this domain
+  const bookmarkWithDomain = allBookmarks.find((bookmark) => {
+    try {
+      return getDomainSlug(bookmark.url) === domainSlug;
+    } catch {
+      return false;
+    }
+  });
+
+  if (bookmarkWithDomain) {
+    const uniqueSlug = getSlugForBookmark(slugMapping, bookmarkWithDomain.id);
+    if (uniqueSlug) {
+      return new Response(null, {
+        status: 308,
+        headers: { Location: buildBookmarkPath(uniqueSlug) },
+      });
+    } else {
+      console.error(`[DomainRedirect] No slug found for bookmark ${bookmarkWithDomain.id}`);
+    }
+  }
+
+  // A missing/cached lookup must not permanently pin the legacy URL to the hub.
+  return new Response(null, { status: 307, headers: { Location: "/bookmarks" } });
+}

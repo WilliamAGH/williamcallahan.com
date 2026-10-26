@@ -407,7 +407,7 @@ File/Path Functionality Description
   - [x] `not-found-metadata.ts` `seo` - Noindex metadata for failed dynamic-entity lookups (no self-canonical)
   - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
-  - [x] `schema.ts` `seo` - Schema.org graphs with actual collection members or omitted lists, bookmark-item detail entities, and no fabricated profile statistics
+  - [x] `schema.ts` `seo` - Schema.org graphs with actual collection members or omitted lists, bookmark-item detail entities, no fabricated profile statistics, and Organization-to-Person founder relationships
   - [x] `search-exclusion.ts` `seo` - `noindex, follow` directive for bookmark, tag and book pages kept out of search
   - [x] `text-truncation.ts` `seo` - Smart text truncation utilities
   - [x] `utils.ts` `seo` - SEO utility functions
@@ -483,7 +483,6 @@ File/Path Functionality Description
   - [x] `matchers.d.ts` `testing-config` - Custom matcher type definitions
   - [x] `window.d.ts` `state-theme-window-providers` - Augmentations for the global `Window` object
 - [x] **seo/**
-  - [x] `base.ts` `seo` - Base SEO type definitions
   - [x] `metadata.ts` `seo` - SEO metadata schemas and inferred types; profile/collection validation uses the schemas directly
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
   - [x] `schema.ts` `seo` - Types for Schema.org
@@ -586,6 +585,7 @@ File/Path Functionality Description
 - [x] `global-error.tsx` `log-error-debug-handling` - Global error boundary
 - [x] `globals.css` `css` - Global stylesheets
 - [x] `layout.tsx` `app-layout` - Root layout & providers (TerminalProvider localized to terminal subtree; see terminal.md "Provider Location & Resilience")
+- [x] **llms.txt/`route.ts`** `seo` - `/llms.txt` plain-text index of canonical pages for LLM crawlers
 - [x] `not-found.tsx` `log-error-debug-handling` - 404 Not Found page
   - [x] `page.tsx` `home` - Landing page & SEO
 - [x] `providers.client.tsx` `state-theme-window-providers` - Client-side providers
@@ -720,7 +720,8 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 - [x] `diagnose-scheduler.sh` `batch-fetch-update` - Scheduler diagnostic report script
 - [x] **lib/**
   - [x] `google-indexing.ts` `seo` - Google Indexing API submission helpers
-  - [x] `indexnow-submit.ts` `seo` - IndexNow sitemap submission helper
+  - [x] `indexnow-submit.ts` `seo` - IndexNow sitemap submission helper and announcement ledger
+  - `src/types/schemas/indexnow-ledger.ts` validates persisted public URL/timestamp entries at the read boundary.
 
 ## Styles Directory
 
@@ -779,7 +780,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 - `__tests__/scripts/dokploy-deploy-image.test.ts`: real shell/HTTP deployment identity regression
   for unchanged requests versus corrected runtime configuration.
 - `__tests__/scheduler/indexnow-submit.test.ts`: the IndexNow request carries only sitemap URLs
-  modified within the last week.
+  modified within the last week whose `lastModified` the ledger has not already recorded.
 
 - [x] **e2e/**
   - [x] `blog-render.spec.ts` `blog` - Chromium route-layer checks for the shared blog render canaries, including declared interactions and browser failures
@@ -909,3 +910,13 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 - [x] \***\*mocks**/\*\*
   - [x] `fileMock.js` `testing-config` - Mock for static file imports
   - [x] `styleMock.js` `testing-config` - Mock for CSS/style imports
+
+## Collection-shell loading boundaries
+
+- `src/app/books/[book-slug]/loading.tsx`: uncached book detail boundary (moved from books root).
+- `src/app/bookmarks/[slug]/loading.tsx`: bookmark detail skeleton (moved from bookmarks root).
+- `src/app/bookmarks/tags/loading.tsx`: uncached tag lookup boundary.
+- `src/app/bookmarks/domain/[domainSlug]/route.ts`: legacy HTTP redirects before streaming (replaces the page redirector).
+- `__tests__/app/bookmarks/domain-redirect-response.test.ts`: actual redirect responses under feed/slug-map skew, unknown IDs, and unresolved domains.
+- `src/app/thoughts/page.tsx`: shared cached list snapshot for both visible content and indexability metadata.
+- Collection roots keep headings outside grid/feed Suspense; no root loading boundary hides them.

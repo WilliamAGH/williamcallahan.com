@@ -92,8 +92,8 @@ export function CollapseDropdown({
             strokeLinecap="round"
             strokeLinejoin="round"
             className="lucide lucide-chevron-right"
+            aria-hidden="true"
           >
-            <title>Toggle dropdown</title>
             <path d="m9 18 6-6-6-6" />
           </svg>
         </span>

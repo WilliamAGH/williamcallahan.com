@@ -44,11 +44,11 @@ can act on the trap instead of deferring it.
 
 `package.json` is the canonical Node runtime manifest: `engines.node` declares the
 exact version and `runtime.node.linux` declares the architecture checksums. Both
-Dockerfiles parse it with `jq`; each `node` stage supplies the current Node.js 24.18.0
+Dockerfiles parse it with `jq`; each `node` stage supplies the current Node.js 24.22.1
 projection to its descendant stages. It downloads the official Node archive for the
 target architecture, checks it against the matching fixed
 SHA-256 in Node's
-[24.18.0 `SHASUMS256.txt`](https://nodejs.org/dist/v24.18.0/SHASUMS256.txt), and rejects
+[24.22.1 `SHASUMS256.txt`](https://nodejs.org/dist/v24.22.1/SHASUMS256.txt), and rejects
 unsupported architectures. Do not replace that stage with a floating NodeSource
 `node_*.x` channel or application-level compatibility code.
 
@@ -148,7 +148,7 @@ The pin fixes production failures with
 [issue #62036](https://github.com/nodejs/node/issues/62036) identifies the Web
 `TransformStream` cancel/write race; Node [pull request #62040](https://github.com/nodejs/node/pull/62040)
 fixes it. The repair shipped in Node 24.15.0 and remains present in the pinned
-[24.18.0 LTS release](https://nodejs.org/en/blog/release/v24.18.0). The runtime upgrade
+[24.22.1 LTS release](https://nodejs.org/en/blog/release/v24.22.1). The runtime upgrade
 is the repair; do not add retries, polyfills, or error suppression around the application
 stream path.
 
@@ -158,11 +158,11 @@ before deploying:
 
 ```bash
 docker buildx build --target node --build-arg BASE_REGISTRY=dockerhub.haiku.host --load \
-  -t williamcallahan-com-node-runtime-check:24.18.0 .
-docker run --rm williamcallahan-com-node-runtime-check:24.18.0 node --version
+  -t williamcallahan-com-node-runtime-check:24.22.1 .
+docker run --rm williamcallahan-com-node-runtime-check:24.22.1 node --version
 docker buildx build --target node --build-arg BASE_REGISTRY=dockerhub.haiku.host --load \
-  -f scheduler/Dockerfile -t williamcallahan-scheduler-node-runtime-check:24.18.0 .
-docker run --rm williamcallahan-scheduler-node-runtime-check:24.18.0 node --version
+  -f scheduler/Dockerfile -t williamcallahan-scheduler-node-runtime-check:24.22.1 .
+docker run --rm williamcallahan-scheduler-node-runtime-check:24.22.1 node --version
 ```
 
 ## Multi-platform image pipeline

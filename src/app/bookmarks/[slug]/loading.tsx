@@ -1,5 +1,5 @@
 /**
- * Skeleton loader component with stable keys for loading states
+ * Bookmark-detail skeleton; the index owns a narrower feed boundary.
  * @returns {JSX.Element} Skeleton loading animation
  */
 const BookmarkCardSkeleton = () => (

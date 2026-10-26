@@ -8,7 +8,7 @@
 
 "use client";
 
-import React, { Suspense } from "react";
+import React from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { TerminalSearchHint } from "@/components/ui/terminal/terminal-search-hint";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
@@ -55,12 +55,7 @@ function BooksWindowContentInner({
         </div>
       </div>
 
-      <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
-        {/* Use a minimal height placeholder to prevent layout collapse during streaming */}
-        <Suspense fallback={<div className="min-h-[400px] animate-pulse p-6" aria-hidden="true" />}>
-          {children}
-        </Suspense>
-      </div>
+      <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>{children}</div>
     </div>
   );
 }

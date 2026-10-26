@@ -27,17 +27,10 @@ import {
   OG_IMAGE_DIMENSIONS,
   metadata as siteMetadata,
 } from "@/data/metadata";
-import type {
-  ArticleMetadata,
-  ExtendedMetadata,
-  ArticleParams,
-  SoftwareAppParams,
-} from "../../types/seo";
+import type { ArticleMetadata, ArticleParams } from "../../types/seo";
 import { SEO_DATE_FIELDS } from "@/lib/constants";
 import type { ExtendedOpenGraph } from "../../types/seo/opengraph";
-import type { SchemaParams } from "../../types/seo/schema";
 import { createArticleOgMetadata } from "./opengraph";
-import { generateSchemaGraph } from "./schema";
 import { ensureAbsoluteUrl } from "./url-utils";
 import { formatSeoDate } from "./utils";
 import { generateDynamicTitle } from "./dynamic-metadata";
@@ -46,7 +39,8 @@ import { adaptNextOpenGraphToOGMetadata } from "../../types/seo/validation";
 
 /**
  * Base metadata configuration for all pages
- * Includes common metadata fields that are shared across the site
+ * Includes common metadata fields that are shared across the site. It carries no canonical:
+ * each indexable route sets its own, so no utility route inherits the homepage URL.
  *
  * @see {@link "../../data/metadata.ts"} - Source of these values
  */
@@ -57,9 +51,6 @@ export const BASE_METADATA: Metadata = {
     card: "summary_large_image",
     site: siteMetadata.social.twitter,
     creator: siteMetadata.social.twitter,
-  },
-  alternates: {
-    canonical: "https://williamcallahan.com",
   },
   authors: [
     {
@@ -104,7 +95,7 @@ const PAGE_OG_IMAGE_MAP: Record<keyof typeof PAGE_METADATA, keyof typeof SEO_IMA
  * @returns {ArticleMetadata} Next.js metadata object for the article page
  * @see {@link "./opengraph.ts"} - For OpenGraph metadata generation
  * @see {@link "https://ogp.me/#type_article"} - OpenGraph article specification
- * @see {@link "https://schema.org/NewsArticle"} - Schema.org NewsArticle specification
+ * @see {@link "https://schema.org/Article"} - Schema.org Article specification
  */
 export function createArticleMetadata({
   title,
@@ -114,9 +105,6 @@ export function createArticleMetadata({
   datePublished,
   dateModified,
   tags,
-  articleBody = "Article content not available",
-  useNewsArticle = true, // Default to NewsArticle schema for better SEO
-  authors,
 }: ArticleParams): ArticleMetadata {
   // Format dates in Pacific Time with proper offset
   const formattedPublished = formatSeoDate(datePublished);
@@ -124,65 +112,12 @@ export function createArticleMetadata({
 
   const browserTitle = generateDynamicTitle(title, "blog");
 
-  // Create image variations for NewsArticle schema
-  let imageVariations: string[] | undefined;
-
-  if (image) {
-    const baseImageUrl = ensureAbsoluteUrl(image);
-    // Create different image aspect ratios (1:1, 4:3, 16:9) for Google's rich results
-    imageVariations = [
-      image.endsWith(".jpg")
-        ? baseImageUrl.replace(".jpg", "-1x1.jpg")
-        : `${baseImageUrl}?format=1x1`,
-      image.endsWith(".jpg")
-        ? baseImageUrl.replace(".jpg", "-4x3.jpg")
-        : `${baseImageUrl}?format=4x3`,
-      image.endsWith(".jpg")
-        ? baseImageUrl.replace(".jpg", "-16x9.jpg")
-        : `${baseImageUrl}?format=16x9`,
-    ];
-  }
-
-  // Generate schema graph
-  const schemaParams: SchemaParams = {
-    path: new URL(url).pathname,
-    title: browserTitle, // Use truncated title for schema
-    description,
-    datePublished: formattedPublished,
-    dateModified: formattedModified,
-    type: useNewsArticle ? "newsarticle" : "article",
-    articleBody,
-    keywords: tags,
-    image: image
-      ? {
-          url: image,
-          width: siteMetadata.defaultImage.width,
-          height: siteMetadata.defaultImage.height,
-        }
-      : undefined,
-    images: imageVariations,
-    authors: authors || [{ name: SITE_NAME, url: ensureAbsoluteUrl("/") }],
-    breadcrumbs: [
-      { path: "/", name: "Home" },
-      { path: "/blog", name: "Blog" },
-      { path: new URL(url).pathname, name: browserTitle }, // Use truncated title for breadcrumb
-    ],
-  };
-
-  const schema = generateSchemaGraph(schemaParams);
-
   return {
     title: browserTitle,
     description,
     alternates: {
       canonical: url,
     },
-    script: [
-      {
-        type: "application/ld+json",
-        text: JSON.stringify(schema, null, process.env.NODE_ENV === "development" ? 2 : 0),
-      },
-    ],
     openGraph: createArticleOgMetadata({
       title: browserTitle, // Use truncated title for OpenGraph
       description,
@@ -228,12 +163,9 @@ export function createArticleMetadata({
  *
  * @param {string} path - The path of the page (e.g., "/", "/blog")
  * @param {keyof typeof PAGE_METADATA} pageKey - The key for the page's metadata in PAGE_METADATA
- * @returns {ExtendedMetadata} Next.js metadata object for the page
+ * @returns {Metadata} Next.js metadata object for the page
  */
-export function getStaticPageMetadata(
-  path: string,
-  pageKey: keyof typeof PAGE_METADATA,
-): ExtendedMetadata {
+export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_METADATA): Metadata {
   const pageMetadata = PAGE_METADATA[pageKey];
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
@@ -339,133 +271,5 @@ export function getStaticPageMetadata(
       bookmarks: [], // Will be populated with actual bookmarks
       category: "Resources",
     }),
-  };
-}
-
-/**
- * Creates metadata for software application pages
- * This can be used with blog posts about software or dedicated software pages
- *
- * @param {SoftwareAppParams} params - Software application parameters
- * @returns {ArticleMetadata} Next.js metadata object for the page
- * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication specification
- */
-export function createSoftwareApplicationMetadata({
-  title,
-  description,
-  url,
-  image,
-  datePublished,
-  dateModified,
-  tags,
-  articleBody = "",
-  softwareName,
-  operatingSystem,
-  applicationCategory = "DeveloperApplication",
-  isFree = true,
-  price,
-  priceCurrency = "USD",
-  ratingValue,
-  ratingCount,
-  downloadUrl,
-  softwareVersion,
-  screenshot,
-  authors,
-}: SoftwareAppParams): ArticleMetadata {
-  // Format dates in Pacific Time with proper offset
-  const formattedPublished = formatSeoDate(datePublished);
-  const formattedModified = formatSeoDate(dateModified);
-
-  const browserTitle = generateDynamicTitle(title, "blog");
-
-  // Generate schema graph
-  const schemaParams: SchemaParams = {
-    path: new URL(url).pathname,
-    title: browserTitle, // Use truncated title for schema
-    description,
-    datePublished: formattedPublished,
-    dateModified: formattedModified,
-    type: "software",
-    articleBody,
-    keywords: tags,
-    image: image
-      ? {
-          url: image,
-          width: siteMetadata.defaultImage.width,
-          height: siteMetadata.defaultImage.height,
-        }
-      : undefined,
-    authors,
-    breadcrumbs: [
-      { path: "/", name: "Home" },
-      { path: "/blog", name: "Blog" },
-      { path: new URL(url).pathname, name: browserTitle }, // Use truncated title for breadcrumb
-    ],
-    // Add software-specific metadata
-    softwareMetadata: {
-      name: softwareName,
-      operatingSystem,
-      applicationCategory,
-      isFree,
-      price,
-      priceCurrency,
-      ratingValue,
-      ratingCount,
-      downloadUrl,
-      softwareVersion,
-      screenshot,
-    },
-  };
-
-  const schema = generateSchemaGraph(schemaParams);
-
-  return {
-    title: browserTitle,
-    description,
-    alternates: {
-      canonical: url,
-    },
-    script: [
-      {
-        type: "application/ld+json",
-        text: JSON.stringify(schema, null, process.env.NODE_ENV === "development" ? 2 : 0),
-      },
-    ],
-    openGraph: createArticleOgMetadata({
-      title: browserTitle, // Use truncated title for OpenGraph
-      description,
-      url,
-      image,
-      datePublished,
-      dateModified,
-      tags,
-    }),
-    twitter: {
-      card: "summary_large_image",
-      site: siteMetadata.social.twitter,
-      creator: siteMetadata.social.twitter,
-      title: browserTitle, // Use truncated title for Twitter
-      description,
-      images: image
-        ? [{ url: ensureAbsoluteUrl(image) }]
-        : [
-            {
-              url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
-              width: siteMetadata.defaultImage.width,
-              height: siteMetadata.defaultImage.height,
-              alt: siteMetadata.defaultImage.alt,
-            },
-          ],
-    },
-    other: {
-      // Standard HTML meta dates
-      [SEO_DATE_FIELDS.meta.published]: formattedPublished,
-      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
-
-      // Optional Dublin Core dates
-      [SEO_DATE_FIELDS.dublinCore.created]: formattedPublished,
-      [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
-      [SEO_DATE_FIELDS.dublinCore.issued]: formattedPublished,
-    },
   };
 }

@@ -80,13 +80,13 @@ export function Experience({ data }: ExperienceProps): React.JSX.Element | null 
             onMinimize={minimizeWindow}
             onMaximize={maximizeWindow}
           />
-          <h1 className="text-xl font-mono ml-4">~/experience</h1>
+          <div className="text-xl font-mono ml-4">~/experience</div>
         </div>
       </div>
       {/* Scrollable Content Area */}
       <div className={cn("p-6", isMaximized ? "overflow-y-auto flex-grow" : "")}>
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6">Experience</h2>
+          <h1 className="text-2xl font-bold mb-6">Experience</h1>
           <div className="space-y-6">
             {data.map((item) => (
               <ExperienceCardClient key={item.id} {...item} />

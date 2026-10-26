@@ -114,7 +114,7 @@ Example schemas:
 - AI upstream pipeline tests are split by responsibility (streaming, tools, analysis validation) and share a dedicated harness module for DRY fixture/mocking (`__tests__/api/ai/upstream-pipeline-test-harness.ts`).
 - OpenAI-compatible request policy is per call: interactive streams use one 180-second attempt while cached client identity remains independent of timeout and retry behavior (see `architecture/ai-services.md`).
 - RAG inventory catalogs for terminal chat are assembled server-side from repo data and dynamic sources with explicit token-bound truncation (`src/lib/ai/rag/inventory-*.ts`).
-- Sitemap generation uses domain collectors under `src/lib/sitemap/` and the thin cached `src/app/sitemap.ts` orchestrator. Existing search-exclusion policy omits bookmark detail, tag and book detail URLs; the bookmark hub uses meaningful index dates. Content freshness belongs to `src/lib/bookmarks/content-dates.ts`, generic date helpers to `src/lib/utils/date-format.ts`.
+- Sitemap generation uses domain collectors under `src/lib/sitemap/` and the thin cached `src/app/sitemap.ts` orchestrator. Existing search-exclusion policy omits bookmark detail, tag and book detail URLs; the bookmark hub uses meaningful index dates. Content freshness belongs to `src/lib/bookmarks/content-dates.ts`, generic date helpers to `src/lib/utils/date-format.ts`. `src/app/llms.txt/route.ts` serves `/llms.txt`, the plain-text index of canonical pages for LLM crawlers; IndexNow re-announces only URLs whose `lastModified` changed since the ledger in `scheduler/lib/indexnow-submit.ts` recorded them (see `features/seo.md`).
 - Project detail text/links remain server-owned; optional analysis streams under its own Suspense boundary and parallax is an image-only client leaf. Contact windows/cards render their normal initial HTML without effect-mount gates (see `standards/nextjs-framework.md`).
 - SEO graphs use actual collection members or omit the member list, never breadcrumb substitutes or fabricated profile statistics. Book aliases redirect to generated canonical slugs; unknown/draft-only blog tags use not-found/noindex metadata (see `features/seo.md`).
 - Publisher challenges are detected by `src/lib/opengraph/validation.ts`; normalization clears failed-capture enrichment while hydration preserves genuinely healthy archives. Blocked bookmarks without retrieved bodies do not display cached article analysis (see `features/bookmarks.md`).
@@ -193,3 +193,14 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 
 - TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for resilience. See "Provider Location & Resilience" in [terminal.md](../features/terminal.md) for details and guarantees.
 - `/src/types/schemas/ai-feature.ts` - AI feature identifiers shared by request validation, logging, and gateway workload attribution
+
+# Collection loading boundaries
+
+Book and bookmark index shells own grid-level Suspense; detail/tag `loading.tsx` files do not
+wrap the collection heading. See [SEO architecture](../features/seo.md#crawler-visible-index-shells).
+
+Person graphs express founder facts through JSON-LD `@reverse.founder`, retaining the direction
+Organization → founder → Person; the factual organization list also feeds `/llms.txt`.
+
+Thoughts metadata/content share a cached snapshot. Bookmark details enrich one canonical WebPage,
+and legacy ID redirects use the fresh slug map without relying on independently cached feed data.
