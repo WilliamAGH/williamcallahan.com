@@ -197,7 +197,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
                   "linkedin-banner": domain.includes("linkedin"),
                 })}
                 fill
-                sizes="100vw"
+                sizes="(min-width: 1024px) 512px, (min-width: 768px) 50vw, 100vw"
                 {...(shouldBypassOptimizer(domainImageUrl) ? { unoptimized: true } : {})}
                 onError={() => {
                   setImageError(true);
