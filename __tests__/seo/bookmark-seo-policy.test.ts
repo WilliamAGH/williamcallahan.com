@@ -78,6 +78,31 @@ describe("bookmark SEO graduation", () => {
     });
   });
 
+  it.each([{ archived: true }, { isPrivate: true }, { isCanonicalSlug: false }])(
+    "rejects an otherwise qualifying bookmark with excluded eligibility: %j",
+    (eligibility) => {
+      expect(
+        evaluateBookmarkIndexability({
+          note: THRESHOLD_NOTE,
+          summary: SUMMARY,
+          ...eligibility,
+        }),
+      ).toMatchObject({ indexable: false, robots: { index: false, follow: true } });
+    },
+  );
+
+  it("collapses internal summary whitespace before measuring the combined threshold", () => {
+    const RAW_SUMMARY_CHARS = 149;
+    const summary = SUMMARY.slice(0, RAW_SUMMARY_CHARS - 1).replace(" ", "\n\n");
+
+    expect(summary).toHaveLength(RAW_SUMMARY_CHARS);
+    expect(evaluateBookmarkIndexability({ note: THRESHOLD_NOTE, summary })).toMatchObject({
+      combinedChars: 249,
+      indexable: false,
+      robots: { index: false, follow: true },
+    });
+  });
+
   it.each(["summary", "description"] as const)(
     "graduates a trimmed threshold annotation supported by %s",
     (field) => {

@@ -42,6 +42,9 @@ export function evaluateBookmarkIndexability(
     .join(" ");
   const combinedChars = combinedText.length;
   const indexable =
+    !input.archived &&
+    !input.isPrivate &&
+    input.isCanonicalSlug !== false &&
     !input.sourceUnavailable &&
     noteChars >= MIN_BOOKMARK_NOTE_CHARS &&
     noteWords >= MIN_BOOKMARK_NOTE_WORDS &&

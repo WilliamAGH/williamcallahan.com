@@ -6,6 +6,15 @@ export const graduatedBookmarkSitemapEntrySchema = z.object({
 });
 export type GraduatedBookmarkSitemapEntry = z.infer<typeof graduatedBookmarkSitemapEntrySchema>;
 
+export const graduatedBookmarkCandidateRowSchema = z.object({
+  slug: z.string().min(1),
+  lastModified: z.string().min(1),
+  note: z.string().nullable(),
+  summary: z.string().nullable(),
+  description: z.string().nullable(),
+});
+export type GraduatedBookmarkCandidateRow = z.infer<typeof graduatedBookmarkCandidateRowSchema>;
+
 export const graduatedTagHubSitemapEntrySchema = z.object({
   tagSlug: z.string().min(1),
   bookmarkCount: z.coerce.number().int().nonnegative(),

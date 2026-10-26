@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { BOOKMARK_TAG_ALIAS_CTE } from "@/lib/db/bookmark-tag-aliases.mjs";
 import { db } from "@/lib/db/connection";
 import {
+  evaluateBookmarkIndexability,
   MIN_BOOKMARK_COMBINED_CHARS,
   MIN_BOOKMARK_NOTE_CHARS,
   MIN_BOOKMARK_NOTE_WORDS,
@@ -9,7 +10,7 @@ import {
 } from "@/lib/seo/bookmark-seo-policy";
 import {
   bookmarkTopicHubEvidenceSchema,
-  graduatedBookmarkSitemapEntrySchema,
+  graduatedBookmarkCandidateRowSchema,
   graduatedTagHubSitemapEntrySchema,
   topicHubResourceBriefSchema,
   type BookmarkTopicHubEvidence,
@@ -30,7 +31,8 @@ export async function listGraduatedBookmarkSitemapEntries(): Promise<
   const rows = await db.execute(sql`
     SELECT b.slug AS "slug",
       coalesce(nullif(btrim(b.modified_at), ''), nullif(btrim(b.source_updated_at), ''),
-        b.date_bookmarked) AS "lastModified"
+        b.date_bookmarked) AS "lastModified",
+      b.note AS "note", b.summary AS "summary", b.description AS "description"
     FROM bookmarks b
     WHERE b.archived = false AND b.is_private = false
       AND btrim(b.slug) <> ''
@@ -38,18 +40,35 @@ export async function listGraduatedBookmarkSitemapEntries(): Promise<
         coalesce(b.content->>'crawlStatus', '') = 'blocked'
         AND btrim(coalesce(b.scraped_content_text, '')) = ''
       )
-      AND char_length(btrim(coalesce(b.note, ''))) >= ${MIN_BOOKMARK_NOTE_CHARS}
-      AND cardinality(regexp_split_to_array(btrim(b.note), '[[:space:]]+')) >= ${MIN_BOOKMARK_NOTE_WORDS}
-      AND char_length(btrim(concat_ws(' ', nullif(btrim(b.note), ''),
-        nullif(btrim(b.summary), ''), nullif(btrim(b.description), '')))) >= ${MIN_BOOKMARK_COMBINED_CHARS}
+      AND char_length(regexp_replace(btrim(coalesce(b.note, '')), '[[:space:]]+', ' ', 'g')) >= ${MIN_BOOKMARK_NOTE_CHARS}
+      AND cardinality(regexp_split_to_array(
+        regexp_replace(btrim(coalesce(b.note, '')), '[[:space:]]+', ' ', 'g'),
+        '[[:space:]]+')) >= ${MIN_BOOKMARK_NOTE_WORDS}
+      AND char_length(btrim(concat_ws(' ',
+        nullif(regexp_replace(btrim(coalesce(b.note, '')), '[[:space:]]+', ' ', 'g'), ''),
+        nullif(regexp_replace(btrim(coalesce(b.summary, '')), '[[:space:]]+', ' ', 'g'), ''),
+        nullif(regexp_replace(btrim(coalesce(b.description, '')), '[[:space:]]+', ' ', 'g'), '')))) >= ${MIN_BOOKMARK_COMBINED_CHARS}
     ORDER BY b.date_bookmarked DESC, b.slug ASC
     LIMIT ${MAX_GRADUATED_BOOKMARK_SITEMAP_ROWS}
   `);
-  const parsed = graduatedBookmarkSitemapEntrySchema.array().safeParse(Array.from(rows));
+  const parsed = graduatedBookmarkCandidateRowSchema.array().safeParse(Array.from(rows));
   if (!parsed.success) {
     throw new Error("Invalid graduated bookmark sitemap entries", { cause: parsed.error });
   }
-  return parsed.data;
+  return parsed.data
+    .filter(
+      (candidate) =>
+        evaluateBookmarkIndexability({
+          note: candidate.note,
+          summary: candidate.summary,
+          description: candidate.description,
+          archived: false,
+          isPrivate: false,
+          isCanonicalSlug: true,
+          sourceUnavailable: false,
+        }).indexable,
+    )
+    .map((candidate) => ({ slug: candidate.slug, lastModified: candidate.lastModified }));
 }
 
 export async function listGraduatedTagHubSitemapEntries(): Promise<GraduatedTagHubSitemapEntry[]> {
@@ -93,8 +112,9 @@ export async function getBookmarkTopicHubEvidence(
           nullif(regexp_replace(lower(coalesce(b.domain, '')), '^www\\.', ''), '') AS clean_domain,
           nullif(btrim(a.payload #>> '{analysis,category}'), '') AS category,
           a.entity_id IS NOT NULL AS has_analysis,
-          (char_length(btrim(coalesce(b.note, ''))) >= ${MIN_BOOKMARK_NOTE_CHARS}
-            AND cardinality(regexp_split_to_array(btrim(coalesce(b.note, '')),
+          (char_length(regexp_replace(btrim(coalesce(b.note, '')), '[[:space:]]+', ' ', 'g')) >= ${MIN_BOOKMARK_NOTE_CHARS}
+            AND cardinality(regexp_split_to_array(
+              regexp_replace(btrim(coalesce(b.note, '')), '[[:space:]]+', ' ', 'g'),
               '[[:space:]]+')) >= ${MIN_BOOKMARK_NOTE_WORDS}) AS is_annotated
         FROM bookmark_tag_links link
         LEFT JOIN canonical_tag_aliases cta ON cta.source_tag_slug = link.tag_slug
@@ -137,7 +157,7 @@ export async function getBookmarkTopicHubEvidence(
           nullif(btrim(a.payload #>> '{analysis,contextualDetails,format}'), '') AS "format",
           nullif(btrim(a.payload #>> '{analysis,contextualDetails,accessMethod}'), '') AS "accessMethod",
           nullif(btrim(a.payload #>> '{analysis,highlights,0}'), '') AS "primaryHighlight",
-          char_length(btrim(coalesce(b.note, ''))) >= ${MIN_BOOKMARK_NOTE_CHARS} AS has_note,
+          char_length(regexp_replace(btrim(coalesce(b.note, '')), '[[:space:]]+', ' ', 'g')) >= ${MIN_BOOKMARK_NOTE_CHARS} AS has_note,
           a.entity_id IS NOT NULL AS has_analysis, b.is_favorite
         FROM bookmark_tag_links link
         LEFT JOIN canonical_tag_aliases cta ON cta.source_tag_slug = link.tag_slug
@@ -164,7 +184,10 @@ export async function getBookmarkTopicHubEvidence(
     canonicalSlug: normalizedSlug,
     ...summary,
     annotatedBookmarks: resources.data
-      .filter((resource) => (resource.note?.length ?? 0) >= MIN_BOOKMARK_NOTE_CHARS)
+      .filter(
+        (resource) =>
+          (resource.note ?? "").replace(/\s+/g, " ").trim().length >= MIN_BOOKMARK_NOTE_CHARS,
+      )
       .slice(0, MAX_ANNOTATED_BOOKMARKS),
     matrixResources: resources.data.slice(0, MAX_MATRIX_RESOURCES),
   });

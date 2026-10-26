@@ -6,6 +6,9 @@ export interface BookmarkIndexabilityInput {
   summary?: string | null;
   description?: string | null;
   sourceUnavailable?: boolean;
+  archived?: boolean;
+  isPrivate?: boolean;
+  isCanonicalSlug?: boolean;
 }
 
 export interface BookmarkIndexabilityVerdict {

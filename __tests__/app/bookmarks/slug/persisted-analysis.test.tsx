@@ -1,6 +1,7 @@
 import React from "react";
 import { vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { permanentRedirect } from "next/navigation";
 import { buildBookmark } from "@/test-utils/sitemap-factories";
 import type { BookmarkDetailProps } from "@/types/bookmark-ai-analysis";
 import type { CachedAnalysis } from "@/types/ai-analysis";
@@ -85,6 +86,15 @@ describe("bookmark detail page persisted analysis", () => {
     await expect(
       BookmarkPage({ params: Promise.resolve({ slug: bookmark.slug }) }),
     ).rejects.toThrow("CONNECT_TIMEOUT");
+  });
+
+  it("permanently redirects bookmark IDs to the canonical slug before reading analysis", async () => {
+    const { default: BookmarkPage } = await import("@/app/bookmarks/[slug]/page");
+
+    await BookmarkPage({ params: Promise.resolve({ slug: bookmark.id }) });
+
+    expect(permanentRedirect).toHaveBeenCalledWith("/bookmarks/killaislop-com");
+    expect(mockGetCachedAnalysis).not.toHaveBeenCalled();
   });
 
   it.each([

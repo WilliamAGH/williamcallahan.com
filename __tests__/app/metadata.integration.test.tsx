@@ -7,21 +7,35 @@
 import type { Metadata } from "next";
 import { generateMetadata as generateBookmarkDetailMetadata } from "@/app/bookmarks/[slug]/page";
 import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page";
-import { getBookmarkById, getBookmarksIndex } from "@/lib/bookmarks/service.server";
+import { generateMetadata as generateTagMetadata } from "@/app/bookmarks/tags/[...slug]/page";
+import {
+  getBookmarkById,
+  getBookmarksIndex,
+  getBookmarksByTag,
+  resolveBookmarkTagSlug,
+} from "@/lib/bookmarks/service.server";
+import type { getBookmarkTopicHubEvidence } from "@/lib/db/queries/bookmark-seo";
 import { generateMetadata as generateBlogTagMetadata } from "@/app/blog/tags/[tagSlug]/page";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { resolveBookmarkIdFromSlug } from "@/lib/bookmarks/slug-helpers";
 import { bookmarksIndexSchema, unifiedBookmarkSchema } from "@/types/schemas/bookmark";
+import { bookmarkTopicHubEvidenceSchema } from "@/types/schemas/bookmark-seo";
 import type { getStaticPageMetadata } from "@/lib/seo/metadata";
 
 const {
   mockGetBookmarkById,
   mockGetBookmarksIndex,
+  mockGetBookmarksByTag,
+  mockResolveBookmarkTagSlug,
+  mockGetBookmarkTopicHubEvidence,
   mockGetStaticPageMetadata,
   mockResolveBookmarkIdFromSlug,
 } = vi.hoisted(() => ({
   mockGetBookmarkById: vi.fn<typeof getBookmarkById>(),
   mockGetBookmarksIndex: vi.fn<typeof getBookmarksIndex>(),
+  mockGetBookmarksByTag: vi.fn<typeof getBookmarksByTag>(),
+  mockResolveBookmarkTagSlug: vi.fn<typeof resolveBookmarkTagSlug>(),
+  mockGetBookmarkTopicHubEvidence: vi.fn<typeof getBookmarkTopicHubEvidence>(),
   mockResolveBookmarkIdFromSlug: vi.fn<typeof resolveBookmarkIdFromSlug>(),
   mockGetStaticPageMetadata: vi.fn<typeof getStaticPageMetadata>(() => ({
     title: "Bookmarks",
@@ -40,6 +54,12 @@ const {
 vi.mock("@/lib/bookmarks/service.server", () => ({
   getBookmarkById: mockGetBookmarkById,
   getBookmarksIndex: mockGetBookmarksIndex,
+  getBookmarksByTag: mockGetBookmarksByTag,
+  resolveBookmarkTagSlug: mockResolveBookmarkTagSlug,
+}));
+
+vi.mock("@/lib/db/queries/bookmark-seo", () => ({
+  getBookmarkTopicHubEvidence: mockGetBookmarkTopicHubEvidence,
 }));
 
 vi.mock("@/lib/bookmarks/slug-helpers", () => ({
@@ -52,6 +72,22 @@ vi.mock("@/lib/seo/metadata", () => ({
 
 const mockedGetBookmarkById = vi.mocked(getBookmarkById);
 const mockedResolveBookmarkIdFromSlug = vi.mocked(resolveBookmarkIdFromSlug);
+
+const PUBLIC_HUB_THRESHOLD = 12;
+const BELOW_PUBLIC_HUB_THRESHOLD = 11;
+const qualifyingBookmark = unifiedBookmarkSchema.parse({
+  id: "qualifying-bookmark",
+  url: "https://example.com/agent-workflows",
+  title: "Agent workflow comparison",
+  description: "",
+  slug: "agent-workflows",
+  note: "We study this guide to compare agent workflows and verify changes before shipping reliable software.",
+  summary:
+    "The resource explains repository instructions, review checkpoints, and repeatable checks that help maintainers compare tools without losing the context needed to make an informed decision.",
+  tags: [],
+  dateBookmarked: "2026-07-13T00:00:00.000Z",
+  sourceUpdatedAt: "2026-07-13T00:00:00.000Z",
+});
 
 describe("Metadata Integration Tests", () => {
   beforeEach(() => {
@@ -253,6 +289,85 @@ describe("Metadata Integration Tests", () => {
       "https://williamcallahan.com/bookmarks/agent-workflows",
     );
   });
+
+  it.each([{ isPrivate: true }, { archived: true }])(
+    "keeps qualifying excluded bookmark metadata out of search: %j",
+    async (eligibility) => {
+      const bookmark = unifiedBookmarkSchema.parse({ ...qualifyingBookmark, ...eligibility });
+      mockedResolveBookmarkIdFromSlug.mockResolvedValue(bookmark.id);
+      mockedGetBookmarkById.mockResolvedValue(bookmark);
+
+      const metadata = await generateBookmarkDetailMetadata({
+        params: Promise.resolve({ slug: bookmark.slug }),
+      });
+
+      expect(metadata.robots).toEqual({ index: false, follow: true });
+    },
+  );
+
+  it("canonicalizes bookmark ID metadata to the slug without indexing the ID URL", async () => {
+    mockedResolveBookmarkIdFromSlug.mockResolvedValue(qualifyingBookmark.id);
+    mockedGetBookmarkById.mockResolvedValue(qualifyingBookmark);
+
+    const metadata = await generateBookmarkDetailMetadata({
+      params: Promise.resolve({ slug: qualifyingBookmark.id }),
+    });
+
+    expect(metadata.robots).toEqual({ index: false, follow: true });
+    expect(metadata.alternates?.canonical).toBe(
+      "https://williamcallahan.com/bookmarks/agent-workflows",
+    );
+    expect(metadata.openGraph?.url).toBe("https://williamcallahan.com/bookmarks/agent-workflows");
+    expect(mockGetStaticPageMetadata).toHaveBeenCalledWith(
+      "/bookmarks/agent-workflows",
+      "bookmarks",
+    );
+  });
+
+  it.each([
+    { eligibleCount: BELOW_PUBLIC_HUB_THRESHOLD, indexable: false },
+    { eligibleCount: PUBLIC_HUB_THRESHOLD, indexable: true },
+    { eligibleCount: null, indexable: false },
+  ])(
+    "graduates tag metadata only with enough public, non-archived evidence: $eligibleCount",
+    async ({ eligibleCount, indexable }) => {
+      mockResolveBookmarkTagSlug.mockResolvedValue({
+        requestedSlug: "agent-workflows",
+        canonicalSlug: "agent-workflows",
+        canonicalTagName: "Agent Workflows",
+        isAlias: false,
+      });
+      mockGetBookmarksByTag.mockResolvedValue({
+        bookmarks: [qualifyingBookmark],
+        totalCount: PUBLIC_HUB_THRESHOLD,
+        totalPages: 1,
+        fromCache: true,
+      });
+      mockGetBookmarkTopicHubEvidence.mockResolvedValue(
+        eligibleCount === null
+          ? null
+          : bookmarkTopicHubEvidenceSchema.parse({
+              canonicalSlug: "agent-workflows",
+              totalCount: eligibleCount,
+              analyzedCount: 0,
+              annotatedCount: 0,
+              topDomains: [],
+              topCategories: [],
+              annotatedBookmarks: [],
+              matrixResources: [],
+            }),
+      );
+
+      const metadata = await generateTagMetadata({
+        params: Promise.resolve({ slug: ["agent-workflows"] }),
+      });
+
+      expect(metadata.robots).toEqual({ index: indexable, follow: true });
+      if (indexable) {
+        expect(metadata.description).toContain(`${PUBLIC_HUB_THRESHOLD} curated`);
+      }
+    },
+  );
 });
 
 function simulateMetadataToHTML(metadata: Metadata): string[] {

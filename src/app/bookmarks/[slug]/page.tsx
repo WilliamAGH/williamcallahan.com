@@ -26,7 +26,7 @@ import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { buildOgImageUrl } from "@/lib/og-image/build-og-url";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { RelatedContent } from "@/components/features/related-content/related-content.server";
 import { RelatedContentFallback } from "@/components/features/related-content/related-content-section";
 import { buildBookmarkPath, selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
@@ -129,19 +129,24 @@ async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null>
  */
 export async function generateMetadata({ params }: BookmarkPageContext): Promise<Metadata> {
   const { slug } = await params;
-  const path = buildBookmarkPath(slug);
   const bookmark = await findBookmarkBySlug(slug);
 
   if (!bookmark) {
     return getNotFoundMetadata("Bookmark");
   }
 
-  const baseMetadata = getStaticPageMetadata(path, "bookmarks");
+  const canonicalSlug = bookmark.slug?.trim() || slug;
+  const canonicalPath = buildBookmarkPath(canonicalSlug);
+  const isCanonicalSlug = canonicalSlug === slug;
+  const baseMetadata = getStaticPageMetadata(canonicalPath, "bookmarks");
   const domainName = getDisplayHostname(bookmark.url);
   const graduationVerdict = evaluateBookmarkIndexability({
     note: bookmark.note,
     summary: bookmark.summary,
     description: bookmark.description,
+    archived: bookmark.archived,
+    isPrivate: bookmark.isPrivate,
+    isCanonicalSlug,
     sourceUnavailable: isBookmarkSourceUnavailable(bookmark),
   });
   const titleCore = graduationVerdict.indexable
@@ -192,7 +197,7 @@ export async function generateMetadata({ params }: BookmarkPageContext): Promise
       title: customTitle,
       description: customDescription,
       type: "website",
-      url: ensureAbsoluteUrl(path),
+      url: ensureAbsoluteUrl(canonicalPath),
       images: [ogImage],
     },
     twitter: {
@@ -203,7 +208,7 @@ export async function generateMetadata({ params }: BookmarkPageContext): Promise
       images: [ogImage],
     },
     alternates: {
-      canonical: ensureAbsoluteUrl(path),
+      canonical: ensureAbsoluteUrl(canonicalPath),
     },
     robots: graduationVerdict.robots,
   };
@@ -236,6 +241,11 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     return notFound();
   }
 
+  const canonicalSlug = foundBookmark.slug?.trim() || slug;
+  if (canonicalSlug !== slug) {
+    return permanentRedirect(buildBookmarkPath(canonicalSlug));
+  }
+
   envLogger.log(
     `Found bookmark`,
     {
@@ -265,6 +275,9 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     note: foundBookmark.note,
     summary: foundBookmark.summary,
     description: foundBookmark.description,
+    archived: foundBookmark.archived,
+    isPrivate: foundBookmark.isPrivate,
+    isCanonicalSlug: true,
     sourceUnavailable: isBookmarkSourceUnavailable(foundBookmark),
   });
 
@@ -274,7 +287,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     : "This is a bookmark I saved and found useful.";
 
   // Generate schema for this individual bookmark page
-  const path = buildBookmarkPath(slug);
+  const path = buildBookmarkPath(canonicalSlug);
   const pageMetadata = PAGE_METADATA.bookmarks;
   const schemaParams = {
     path,

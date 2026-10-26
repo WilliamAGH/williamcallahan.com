@@ -127,11 +127,6 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   // If there are zero pages for this tag, canonicalize to page 1 (base tag path)
   const effectivePage =
     totalPages === 0 ? FIRST_TAG_PAGE : pageNumber > totalPages ? totalPages : pageNumber;
-  const hubVerdict = evaluateTagHubIndexability({
-    totalCount,
-    pageNumber: page ? Math.max(pageNumber, NON_FIRST_TAG_PAGE) : effectivePage,
-    isAlias: tagState.isAlias || tagState.sanitizedSlug !== tagSlug,
-  });
 
   let path = `/bookmarks/tags/${activeTagSlug}`;
   if (effectivePage > 1) {
@@ -147,10 +142,24 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     };
   }
 
+  const effectivePolicyPage = page ? Math.max(pageNumber, NON_FIRST_TAG_PAGE) : effectivePage;
+  const isNonCanonicalRequest = tagState.isAlias || tagState.sanitizedSlug !== tagSlug;
+  const isCandidateHub =
+    !isNonCanonicalRequest &&
+    effectivePolicyPage === FIRST_TAG_PAGE &&
+    totalCount >= MIN_TAG_HUB_BOOKMARKS;
+  const candidateEvidence = isCandidateHub ? await loadCachedTopicHubEvidence(activeTagSlug) : null;
+  const eligibleHubCount = candidateEvidence?.totalCount ?? 0;
+  const hubVerdict = evaluateTagHubIndexability({
+    totalCount: isCandidateHub ? eligibleHubCount : 0,
+    pageNumber: effectivePolicyPage,
+    isAlias: isNonCanonicalRequest,
+  });
+  const hubEvidence = hubVerdict.indexable ? candidateEvidence : null;
+
   const displayTag = formatTagDisplay(
     tagState.canonicalTagName?.trim() || activeTagSlug.replace(/-/g, " "),
   );
-  const hubEvidence = hubVerdict.indexable ? await loadCachedTopicHubEvidence(activeTagSlug) : null;
   const pageTitle = hubVerdict.indexable
     ? `${displayTag}: Curated Engineering & AI Resources`
     : effectivePage > FIRST_TAG_PAGE
@@ -164,7 +173,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
   const customDescription = hubVerdict.indexable
     ? buildGraduatedTagHubDescription({
         displayTag,
-        totalCount,
+        totalCount: eligibleHubCount,
         annotatedCount: hubEvidence?.annotatedCount,
         topDomains: hubEvidence?.topDomains,
       })
@@ -177,7 +186,7 @@ export async function generateMetadata({ params }: BookmarkTagPageContext): Prom
     title: pageTitle,
     section: "bookmarks",
     subtitle: hubVerdict.indexable
-      ? `${totalCount} curated resources`
+      ? `${eligibleHubCount} curated resources`
       : `${bookmarks.length} bookmark${bookmarks.length === 1 ? "" : "s"}`,
   });
   const ogImage = { url: ogImageUrl, width: 1200, height: 630, alt: customTitle };
@@ -268,15 +277,15 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     notFound();
   }
 
+  const isCandidateHub =
+    currentPage === FIRST_TAG_PAGE && result.totalCount >= MIN_TAG_HUB_BOOKMARKS;
+  const candidateEvidence = isCandidateHub ? await loadCachedTopicHubEvidence(activeTagSlug) : null;
   const hubVerdict = evaluateTagHubIndexability({
-    totalCount: result.totalCount,
+    totalCount: isCandidateHub ? (candidateEvidence?.totalCount ?? 0) : 0,
     pageNumber: currentPage,
     isAlias: false,
   });
-  const hubEvidence =
-    hubVerdict.indexable && result.totalCount >= MIN_TAG_HUB_BOOKMARKS
-      ? await loadCachedTopicHubEvidence(activeTagSlug)
-      : null;
+  const hubEvidence = hubVerdict.indexable ? candidateEvidence : null;
 
   const canonicalTag =
     result.bookmarks[0]?.tags.find(
@@ -302,7 +311,7 @@ export default async function TagPage({ params }: BookmarkTagPageContext) {
     hubVerdict.indexable && hubEvidence
       ? buildGraduatedTagHubDescription({
           displayTag,
-          totalCount: result.totalCount,
+          totalCount: hubEvidence.totalCount,
           annotatedCount: hubEvidence.annotatedCount,
           topDomains: hubEvidence.topDomains,
         })
