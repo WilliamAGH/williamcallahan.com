@@ -1,5 +1,8 @@
 # Project Architecture Entrypoint
 
+Card image slot sizing belongs to the book and bookmark topic grids; the shared image helper
+forwards their optional `sizes` without changing hero/feed defaults (see `image-handling.md`).
+
 Cloudflare Accept-variant and degraded-OG caching contracts live in `ops/deployment.md`;
 front-end SEO parity decisions and indexing/heading boundaries live in `features/seo.md`.
 

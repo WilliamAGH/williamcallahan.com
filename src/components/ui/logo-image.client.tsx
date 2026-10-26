@@ -232,6 +232,7 @@ export function OptimizedCardImage({
   className = "",
   preload = false,
   blurDataURL,
+  sizes = "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px",
 }: OptimizedCardImageProps): React.JSX.Element {
   const isDev = process.env.NODE_ENV === "development";
   const [errored, setErrored] = useState(false);
@@ -257,6 +258,7 @@ export function OptimizedCardImage({
         alt={alt}
         fill
         placeholder="empty"
+        sizes={sizes}
         className={objectFitClass}
         {...(preload ? { fetchPriority: "high" as const, loading: "eager" as const } : {})}
       />
@@ -275,7 +277,7 @@ export function OptimizedCardImage({
       src={proxiedSrc}
       alt={alt}
       fill
-      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
+      sizes={sizes}
       quality={75}
       placeholder="blur"
       blurDataURL={resolvedBlurDataURL}

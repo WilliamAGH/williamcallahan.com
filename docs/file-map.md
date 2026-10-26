@@ -118,7 +118,7 @@ File/Path Functionality Description
     - [x] `index.ts` `social-links` - Removed; import social components from concrete files
     - [x] `social-card-effects.client.tsx` `social-links` - Handles social card hover effects
     - [x] `social-card.client.tsx` `social-links` - Individual social link card with native initial HTML, without a mount timer gate
-    - [x] `social-list.client.tsx` `social-links` - List of social links
+    - [x] `social-list.client.tsx` `social-links` - List of social links rendered outside the window's streamed loading boundary
     - [x] `social-window.client.tsx` `social-links` - Social window renders its normal initial state before effect-based registration
 - [x] **seo/**
   - [x] `index.ts` `seo` - Removed; import SEO components from concrete files

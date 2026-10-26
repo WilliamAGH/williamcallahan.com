@@ -50,6 +50,7 @@ export function BookCard({ book, priority = false }: BookCardProps): React.JSX.E
           <OptimizedCardImage
             src={book.coverUrl}
             alt={`Cover of ${book.title}`}
+            sizes="(min-width: 1280px) 264px, (min-width: 1024px) calc((100vw - 160px) / 4), (min-width: 640px) calc((100vw - 128px) / 3), calc((100vw - 84px) / 2)"
             className="transition-transform duration-500 group-hover:scale-[1.03]"
             preload={priority}
             blurDataURL={book.coverBlurDataURL}
