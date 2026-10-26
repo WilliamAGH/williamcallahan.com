@@ -33,6 +33,18 @@ it("does not mistake the same content inside Flight scripts for native markup", 
   );
 });
 
+it("does not accept a profile body waiting inside a hidden streamed segment", () => {
+  expect(
+    validateNativeContentHtml(
+      '<h1>~/contact</h1><div hidden id="S:3"><a href="https://example.com/profile">Profile</a></div>',
+      {
+        heading: "~/contact",
+        destination: "https://example.com/profile",
+      },
+    ),
+  ).toBe(false);
+});
+
 it("rejects a heading and description whose real destination is missing", () => {
   expect(validateNativeContentHtml("<h1>Brief</h1><p>A terminal chat client.</p>", expected)).toBe(
     false,

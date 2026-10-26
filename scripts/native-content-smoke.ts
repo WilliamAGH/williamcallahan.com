@@ -11,6 +11,8 @@ export function validateNativeContentHtml(
   },
 ): boolean {
   const $ = load(html);
+  // Streamed segments require JavaScript to reveal them and are not native visible content.
+  $("[hidden]").remove();
   const destination = new URL(expected.destination).href;
   const hasHeading = $("h1")
     .toArray()
