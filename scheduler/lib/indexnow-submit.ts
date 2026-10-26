@@ -48,19 +48,15 @@ async function readAnnouncedLedger(ledgerFilePath: string): Promise<IndexNowLedg
   try {
     parsed = JSON.parse(serialized);
   } catch (error) {
-    // A truncated ledger costs one re-announcement; the next accepted submission rewrites it.
-    console.warn(
-      `${LOG_PREFIX} Ledger ${ledgerFilePath} is not JSON; announcing every recent URL.`,
-      error,
-    );
-    return {};
+    throw new IndexNowSubmissionError(`IndexNow ledger ${ledgerFilePath} is not JSON.`, {
+      cause: error,
+    });
   }
   const ledger = indexNowLedgerSchema.safeParse(parsed);
   if (!ledger.success) {
-    console.warn(
-      `${LOG_PREFIX} Ledger ${ledgerFilePath} has invalid URLs or timestamps; announcing every recent URL.`,
-    );
-    return {};
+    throw new IndexNowSubmissionError(`IndexNow ledger ${ledgerFilePath} has invalid entries.`, {
+      cause: ledger.error,
+    });
   }
   return ledger.data;
 }
