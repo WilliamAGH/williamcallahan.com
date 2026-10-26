@@ -250,13 +250,26 @@ export async function embedTextsWithEndpointCompatibleModel(args: {
     return plan.ranges.map(([start, end]) => poolChunkEmbeddings(embeddings.slice(start, end)));
   };
 
-  if (!args.retry) return requestEmbeddings();
+  const retry = args.retry;
+  if (!retry) return requestEmbeddings();
 
   return retryWithThrow(requestEmbeddings, {
-    maxRetries: args.retry.maxRetries,
-    baseDelay: args.retry.baseDelayMs,
-    maxBackoff: args.retry.maxDelayMs,
-    isRetryable: (error) => !args.signal?.aborted && isRetryableEmbeddingRequestError(error),
+    maxRetries: retry.maxRetries,
+    baseDelay: retry.baseDelayMs,
+    maxBackoff: retry.maxDelayMs,
+    isRetryable: (error) => {
+      // A capped sleep would retry before the provider permits it. Preserve the
+      // typed 429 so batch callers can checkpoint its full Retry-After instead.
+      if (
+        error instanceof EndpointCompatibleEmbeddingRequestError &&
+        error.status === 429 &&
+        error.retryAfterMs !== undefined &&
+        error.retryAfterMs > retry.maxDelayMs
+      ) {
+        return false;
+      }
+      return !args.signal?.aborted && isRetryableEmbeddingRequestError(error);
+    },
     resolveDelay: (error, _attempt, fallbackDelayMs) =>
       getEndpointCompatibleEmbeddingRetryAfterMilliseconds(error) ?? fallbackDelayMs,
   });

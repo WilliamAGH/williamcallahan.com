@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import {
   type BookmarksApiContext,
   EmptyBookmarksApiResponseError,
@@ -62,6 +63,12 @@ function createBookmarksApiContext(): BookmarksApiContext {
 }
 
 describe("Scraped content pipeline", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -239,6 +246,52 @@ describe("Scraped content pipeline", () => {
     } finally {
       vi.useRealTimers();
       fetchSpy.mockRestore();
+    }
+  });
+
+  it.each([undefined, "25000"])("uses the bookmark API deadline %s", async (value) => {
+    vi.stubEnv("BOOKMARKS_API_REQUEST_TIMEOUT_MS", value);
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      Response.json({ bookmarks: [makeRawBookmark("deadline", null)], nextCursor: null }),
+    );
+    await fetchAllPagesFromApi(createBookmarksApiContext());
+    expect(timeout).toHaveBeenCalledWith(value === undefined ? 10_000 : 25_000);
+  });
+
+  it.each(["0", "-1", "1.5", "Infinity", "invalid", ""])(
+    "rejects invalid bookmark API deadline %s",
+    (value) => {
+      vi.stubEnv("BOOKMARKS_API_REQUEST_TIMEOUT_MS", value);
+      expect(() => BOOKMARKS_API_CONFIG.REQUEST_TIMEOUT_MS).toThrow(
+        "BOOKMARKS_API_REQUEST_TIMEOUT_MS",
+      );
+    },
+  );
+
+  it("retains terminal page timeout context and cause without URL credentials or query", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("BOOKMARKS_API_REQUEST_TIMEOUT_MS", "10000");
+    const failure = new DOMException("The operation timed out", "TimeoutError");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(failure);
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const info = vi.spyOn(console, "log").mockImplementation(() => {});
+    const context = createBookmarksApiContext();
+    context.apiUrl = "https://user:password@example.com/api/v1/bookmarks?token=private";
+    const outcome = fetchAllPagesFromApi(context).catch((error: unknown) => error);
+    await vi.runAllTimersAsync();
+    const error = await outcome;
+    expect(error).toBeInstanceOf(Error);
+    if (!(error instanceof Error)) throw new Error("Expected terminal page error");
+    // The shared retry boundary normalizes cross-realm DOMExceptions to Error.
+    expect(error.cause).toMatchObject({ message: failure.message });
+    expect(error.message).toContain("upstream=https://example.com/api/v1/bookmarks");
+    expect(error.message).toContain("page=1 phase=fetch deadlineMs=10000 attempt=2");
+    expect(error.message).toContain("The operation timed out");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(warning.mock.calls[0]?.[0]).toContain("attempt=1");
+    for (const output of [error.message, ...info.mock.calls.flat(), ...warning.mock.calls.flat()]) {
+      if (typeof output === "string") expect(output).not.toMatch(/password|token=private|Bearer/);
     }
   });
 

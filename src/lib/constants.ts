@@ -20,6 +20,7 @@ import type { BookmarkLoadOptions } from "@/types/bookmark";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
 import { envLogger } from "@/lib/utils/env-logger";
+import { bookmarkApiTimeoutSchema } from "@/types/schemas/bookmark";
 
 // Use validated environment suffix from centralized config
 const envSuffix = ENVIRONMENT_SUFFIX;
@@ -145,7 +146,18 @@ export const BOOKMARKS_API_CONFIG = {
   API_URL: NORMALIZED_BOOKMARKS_API,
   LIST_ID: process.env.BOOKMARKS_LIST_ID,
   BEARER_TOKEN: process.env.BOOKMARK_BEARER_TOKEN,
-  REQUEST_TIMEOUT_MS: 10_000,
+  /** Per-page deadline; retain the 10s default until upstream measurements justify tuning. */
+  get REQUEST_TIMEOUT_MS(): number {
+    const parsed = bookmarkApiTimeoutSchema.safeParse(
+      Number(process.env.BOOKMARKS_API_REQUEST_TIMEOUT_MS ?? 10_000),
+    );
+    if (!parsed.success) {
+      throw new Error(
+        "BOOKMARKS_API_REQUEST_TIMEOUT_MS must be a positive integer in milliseconds.",
+      );
+    }
+    return parsed.data;
+  },
 } as const;
 
 /** Number of bookmarks displayed per page in paginated views (used in bookmarks/*) */
