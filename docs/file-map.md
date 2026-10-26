@@ -407,7 +407,7 @@ File/Path Functionality Description
   - [x] `not-found-metadata.ts` `seo` - Noindex metadata for failed dynamic-entity lookups (no self-canonical)
   - [x] `og-validation.ts` `seo` - OpenGraph validation and cache-busting
   - [x] `opengraph.ts` `seo` - OpenGraph metadata helpers
-  - [x] `schema.ts` `seo` - Schema.org graphs with actual collection members or omitted lists, bookmark-item detail entities, and no fabricated profile statistics
+  - [x] `schema.ts` `seo` - Schema.org graphs with actual collection members or omitted lists, bookmark-item detail entities, no fabricated profile statistics, and Organization-to-Person founder relationships
   - [x] `search-exclusion.ts` `seo` - `noindex, follow` directive for bookmark, tag and book pages kept out of search
   - [x] `text-truncation.ts` `seo` - Smart text truncation utilities
   - [x] `utils.ts` `seo` - SEO utility functions

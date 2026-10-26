@@ -51,13 +51,14 @@ export interface PersonKnowledgeGraphFacts {
 /**
  * Person entity representing the website owner
  */
-export interface PersonEntity extends SchemaBase, PersonKnowledgeGraphFacts {
+export interface PersonEntity extends SchemaBase, Omit<PersonKnowledgeGraphFacts, "founder"> {
   "@type": "Person";
   name: string;
   description: string;
   url: string;
   sameAs: string[];
   image?: string | { "@id": string };
+  "@reverse": { founder: PersonKnowledgeGraphFacts["founder"] };
 }
 
 /**

@@ -69,6 +69,15 @@ describe("Search-engine discoverability contracts", () => {
       name: "aVenture",
       url: "https://aventure.vc",
     });
+    expect(person).not.toHaveProperty("founder");
+    expect(person).toMatchObject({
+      "@reverse": {
+        founder: expect.arrayContaining([
+          expect.objectContaining({ "@type": "Organization", name: "aVenture" }),
+          expect.objectContaining({ "@type": "Organization", name: "Callahan Financial Planning" }),
+        ]),
+      },
+    });
     expect(person?.sameAs).toEqual(
       expect.arrayContaining([
         "https://x.com/williamcallahan",

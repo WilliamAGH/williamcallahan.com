@@ -53,6 +53,7 @@ const PORTRAIT_URL = ensureAbsoluteUrl(
  * facts that distinguish this William Callahan from others of the same name
  */
 function createPersonEntity(): PersonEntity {
+  const { founder, ...personFacts } = metadata.person;
   return {
     "@type": "Person",
     "@id": createIdUrl("/", "person"),
@@ -61,7 +62,8 @@ function createPersonEntity(): PersonEntity {
     url: ensureAbsoluteUrl("/"),
     sameAs: metadata.social.profiles,
     image: PORTRAIT_URL,
-    ...metadata.person,
+    ...personFacts,
+    "@reverse": { founder },
   };
 }
 

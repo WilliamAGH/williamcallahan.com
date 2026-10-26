@@ -198,3 +198,6 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 
 Book and bookmark index shells own grid-level Suspense; detail/tag `loading.tsx` files do not
 wrap the collection heading. See [SEO architecture](../features/seo.md#crawler-visible-index-shells).
+
+Person graphs express founder facts through JSON-LD `@reverse.founder`, retaining the direction
+Organization → founder → Person; the factual organization list also feeds `/llms.txt`.

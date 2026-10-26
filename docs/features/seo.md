@@ -112,6 +112,7 @@ All SEO images defined in `data/metadata.ts` via `SEO_IMAGES` constant:
   - Author and publisher entity deduplication
   - Collection `ItemList` members come only from explicit actual items; omit the list when unavailable, never derive members from breadcrumbs
   - Profile graphs do not fabricate interaction statistics; individual bookmark detail graphs use `bookmark-item`, not a collection
+  - Founder facts use JSON-LD `@reverse.founder`: each Organization was founded by the Person, not the other way around. `/llms.txt` reuses the factual organization list without changing its meaning.
 
 - **`types/seo/schema.ts`** (234 lines): Schema.org type definitions
   - Comprehensive interfaces for all entity types
