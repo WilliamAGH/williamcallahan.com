@@ -6,23 +6,18 @@
  * @module app/bookmarks/domain/[domainSlug]/page
  */
 
-import { connection } from "next/server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { DEFAULT_BOOKMARK_OPTIONS } from "@/lib/constants";
 import { getDomainSlug } from "@/lib/utils/domain-utils";
 import { buildBookmarkPath } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
-import { redirect } from "next/navigation";
 
 import type { DomainPageRedirectorProps } from "@/types/api";
 
-export default async function DomainPageRedirector({
-  params,
-  searchParams,
-}: DomainPageRedirectorProps) {
-  // Ensure request-time execution - this redirector uses searchParams and dynamic data
-  await connection();
-
+export async function GET(
+  request: Request,
+  { params }: { params: DomainPageRedirectorProps["params"] },
+): Promise<Response> {
   const allBookmarks = await getBookmarks({
     ...DEFAULT_BOOKMARK_OPTIONS,
     includeImageData: false,
@@ -34,12 +29,11 @@ export default async function DomainPageRedirector({
   const slugMapping = await loadSlugMapping();
   if (!slugMapping) {
     console.error("[DomainRedirect] CRITICAL: No slug mapping found");
-    redirect("/bookmarks"); // Fallback to main bookmarks page
+    return new Response(null, { status: 307, headers: { Location: "/bookmarks" } });
   }
 
   const { domainSlug } = await params;
-  const { id: rawId } = await searchParams;
-  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const id = new URL(request.url).searchParams.get("id");
 
   // If ID is provided, find that specific bookmark
   if (id) {
@@ -47,7 +41,10 @@ export default async function DomainPageRedirector({
     if (bookmark) {
       const uniqueSlug = getSlugForBookmark(slugMapping, bookmark.id);
       if (uniqueSlug) {
-        redirect(buildBookmarkPath(uniqueSlug));
+        return new Response(null, {
+          status: 308,
+          headers: { Location: buildBookmarkPath(uniqueSlug) },
+        });
       } else {
         console.error(`[DomainRedirect] No slug found for bookmark ${bookmark.id}`);
       }
@@ -66,12 +63,15 @@ export default async function DomainPageRedirector({
   if (bookmarkWithDomain) {
     const uniqueSlug = getSlugForBookmark(slugMapping, bookmarkWithDomain.id);
     if (uniqueSlug) {
-      redirect(buildBookmarkPath(uniqueSlug));
+      return new Response(null, {
+        status: 308,
+        headers: { Location: buildBookmarkPath(uniqueSlug) },
+      });
     } else {
       console.error(`[DomainRedirect] No slug found for bookmark ${bookmarkWithDomain.id}`);
     }
   }
 
   // If no match found, redirect to the main bookmarks page
-  redirect("/bookmarks");
+  return new Response(null, { status: 308, headers: { Location: "/bookmarks" } });
 }

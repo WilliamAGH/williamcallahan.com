@@ -3,11 +3,7 @@
  * @vitest-environment node
  */
 
-import {
-  createArticleMetadata,
-  createSoftwareApplicationMetadata,
-  getStaticPageMetadata,
-} from "@/lib/seo/metadata";
+import { createArticleMetadata, getStaticPageMetadata } from "@/lib/seo/metadata";
 import { SEO_DATE_FIELDS } from "@/lib/constants";
 import { isPacificDateString } from "@/types/seo";
 
@@ -21,14 +17,8 @@ describe("SEO Metadata", () => {
     tags: ["test", "article"],
   };
 
-  it.each([
-    { name: "article", build: () => createArticleMetadata(article) },
-    {
-      name: "software",
-      build: () => createSoftwareApplicationMetadata({ ...article, softwareName: "Test App" }),
-    },
-  ])("keeps $name dates at the OpenGraph fields Next renders", ({ build }) => {
-    const metadata = build();
+  it("keeps article dates at the OpenGraph fields Next renders", () => {
+    const metadata = createArticleMetadata(article);
     const og = metadata.openGraph;
     if (!og || !("type" in og) || og.type !== "article") {
       throw new Error("Expected article OpenGraph metadata");

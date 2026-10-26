@@ -4,7 +4,7 @@ import { BooksClientGrid } from "@/components/features/books/books-grid.client";
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
 
 describe("window page headings in server HTML", () => {
-  it("renders the existing contact heading and introduction before registration", () => {
+  it("renders the contact page heading, not the window chrome, before registration", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToStaticMarkup(
       <GlobalWindowRegistryProvider>
@@ -13,7 +13,8 @@ describe("window page headings in server HTML", () => {
     );
 
     expect(container.querySelectorAll("h1")).toHaveLength(1);
-    expect(container.querySelector("h1")).toHaveTextContent("~/contact");
+    expect(container.querySelector("h1")).toHaveTextContent("Social Media Profiles");
+    expect(container).toHaveTextContent("~/contact");
     expect(container).toHaveTextContent("Here are some of the places I can be found online.");
   });
 

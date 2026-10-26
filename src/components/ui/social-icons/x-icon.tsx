@@ -16,18 +16,17 @@ export const X = forwardRef<SVGSVGElement, LucideProps>(function X(props, ref) {
     <svg
       ref={ref}
       {...baseIconProps}
+      aria-hidden={props["aria-label"] ? undefined : true}
       {...props}
       className={`${props.className || ""} x-icon`}
       viewBox="0 0 24 24"
       data-transform-fix="true"
-      aria-label="X (Twitter)"
       style={{
         display: "inline-block",
         verticalAlign: "middle",
         ...props.style,
       }}
     >
-      <title>X (Twitter)</title>
       {/* Optical sizing: scale down slightly to match visual weight of other icons */}
       <g transform="translate(0.25 0.25) scale(0.98)">
         <path d="M5 4l11.733 16h3.267l-11.733 -16z" />

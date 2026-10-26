@@ -74,7 +74,7 @@ function ThoughtsWindowContentInner({
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-            <h1 className="text-xl font-mono ml-4 text-zinc-800 dark:text-zinc-200">
+            <div className="text-xl font-mono ml-4 text-zinc-800 dark:text-zinc-200">
               <Link
                 href="/thoughts"
                 className="hover:underline decoration-zinc-400 underline-offset-4"
@@ -82,7 +82,7 @@ function ThoughtsWindowContentInner({
                 {displayTitle}
               </Link>
               <BlinkingCursor />
-            </h1>
+            </div>
           </div>
           <TerminalSearchHint context="thoughts" />
         </div>

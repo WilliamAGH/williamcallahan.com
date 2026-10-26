@@ -105,8 +105,8 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
             height={24}
             className="text-gray-500 dark:text-gray-400"
             data-transform-fix="true"
+            aria-hidden="true"
           >
-            <title>Copy link icon</title>
             <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z" />
             <path fill="currentColor" d="M24 7h2v21h-2z" />
             <path
@@ -141,8 +141,8 @@ export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element
             height={24}
             className="text-gray-500 dark:text-gray-400"
             data-transform-fix="true"
+            aria-hidden="true"
           >
-            <title>Copy link icon</title>
             <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z" />
             <path fill="currentColor" d="M24 7h2v21h-2z" />
             <path

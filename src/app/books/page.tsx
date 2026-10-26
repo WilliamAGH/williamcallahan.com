@@ -14,7 +14,10 @@
  */
 
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
 import { BooksServer } from "@/components/features/books/books.server";
+import { BooksWindow } from "@/components/features/books/books-window.client";
 
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -33,9 +36,10 @@ export function generateMetadata(): Metadata {
 /**
  * Books page matching the bookmarks pattern.
  *
- * BooksServer reads the books dataset, which resolves after the prerendered
- * shell when the build disables "use cache", so it streams inside the books
- * segment's loading boundary (src/app/books/loading.tsx).
+ * The window chrome and header render outside Suspense so the prerendered
+ * shell carries the heading and intro copy. BooksServer reads the books
+ * dataset, which resolves after the shell when the build disables "use cache",
+ * so only the grid streams inside its own boundary.
  */
 export default function BooksPage() {
   const pageMetadata = PAGE_METADATA.books;
@@ -68,15 +72,71 @@ export default function BooksPage() {
     pageMetadata.uiTitle ?? pageMetadata.title.replace(" - William Callahan", "");
   const displayDescription = pageMetadata.uiDescription ?? pageMetadata.description;
 
+  const linkClassName = "text-blue-600 dark:text-blue-400 hover:underline";
+
   return (
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-6xl mx-auto">
-        <BooksServer
-          title={displayTitle}
-          description={displayDescription}
-          disclaimer={pageMetadata.disclaimer}
-        />
+        <BooksWindow windowTitle="~/books">
+          <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-6xl mx-auto">
+              <div className="mb-8">
+                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                  {displayTitle}
+                </h1>
+                <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">
+                  {displayDescription}
+                </p>
+                <p className="mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-400">
+                  Notes and essays that build on these books are on the{" "}
+                  <Link href="/blog" className={linkClassName}>
+                    blog
+                  </Link>
+                  , related articles and references are saved in{" "}
+                  <Link href="/bookmarks" className={linkClassName}>
+                    bookmarks
+                  </Link>
+                  , and the startups I back are listed under{" "}
+                  <Link href="/investments" className={linkClassName}>
+                    investments
+                  </Link>
+                  .
+                </p>
+              </div>
+              {pageMetadata.disclaimer && (
+                <div className="mb-8 pl-4 border-l-2 border-gray-300 dark:border-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 italic leading-relaxed">
+                    {pageMetadata.disclaimer}
+                  </p>
+                </div>
+              )}
+              <Suspense
+                fallback={
+                  <div
+                    className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8"
+                    aria-hidden="true"
+                  >
+                    {Array.from({ length: 8 }, (_, index) => (
+                      <div
+                        key={index}
+                        className="aspect-[2/3] rounded-lg bg-gray-200 dark:bg-gray-800 animate-pulse"
+                      />
+                    ))}
+                  </div>
+                }
+              >
+                <BooksServer
+                  title={displayTitle}
+                  description={displayDescription}
+                  disclaimer={pageMetadata.disclaimer}
+                  showHeader={false}
+                  withWindow={false}
+                />
+              </Suspense>
+            </div>
+          </div>
+        </BooksWindow>
       </div>
     </>
   );

@@ -64,7 +64,7 @@ function BlogWindowContent({
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-            <h1 className="text-xl font-mono ml-4">{windowTitle || "~/blog"}</h1>
+            <div className="text-xl font-mono ml-4">{windowTitle || "~/blog"}</div>
           </div>
           <TerminalSearchHint context="blog" />
         </div>

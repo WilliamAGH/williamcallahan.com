@@ -169,11 +169,12 @@ export async function generateMetadata({ params }: BookmarkPageContext): Promise
     ...baseMetadata,
     title: customTitle,
     description: customDescription,
+    // A bookmark points at a third-party resource: "website" carries no article author or dates.
     openGraph: {
       ...baseMetadata.openGraph,
       title: customTitle,
       description: customDescription,
-      type: "article",
+      type: "website",
       url: ensureAbsoluteUrl(path),
       images: [ogImage],
     },
@@ -259,6 +260,10 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     datePublished: formatSeoDate(pageMetadata.dateCreated),
     dateModified: formatSeoDate(pageMetadata.dateModified),
     type: "bookmark-item" as const,
+    bookmark: {
+      url: foundBookmark.url,
+      ...(foundBookmark.content?.author && { author: foundBookmark.content.author }),
+    },
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/bookmarks", name: "Bookmarks" },

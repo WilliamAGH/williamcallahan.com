@@ -133,8 +133,6 @@ const transpilePackages = Array.from(
 const CALLAHAN_IMAGE_HOSTS = [
   "s3-storage.callahan.cloud",
   "williamcallahan.com",
-  "dev.williamcallahan.com",
-  "alpha.williamcallahan.com",
   "*.williamcallahan.com",
   "*.callahan.cloud",
   "*.digitaloceanspaces.com",
@@ -303,10 +301,14 @@ function createNextConfig(releaseId: string | null) {
     reactStrictMode: true,
     cacheComponents: true,
     partialPrefetching: false,
-    // Next streams metadata into <body> for Googlebot because it renders JavaScript, but Google
-    // ignores a rel=canonical outside <head>. Extending (the option replaces) Next's own list gives
-    // Googlebot the same blocking <head> metadata that Bingbot already receives.
-    htmlLimitedBots: new RegExp(`${HTML_LIMITED_BOT_UA_RE.source}|Googlebot`, "i"),
+    // Next streams metadata into <body> for any user agent this pattern misses, while matched
+    // user agents skip the PPR static shell (app-page-runtime.js:347) so <title>, robots, OpenGraph,
+    // and rel=canonical resolve inside <head>. Cover search, AI, SEO-audit, and CLI user agents
+    // while keeping instant PPR static shells for interactive browsers.
+    htmlLimitedBots: new RegExp(
+      `${HTML_LIMITED_BOT_UA_RE.source}|Googlebot|Google-InspectionTool|Storebot-Google|AdsBot-Google|Mediapartners-Google|OAI-SearchBot|ChatGPT-User|GPTBot|ClaudeBot|Claude-Web|Claude-SearchBot|anthropic-ai|PerplexityBot|Perplexity-User|YouBot|DuckAssistBot|Amazonbot|Bytespider|CCBot|Applebot|Yandex|Baiduspider|PetalBot|Sogou|Exabot|ia_archiver|SEO-Skill|Screaming Frog|AhrefsBot|SemrushBot|MJ12bot|DotBot|Rogerbot|SeznamBot|curl|wget|python-urllib|python-requests|Go-http-client|HeadlessChrome`,
+      "i",
+    ),
     serverExternalPackages: [
       "@chroma-core/default-embed",
       "chromadb",
@@ -372,7 +374,7 @@ function createNextConfig(releaseId: string | null) {
         { protocol: "https", hostname: "*.popos-sf6.com" },
         { protocol: "https", hostname: "*.popos-sf7.com" },
       ],
-      deviceSizes: [640, 750, 800, 828, 1080, 1200, 1920, 2048, 3840],
+      deviceSizes: [640, 750, 800, 828, 1080, 1200, 1600, 1920],
       imageSizes: [48, 64, 96, 128, 256, 384],
     },
     ...(process.env.NODE_ENV === "production" ? { cacheMaxMemorySize: 0 } : {}),

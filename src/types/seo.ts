@@ -10,6 +10,7 @@
  * @see {@link "../lib/seo/opengraph.ts"} - OpenGraph implementation
  */
 
+import type { Metadata } from "next";
 import type { ArticleMetadata, CollectionPageMetadata, ProfilePageMetadata } from "./seo/metadata";
 import type { ProfileOpenGraph } from "./seo/opengraph";
 
@@ -102,28 +103,10 @@ export type MetadataOther = {
 };
 
 /**
- * Script metadata for JSON-LD
- */
-export interface ScriptMetadata {
-  type: "application/ld+json";
-  text: string;
-}
-
-/**
- * Complete article metadata structure
- * Combines all metadata types into a single interface
- */
-// Import ExtendedMetadata from base to avoid circular dependencies
-import type { ExtendedMetadata } from "./seo/base";
-export type { ExtendedMetadata };
-
-// MOVED to types/seo/metadata.ts
-
-/**
  * Complete profile metadata structure
  * Combines all metadata types into a single interface
  */
-export interface ProfileMetadata extends Omit<ExtendedMetadata, "openGraph" | "other"> {
+export interface ProfileMetadata extends Omit<Metadata, "openGraph" | "other"> {
   openGraph: ProfileOpenGraph;
   other: MetaDateFields;
 }
@@ -156,44 +139,6 @@ export interface ArticleParams {
   datePublished: string;
   dateModified: string;
   tags?: string[];
-  articleBody?: string;
-  /** Whether to use NewsArticle schema (recommended for better SEO) */
-  useNewsArticle?: boolean;
-  /** Authors information for multiple authors */
-  authors?: Array<{
-    name: string;
-    url?: string;
-  }>;
-}
-
-/**
- * Shared interfaces for software application metadata
- * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication
- */
-export interface SoftwareAppParams {
-  title: string;
-  description: string;
-  url: string;
-  image?: string;
-  datePublished: string;
-  dateModified: string;
-  tags?: string[];
-  articleBody?: string;
-  softwareName: string;
-  operatingSystem?: string;
-  applicationCategory?: string;
-  isFree?: boolean;
-  price?: number;
-  priceCurrency?: string;
-  ratingValue?: number;
-  ratingCount?: number;
-  downloadUrl?: string;
-  softwareVersion?: string;
-  screenshot?: string | string[];
-  authors?: Array<{
-    name: string;
-    url?: string;
-  }>;
 }
 
 /**

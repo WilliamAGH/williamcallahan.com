@@ -22,6 +22,7 @@
 import { updatedAt as educationUpdatedAt } from "@/data/education";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
+import type { OrganizationReference, PersonKnowledgeGraphFacts } from "@/types/seo/schema";
 
 // Core constants - defined ONCE and used everywhere
 /**
@@ -32,16 +33,16 @@ export const SITE_NAME = "William Callahan";
 
 /**
  * Full site title - used in main page and SEO
- * @recommended Keep under 80 characters for optimal display in search results
+ * @recommended Keep at or under SEO_LIMITS.TITLE_MAX (60) characters
  */
-export const SITE_TITLE = "William Callahan - San Francisco";
+export const SITE_TITLE = "William Callahan - Founder of aVenture & Engineer";
 
 /**
- * Primary site description
- * @recommended Keep under 160 characters for search results
+ * Primary site description; names the entity anchors that disambiguate this William Callahan
+ * @recommended Keep at or under SEO_LIMITS.DESCRIPTION_MAX (160) characters
  */
 export const SITE_DESCRIPTION =
-  "Website for William Callahan, a startup investor and Techstars founder, with a public journal of all startup investments he's ever made. Writes about technology, programming, Y Combinator, Techstars, and other accelerators, AI, and more.";
+  "William Callahan is the Founder & CEO of aVenture, CFA charterholder, CFP® professional, investor, and software engineer in San Francisco.";
 
 /**
  * Shorter site description for space-constrained platforms
@@ -50,12 +51,6 @@ export const SITE_DESCRIPTION =
  */
 export const SITE_DESCRIPTION_SHORT =
   "William Callahan's personal website - startup investor, Techstars founder, and software engineer writing about technology and startups.";
-
-/**
- * OpenGraph-optimized description (under 160 characters)
- */
-export const SITE_DESCRIPTION_OG =
-  "Startup investor & Techstars founder sharing insights on technology, programming, Y Combinator, accelerators, and investment portfolio.";
 
 /** Canonical OpenGraph/Twitter/favicon image URLs, keyed by semantic role. */
 export const SEO_IMAGES = {
@@ -86,7 +81,7 @@ export const SEO_IMAGES = {
 export const PAGE_METADATA = {
   home: {
     title: SITE_TITLE,
-    description: SITE_DESCRIPTION_OG,
+    description: SITE_DESCRIPTION,
     dateCreated: "2025-02-10T12:42:00",
     dateModified: "2025-11-04T12:42:00",
     bio: SITE_DESCRIPTION_SHORT,
@@ -190,6 +185,62 @@ export const OG_IMAGE_DIMENSIONS = {
   [getStaticImageUrl("/images/og/contact-og.png")]: { width: 2100, height: 1100 },
 } as const;
 
+const AVENTURE_ORGANIZATION: OrganizationReference = {
+  "@type": "Organization",
+  "@id": "https://aventure.vc/#organization",
+  name: "aVenture",
+  url: "https://aventure.vc",
+};
+
+/**
+ * Knowledge Graph facts about the site owner, verified against data/experience.ts and
+ * data/education.ts; rendered by the Person JSON-LD node and /llms.txt.
+ */
+const PERSON_KNOWLEDGE_GRAPH: PersonKnowledgeGraphFacts = {
+  jobTitle: "Founder & CEO",
+  worksFor: AVENTURE_ORGANIZATION,
+  founder: [
+    AVENTURE_ORGANIZATION,
+    { "@type": "Organization", name: "Callahan Financial Planning" },
+  ],
+  alumniOf: [
+    {
+      "@type": "CollegeOrUniversity",
+      name: "Creighton University",
+      url: "https://www.creighton.edu",
+    },
+    {
+      "@type": "CollegeOrUniversity",
+      name: "University of Nebraska at Omaha",
+      url: "https://www.unomaha.edu",
+    },
+    { "@type": "Organization", name: "Techstars", url: "https://www.techstars.com" },
+  ],
+  hasCredential: [
+    {
+      "@type": "EducationalOccupationalCredential",
+      name: "Chartered Financial Analyst (CFA)",
+      credentialCategory: "Professional Certification",
+    },
+    {
+      "@type": "EducationalOccupationalCredential",
+      name: "Certified Financial Planner (CFP)",
+      credentialCategory: "Professional Certification",
+    },
+  ],
+  homeLocation: { "@type": "Place", name: "San Francisco, CA" },
+  knowsAbout: [
+    "Venture Capital",
+    "Software Engineering",
+    "Artificial Intelligence",
+    "Private Markets",
+    "TypeScript",
+    "Python",
+    "Kotlin",
+    "Financial Analysis",
+  ],
+};
+
 export const metadata = {
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
@@ -222,11 +273,16 @@ export const metadata = {
     linkedin: "williamacallahan",
     github: "WilliamAGH",
     profiles: [
-      "https://twitter.com/williamcallahan",
-      "https://github.com/WilliamAGH",
+      "https://x.com/williamcallahan",
       "https://linkedin.com/in/williamacallahan",
+      "https://github.com/WilliamAGH",
+      "https://bsky.app/profile/williamcallahan.com",
+      "https://aventure.vc",
     ],
   },
+
+  /** Knowledge Graph facts about the site owner */
+  person: PERSON_KNOWLEDGE_GRAPH,
 
   /** Article-specific metadata */
   article: {

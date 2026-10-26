@@ -18,13 +18,12 @@ export const Bluesky = forwardRef<SVGSVGElement, LucideProps>(function Bluesky(p
     <svg
       ref={ref}
       {...baseIconProps} // Rely on base props for styling (stroke, strokeWidth, fill, etc.)
+      aria-hidden={props["aria-label"] ? undefined : true}
       {...props} // Apply incoming props
       className={`${props.className || ""} bluesky-icon`}
       viewBox="0 0 24 24" // Ensure standard viewbox
       data-transform-fix="true"
-      aria-label="Bluesky"
     >
-      <title>Bluesky</title>
       {/* Use simplified outline path data from Tabler Icons */}
       <path
         // No fill or stroke here - controlled by SVG element

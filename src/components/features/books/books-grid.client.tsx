@@ -24,11 +24,14 @@ export function BooksClientGrid({
   disclaimer,
   error,
   isStale,
+  showHeader = true,
+  withWindow = true,
 }: BooksClientGridProps) {
-  return (
-    <BooksWindow windowTitle="~/books">
-      <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
+  const bookCountLabel = `${books.length} ${books.length === 1 ? "book" : "books"} in collection`;
+  const content = (
+    <>
+      {showHeader ? (
+        <>
           {/* Header */}
           <motion.div
             initial={false}
@@ -41,9 +44,7 @@ export function BooksClientGrid({
             </h1>
             <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">{description}</p>
             {books.length > 0 && (
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
-                {books.length} {books.length === 1 ? "book" : "books"} in collection
-              </p>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">{bookCountLabel}</p>
             )}
           </motion.div>
 
@@ -60,62 +61,76 @@ export function BooksClientGrid({
               </p>
             </motion.div>
           )}
+        </>
+      ) : (
+        books.length > 0 && (
+          <p className="mb-8 text-sm text-gray-500 dark:text-gray-500">{bookCountLabel}</p>
+        )
+      )}
 
-          {/* Error State */}
-          {error && (
-            <motion.div
-              initial={false}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 mb-8"
-            >
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <p>{error}</p>
-            </motion.div>
-          )}
+      {/* Error State */}
+      {error && (
+        <motion.div
+          initial={false}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 mb-8"
+        >
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <p>{error}</p>
+        </motion.div>
+      )}
 
-          {/* Stale notice */}
-          {!error && isStale && (
-            <motion.div
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="mb-8 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
-            >
-              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
-              <p className="text-sm">
-                Showing cached book data while the library refreshes. A live update will appear once
-                the source is back online.
-              </p>
-            </motion.div>
-          )}
+      {/* Stale notice */}
+      {!error && isStale && (
+        <motion.div
+          initial={false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-8 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+          <p className="text-sm">
+            Showing cached book data while the library refreshes. A live update will appear once the
+            source is back online.
+          </p>
+        </motion.div>
+      )}
 
-          {/* Empty State */}
-          {!error && books.length === 0 && (
-            <motion.div
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="text-center py-16"
-            >
-              <BookOpen className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                No books yet
-              </h2>
-              <p className="text-gray-500 dark:text-gray-400">
-                Books will appear here once they&apos;re added to the library.
-              </p>
-            </motion.div>
-          )}
+      {/* Empty State */}
+      {!error && books.length === 0 && (
+        <motion.div
+          initial={false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="text-center py-16"
+        >
+          <BookOpen className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            No books yet
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400">
+            Books will appear here once they&apos;re added to the library.
+          </p>
+        </motion.div>
+      )}
 
-          {/* Books Grid - 4 columns max for proper title legibility */}
-          {books.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8">
-              {books.map((book, index) => (
-                <BookCard key={book.id} book={book} priority={index < PRIORITY_LOAD_COUNT} />
-              ))}
-            </div>
-          )}
+      {/* Books Grid - 4 columns max for proper title legibility */}
+      {books.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8">
+          {books.map((book, index) => (
+            <BookCard key={book.id} book={book} priority={index < PRIORITY_LOAD_COUNT} />
+          ))}
         </div>
+      )}
+    </>
+  );
+
+  if (!withWindow) return content;
+
+  return (
+    <BooksWindow windowTitle="~/books">
+      <div className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">{content}</div>
       </div>
     </BooksWindow>
   );

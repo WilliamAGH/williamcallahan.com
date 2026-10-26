@@ -10,6 +10,7 @@
  */
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { z } from "zod/v4";
@@ -118,7 +119,6 @@ async function BookmarksContent({ searchParams }: BookmarksPageProps) {
         <div className="max-w-5xl mx-auto">
           <BookmarksServer
             key={`${feedMode}:${initialPage}:${initialTag ?? ""}`}
-            title={title}
             description={pageMetadata.description}
             initialPage={initialPage}
             includeImageData
@@ -132,10 +132,43 @@ async function BookmarksContent({ searchParams }: BookmarksPageProps) {
   );
 }
 
+// The heading and intro render outside Suspense so non-JS crawlers see them in the initial HTML.
 export default function BookmarksPage({ searchParams }: BookmarksPageProps) {
+  const linkClassName = "text-blue-600 dark:text-blue-400 hover:underline";
   return (
-    <Suspense fallback={<DiscoverFeedSkeleton />}>
-      <BookmarksContent searchParams={searchParams} />
-    </Suspense>
+    <>
+      <section className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 pt-6 pb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+          Bookmarks
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm sm:text-base text-gray-600 dark:text-gray-400">
+          {PAGE_METADATA.bookmarks.description}
+        </p>
+        <p className="mt-2 max-w-3xl text-sm sm:text-base text-gray-600 dark:text-gray-400">
+          William Callahan saves technical articles, developer tools, AI and LLM research,
+          distributed systems references, and venture capital essays here. Browse them by topic in
+          the Discover feed below, or read them chronologically in the{" "}
+          <Link href="/bookmarks?feed=latest" className={linkClassName} prefetch={false}>
+            Latest feed
+          </Link>
+          . Related writing lives on the{" "}
+          <Link href="/blog" className={linkClassName}>
+            blog
+          </Link>
+          , open-source work on the{" "}
+          <Link href="/projects" className={linkClassName}>
+            projects
+          </Link>{" "}
+          page, and longer reading on the{" "}
+          <Link href="/books" className={linkClassName}>
+            bookshelf
+          </Link>
+          .
+        </p>
+      </section>
+      <Suspense fallback={<DiscoverFeedSkeleton />}>
+        <BookmarksContent searchParams={searchParams} />
+      </Suspense>
+    </>
   );
 }

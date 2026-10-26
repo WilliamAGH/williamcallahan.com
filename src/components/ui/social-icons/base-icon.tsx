@@ -36,9 +36,9 @@ export function BaseIcon({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      aria-hidden={props["aria-label"] ? undefined : true}
       {...props}
     >
-      <title>Social Icon</title>
       {children}
     </svg>
   );

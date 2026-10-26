@@ -106,16 +106,17 @@ separate migration. Evidence: installed `next/dist/server/config.js:449-458` and
 official `partialPrefetching`/adoption guides retrieved through Context7 on 2026-10-25.
 
 `htmlLimitedBots` decides which user agents receive blocking `<head>` metadata instead of
-metadata streamed into `<body>`. Next leaves plain `Googlebot` off its default list because
-Googlebot renders JavaScript, yet Google ignores a `rel=canonical` outside `<head>`. The option
-replaces the default list, so `next.config.ts` extends Next's own `HTML_LIMITED_BOT_UA_RE` with
-`Googlebot` rather than copying the list. On a partially prerendered route a match also bypasses
-the static shell, because the shell has already closed `<head>`: the matched user agent gets an
-on-demand render, which is why the pattern names crawlers and never matches every visitor.
+metadata streamed into `<body>`. Google ignores a `rel=canonical` outside `<head>`, and link
+unfurlers, AI crawlers, SEO-audit bots and CLI probes outside Next's default list read only the
+initial HTML, so `next.config.ts` extends `HTML_LIMITED_BOT_UA_RE` across search, AI, SEO-audit
+and CLI user agents while leaving interactive browser user agents unmatched. On a partially
+prerendered route a match bypasses the static shell (`shouldForceDynamicPPRRender`), because the
+shell has already closed `<head>`, so crawlers and HTTP probes receive an on-demand render with
+full `<head>` metadata while interactive browsers still receive the prerendered static shell.
 Evidence: installed `next/dist/server/config.js:1402-1405` (the RegExp is serialized to its
 source), `next/dist/server/lib/streaming-metadata.js` (the pattern decides streaming),
 `next/dist/build/templates/app-page-runtime.js:342-348` (`shouldForceDynamicPPRRender`), and the
-official `htmlLimitedBots` reference retrieved on 2026-10-25.
+official `htmlLimitedBots` reference.
 
 The root layout has no `<Suspense>`, so page content renders into the prerendered shell, where
 crawlers that skip JavaScript read it. React emits a completed boundary larger than its
@@ -162,8 +163,11 @@ Parallax belongs to `project-detail-image.client.tsx`, not the text/link shell.
 Contact windows/cards must render their normal initial state without waiting for
 effect-based registration or mount timers.
 
-Keep Cache Components and metadata streaming enabled. Query-dependent Latest
-bookmark content stays under Suspense while the server resolves the requested slice.
+Keep Cache Components enabled. Query-dependent Latest bookmark content stays under
+Suspense while the server resolves the requested slice. Dynamic index hubs (`/bookmarks`,
+`/books`) render `<main>`, the page's single semantic `<h1>` and its introduction outside
+`<Suspense>`, so the shell carries them before any dynamic read resolves; window chrome
+titles are not headings.
 Verify native DOM/HTML, not matching text inside serialized Flight data:
 `e2e/native-content.spec.ts` covers no-JavaScript project/contact rendering and
 `scripts/native-content-smoke.ts` supplies the existing production smoke's markup checks.
@@ -292,3 +296,10 @@ For a web runtime update, also build the web image and inspect its node version 
 specified in `docs/ops/deployment.md`. After deployment, verify the public bundle
 contains the change when the task affects client assets; Cloudflare caching can otherwise
 make a passing local build look undeployed.
+
+## Collection index visibility
+
+Synchronous headings inside a page are insufficient when the collection has a segment-level
+`loading.tsx`: React can outline that completed boundary into hidden streamed HTML. Keep root index
+headings outside data-grid Suspense, and scope required segment fallbacks to detail/tag routes.
+Check visible, non-JavaScript `<main>` HTML on the cache-off production build, not just hydration.

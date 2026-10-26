@@ -97,11 +97,7 @@ export const metadata: Metadata = {
       { rel: "manifest", url: "/manifest.webmanifest" }, // served via app/manifest.ts
     ],
   },
-  alternates: {
-    ...(process.env.NODE_ENV === "production" && {
-      canonical: "https://williamcallahan.com",
-    }),
-  },
+  // No root canonical: each indexable route sets its own, so no utility route inherits "/".
 };
 
 /**

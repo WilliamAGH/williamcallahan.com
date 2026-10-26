@@ -16,6 +16,8 @@
 // Using `edge` here (not deprecated `experimental-edge`).
 
 import { UMAMI_ENABLED, UMAMI_ORIGIN } from "@/config/csp";
+import { PRODUCTION_HOSTNAME } from "@/lib/config/site-identity";
+import { getEnvironment } from "@/lib/config/environment";
 import { buildCspHeader } from "@/lib/middleware/csp-header";
 import { NextResponse, type NextRequest } from "next/server";
 import { sitewideRateLimitMiddleware } from "@/lib/middleware/sitewide-rate-limit";
@@ -60,6 +62,30 @@ const ANALYTICS_CACHE_HEADERS = {
 } as const;
 const ANALYTICS_RESPONSE_HEADERS = ["content-type", "etag", "last-modified", "vary"] as const;
 const ANALYTICS_FETCH_TIMEOUT_MS = 10_000;
+
+// Loopback hosts serve local production probes; every other host is a non-canonical deployment.
+const INDEXABLE_HOSTNAMES = new Set([
+  PRODUCTION_HOSTNAME,
+  `www.${PRODUCTION_HOSTNAME}`,
+  "localhost",
+  "127.0.0.1",
+  "[::1]",
+]);
+
+function getRequestHostname(request: NextRequest): string {
+  const host =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    request.nextUrl.hostname;
+  const firstHost = host.split(",")[0] ?? "";
+  return firstHost.trim().replace(/:\d+$/, "").toLowerCase();
+}
+
+function isExcludedFromSearchIndexing(request: NextRequest): boolean {
+  if (getEnvironment() !== "production") return true;
+  const hostname = getRequestHostname(request);
+  return hostname !== "" && !INDEXABLE_HOSTNAMES.has(hostname);
+}
 
 function setSecurityHeaders(response: NextResponse): void {
   for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
@@ -165,6 +191,9 @@ async function proxyHandler(request: NextRequest): Promise<NextResponse> {
   const ip = getClientIp(request.headers);
 
   setSecurityHeaders(response);
+  if (isExcludedFromSearchIndexing(request)) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
 
   const csp = await buildCspHeader();
   response.headers.set("Content-Security-Policy", csp);
