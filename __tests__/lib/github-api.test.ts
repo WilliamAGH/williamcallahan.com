@@ -212,9 +212,10 @@ describe("GitHub upstream contracts", () => {
       }),
     );
 
-    await expect(fetchContributorStats("owner", "large-repo", "owner")).rejects.toThrow(
-      "LOC statistics unavailable",
-    );
+    await expect(fetchContributorStats("owner", "large-repo", "owner")).rejects.toMatchObject({
+      name: "GitHubContributorStatsUnavailableError",
+      message: expect.stringContaining("LOC statistics unavailable"),
+    });
   });
 
   it("accepts genuine zero LOC below GitHub's repository limit", async () => {

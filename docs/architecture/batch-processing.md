@@ -32,6 +32,12 @@ timestamp remains owned by successful publication. The upstream collection deadl
 pretend to cancel an already-issued SQL statement or COMMIT; active work drains under the existing
 scheduler exclusion rather than being abandoned behind a timer race.
 
+GitHub's confirmed 10,000-commit contributor-statistics limit is a typed unavailable-LOC outcome,
+not a fetch outage. Repository processing and cold-cache CSV repair report it without an error marker, retaining any
+cached weekly stats, marks `dataComplete=false`, and never writes unavailable zeros as fresh data.
+Unknown/inaccessible repository history remains a distinct failure; no generic catch or alert rule
+is suppressed. Successful fresh calendar contributions do not imply fresh LOC for every repository.
+
 1. **Startup Bootstrap**: After the database readiness gate, `scheduler/entrypoint.sh` runs
    `node --run update-data` with no operation flags. That invokes the canonical default
    data-updater operation set, including books and search indexes. After success, the

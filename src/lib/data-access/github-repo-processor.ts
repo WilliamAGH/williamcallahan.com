@@ -11,6 +11,7 @@ import {
   fetchContributorStats,
   GitHubContributorStatsPendingError,
   GitHubContributorStatsRateLimitError,
+  GitHubContributorStatsUnavailableError,
 } from "./github-api";
 import { readRepoWeeklyStatsRecord, writeRepoWeeklyStatsRecord } from "./github-storage";
 import type { RepoRawWeeklyStat, RepoWeeklyStatCache } from "@/types/schemas/github-storage";
@@ -135,6 +136,12 @@ export async function processSingleRepository(
       status = "pending_rate_limit";
       dataComplete = false;
       console.info(`[GitHub-Repo] Rate limited for ${repoOwner}/${repoName}`);
+    } else if (error instanceof GitHubContributorStatsUnavailableError) {
+      status = "fetch_error";
+      dataComplete = false;
+      console.info(
+        `[GitHub-Repo] LOC unavailable for ${repoOwner}/${repoName}; retaining cached statistics if present (GitHub 10,000-commit limit)`,
+      );
     } else {
       const categorized = createCategorizedError(error, "github");
       console.warn(`[GitHub-Repo] Error for ${repoOwner}/${repoName}:`, categorized.message);

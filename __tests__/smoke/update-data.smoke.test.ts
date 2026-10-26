@@ -107,99 +107,121 @@ describe("scheduler/data-updater.ts Smoke Test", () => {
 });
 
 describe("GitHub stats updater log severity", () => {
-  it("reports pending repository stats as info while marking data incomplete", async () => {
-    vi.resetModules();
-    class PendingStats extends Error {}
-    class RateLimitedStats extends Error {}
-    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  it.each(["pending", "unavailable"])(
+    "reports %s repository stats as info while marking data incomplete",
+    async (kind) => {
+      vi.resetModules();
+      class PendingStats extends Error {}
+      class RateLimitedStats extends Error {}
+      class UnavailableStats extends Error {}
+      const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    vi.doMock("@/lib/data-access/github-api", () => ({
-      fetchContributorStats: vi
+      vi.doMock("@/lib/data-access/github-api", () => ({
+        fetchContributorStats: vi
+          .fn<typeof realFetchContributorStats>()
+          .mockRejectedValue(kind === "pending" ? new PendingStats() : new UnavailableStats()),
+        GitHubContributorStatsPendingError: PendingStats,
+        GitHubContributorStatsRateLimitError: RateLimitedStats,
+        GitHubContributorStatsUnavailableError: UnavailableStats,
+      }));
+      vi.doMock("@/lib/data-access/github-storage", () => ({
+        readRepoWeeklyStatsRecord: vi
+          .fn<typeof readRepoWeeklyStatsRecord>()
+          .mockResolvedValue(null),
+        writeRepoWeeklyStatsRecord: vi.fn<typeof writeRepoWeeklyStatsRecord>(),
+      }));
+
+      try {
+        const { processSingleRepository } = await import("@/lib/data-access/github-repo-processor");
+        const result = await processSingleRepository({
+          repo: buildRepoNode("owner", "repo"),
+          githubRepoOwner: "owner",
+          trailingYearFromDate: new Date("2025-06-10T00:00:00.000Z"),
+          now: new Date("2026-06-10T00:00:00.000Z"),
+        });
+
+        expect(result.dataComplete).toBe(false);
+        expect(result.hasAllTimeData).toBe(false);
+        expect(infoSpy).toHaveBeenCalledWith(
+          kind === "pending"
+            ? "[GitHub-Repo] Stats generating for owner/repo"
+            : "[GitHub-Repo] LOC unavailable for owner/repo; retaining cached statistics if present (GitHub 10,000-commit limit)",
+        );
+        expect(warnSpy).not.toHaveBeenCalled();
+      } finally {
+        infoSpy.mockRestore();
+        warnSpy.mockRestore();
+        vi.doUnmock("@/lib/data-access/github-api");
+        vi.doUnmock("@/lib/data-access/github-storage");
+      }
+    },
+  );
+
+  it.each(["pending", "unavailable"])(
+    "uses canonical %s contributor stats handling during CSV repair",
+    async (kind) => {
+      vi.resetModules();
+      class PendingStats extends Error {}
+      class RateLimitedStats extends Error {}
+      class UnavailableStats extends Error {}
+      const fetchContributorStats = vi
         .fn<typeof realFetchContributorStats>()
-        .mockRejectedValue(new PendingStats()),
-      GitHubContributorStatsPendingError: PendingStats,
-      GitHubContributorStatsRateLimitError: RateLimitedStats,
-    }));
-    vi.doMock("@/lib/data-access/github-storage", () => ({
-      readRepoWeeklyStatsRecord: vi.fn<typeof readRepoWeeklyStatsRecord>().mockResolvedValue(null),
-      writeRepoWeeklyStatsRecord: vi.fn<typeof writeRepoWeeklyStatsRecord>(),
-    }));
+        .mockRejectedValue(kind === "pending" ? new PendingStats() : new UnavailableStats());
+      const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    try {
-      const { processSingleRepository } = await import("@/lib/data-access/github-repo-processor");
-      const result = await processSingleRepository({
-        repo: buildRepoNode("owner", "repo"),
-        githubRepoOwner: "owner",
-        trailingYearFromDate: new Date("2025-06-10T00:00:00.000Z"),
-        now: new Date("2026-06-10T00:00:00.000Z"),
-      });
+      vi.doMock("@/lib/data-access/github-api", () => ({
+        fetchContributedRepositories: vi
+          .fn<typeof fetchContributedRepositories>()
+          .mockResolvedValue({
+            dataComplete: true,
+            userId: "user-id",
+            repositories: [buildRepoNode("owner", "repo")],
+          }),
+        fetchContributorStats,
+        GitHubContributorStatsPendingError: PendingStats,
+        GitHubContributorStatsRateLimitError: RateLimitedStats,
+        GitHubContributorStatsUnavailableError: UnavailableStats,
+        getGitHubUsername: () => "owner",
+        isGitHubApiConfigured: () => true,
+      }));
+      vi.doMock("@/lib/data-access/github-storage", () => ({
+        readRepoWeeklyStatsRecord: vi
+          .fn<typeof readRepoWeeklyStatsRecord>()
+          .mockResolvedValue(null),
+        writeRepoWeeklyStatsRecord: vi.fn<typeof writeRepoWeeklyStatsRecord>(),
+      }));
+      vi.doMock("@/lib/db/queries/github-activity", () => ({
+        readRepoCsvChecksum: vi.fn<typeof readRepoCsvChecksum>(),
+      }));
+      vi.doMock("@/lib/db/mutations/github-activity", () => ({
+        writeRepoCsvChecksumToDb: vi.fn<typeof writeRepoCsvChecksumToDb>(),
+      }));
 
-      expect(result.dataComplete).toBe(false);
-      expect(result.hasAllTimeData).toBe(false);
-      expect(infoSpy).toHaveBeenCalledWith("[GitHub-Repo] Stats generating for owner/repo");
-      expect(warnSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining("[GitHub-Repo] Stats generating"),
-      );
-    } finally {
-      infoSpy.mockRestore();
-      warnSpy.mockRestore();
-      vi.doUnmock("@/lib/data-access/github-api");
-      vi.doUnmock("@/lib/data-access/github-storage");
-    }
-  });
+      try {
+        const { detectAndRepairCsvFiles } = await import("@/lib/data-access/github-csv-repair");
+        const result = await detectAndRepairCsvFiles();
 
-  it("uses canonical contributor stats handling during CSV repair", async () => {
-    vi.resetModules();
-    class PendingStats extends Error {}
-    class RateLimitedStats extends Error {}
-    const fetchContributorStats = vi
-      .fn<typeof realFetchContributorStats>()
-      .mockRejectedValue(new PendingStats());
-    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-
-    vi.doMock("@/lib/data-access/github-api", () => ({
-      fetchContributedRepositories: vi.fn<typeof fetchContributedRepositories>().mockResolvedValue({
-        dataComplete: true,
-        userId: "user-id",
-        repositories: [buildRepoNode("owner", "repo")],
-      }),
-      fetchContributorStats,
-      GitHubContributorStatsPendingError: PendingStats,
-      GitHubContributorStatsRateLimitError: RateLimitedStats,
-      getGitHubUsername: () => "owner",
-      isGitHubApiConfigured: () => true,
-    }));
-    vi.doMock("@/lib/data-access/github-storage", () => ({
-      readRepoWeeklyStatsRecord: vi.fn<typeof readRepoWeeklyStatsRecord>().mockResolvedValue(null),
-      writeRepoWeeklyStatsRecord: vi.fn<typeof writeRepoWeeklyStatsRecord>(),
-    }));
-    vi.doMock("@/lib/db/queries/github-activity", () => ({
-      readRepoCsvChecksum: vi.fn<typeof readRepoCsvChecksum>(),
-    }));
-    vi.doMock("@/lib/db/mutations/github-activity", () => ({
-      writeRepoCsvChecksumToDb: vi.fn<typeof writeRepoCsvChecksumToDb>(),
-    }));
-
-    try {
-      const { detectAndRepairCsvFiles } = await import("@/lib/data-access/github-csv-repair");
-      const result = await detectAndRepairCsvFiles();
-
-      expect(result.scannedRepos).toBe(1);
-      expect(result.failedRepairs).toBe(1);
-      expect(fetchContributorStats).toHaveBeenCalledWith("owner", "repo", "owner", undefined);
-      expect(infoSpy).toHaveBeenCalledWith("[GitHub-CSV] Stats generating for owner/repo");
-      expect(warnSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining("[GitHub-CSV] Invalid stats"),
-      );
-    } finally {
-      infoSpy.mockRestore();
-      warnSpy.mockRestore();
-      vi.doUnmock("@/lib/data-access/github-api");
-      vi.doUnmock("@/lib/data-access/github-storage");
-      vi.doUnmock("@/lib/db/queries/github-activity");
-      vi.doUnmock("@/lib/db/mutations/github-activity");
-    }
-  });
+        expect(result.scannedRepos).toBe(1);
+        expect(result.failedRepairs).toBe(1);
+        expect(fetchContributorStats).toHaveBeenCalledWith("owner", "repo", "owner", undefined);
+        expect(infoSpy).toHaveBeenCalledWith(
+          kind === "pending"
+            ? "[GitHub-CSV] Stats generating for owner/repo"
+            : "[GitHub-CSV] LOC unavailable for owner/repo (GitHub 10,000-commit limit)",
+        );
+        expect(warnSpy).not.toHaveBeenCalledWith(
+          expect.stringContaining("[GitHub-CSV] Invalid stats"),
+        );
+      } finally {
+        infoSpy.mockRestore();
+        warnSpy.mockRestore();
+        vi.doUnmock("@/lib/data-access/github-api");
+        vi.doUnmock("@/lib/data-access/github-storage");
+        vi.doUnmock("@/lib/db/queries/github-activity");
+        vi.doUnmock("@/lib/db/mutations/github-activity");
+      }
+    },
+  );
 });

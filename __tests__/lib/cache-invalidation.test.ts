@@ -125,6 +125,7 @@ describe("GitHub data access", () => {
           .mockRejectedValue(new Error("GitHub unavailable")),
         GitHubContributorStatsPendingError: class GitHubContributorStatsPendingError extends Error {},
         GitHubContributorStatsRateLimitError: class GitHubContributorStatsRateLimitError extends Error {},
+        GitHubContributorStatsUnavailableError: class GitHubContributorStatsUnavailableError extends Error {},
       }));
       vi.doMock("@/lib/data-access/github-storage", () => ({
         readRepoWeeklyStatsRecord,
@@ -186,6 +187,7 @@ describe("GitHub data access", () => {
           fetchContributorStats,
           GitHubContributorStatsPendingError: class GitHubContributorStatsPendingError extends Error {},
           GitHubContributorStatsRateLimitError: class GitHubContributorStatsRateLimitError extends Error {},
+          GitHubContributorStatsUnavailableError: class GitHubContributorStatsUnavailableError extends Error {},
         }));
         vi.doMock("@/lib/data-access/github-storage", () => ({
           readRepoWeeklyStatsRecord,
