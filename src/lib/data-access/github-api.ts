@@ -143,6 +143,14 @@ export class GitHubContributorStatsRateLimitError extends Error {
   }
 }
 
+/** GitHub explicitly withholds LOC on repositories with at least 10,000 commits. */
+export class GitHubContributorStatsUnavailableError extends Error {
+  constructor() {
+    super("LOC statistics unavailable: repository has at least 10,000 commits.");
+    this.name = "GitHubContributorStatsUnavailableError";
+  }
+}
+
 /**
  * Fetch contributed repositories for a user
  */
@@ -423,11 +431,10 @@ export async function fetchContributorStats(
       signal?.throwIfAborted();
       const repository = GraphQLRepositoryCommitCountResponseSchema.parse(raw).repository;
       const commitCount = repository?.defaultBranchRef?.target?.history.totalCount;
-      if (commitCount === undefined || commitCount >= 10000) {
-        throw new Error(
-          "LOC statistics unavailable: repository history is inaccessible or has at least 10,000 commits.",
-        );
+      if (commitCount === undefined) {
+        throw new Error("LOC statistics unavailable: repository history is inaccessible.");
       }
+      if (commitCount >= 10000) throw new GitHubContributorStatsUnavailableError();
     }
     return result.data;
   }
