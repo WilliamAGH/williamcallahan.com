@@ -54,7 +54,7 @@ Core standards:
 
 ### [RT1] Runtime Isolation: Database Scripts (Blocking)
 
-- [RT1a] Every script runs on Node 24.18.0: TypeScript through `tsx`, and scripts that connect to PostgreSQL as `*.node.mjs` files with `#!/usr/bin/env node`. Never reintroduce Bun as a runtime: its TLS signature algorithms fail the PostgreSQL handshake (`could not accept SSL connection: no suitable signature algorithm`).
+- [RT1a] Every script runs on Node 24.22.1: TypeScript through `tsx`, and scripts that connect to PostgreSQL as `*.node.mjs` files with `#!/usr/bin/env node`. Never reintroduce Bun as a runtime: its TLS signature algorithms fail the PostgreSQL handshake (`could not accept SSL connection: no suitable signature algorithm`).
 - [RT1c] The `postgres` npm package works under Node.js with `ssl: "require"`. Never add custom certificates, disable SSL, or patch TLS options to work around a client runtime.
 
 ### [IMG1] Image Optimization (Blocking)
