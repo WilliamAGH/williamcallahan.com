@@ -407,7 +407,7 @@ become “now” merely because a fetch or index rebuild ran.
 - Book aliases permanently redirect to the slug generated from the resolved book; metadata uses that same canonical slug. Unknown and draft-only blog tags use `notFound()` and noindex metadata without a self-canonical. This does not change direct draft-article visibility (see [`blog.md`](blog.md#notes)).
 - Project text and destination links stay server-owned, outside optional short-lived analysis reads; contact windows/cards render normal initial HTML without effect-mount gates. Keep Cache Components and metadata streaming (see [`nextjs-framework.md`](../standards/nextjs-framework.md#essential-html-and-optional-short-lived-caches)).
 - `isAccessChallenge()` (`lib/opengraph/validation.ts`) rejects publisher verification screens as article/OG content. Blocked captures remain honest saved links; healthy prior archives are preserved, while blocked sources without retrieved bodies suppress cached article-analysis UI (see [`bookmarks.md`](bookmarks.md#enrichment-preservation-contract)).
-- `e2e/native-content.spec.ts` checks no-JavaScript project/contact DOM; `e2e/seo-output.spec.ts` checks missing/draft-only versus published blog tags. The existing production smoke calls `scripts/native-content-smoke.ts` to validate actual headings, descriptions, and anchors, not strings inside Flight scripts.
+- `e2e/native-content.spec.ts` checks no-JavaScript project/contact DOM; `e2e/seo-output.spec.ts` checks missing/draft-only versus published blog tags. The existing production smoke calls `scripts/native-content-smoke.ts` to validate visible native headings, descriptions, and normalized destination URLs, excluding Flight scripts and hidden streamed segments.
 
 ### URL Construction
 
