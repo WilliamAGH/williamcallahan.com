@@ -124,10 +124,11 @@ boundaries instead. The Docker build and the pre-push gate set `USE_NEXTJS_CACHE
 readers that gate `"use cache"` on it read files and the database directly. Next runs the final
 prerender's stages as consecutive timers in one event-loop phase, which ends before any file or
 database read returns, so content behind such a read always resolves after the shell. A route
-that renders it outside a boundary fails the build with `blocking-prerender-dynamic`; the books,
-blog tag and thought segments own a `loading.tsx` for that reason. A page that calls a literal
-`"use cache"` function, as `/blog` and `/blog/[slug]` do, stays in the shell. Evidence: installed
-`next/dist/compiled/react-dom/cjs/react-dom-server.node.production.js` defaults
+that renders it outside a boundary fails the build with `blocking-prerender-dynamic`; the books
+and blog tag segments own a `loading.tsx` for that reason, and the thought segment owns one
+because `readThoughtBySlug` is an uncached database read whatever the flag says. A page that calls
+a literal `"use cache"` function, as `/blog` and `/blog/[slug]` do, stays in the shell.
+Evidence: installed `next/dist/compiled/react-dom/cjs/react-dom-server.node.production.js` defaults
 `progressiveChunkSize` to 12800 and outlines a boundary when
 `flushedByteSize + boundary.byteSize > request.progressiveChunkSize`;
 `next/dist/server/app-render/app-render-render-utils.js` (`runInSequentialTasks`) schedules the

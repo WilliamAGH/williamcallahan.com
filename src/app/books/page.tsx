@@ -33,9 +33,9 @@ export function generateMetadata(): Metadata {
 /**
  * Books page matching the bookmarks pattern.
  *
- * Renders BooksServer directly without Suspense at page level.
- * The server component handles data fetching using the Cache Components pattern
- * (cacheLife/cacheTag) rather than PPR/connection().
+ * BooksServer reads the books dataset, which resolves after the prerendered
+ * shell when the build disables "use cache", so it streams inside the books
+ * segment's loading boundary (src/app/books/loading.tsx).
  */
 export default function BooksPage() {
   const pageMetadata = PAGE_METADATA.books;
