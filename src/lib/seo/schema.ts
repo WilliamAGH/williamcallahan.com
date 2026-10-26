@@ -393,28 +393,14 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
  * Creates the entity for a bookmark detail page. A bookmark is a third-party resource, so the page
  * is a WebPage about an external CreativeWork credited only to its own author, never the site owner.
  */
-function createBookmarkItemEntity(
-  params: SchemaParams,
-): BookmarkWebPageEntity | SoftwareApplicationEntity {
-  if (params.softwareMetadata) {
-    return createSoftwareApplicationEntity(params);
-  }
+function createBookmarkItemEntity(params: SchemaParams): BookmarkWebPageEntity {
   if (!params.bookmark) {
     throw new Error("Bookmark source is required for bookmark-item schema");
   }
 
-  const pageUrl = ensureAbsoluteUrl(params.path);
   const { url, author } = params.bookmark;
   return {
-    "@type": "WebPage",
-    "@id": `${pageUrl}#bookmark`,
-    url: pageUrl,
-    name: params.title,
-    description: params.description,
-    datePublished: params.datePublished,
-    dateModified: params.dateModified,
-    isPartOf: { "@id": createIdUrl("/", "website") },
-    ...(params.image && { image: { "@id": createIdUrl(params.path, "primaryimage") } }),
+    ...createWebPageEntity(params),
     ...(params.keywords?.length && { keywords: params.keywords.join(", ") }),
     about: {
       "@type": "CreativeWork",
@@ -431,7 +417,13 @@ function createBookmarkItemEntity(
 export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
   const graph: SchemaGraph = {
     "@context": "https://schema.org",
-    "@graph": [createWebPageEntity(params), createPersonEntity(), createWebSiteEntity()],
+    "@graph": [
+      params.type === "bookmark-item"
+        ? createBookmarkItemEntity(params)
+        : createWebPageEntity(params),
+      createPersonEntity(),
+      createWebSiteEntity(),
+    ],
   };
 
   // Add the Person logo image entity referenced by Person.image
@@ -483,10 +475,6 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
     case "collection":
     case "bookmark-collection": {
       graph["@graph"].push(createCollectionPageEntity(params));
-      break;
-    }
-    case "bookmark-item": {
-      graph["@graph"].push(createBookmarkItemEntity(params));
       break;
     }
   }

@@ -201,3 +201,6 @@ wrap the collection heading. See [SEO architecture](../features/seo.md#crawler-v
 
 Person graphs express founder facts through JSON-LD `@reverse.founder`, retaining the direction
 Organization → founder → Person; the factual organization list also feeds `/llms.txt`.
+
+Thoughts metadata/content share a cached snapshot. Bookmark details enrich one canonical WebPage,
+and legacy ID redirects use the fresh slug map without relying on independently cached feed data.

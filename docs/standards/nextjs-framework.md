@@ -303,3 +303,7 @@ Synchronous headings inside a page are insufficient when the collection has a se
 `loading.tsx`: React can outline that completed boundary into hidden streamed HTML. Keep root index
 headings outside data-grid Suspense, and scope required segment fallbacks to detail/tag routes.
 Check visible, non-JavaScript `<main>` HTML on the cache-off production build, not just hydration.
+
+Metadata that depends on visible collection state must read the same cached snapshot as the page.
+Independently cached module exports can revalidate at different epochs even when their cache-life
+profiles match; prefer one cached data reader feeding both metadata and content.

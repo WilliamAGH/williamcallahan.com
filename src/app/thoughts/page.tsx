@@ -6,8 +6,6 @@
  * Implements proper SEO with schema.org structured data.
  */
 
-"use cache";
-
 import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
 import { ThoughtsWindow } from "@/components/features/thoughts/thoughts-window.client";
@@ -20,23 +18,28 @@ import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { getThoughtListItems } from "@/lib/thoughts/service.server";
-import { hasPublishedThoughts } from "@/lib/db/queries/thoughts";
+
+// Metadata and visible content share one cache entry, never independent empty/nonempty epochs.
+async function getThoughtsSnapshot() {
+  "use cache";
+  cacheLife("hours");
+  return getThoughtListItems();
+}
 
 /**
  * Generate metadata for the Thoughts page; an empty list stays out of search indexes.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const base = getStaticPageMetadata("/thoughts", "thoughts");
-  return (await hasPublishedThoughts()) ? base : { ...base, robots: SEARCH_EXCLUDED_ROBOTS };
+  const thoughts = await getThoughtsSnapshot();
+  return thoughts.length > 0 ? base : { ...base, robots: SEARCH_EXCLUDED_ROBOTS };
 }
 
 /**
  * Thoughts list page component
  */
 export default async function ThoughtsPage() {
-  cacheLife("hours");
-
-  const thoughts = await getThoughtListItems();
+  const thoughts = await getThoughtsSnapshot();
 
   // Generate JSON-LD schema for the thoughts page
   const pageMetadata = PAGE_METADATA.thoughts;

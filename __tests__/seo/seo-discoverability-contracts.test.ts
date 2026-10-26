@@ -100,10 +100,17 @@ describe("Search-engine discoverability contracts", () => {
       ]),
     );
 
-    const bookmarkNode = entities.find((node) => node["@id"].endsWith("#bookmark"));
-    expect(bookmarkNode).toBeDefined();
-    expect(bookmarkNode?.["@type"]).not.toBe("Article");
-    expect(bookmarkNode).not.toHaveProperty("author");
+    const bookmarkPages = entities.filter(
+      (node) =>
+        node["@type"] === "WebPage" &&
+        node.url === "https://williamcallahan.com/bookmarks/example-resource",
+    );
+    expect(bookmarkPages).toHaveLength(1);
+    expect(bookmarkPages[0]).toMatchObject({
+      "@id": "https://williamcallahan.com/bookmarks/example-resource",
+      about: { "@type": "CreativeWork", url: "https://example.com/guide" },
+    });
+    expect(bookmarkPages[0]).not.toHaveProperty("author");
   });
 
   it("disallows utility and auth paths in production robots.txt", () => {
@@ -139,6 +146,18 @@ describe("Search-engine discoverability contracts", () => {
       });
       const prodHostRes = await proxy(prodHostReq);
       expect(prodHostRes.headers.get("X-Robots-Tag")).toBeNull();
+      const forwardedSpoof = await proxy(
+        new NextRequest("https://williamcallahan.com/blog", {
+          headers: { host: "williamcallahan.com", "x-forwarded-host": "dev.williamcallahan.com" },
+        }),
+      );
+      expect(forwardedSpoof.headers.get("X-Robots-Tag")).toBeNull();
+      const aliasHost = await proxy(
+        new NextRequest("https://www.williamcallahan.com/blog", {
+          headers: { host: "www.williamcallahan.com" },
+        }),
+      );
+      expect(aliasHost.headers.get("X-Robots-Tag")).toContain("noindex");
     } finally {
       vi.unstubAllEnvs();
     }

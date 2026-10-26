@@ -18,13 +18,6 @@ export async function GET(
   request: Request,
   { params }: { params: DomainPageRedirectorProps["params"] },
 ): Promise<Response> {
-  const allBookmarks = await getBookmarks({
-    ...DEFAULT_BOOKMARK_OPTIONS,
-    includeImageData: false,
-    skipExternalFetch: false,
-    force: false,
-  });
-
   // Load slug mapping - REQUIRED for idempotency
   const slugMapping = await loadSlugMapping();
   if (!slugMapping) {
@@ -35,21 +28,24 @@ export async function GET(
   const { domainSlug } = await params;
   const id = new URL(request.url).searchParams.get("id");
 
-  // If ID is provided, find that specific bookmark
+  // Explicit IDs resolve from the authoritative mapping, not a separately cached feed.
   if (id) {
-    const bookmark = allBookmarks.find((b) => b.id === id);
-    if (bookmark) {
-      const uniqueSlug = getSlugForBookmark(slugMapping, bookmark.id);
-      if (uniqueSlug) {
-        return new Response(null, {
-          status: 308,
-          headers: { Location: buildBookmarkPath(uniqueSlug) },
-        });
-      } else {
-        console.error(`[DomainRedirect] No slug found for bookmark ${bookmark.id}`);
-      }
+    const uniqueSlug = getSlugForBookmark(slugMapping, id);
+    if (uniqueSlug) {
+      return new Response(null, {
+        status: 308,
+        headers: { Location: buildBookmarkPath(uniqueSlug) },
+      });
     }
+    return new Response(null, { status: 307, headers: { Location: "/bookmarks" } });
   }
+
+  const allBookmarks = await getBookmarks({
+    ...DEFAULT_BOOKMARK_OPTIONS,
+    includeImageData: false,
+    skipExternalFetch: false,
+    force: false,
+  });
 
   // Otherwise, find the first bookmark matching this domain
   const bookmarkWithDomain = allBookmarks.find((bookmark) => {
@@ -72,6 +68,6 @@ export async function GET(
     }
   }
 
-  // If no match found, redirect to the main bookmarks page
-  return new Response(null, { status: 308, headers: { Location: "/bookmarks" } });
+  // A missing/cached lookup must not permanently pin the legacy URL to the hub.
+  return new Response(null, { status: 307, headers: { Location: "/bookmarks" } });
 }

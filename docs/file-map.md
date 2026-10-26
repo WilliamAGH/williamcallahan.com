@@ -917,4 +917,6 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 - `src/app/bookmarks/[slug]/loading.tsx`: bookmark detail skeleton (moved from bookmarks root).
 - `src/app/bookmarks/tags/loading.tsx`: uncached tag lookup boundary.
 - `src/app/bookmarks/domain/[domainSlug]/route.ts`: legacy HTTP redirects before streaming (replaces the page redirector).
+- `__tests__/app/bookmarks/domain-redirect-response.test.ts`: actual redirect responses under feed/slug-map skew, unknown IDs, and unresolved domains.
+- `src/app/thoughts/page.tsx`: shared cached list snapshot for both visible content and indexability metadata.
 - Collection roots keep headings outside grid/feed Suspense; no root loading boundary hides them.

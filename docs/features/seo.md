@@ -10,7 +10,19 @@ non-JavaScript HTTP HTML as well as the hydrated page.
 
 Legacy `/bookmarks/domain/[domainSlug]` redirects use a GET Route Handler, not a suspended page:
 successful resolutions return an actual HTTP308 with a relative Location, rather than HTTP200
-with a streamed meta refresh. An unavailable slug mapping retains a temporary307 to the hub.
+with a streamed meta refresh. Explicit IDs resolve from the current slug mapping even when the
+separately cached feed is stale; missing IDs, unmatched domains, and unavailable mappings remain
+temporary307 redirects rather than permanently pinning a lookup failure to the hub.
+
+Thoughts metadata and content derive from one cached snapshot, so their empty/nonempty decisions
+cannot expire independently. Bookmark detail graphs contain one canonical WebPage with the
+third-party CreativeWork in `about`, not two WebPage identities for the same URL. The static
+bookmark collection heading is page-level context outside the optional Latest window; its
+Discover/Latest navigation copy applies to either feed mode.
+
+Indexability headers use the HTTP Host authority, not a client-supplied `X-Forwarded-Host` value.
+The canonical production hostname is the only public indexable host; an unredirected `www` alias
+is excluded too. No custom forwarded-host cache variation is needed.
 
 IndexNow runs once at scheduler startup, not every two-hour data refresh. Its default temporary
 announcement ledger deduplicates repeated commands within that container; it is not durable across

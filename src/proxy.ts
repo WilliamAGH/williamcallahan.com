@@ -64,19 +64,10 @@ const ANALYTICS_RESPONSE_HEADERS = ["content-type", "etag", "last-modified", "va
 const ANALYTICS_FETCH_TIMEOUT_MS = 10_000;
 
 // Loopback hosts serve local production probes; every other host is a non-canonical deployment.
-const INDEXABLE_HOSTNAMES = new Set([
-  PRODUCTION_HOSTNAME,
-  `www.${PRODUCTION_HOSTNAME}`,
-  "localhost",
-  "127.0.0.1",
-  "[::1]",
-]);
+const INDEXABLE_HOSTNAMES = new Set([PRODUCTION_HOSTNAME, "localhost", "127.0.0.1", "[::1]"]);
 
 function getRequestHostname(request: NextRequest): string {
-  const host =
-    request.headers.get("x-forwarded-host") ??
-    request.headers.get("host") ??
-    request.nextUrl.hostname;
+  const host = request.headers.get("host") ?? request.nextUrl.hostname;
   const firstHost = host.split(",")[0] ?? "";
   return firstHost.trim().replace(/:\d+$/, "").toLowerCase();
 }

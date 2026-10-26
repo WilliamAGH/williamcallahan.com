@@ -122,15 +122,7 @@ export interface ArticleEntity extends SchemaBase {
 /**
  * Bookmark detail page; the bookmarked resource is a third-party work, never one the site owner authored
  */
-export interface BookmarkWebPageEntity extends SchemaBase {
-  "@type": "WebPage";
-  url: string;
-  name: string;
-  description: string;
-  datePublished: PacificDateString;
-  dateModified: PacificDateString;
-  isPartOf: { "@id": string };
-  image?: { "@id": string };
+export interface BookmarkWebPageEntity extends Omit<WebPageBase, "about"> {
   keywords?: string;
   about: {
     "@type": "CreativeWork";

@@ -146,8 +146,11 @@ export default function BookmarksPage({ searchParams }: BookmarksPageProps) {
         </p>
         <p className="mt-2 max-w-3xl text-sm sm:text-base text-gray-600 dark:text-gray-400">
           William Callahan saves technical articles, developer tools, AI and LLM research,
-          distributed systems references, and venture capital essays here. Browse them by topic in
-          the Discover feed below, or read them chronologically in the{" "}
+          distributed systems references, and venture capital essays here. Browse topics in the{" "}
+          <Link href="/bookmarks" className={linkClassName} prefetch={false}>
+            Discover feed
+          </Link>{" "}
+          or read them chronologically in the{" "}
           <Link href="/bookmarks?feed=latest" className={linkClassName} prefetch={false}>
             Latest feed
           </Link>
