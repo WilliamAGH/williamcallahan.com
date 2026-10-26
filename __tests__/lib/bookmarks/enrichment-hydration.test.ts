@@ -50,6 +50,62 @@ describe("hydrateEnrichment", () => {
 
     expect(hydrated?.ogImage).toBeUndefined();
   });
+
+  it.each(["Just a moment...", "My paper"])(
+    "does not restore earlier challenge metadata titled %s into a blocked capture",
+    (title) => {
+      const fresh = buildBookmark({
+        title: "Saved link from example.com",
+        content: {
+          type: "link",
+          url: "https://example.com/article",
+          title: "Saved link from example.com",
+          description: "Source content unavailable",
+          crawlStatus: "blocked",
+        },
+      });
+      const prior = buildBookmark({
+        title,
+        ogTitle: "Just a moment...",
+        scrapedContentText: "Enable JavaScript and cookies to continue",
+      });
+
+      const [hydrated] = hydrateEnrichment([fresh], [prior]);
+
+      expect(hydrated?.title).toBe("Saved link from example.com");
+      expect(hydrated?.ogTitle).toBeUndefined();
+      expect(hydrated?.scrapedContentText).toBeUndefined();
+    },
+  );
+
+  it("preserves a healthy archived article when a later capture is blocked", () => {
+    const fresh = buildBookmark({
+      title: "Saved link from example.com",
+      description: "Source content unavailable",
+      summary: null,
+      content: {
+        type: "link",
+        url: "https://example.com/article",
+        title: "Saved link from example.com",
+        description: "Source content unavailable",
+        crawlStatus: "blocked",
+      },
+    });
+    const prior = buildBookmark({
+      title: "Research article",
+      description: "Original abstract",
+      summary: "An existing useful summary.",
+      scrapedContentText: "An existing full article body.",
+    });
+
+    const [hydrated] = hydrateEnrichment([fresh], [prior]);
+
+    expect(hydrated?.title).toBe("Research article");
+    expect(hydrated?.description).toBe("Original abstract");
+    expect(hydrated?.summary).toBe("An existing useful summary.");
+    expect(hydrated?.scrapedContentText).toBe("An existing full article body.");
+    expect(hydrated?.content?.crawlStatus).toBe("blocked");
+  });
 });
 
 describe("needsKarakeepImageUpgrade", () => {

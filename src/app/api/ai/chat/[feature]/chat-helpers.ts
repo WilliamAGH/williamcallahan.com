@@ -259,6 +259,7 @@ export async function buildRagContextForChat(
 /** Build shared log payload fields common to both success and failure logging */
 function buildBaseLogPayload(ctx: ChatLogContext, durationMs: number, queueWaitMs: number) {
   return {
+    messageId: ctx.messageId,
     feature: ctx.feature,
     conversationId: ctx.conversationId,
     clientIp: ctx.clientIp,

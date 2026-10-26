@@ -1,9 +1,83 @@
 import { Activity, createElement, Fragment, StrictMode } from "react";
-import type { ActivityProps } from "react";
+import type { ActivityProps, ReactNode } from "react";
 import { renderToStaticMarkup, renderToString } from "react-dom/server";
 import { render } from "@testing-library/react";
 
 import { JsonLdScript } from "@/components/seo/json-ld";
+import BlogPage from "@/app/blog/page";
+import { getAllPostsMeta } from "@/lib/blog";
+import type { BlogPost } from "@/types/blog";
+
+vi.mock("@/lib/blog", () => ({ getAllPostsMeta: vi.fn<typeof getAllPostsMeta>() }));
+vi.mock("@/components/features/blog/blog.client", () => ({
+  Blog: ({ children }: { children: ReactNode }) => children,
+}));
+
+describe("Blog collection graph", () => {
+  it("lists published visible posts in order, not breadcrumbs or development drafts", async () => {
+    const post: BlogPost = {
+      id: "published-first",
+      slug: "published-first",
+      title: "First published post",
+      excerpt: "An original article",
+      publishedAt: "2026-01-01T12:00:00Z",
+      author: { id: "owner", name: "William Callahan" },
+      tags: [],
+      content: { compiledSource: "", scope: {}, frontmatter: {} },
+    };
+    vi.mocked(getAllPostsMeta).mockResolvedValue([
+      post,
+      { ...post, id: "draft", slug: "draft", title: "Development draft", draft: true },
+      { ...post, id: "published-last", slug: "published-last", title: "Last published post" },
+    ]);
+
+    const html = renderToStaticMarkup(await BlogPage());
+    const document = new DOMParser().parseFromString(html, "text/html");
+    const script = document.querySelector('script[type="application/ld+json"]');
+    const graph: unknown = JSON.parse(script?.textContent ?? "null");
+    expect(graph).toMatchObject({
+      "@graph": expect.arrayContaining([
+        expect.objectContaining({
+          "@type": "CollectionPage",
+          mainEntity: {
+            "@type": "ItemList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                url: "https://williamcallahan.com/blog/published-first",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                url: "https://williamcallahan.com/blog/published-last",
+              },
+            ],
+          },
+        }),
+      ]),
+    });
+    expect(
+      Array.from(document.querySelectorAll("h2 a"), (link) => link.getAttribute("href")),
+    ).toEqual(["/blog/published-first", "/blog/draft", "/blog/published-last"]);
+  });
+
+  it("does not invent breadcrumb members for an empty published collection", async () => {
+    vi.mocked(getAllPostsMeta).mockResolvedValue([]);
+    const document = new DOMParser().parseFromString(
+      renderToStaticMarkup(await BlogPage()),
+      "text/html",
+    );
+    const script = document.querySelector('script[type="application/ld+json"]');
+    const graph: unknown = JSON.parse(script?.textContent ?? "null");
+    expect(graph).not.toMatchObject({
+      "@graph": expect.arrayContaining([expect.objectContaining({ "@type": "CollectionPage" })]),
+    });
+    expect(graph).toMatchObject({
+      "@graph": expect.arrayContaining([expect.objectContaining({ "@type": "Person" })]),
+    });
+  });
+});
 
 type ActivityElementProps = ActivityProps & { readonly key?: string };
 

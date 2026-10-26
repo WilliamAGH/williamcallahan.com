@@ -45,6 +45,10 @@ export default async function ThoughtsPage() {
     datePublished: formattedCreated,
     dateModified: formattedModified,
     type: "collection" as const,
+    itemList: thoughts.map((thought, index) => ({
+      url: `/thoughts/${thought.slug}`,
+      position: index + 1,
+    })),
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/thoughts", name: "Thoughts" },

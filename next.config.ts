@@ -11,6 +11,33 @@ import { parseS3Endpoint } from "./src/types/schemas/s3-config";
 
 const VALID_DEPLOYMENT_ID = /^[A-Za-z0-9_-]+$/;
 
+// URLs that search engines and links still hold for pages that now live elsewhere: posts first
+// published under their MDX filename, projects slugged before the current name-derived scheme,
+// and WordPress-era posts with a migrated equivalent.
+const LEGACY_URL_REDIRECTS: ReadonlyArray<readonly [source: string, destination: string]> = [
+  ["/blog/how-to-add-a-symlink-file", "/blog/how-to-add-a-symlink-file-from-one-to-another"],
+  [
+    "/blog/introducing-google-jules-ai-agent-and-usage-with-pnpm-bun-yarn",
+    "/blog/google-jules-ai-agent-launched-and-pnpm-bun-yarn-environment-setup",
+  ],
+  [
+    "/blog/set-digitalocean-s3-bucket-public-by-default",
+    "/blog/set-digitalocean-s3-bucket-public-by-default-the-right-way",
+  ],
+  ["/projects/aventurevc", "/projects/aventure-vc"],
+  ["/projects/book-finder-findmybooknet", "/projects/book-finder-findmybook-net"],
+  ["/projects/company-research-tui-tui-aventure-vc", "/projects/company-research-tui"],
+  ["/projects/apple-maps-java-sdk-apple-maps-java", "/projects/apple-maps-java-sdk"],
+  [
+    "/a-poem-about-angellist-investing",
+    "/blog/a-poem-about-angellist-and-venture-capital-investing",
+  ],
+  [
+    "/the-dangers-of-proximity-signaling-in-venture-capital",
+    "/blog/proximity-bias-in-venture-capital",
+  ],
+];
+
 // Turbopack resolves modules and runs webpack loaders (Sentry's, @svgr) only inside its root, and pnpm's
 // global virtual store sits outside the project, so the root is the closest directory holding both.
 function resolveTurbopackRoot(): string {
@@ -243,11 +270,16 @@ function createNextConfig(releaseId: string | null) {
           destination: "/bookmarks",
           permanent: true,
         },
+        ...LEGACY_URL_REDIRECTS.map(([source, destination]) => ({
+          source,
+          destination,
+          permanent: true,
+        })),
       ];
     },
     // A start-first rollout, or a replica of the other CPU architecture, can render a document
-    // whose hashed chunks only another image holds. The image build archives `.next/static/chunks`
-    // to the CDN bucket before rollout (scripts/archive-static-assets.ts); a chunk this replica
+    // whose hashed chunks or media only another image holds. The image build archives both
+    // to the CDN bucket before rollout (scripts/archive-static-assets.ts); an asset this replica
     // lacks is answered by the archive relay route on the same relative path.
     async rewrites() {
       if (process.env.NODE_ENV !== "production") return [];
@@ -255,7 +287,11 @@ function createNextConfig(releaseId: string | null) {
         beforeFiles: [],
         afterFiles: [],
         fallback: [
-          { source: "/_next/static/chunks/:path*", destination: "/api/static-archive/:path*" },
+          {
+            source: "/_next/static/chunks/:path*",
+            destination: "/api/static-archive/chunks/:path*",
+          },
+          { source: "/_next/static/media/:path*", destination: "/api/static-archive/media/:path*" },
         ],
       };
     },

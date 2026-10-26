@@ -18,11 +18,6 @@ import { SocialWindowContent } from "./social-window-content.client";
 const SOCIAL_WINDOW_ID = "social-contact-window";
 
 /**
- * Dynamic import of the window content component to prevent server-side rendering
- * This ensures any layout effects or DOM manipulations only run on the client
- */
-
-/**
  * SocialWindow Client Component
  *
  * Renders content within a window-like UI that
@@ -39,17 +34,13 @@ export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowC
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered,
   } = useRegisteredWindowState(SOCIAL_WINDOW_ID, Users, title, "normal");
 
   // Use provided handler or fall back to internal handler
   const handleClose = onClose || closeWindow;
 
-  // Assume mounted – React 18 handles hydration; suppress minor mismatches
-  const hasMounted = true;
-
-  // Handle registration/state changes only when mounted
-  if (!isRegistered || windowState === "closed" || windowState === "minimized") {
+  // The hook supplies the normal initial state before effect-based registration.
+  if (windowState === "closed" || windowState === "minimized") {
     return null;
   }
 
@@ -59,7 +50,7 @@ export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowC
       onClose={handleClose}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
-      hasMounted={hasMounted}
+      hasMounted
     />
   );
 }

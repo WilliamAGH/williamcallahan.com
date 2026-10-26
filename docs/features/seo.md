@@ -1,5 +1,21 @@
 # SEO Architecture
 
+## Verified front-end parity contracts
+
+- Blog collection JSON-LD lists published article URLs, not breadcrumb navigation. Blog listing
+  OpenGraph uses `website`; actual article pages retain supported article publication dates.
+- Contact's existing public heading/introduction renders before window-registry effects; book
+  window chrome does not duplicate the reading-list content H1. Privacy-card guards remain.
+- IndexNow can run with its own configuration independently of Google credentials. A real dry-run
+  previews without submission POSTs; known failures return a nonzero command outcome while scheduler
+  startup remains available. `--debug` is not a dry-run.
+- `/books` omits sitemap `lastmod` until its runtime content owner supplies a true change watermark;
+  a fixed page metadata date is not a reading-list freshness signal.
+
+Do not copy platform-scale image-derivative or sitemap machinery without measured demand. The
+registered eight-URL audit is a bounded sample; GSC and personal-zone traffic analytics were not
+available for ranking or cost claims.
+
 **Functionality:** `seo`
 
 ## Core Purpose
@@ -76,6 +92,8 @@ All SEO images defined in `data/metadata.ts` via `SEO_IMAGES` constant:
   - Automatic `@graph` relationship linking
   - Date/time formatting for search engines
   - Author and publisher entity deduplication
+  - Collection `ItemList` members come only from explicit actual items; omit the list when unavailable, never derive members from breadcrumbs
+  - Profile graphs do not fabricate interaction statistics; individual bookmark detail graphs use `bookmark-item`, not a collection
 
 - **`types/seo/schema.ts`** (234 lines): Schema.org type definitions
   - Comprehensive interfaces for all entity types
@@ -271,7 +289,7 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
 - **`app/robots.ts`**: Dynamically generates the `robots.txt` file using a server-side route handler
   - Production: Allows all crawlers, blocks sensitive paths (`/api/`, `/debug/`)
   - Non-production: Blocks all crawlers to prevent indexing of staging sites
-- **`app/sitemap.ts`**: Dynamically generates the `sitemap.xml` file at build time
+- **`app/sitemap.ts`**: Cache Components orchestrator for domain sitemap collectors
   - Includes: static pages, project detail pages, blog posts and published thoughts
   - Priorities: Home (1.0), Investments/Projects (0.9), Experience/Education (0.8), Blog/Bookmarks (0.7)
   - Uses trimmed, validated frontmatter slugs for blog URLs and frontmatter dates for `lastModified` when available
@@ -284,13 +302,18 @@ External URL -> Fetch -> Validate -> Transform -> S3 Upload -> CDN Serve
   Next's default bot list, so the config extends Next's own `HTML_LIMITED_BOT_UA_RE` with
   `Googlebot` (installed source: `node_modules/next/dist/server/lib/streaming-metadata.js`;
   docs: nextjs.org/docs/app/api-reference/config/next-config-js/htmlLimitedBots).
+- **`next.config.ts` `LEGACY_URL_REDIRECTS`**: Permanent redirects for URLs search engines still
+  hold: posts first published under their MDX filename, projects slugged before the current
+  name-derived scheme, and WordPress-era posts with a migrated equivalent. Without them a renamed
+  slug answers 200 with `noindex` and a WordPress-era URL answers 404, so the old URL leaves the
+  index without passing its links to the current page.
 
 #### Automated Submission
 
 - **`scheduler/submit-sitemap.ts`**: Submits the sitemap once per scheduler start, which is once
   per deploy (`scheduler/entrypoint.sh`); indexable pages change only when a deploy ships them
   - **Google Search Console**: Uses Webmasters API v3 with Service Account authentication
-  - **Bing IndexNow**: POSTs only sitemap URLs modified within the last day, and nothing when none
+  - **Bing IndexNow**: POSTs only sitemap URLs modified within the last week, and nothing when none
     changed; IndexNow is for recently added or updated URLs, not the full URL list
   - Production-only execution (checks `NEXT_PUBLIC_SITE_URL`)
   - Command line options: `--google-only`, `--indexnow-only`, `--debug`
@@ -372,6 +395,20 @@ The `app/sitemap.ts` file aggregates content from multiple sources:
 
 Bookmark detail, bookmark tag, blog tag and book detail pages are excluded (see `lib/seo/search-exclusion.ts` above).
 
+Bookmark freshness belongs to `src/lib/bookmarks/content-dates.ts`: the latest valid
+`modifiedAt`, `dateCreated`, or `dateBookmarked`. Generic `getSafeDate`/`getLatestDate`
+belong to `src/lib/utils/date-format.ts`; `lib/sitemap/date-utils.ts` retains sitemap
+path/error handling, not date compatibility exports. Missing content dates do not
+become “now” merely because a fetch or index rebuild ran.
+
+### Canonical Routes and Native Content
+
+- Latest bookmarks render the requested `/bookmarks?feed=latest&page=N` slice with native anchors. Pages above 1 self-canonicalize with that query; page 1 canonicalizes to `/bookmarks`. Invalid/out-of-range Latest pages return not-found/noindex metadata. Discover retains full topic counts for “See all” and links to Latest.
+- Book aliases permanently redirect to the slug generated from the resolved book; metadata uses that same canonical slug. Unknown and draft-only blog tags use `notFound()` and noindex metadata without a self-canonical. This does not change direct draft-article visibility (see [`blog.md`](blog.md#notes)).
+- Project text and destination links stay server-owned, outside optional short-lived analysis reads; contact windows/cards render normal initial HTML without effect-mount gates. Keep Cache Components and metadata streaming (see [`nextjs-framework.md`](../standards/nextjs-framework.md#essential-html-and-optional-short-lived-caches)).
+- `isAccessChallenge()` (`lib/opengraph/validation.ts`) rejects publisher verification screens as article/OG content. Blocked captures remain honest saved links; healthy prior archives are preserved, while blocked sources without retrieved bodies suppress cached article-analysis UI (see [`bookmarks.md`](bookmarks.md#enrichment-preservation-contract)).
+- `e2e/native-content.spec.ts` checks no-JavaScript project/contact DOM; `e2e/seo-output.spec.ts` checks missing/draft-only versus published blog tags. The existing production smoke calls `scripts/native-content-smoke.ts` to validate visible native headings, descriptions, and normalized destination URLs, excluding Flight scripts and hidden streamed segments.
+
 ### URL Construction
 
 ```typescript
@@ -405,7 +442,7 @@ graph TD
     subgraph "Submission (scheduler/submit-sitemap.ts)"
         H --> I{Production Check}
         I -->|Yes| K[Google Client]
-        I -->|Yes| L[IndexNow: URLs changed in the last day]
+        I -->|Yes| L[IndexNow: URLs changed in the last week]
     end
 
     subgraph "External APIs"
@@ -449,7 +486,7 @@ graph TD
 2. **Production Check**: Verifies `NEXT_PUBLIC_SITE_URL` matches the canonical production URL
 3. **Submission**:
    - Google: PUT to the Webmasters API sitemaps endpoint
-   - IndexNow: POST of the sitemap URLs modified within the last day; skipped when there are none
+   - IndexNow: POST of the sitemap URLs modified within the last week; skipped when there are none
 
 ## Operations & Maintenance
 

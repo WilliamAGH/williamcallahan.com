@@ -100,6 +100,7 @@ function resolveToolContent(
 }
 
 function handleAnalysisValidation(params: {
+  messageId: string;
   analysisFeature: AnalysisFeatureId;
   outcomeText: string | undefined;
   attemptsSoFar: number;
@@ -110,6 +111,7 @@ function handleAnalysisValidation(params: {
   const text = typeof outcomeText === "string" ? outcomeText.trim() : "";
   if (text.length === 0) {
     console.warn("[upstream-pipeline] Analysis output missing content; validating empty response", {
+      messageId: params.messageId,
       feature: analysisFeature,
       attempt: attemptsSoFar,
       model: activeModel,
@@ -121,7 +123,12 @@ function handleAnalysisValidation(params: {
   if (nextAttempt < MAX_ANALYSIS_VALIDATION_ATTEMPTS) {
     console.warn(
       "[upstream-pipeline] Analysis output failed schema validation, retrying with stricter repair prompt",
-      { feature: analysisFeature, attempt: nextAttempt, reason: validation.reason },
+      {
+        messageId: params.messageId,
+        feature: analysisFeature,
+        attempt: nextAttempt,
+        reason: validation.reason,
+      },
     );
     const newMessages: OpenAiCompatibleChatMessage[] = [];
     if (text.length > 0) newMessages.push({ role: "assistant", content: text });
@@ -326,6 +333,7 @@ async function handleContentOutcome(ctx: ContentOutcomeCtx): Promise<ContentOutc
   }
   if (ctx.analysisFeature) {
     const result = handleAnalysisValidation({
+      messageId: ctx.args.messageId,
       analysisFeature: ctx.analysisFeature,
       outcomeText: ctx.result.text,
       attemptsSoFar: ctx.loopState.analysisValidationAttempts,

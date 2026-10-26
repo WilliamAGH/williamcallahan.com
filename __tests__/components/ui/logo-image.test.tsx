@@ -237,12 +237,19 @@ describe("OptimizedCardImage", () => {
   const cardSrc = "https://s3-storage.callahan.cloud/images/other/projects/aventurevc-homepage.png";
 
   it("renders single Image with native blur placeholder", () => {
-    render(<OptimizedCardImage src={cardSrc} alt="Project screenshot" />);
+    render(
+      <OptimizedCardImage
+        src={cardSrc}
+        alt="Project screenshot"
+        sizes="(min-width: 1024px) 25vw, 100vw"
+      />,
+    );
     const images = screen.getAllByTestId("next-image-mock");
 
     // Single image with native blur (no LQIP overlay)
     expect(images).toHaveLength(1);
     expect(images[0]).toHaveAttribute("src", cardSrc);
+    expect(images[0]).toHaveAttribute("sizes", "(min-width: 1024px) 25vw, 100vw");
     expect(images[0]).toHaveAttribute("data-placeholder", "blur");
     // In production, blurDataURL comes from Next.js's webpack loader on the static
     // opengraph-placeholder.png import. In Vitest, Vite's asset pipeline returns a
@@ -267,13 +274,14 @@ describe("OptimizedCardImage", () => {
   });
 
   it("uses opengraph placeholder when src is missing", () => {
-    render(<OptimizedCardImage src={null} alt="Project screenshot" />);
+    render(<OptimizedCardImage src={null} alt="Project screenshot" sizes="264px" />);
     const image = screen.getByTestId("next-image-mock");
 
     const src = image.getAttribute("src");
     expect(typeof src).toBe("string");
     expect(src).toContain("opengraph-placeholder");
     expect(image).toHaveAttribute("data-placeholder", "empty");
+    expect(image).toHaveAttribute("sizes", "264px");
   });
 
   it("eager-loads prioritized card images with thumbnail compression", () => {

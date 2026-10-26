@@ -24,6 +24,8 @@ export interface LogoImageProps {
 export interface OptimizedCardImageProps {
   src: string | null;
   alt: string;
+  /** Responsive slot width supplied by the grid that owns the image layout. */
+  sizes?: string;
   className?: string;
   /** Object-fit mode for card images */
   fit?: "cover" | "contain";

@@ -71,15 +71,26 @@ else
     exit 1
 fi
 
+# Configure each provider independently; one rejected submission does not skip the other.
 echo "🗺️  [Entrypoint] Submitting sitemap..."
-if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ]; then
-    if run_bootstrap_step node --run submit-sitemap; then
-        echo "✅ [Entrypoint] Sitemap submission completed"
+if [ -n "${GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY:-}" ] && [ -n "${GOOGLE_SEARCH_INDEXING_SA_EMAIL:-}" ] && [ -n "${GOOGLE_SEARCH_CONSOLE_PROPERTY:-}" ]; then
+    if run_bootstrap_step node --run submit-sitemap -- --google-only; then
+        echo "✅ [Entrypoint] Google sitemap submission completed"
     else
-        echo "⚠️  [Entrypoint] Sitemap submission failed; continuing startup"
+        echo "⚠️  [Entrypoint] Google sitemap submission failed; continuing startup"
     fi
 else
-    echo "⚠️  [Entrypoint] Missing Google sitemap credentials; skipping submission"
+    echo "⚠️  [Entrypoint] Missing Google sitemap configuration; skipping Google submission"
+fi
+
+if [ -n "${INDEXNOW_KEY:-}" ]; then
+    if run_bootstrap_step node --run submit-sitemap -- --indexnow-only; then
+        echo "✅ [Entrypoint] IndexNow submission completed"
+    else
+        echo "⚠️  [Entrypoint] IndexNow submission failed; continuing startup"
+    fi
+else
+    echo "⚠️  [Entrypoint] Missing IndexNow configuration; skipping IndexNow submission"
 fi
 
 echo "🕒 [Entrypoint] Starting scheduler..."

@@ -11,7 +11,7 @@
 
 import { ExternalLink } from "@/components/ui/external-link.client";
 import Image from "next/image";
-import React, { type JSX, useCallback, useEffect, useState } from "react";
+import React, { type JSX, useCallback, useState } from "react";
 import type { SocialCardProps } from "@/types/features/social";
 import { cn } from "@/lib/utils";
 import {
@@ -27,7 +27,6 @@ import {
   DEFAULT_BANNER_IMAGE,
   DEFAULT_GITHUB_USERNAME,
   DEFAULT_PROFILE_IMAGE,
-  MOUNT_DELAY_MS,
   PROFILE_IMAGE_PATHS,
   PROFILE_IMAGE_WIDTH_PX,
   detectSocialPlatform,
@@ -48,7 +47,6 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   const emphasized = Boolean(social.emphasized);
 
   const [imageError, setImageError] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   let domain = "";
   try {
@@ -70,11 +68,6 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
   if (serviceName === "X") serviceName = "Twitter";
   if (serviceName === "Bsky") serviceName = "Bluesky";
-
-  useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), MOUNT_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, []);
 
   /**
    * Resolves image URLs so CDN sources stay direct and external URLs are proxied.
@@ -140,12 +133,6 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   // Profile and banner images resolve synchronously from the label via optimized URLs.
   const [profileImageUrl, setProfileImageUrl] = useState(() => getProfileFallbackImage(label));
   const [domainImageUrl, setDomainImageUrl] = useState(() => getDomainFallbackImage(label));
-
-  if (!mounted) {
-    return (
-      <div className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-full" />
-    );
-  }
 
   const platform = detectSocialPlatform(label, domain);
   const cardBrandClass = platform ? (CARD_BRAND_CLASSES[platform] ?? "") : "";

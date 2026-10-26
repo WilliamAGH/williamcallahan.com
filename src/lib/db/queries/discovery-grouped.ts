@@ -131,7 +131,6 @@ export function dedupeDiscoverSections(
       });
       return {
         ...section,
-        totalCount: dedupedBookmarks.length,
         bookmarks: dedupedBookmarks,
       };
     })

@@ -45,11 +45,11 @@ function BooksWindowContentInner({
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-            <h1 className="text-xl font-mono ml-4">
+            <div className="text-xl font-mono ml-4">
               <Link href="/books" className="hover:underline">
                 {formattedTitle}
               </Link>
-            </h1>
+            </div>
           </div>
           <TerminalSearchHint context="books" />
         </div>

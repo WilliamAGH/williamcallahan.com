@@ -52,7 +52,34 @@ const LinkButton = ({
   );
 };
 
-export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
+export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = (props) =>
+  props.getPageHref ? (
+    <PaginationLinks {...props} getPageHref={props.getPageHref} />
+  ) : (
+    <PaginationControlUrlWithQuery {...props} />
+  );
+
+function PaginationControlUrlWithQuery({
+  baseUrl = "/bookmarks",
+  ...props
+}: PaginationControlUrlProps) {
+  const searchParams = useSearchParams();
+
+  const getPageHref = (page: number) => {
+    // Preserve the existing path-pagination URLs and current query parameters.
+    const params = new URLSearchParams(searchParams);
+    if (page === 1) {
+      return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+    }
+    return params.toString()
+      ? `${baseUrl}/page/${page}?${params.toString()}`
+      : `${baseUrl}/page/${page}`;
+  };
+
+  return <PaginationLinks {...props} getPageHref={getPageHref} />;
+}
+
+function PaginationLinks({
   currentPage = 1,
   totalPages = 10,
   totalItems = 100,
@@ -63,25 +90,8 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
   showPageInfo = true,
   maxVisiblePages = 5,
   className = "",
-  baseUrl = "/bookmarks",
-}) => {
-  const searchParams = useSearchParams();
-
-  const getPageUrl = (page: number) => {
-    // Preserve query parameters
-    const params = new URLSearchParams(searchParams);
-
-    // For page 1, use the base URL without page number
-    if (page === 1) {
-      return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
-    }
-
-    // For other pages, append the page number with /page/ prefix
-    return params.toString()
-      ? `${baseUrl}/page/${page}?${params.toString()}`
-      : `${baseUrl}/page/${page}`;
-  };
-
+  getPageHref: getPageUrl,
+}: PaginationControlUrlProps & { getPageHref: (page: number) => string }) {
   const getVisiblePages = () => {
     if (totalPages <= maxVisiblePages) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -301,4 +311,4 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
       </div>
     </div>
   );
-};
+}

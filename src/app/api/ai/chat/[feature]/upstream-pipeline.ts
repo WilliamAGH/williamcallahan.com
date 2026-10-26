@@ -46,6 +46,7 @@ function resolveLatestUserMessage(
 }
 
 function buildLogContext(args: {
+  messageId: string;
   feature: string;
   ctx: ValidatedRequestContext;
   messages: ReturnType<typeof buildChatMessages>;
@@ -55,6 +56,7 @@ function buildLogContext(args: {
   modelParams: ReturnType<typeof resolveModelParams>;
 }): ChatLogContext {
   return {
+    messageId: args.messageId,
     feature: args.feature,
     conversationId: args.ctx.parsedBody.conversationId,
     clientIp: args.ctx.clientIp,
@@ -111,8 +113,10 @@ export function buildChatPipeline(params: {
   const latestUserMessage = resolveLatestUserMessage(ctx.parsedBody);
   const hasToolSupport = resolveToolConfig(feature).enabled;
   const forcedToolName = hasToolSupport ? getForcedToolName(latestUserMessage) : undefined;
+  const messageId = crypto.randomUUID();
 
   const runUpstream = createUpstreamRunner({
+    messageId,
     feature,
     apiMode,
     messages,
@@ -128,6 +132,7 @@ export function buildChatPipeline(params: {
   });
 
   const logContext = buildLogContext({
+    messageId,
     feature,
     ctx,
     messages,

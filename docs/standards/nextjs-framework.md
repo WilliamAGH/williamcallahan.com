@@ -4,6 +4,9 @@
 
 ## Contract and Version Evidence
 
+Priority navigation links use Next.js automatic prefetch (`null`), not full
+prefetch (`true`), so optional dynamic content does not block prefetch validation.
+
 This is the operational contract for framework work in this repository. Verify a
 claim against the installed source and current framework documentation before changing
 application behavior; do not infer behavior from a major-version label.
@@ -105,12 +108,31 @@ official `partialPrefetching`/adoption guides retrieved through Context7 on 2026
 metadata streamed into `<body>`. Next leaves plain `Googlebot` off its default list because
 Googlebot renders JavaScript, yet Google ignores a `rel=canonical` outside `<head>`. The option
 replaces the default list, so `next.config.ts` extends Next's own `HTML_LIMITED_BOT_UA_RE` with
-`Googlebot` rather than copying the list. A bot match changes metadata placement only; dynamic
-rendering for bots follows Next's separate `getBotType` check. Evidence: installed
-`next/dist/server/config.js:1402-1405` (the RegExp is serialized to its source),
-`next/dist/server/lib/streaming-metadata.js` (the pattern decides streaming),
-`next/dist/server/base-server.js:1247-1249`, and the official `htmlLimitedBots` reference
-retrieved on 2026-10-25.
+`Googlebot` rather than copying the list. On a partially prerendered route a match also bypasses
+the static shell, because the shell has already closed `<head>`: the matched user agent gets an
+on-demand render, which is why the pattern names crawlers and never matches every visitor.
+Evidence: installed `next/dist/server/config.js:1402-1405` (the RegExp is serialized to its
+source), `next/dist/server/lib/streaming-metadata.js` (the pattern decides streaming),
+`next/dist/build/templates/app-page-runtime.js:342-348` (`shouldForceDynamicPPRRender`), and the
+official `htmlLimitedBots` reference retrieved on 2026-10-25.
+
+The root layout has no `<Suspense>`, so page content renders into the prerendered shell, where
+crawlers that skip JavaScript read it. React emits a completed boundary larger than its
+progressive chunk size as a hidden segment that a script reveals, so a boundary around a whole
+page hides that page from those crawlers; keep request-time and uncached reads in small local
+boundaries instead. The Docker build and the pre-push gate set `USE_NEXTJS_CACHE=false`, so
+readers that gate `"use cache"` on it read files and the database directly. Next runs the final
+prerender's stages as consecutive timers in one event-loop phase, which ends before any file or
+database read returns, so content behind such a read always resolves after the shell. A route
+that renders it outside a boundary fails the build with `blocking-prerender-dynamic`; the books
+and blog tag segments own a `loading.tsx` for that reason, and the thought segment owns one
+because `readThoughtBySlug` is an uncached database read whatever the flag says. A page that calls
+a literal `"use cache"` function, as `/blog` and `/blog/[slug]` do, stays in the shell.
+Evidence: installed `next/dist/compiled/react-dom/cjs/react-dom-server.node.production.js` defaults
+`progressiveChunkSize` to 12800 and outlines a boundary when
+`flushedByteSize + boundary.byteSize > request.progressiveChunkSize`;
+`next/dist/server/app-render/app-render-render-utils.js` (`runInSequentialTasks`) schedules the
+stages through `app-render-scheduling.js` (`createAtomicTimerGroup`).
 
 `next.config.ts` is the application configuration owner. Cache components invert the
 old route-config workflow: cache explicitly with `'use cache'`; do not use old
@@ -126,6 +148,29 @@ page/layout `dynamic` exports or `unstable_noStore()` to force rendering behavio
   Handler may use it only when request-time execution is its explicit contract.
 - Keep bookmark and sitemap reads bounded. Do not reintroduce build-phase
   `NEXT_PHASE` guards that remove sitemap sections or production/build local fallbacks.
+
+### Essential HTML and Optional Short-Lived Caches
+
+`src/lib/ai-analysis/reader.server.ts` gives missing analysis a one-second cache
+profile (`stale: 0, revalidate: 1, expire: 1`). Such a short expiry becomes a PPR
+dynamic hole, not static shell content. Awaiting that optional read above essential
+content can therefore defer the whole subtree. Keep project headings, descriptions,
+and destination links in the server-owned `project-detail.tsx`; only
+`project-detail-analysis.server.tsx` reads analysis under its own Suspense boundary.
+Parallax belongs to `project-detail-image.client.tsx`, not the text/link shell.
+Contact windows/cards must render their normal initial state without waiting for
+effect-based registration or mount timers.
+
+Keep Cache Components and metadata streaming enabled. Query-dependent Latest
+bookmark content stays under Suspense while the server resolves the requested slice.
+Verify native DOM/HTML, not matching text inside serialized Flight data:
+`e2e/native-content.spec.ts` covers no-JavaScript project/contact rendering and
+`scripts/native-content-smoke.ts` supplies the existing production smoke's markup checks.
+
+Evidence: installed `next/dist/server/use-cache/use-cache-wrapper.js:1683-1722` and
+`next/dist/docs/01-app/03-api-reference/04-functions/cacheLife.md#prerendering-behavior`;
+official `cacheLife` guidance retrieved through Context7 on 2026-10-25 confirms
+`expire` below five minutes is excluded from prerenders and requires Suspense.
 
 ### Activity-Preserved Route DOM
 

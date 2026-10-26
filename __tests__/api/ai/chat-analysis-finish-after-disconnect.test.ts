@@ -91,6 +91,7 @@ const bookmarkAnalysis = {
 };
 
 const logContext: ChatLogContext = {
+  messageId: "8a61d837-8bfd-4f63-bcfa-498d1a28115b",
   feature: "bookmark-analysis",
   clientIp: "203.0.113.7",
   userAgent: "vitest",

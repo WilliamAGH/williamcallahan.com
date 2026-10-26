@@ -66,6 +66,7 @@ export function TopicSection({
               domain={bookmark.domain}
               slug={bookmark.slug}
               variant="compact"
+              imageSizes="(min-width: 1536px) min(25vw - 20px, 430px), (min-width: 1280px) min(25vw - 20px, 330px), (min-width: 1024px) calc((95vw - 80px) / 4), (min-width: 640px) calc((95vw - 48px) / 2), calc(95vw - 32px)"
               internalHref={internalHrefs[bookmark.id]}
               preload={index < priorityImageCount}
             />

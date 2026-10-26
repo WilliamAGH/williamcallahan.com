@@ -68,6 +68,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     isFavorite,
     note,
     variant = "default",
+    imageSizes,
   } = props;
   const pathname = usePathname();
   const isHero = variant === "hero";
@@ -119,7 +120,12 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
             className="absolute inset-0 block"
           >
             <div className="relative w-full h-full">
-              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
+              <OptimizedCardImage
+                src={displayImageUrl ?? null}
+                alt={title}
+                preload={preload}
+                sizes={imageSizes}
+              />
             </div>
           </BookmarkCardLink>
           {displayHostname !== null && (
@@ -198,7 +204,12 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         >
           <div className="relative w-full h-full">
             {/* Display OpenGraph image, screenshot, or placeholder */}
-            <OptimizedCardImage src={displayImageUrl ?? null} alt={title} preload={preload} />
+            <OptimizedCardImage
+              src={displayImageUrl ?? null}
+              alt={title}
+              preload={preload}
+              sizes={imageSizes}
+            />
           </div>
         </BookmarkCardLink>
         {/* Clickable domain overlay - links to external URL */}

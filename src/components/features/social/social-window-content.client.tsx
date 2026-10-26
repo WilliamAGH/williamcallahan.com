@@ -1,13 +1,10 @@
 "use client";
 
-import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { SocialListClient } from "./social-list.client";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 
 import type { SocialWindowContentProps } from "@/types/features/social";
-
-const SOCIAL_LOADING_KEYS = ["social-loading-1", "social-loading-2", "social-loading-3"] as const;
 
 export function SocialWindowContent({
   children,
@@ -49,18 +46,8 @@ export function SocialWindowContent({
       </div>
 
       <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
-        <Suspense
-          fallback={
-            <div className="animate-pulse space-y-4 p-6">
-              {SOCIAL_LOADING_KEYS.map((key) => (
-                <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
-              ))}
-            </div>
-          }
-        >
-          {children}
-          <SocialListClient />
-        </Suspense>
+        {children}
+        <SocialListClient />
       </div>
     </div>
   );

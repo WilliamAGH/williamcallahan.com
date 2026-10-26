@@ -19,6 +19,7 @@ import { getS3CdnUrl } from "@/lib/utils/cdn-utils";
 import { getErrorMessage } from "@/lib/utils/error-utils";
 import { fetchWithTimeout } from "@/lib/utils/http-client";
 import { retryWithThrow, RETRY_CONFIGS } from "@/lib/utils/retry";
+import { isAccessChallenge } from "@/lib/opengraph/validation";
 
 const LOG_PREFIX = "[Bookmarks OpenGraph]";
 
@@ -41,6 +42,7 @@ const applyOgTextMetadata = (
   bookmark: UnifiedBookmark,
   metadata: { title?: string | null; description?: string | null },
 ): void => {
+  if (isAccessChallenge(metadata.title, metadata.description)) return;
   const ogTitle = metadata.title?.trim();
   if (ogTitle) {
     bookmark.ogTitle = ogTitle;
@@ -119,7 +121,7 @@ export async function processBookmarksInBatches(
     const bookmark = bookmarks[i];
     if (!bookmark) continue; // Type guard
 
-    if (!bookmark.url) {
+    if (!bookmark.url || bookmark.content?.crawlStatus === "blocked") {
       enrichedBookmarks.push(bookmark);
       continue;
     }

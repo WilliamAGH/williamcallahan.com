@@ -53,6 +53,19 @@
         },
         "browser_ttl": {
           "mode": "respect_origin"
+        },
+        "vary": {
+          "default": {
+            "action": "bypass"
+          },
+          "headers": {
+            "accept": {
+              "action": "passthrough"
+            },
+            "accept-encoding": {
+              "action": "normalize"
+            }
+          }
         }
       },
       "enabled": true
@@ -135,8 +148,7 @@
       "action_parameters": {
         "cache": true,
         "edge_ttl": {
-          "mode": "override_origin",
-          "default": 86400,
+          "mode": "respect_origin",
           "status_code_ttl": [
             {
               "status_code_range": { "from": 400, "to": 599 },

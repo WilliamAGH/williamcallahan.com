@@ -61,6 +61,8 @@ export type BookmarkCardClientProps = BookmarkCardRequiredFields &
     /** Preload the card image for above-the-fold visibility */
     preload?: boolean;
     variant?: "default" | "hero" | "compact";
+    /** Grid-owned image slot width; independent of the card's visual variant. */
+    imageSizes?: string;
   };
 
 export type BookmarkCardLinkProps = Readonly<{

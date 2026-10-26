@@ -1,16 +1,19 @@
-import { and, eq, notInArray, sql, type SQL } from "drizzle-orm";
-import type { PgColumn, PgUpdateSetSource } from "drizzle-orm/pg-core";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import { calculateBookmarksChecksum } from "@/lib/bookmarks/utils";
+import { getLatestBookmarkLastModified } from "@/lib/bookmarks/content-dates";
 import {
-  BOOKMARK_ENRICHMENT_FIELDS,
+  mapBookmarkSelectsToUnifiedBookmarks,
   mapUnifiedBookmarksToBookmarkInserts,
 } from "@/lib/db/bookmark-record-mapper";
+import { hydrateEnrichment } from "@/lib/bookmarks/enrichment-hydration";
 import { applySlugMapping, reconcileSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { assertDatabaseWriteAllowed, db } from "@/lib/db/connection";
 import { getSlugMappingRowsFromDatabase } from "@/lib/db/queries/bookmarks";
 import {
   bookmarkIndexState,
+  bookmarkTagAliasLinks,
   bookmarkTags,
   bookmarkTagIndexState,
   bookmarkTagLinks,
@@ -21,30 +24,23 @@ import type { BookmarkInsert } from "@/types/db/bookmarks";
 import type { UnifiedBookmark } from "@/types/schemas/bookmark";
 
 const GLOBAL_BOOKMARK_INDEX_STATE_ID = "global";
+// Pruning an identity with incoming aliases would cascade-delete its redirects.
+const unreferencedTag = sql`not exists (
+  select 1 from ${bookmarkTagAliasLinks}
+  where ${bookmarkTagAliasLinks.targetTagSlug} = ${bookmarkTags.tagSlug}
+     or ${bookmarkTagAliasLinks.sourceTagSlug} = ${bookmarkTags.tagSlug}
+)`;
 const UPSERT_MAX_RETRIES = 3;
 const UPSERT_RETRY_DELAY_MS = 500;
 
 type BookmarkWriteExecutor = Pick<typeof db, "delete" | "insert">;
 
-/**
- * Enrichment-owned columns ([BOOKMARK_ENRICHMENT_FIELDS]) are produced by
- * OpenGraph/logo/computed-field pipelines, not by the Karakeep source
- * payload. A refresh that carries no enrichment must not erase previously
- * persisted values, so on conflict these columns keep the stored value
- * whenever the incoming one is NULL.
- */
-const preserveEnrichment = (column: PgColumn): SQL =>
-  sql`coalesce(excluded.${sql.identifier(column.name)}, ${column})`;
-
+/** The locked write transaction hydrates healthy fields before building this update. */
 export const buildBookmarkConflictUpdate = ({
   id: _id,
   ...updatableFields
 }: BookmarkInsert): PgUpdateSetSource<typeof bookmarks> => {
-  const set: PgUpdateSetSource<typeof bookmarks> = { ...updatableFields };
-  for (const field of BOOKMARK_ENRICHMENT_FIELDS) {
-    set[field] = preserveEnrichment(bookmarks[field]);
-  }
-  return set;
+  return updatableFields;
 };
 
 const buildBookmarkIndexStatePayload = (
@@ -149,7 +145,6 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
   changeDetected: boolean,
 ): Promise<void> {
   const timestamp = Date.now();
-  const lastModified = new Date(timestamp).toISOString();
 
   const tagLinkRows: Array<typeof bookmarkTagLinks.$inferInsert> = [];
   const tagsBySlug = new Map<
@@ -210,7 +205,7 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
         count,
         calculateBookmarksChecksum(bucket.bookmarks),
         timestamp,
-        lastModified,
+        getLatestBookmarkLastModified(bucket.bookmarks) ?? "",
         changeDetected,
       ),
     });
@@ -223,7 +218,7 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
       globalCount,
       calculateBookmarksChecksum([...bookmarksData]),
       timestamp,
-      lastModified,
+      getLatestBookmarkLastModified(bookmarksData) ?? "",
       changeDetected,
     ),
   };
@@ -242,7 +237,9 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
   }
 
   if (incomingPrimaryTagSlugs.length === 0) {
-    await executor.delete(bookmarkTags).where(eq(bookmarkTags.tagStatus, "primary"));
+    await executor
+      .delete(bookmarkTags)
+      .where(and(eq(bookmarkTags.tagStatus, "primary"), unreferencedTag));
   } else {
     await executor
       .delete(bookmarkTags)
@@ -250,6 +247,7 @@ async function rebuildBookmarkTaxonomyStateInTransaction(
         and(
           eq(bookmarkTags.tagStatus, "primary"),
           notInArray(bookmarkTags.tagSlug, incomingPrimaryTagSlugs),
+          unreferencedTag,
         ),
       );
   }
@@ -296,6 +294,20 @@ async function writeUnifiedBookmarks(
         const persistedSlugs = await getSlugMappingRowsFromDatabase(tx);
         const mapping = reconcileSlugMapping(bookmarksData, persistedSlugs);
         const reconciledBookmarks = applySlugMapping(bookmarksData, mapping);
+        // Preservation and rejection must use the same locked snapshot as the write.
+        // If this read fails, no update can erase an archive or revive rejected data.
+        if (reconciledBookmarks.length > 0) {
+          const priorRows = await tx
+            .select()
+            .from(bookmarks)
+            .where(
+              inArray(
+                bookmarks.id,
+                reconciledBookmarks.map((bookmark) => bookmark.id),
+              ),
+            );
+          hydrateEnrichment(reconciledBookmarks, mapBookmarkSelectsToUnifiedBookmarks(priorRows));
+        }
         const inserts = mapUnifiedBookmarksToBookmarkInserts(reconciledBookmarks);
 
         await upsertBookmarks(tx, inserts);

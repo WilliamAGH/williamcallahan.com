@@ -185,13 +185,20 @@ export function createSseStreamResponse(config: SseStreamConfig): SseStreamResul
           return undefined;
         })
         .catch((error: unknown) => {
+          const durationMs = Date.now() - startTime;
+          const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
           if (isAbortError(error)) {
+            logFailedChat({
+              ctx: logContext,
+              errorMessage: "Request aborted",
+              durationMs,
+              queueWaitMs,
+              statusCode: 499,
+            });
             safeClose();
             return;
           }
 
-          const durationMs = Date.now() - startTime;
-          const queueWaitMs = sseStartedAtMs ? sseStartedAtMs - enqueuedAtMs : 0;
           const responseError = resolveErrorResponse(error);
 
           logFailedChat({

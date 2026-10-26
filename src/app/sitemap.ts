@@ -25,7 +25,7 @@
  * @see {@link "../lib/sitemap/content-collectors"} - Thought collector
  * @see {@link "../lib/sitemap/blog-collector"} - Blog post collector
  * @see {@link "../lib/sitemap/constants"} - Shared sitemap constants
- * @see {@link "../lib/sitemap/date-utils"} - Date parsing utilities
+ * @see {@link "../lib/utils/date-format"} - Date parsing utilities
  */
 
 import type { MetadataRoute } from "next";
@@ -54,7 +54,8 @@ import {
   THOUGHT_PRIORITY,
 } from "@/lib/sitemap/constants";
 import { collectThoughtSitemapData } from "@/lib/sitemap/content-collectors";
-import { getLatestDate, getSafeDate, isTestEnvironment } from "@/lib/sitemap/date-utils";
+import { isTestEnvironment } from "@/lib/sitemap/date-utils";
+import { getLatestDate, getSafeDate } from "@/lib/utils/date-format";
 
 let runtimeSitemapCache: {
   generatedAt: number;
@@ -116,7 +117,8 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     },
     "/books": {
       priority: BOOK_PRIORITY,
-      lastModified: getSafeDate(PAGE_METADATA.books?.dateModified),
+      // The runtime reading list has no content-change watermark; a static date is misleading.
+      lastModified: undefined,
     },
     "/thoughts": {
       priority: THOUGHT_PRIORITY,

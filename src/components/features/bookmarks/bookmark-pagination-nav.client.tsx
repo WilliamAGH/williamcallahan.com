@@ -1,8 +1,8 @@
 /**
  * Bookmark Pagination Navigation
  *
- * Renders either URL-based or callback-based pagination controls
- * depending on whether the client is browser-mounted.
+ * Renders crawlable feed links with native navigation, or the existing
+ * URL-based and callback-based controls for other bookmark views.
  *
  * @module components/features/bookmarks/bookmark-pagination-nav.client
  */
@@ -21,6 +21,7 @@ export const BookmarkPaginationNav: React.FC<{
   isLoading: boolean;
   baseUrl: string;
   useUrlPagination: boolean;
+  getPageHref?: (page: number) => string;
   onPageChange: (page: number) => void;
   className?: string;
 }> = ({
@@ -31,6 +32,7 @@ export const BookmarkPaginationNav: React.FC<{
   isLoading,
   baseUrl,
   useUrlPagination,
+  getPageHref,
   onPageChange,
   className,
 }) => {
@@ -38,7 +40,7 @@ export const BookmarkPaginationNav: React.FC<{
 
   return (
     <div className={`flex justify-end ${className ?? ""}`}>
-      {useUrlPagination ? (
+      {getPageHref || useUrlPagination ? (
         <PaginationControlUrl
           currentPage={currentPage}
           totalPages={totalPages}
@@ -46,6 +48,8 @@ export const BookmarkPaginationNav: React.FC<{
           itemsPerPage={itemsPerPage}
           isLoading={isLoading}
           baseUrl={baseUrl}
+          getPageHref={getPageHref}
+          showPageInfo={getPageHref ? false : undefined}
         />
       ) : (
         <PaginationControl

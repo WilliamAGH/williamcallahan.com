@@ -4,6 +4,12 @@
 
 ## Purpose
 
+Responsive card callers own their rendered slot size. `OptimizedCardImage` forwards an optional
+`sizes` value to both source and placeholder images; its default remains unchanged for unrelated
+layouts. Books account for their 2/3/4-column grid and maximized 1152px content cap. Bookmark topic
+sections supply their 1/2/4-column sizing separately from hero and latest-feed cards. Never infer
+grid width from the card's `compact` visual variant, which is reused in two-column feeds.
+
 Deliver every logo, OpenGraph card, bookmark preview, profile photo, and social asset with consistent validation, deterministic storage, CDN-ready URLs, and bounded-resource handling. This domain begins when a feature needs an image (component/server fetch) and ends when the asset is persisted, cached, and rendered through Next.js or a raw HTTP response.
 
 ## Domain Scope & Non-Goals
