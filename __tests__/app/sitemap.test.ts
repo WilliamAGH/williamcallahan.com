@@ -77,6 +77,13 @@ describe("Sitemap Generation", () => {
     expect(entries.map((entry) => entry.url)).not.toContain("https://williamcallahan.com/thoughts");
   });
 
+  it("omits a fabricated lastModified for the runtime reading list", async () => {
+    const entries = await sitemap();
+    const books = entries.find((entry) => entry.url === "https://williamcallahan.com/books");
+    expect(books).toBeDefined();
+    expect(books?.lastModified).toBeUndefined();
+  });
+
   it("lists /thoughts and each published thought once one exists", async () => {
     vi.mocked(getThoughtListItems).mockResolvedValue([
       {

@@ -37,6 +37,7 @@ export default async function BlogPage() {
   // Fetch failures must propagate to the error boundary: rendering an empty
   // index with HTTP 200 would serve crawlers a soft-empty page.
   const posts: BlogPost[] = await getAllPostsMeta();
+  const publishedPosts = posts.filter((post) => !post.draft);
 
   // Generate JSON-LD schema for the blog page
   const pageMetadata = PAGE_METADATA.blog;
@@ -49,8 +50,8 @@ export default async function BlogPage() {
     description: pageMetadata.description,
     datePublished: formattedCreated,
     dateModified: formattedModified,
-    type: "collection" as const,
-    itemList: posts.map((post, index) => ({
+    type: publishedPosts.length > 0 ? ("collection" as const) : undefined,
+    itemList: publishedPosts.map((post, index) => ({
       url: `/blog/${post.slug}`,
       position: index + 1,
     })),

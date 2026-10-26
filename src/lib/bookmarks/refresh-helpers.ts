@@ -199,19 +199,38 @@ export async function validateChecksumAndGetCached(
     return { cached: null, checksum: rawChecksum };
   }
 
+  const sourceIds = new Set(allRawBookmarks.map((bookmark) => bookmark.id));
+  if (sourceIds.size !== allRawBookmarks.length) {
+    console.warn("[refreshBookmarksData] Duplicate source bookmark IDs; refusing cache reuse.");
+    return { cached: null, checksum: rawChecksum };
+  }
+
   try {
     const { getAllBookmarks, getBookmarksIndexFromDatabase } = await loadBookmarkQueryModule();
     const indexState = await getBookmarksIndexFromDatabase();
 
-    if (indexState.checksum !== rawChecksum) {
+    if (indexState.count !== sourceIds.size || indexState.checksum !== rawChecksum) {
       return { cached: null, checksum: rawChecksum };
     }
 
-    const cachedBookmarks = await getAllBookmarks();
-    if (cachedBookmarks.length !== allRawBookmarks.length) {
+    // Durable rows also reserve historical slugs; only compare the fetched list's members.
+    const durableBookmarks = await getAllBookmarks();
+    const cachedBookmarks = durableBookmarks.filter((bookmark) => sourceIds.has(bookmark.id));
+    const cachedIds = new Set(cachedBookmarks.map((bookmark) => bookmark.id));
+    if (cachedIds.size !== cachedBookmarks.length) {
+      console.warn("[refreshBookmarksData] Duplicate cached bookmark IDs; refusing cache reuse.");
+      return { cached: null, checksum: rawChecksum };
+    }
+
+    const missingCount = sourceIds.size - cachedIds.size;
+    if (missingCount > 0) {
       console.warn(
-        `[refreshBookmarksData] PostgreSQL count mismatch (cached: ${cachedBookmarks.length}, expected: ${allRawBookmarks.length}).`,
+        `[refreshBookmarksData] PostgreSQL cache missing ${missingCount} source bookmark(s) (cached: ${cachedIds.size}, expected: ${sourceIds.size}).`,
       );
+      return { cached: null, checksum: rawChecksum };
+    }
+
+    if (calculateBookmarksChecksum(cachedBookmarks) !== rawChecksum) {
       return { cached: null, checksum: rawChecksum };
     }
 

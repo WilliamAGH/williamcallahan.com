@@ -90,24 +90,25 @@ content type.
 
 Swarm's start-first rollout serves old and new web replicas side by side, and Traefik spreads
 requests across them. A document one release rendered can therefore request a hashed
-`/_next/static/chunks` file that only the other release's image holds. Every release renames at
+`/_next/static/chunks` or `/_next/static/media` file that only the other release's image holds. Every release renames at
 least one stylesheet, because its font URLs embed the `dpl` release id; before the archive, that
 request returned `404` and the page rendered unstyled until a reload.
 
 - The web image build runs `scripts/archive-static-assets.ts` right after `next build`. It copies
-  every file under `.next/static/chunks` to the CDN bucket at the same `_next/static/chunks/<path>`
+  supported public chunk and media files to the CDN bucket at their same `_next/static/<kind>/<path>`
   key, with `Cache-Control: public, max-age=31536000, immutable`. A failed copy fails the build,
-  so the archive holds a release's chunks before any of its replicas serve.
-- `next.config.ts` `rewrites().fallback` sends a `/_next/static/chunks/:path*` request the
+  so the archive holds a release's files before any of its replicas serve. Source maps and unsupported/private output are not published.
+- `next.config.ts` `rewrites().fallback` sends a missing `/_next/static/chunks/:path*` or
+  `/_next/static/media/:path*` request the
   replica's filesystem cannot answer to `src/app/api/static-archive/[...path]/route.ts`, which
-  fetches the chunk from `NEXT_PUBLIC_S3_CDN_URL` under a 10 s total deadline. The browser keeps
+  fetches the public file from `NEXT_PUBLIC_S3_CDN_URL` under a 10 s total deadline. The browser keeps
   the same relative URL, so no `assetPrefix` is involved and copied-HTML renderers (TRMNL) are
   unaffected. The handler sends no visitor cookies to the CDN, answers an archived chunk with the
   immutable header, an absent one with `404` and Next's own `no-store` header, and a timeout or
   upstream error with an uncacheable `503`.
-- `/_next/static/media` is not archived. Media names are content hashes that change only when the
-  font or image bytes change, and fonts carry the CORS header TRMNL's copied HTML needs from
-  `headers()`.
+- Media is retained alongside chunks, including hashed images and fonts. Fonts retain the CORS
+  behavior needed by copied HTML. An old hash whose original bytes were never archived remains
+  a truthful, uncacheable404; do not upload a guessed immutable alias.
 - A replica relays only through its own configuration, so a release's old replicas cover the new
   release's chunks once the release before it carried this rewrite.
 - The `linux/amd64` and `linux/arm64` builds of one commit emit partly different chunk names
@@ -122,6 +123,12 @@ Next's built-in skew protection (`deploymentId` routing) needs a version-pinned 
 routes by service, not by the `dpl` query, so it is not used here [IO0e].
 
 ## Cloudflare Cache Rules
+
+The optimized-image rule keys raw `Accept` variants whenever Next emits `Vary: Accept`,
+normalizes encoding, and bypasses unexpected Vary fields. This uses general Cache Rules Vary
+(available on Free), not paid extension-based Vary for Images. AVIF and WebP clients must never
+share a negotiated representation. The OG redirect rule respects origin cache headers so
+terminal failure placeholders marked no-store do not become a day-long cached outage.
 
 `infra/cloudflare/cache-rules.json` is the declarative Cache Rules owner, validated by
 `infra/cloudflare/cache-rules.schema.json`. Preview the live diff before applying it, then deploy

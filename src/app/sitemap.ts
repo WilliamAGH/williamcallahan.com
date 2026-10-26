@@ -117,7 +117,8 @@ const buildSitemapEntries = async (): Promise<MetadataRoute.Sitemap> => {
     },
     "/books": {
       priority: BOOK_PRIORITY,
-      lastModified: getSafeDate(PAGE_METADATA.books?.dateModified),
+      // The runtime reading list has no content-change watermark; a static date is misleading.
+      lastModified: undefined,
     },
     "/thoughts": {
       priority: THOUGHT_PRIORITY,

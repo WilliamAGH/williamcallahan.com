@@ -34,6 +34,7 @@ export type ValidatedRequestContext = {
 
 /** Log context for chat message logging */
 export type ChatLogContext = {
+  messageId: string;
   feature: string;
   conversationId?: string;
   clientIp: string;
@@ -154,6 +155,7 @@ export type AnalysisFeatureId = Exclude<AiFeatureIdentifier, "terminal_chat">;
 
 /** Configuration bag passed to createUpstreamRunner */
 export type UpstreamRunnerConfig = {
+  messageId: string;
   feature: AiFeatureIdentifier;
   apiMode: AiUpstreamApiMode;
   messages: OpenAiCompatibleChatMessage[];

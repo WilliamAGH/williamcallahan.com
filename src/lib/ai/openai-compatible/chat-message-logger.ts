@@ -88,7 +88,7 @@ function extractBookmarkContext(
 
 /**
  * Logs a chat message interaction with full context and metrics.
- * Generates a unique messageId and timestamp for each log entry.
+ * Preserves a supplied messageId or generates one for callers without an execution context.
  */
 export function logChatMessage(params: LogChatMessageParams): AiChatMessageLog {
   const source = categorizeSource(params.feature);
@@ -97,7 +97,7 @@ export function logChatMessage(params: LogChatMessageParams): AiChatMessageLog {
   const outputCharCount = params.assistantMessage?.length ?? 0;
 
   const logEntry: AiChatMessageLog = {
-    messageId: crypto.randomUUID(),
+    messageId: params.messageId ?? crypto.randomUUID(),
     conversationId: params.conversationId,
     timestamp: new Date().toISOString(),
     source,
@@ -124,7 +124,10 @@ export function logChatMessage(params: LogChatMessageParams): AiChatMessageLog {
 
   // Structured log output
   const logLine = formatLogLine(logEntry);
-  if (params.success) {
+  if (params.metrics.statusCode === 499) {
+    // A user cancelling is not an application failure; retain the terminal facts without paging.
+    logger.info(`[INFO] ${logLine}`);
+  } else if (params.success) {
     logger.info(logLine);
   } else {
     logger.error(logLine);

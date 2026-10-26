@@ -1,5 +1,21 @@
 # SEO Architecture
 
+## Verified front-end parity contracts
+
+- Blog collection JSON-LD lists published article URLs, not breadcrumb navigation. Blog listing
+  OpenGraph uses `website`; actual article pages retain supported article publication dates.
+- Contact's existing public heading/introduction renders before window-registry effects; book
+  window chrome does not duplicate the reading-list content H1. Privacy-card guards remain.
+- IndexNow can run with its own configuration independently of Google credentials. A real dry-run
+  previews without submission POSTs; known failures return a nonzero command outcome while scheduler
+  startup remains available. `--debug` is not a dry-run.
+- `/books` omits sitemap `lastmod` until its runtime content owner supplies a true change watermark;
+  a fixed page metadata date is not a reading-list freshness signal.
+
+Do not copy platform-scale image-derivative or sitemap machinery without measured demand. The
+registered eight-URL audit is a bounded sample; GSC and personal-zone traffic analytics were not
+available for ranking or cost claims.
+
 **Functionality:** `seo`
 
 ## Core Purpose

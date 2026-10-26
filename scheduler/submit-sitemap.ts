@@ -2,8 +2,9 @@
  * @file Sitemap submission to Google Search Console & IndexNow (Bing)
  * @description Submits sitemap.xml and URLs to search engines with rate limiting
  *
- * CLI: `pnpm run submit-sitemap -- [--google-only|--indexnow-only|--debug]`
+ * CLI: `pnpm run submit-sitemap -- [--google-only|--indexnow-only] [--debug] [--dry-run]`
  * Override safety: `FORCE_SITEMAP_SUBMIT=true`
+ * `--dry-run` or `INDEXNOW_DRY_RUN=true` previews both providers without auth or submissions.
  *
  * Required env vars:
  * - Google: GOOGLE_SEARCH_INDEXING_SA_EMAIL, GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY
@@ -26,7 +27,7 @@ import {
   createAuthClient,
   submitGoogleSitemap,
 } from "./lib/google-indexing";
-import { submitToIndexNow } from "./lib/indexnow-submit";
+import { IndexNowSubmissionError, submitToIndexNow } from "./lib/indexnow-submit";
 
 // Configuration constants
 const CANONICAL_SITE_URL = "https://williamcallahan.com";
@@ -38,6 +39,7 @@ const LOG_PREFIX = {
 
 // CLI flags
 const DEBUG_MODE = process.argv.includes("--debug");
+const DRY_RUN = process.argv.includes("--dry-run") || process.env.INDEXNOW_DRY_RUN === "true";
 const GOOGLE_ONLY = process.argv.includes("--google-only");
 const INDEXNOW_ONLY = process.argv.includes("--indexnow-only");
 const SKIP_GOOGLE = process.argv.includes("--skip-google") || INDEXNOW_ONLY;
@@ -61,13 +63,14 @@ const main = async (): Promise<void> => {
   // authClient being non-null is the single source of truth for "Google enabled"
   let authClient: JWT | null = null;
 
-  if (!SKIP_GOOGLE) {
+  if (!SKIP_GOOGLE && !DRY_RUN) {
     try {
       authClient = createAuthClient();
     } catch (err) {
       if (err instanceof GoogleCredentialError) {
-        console.error(`${LOG_PREFIX.google} ${err.formatWithDiagnostics()}`);
+        console.error(`${LOG_PREFIX.google} ${err.message}`);
         console.warn(`${LOG_PREFIX.google} Google submission disabled due to credential error.`);
+        process.exitCode = 1;
       } else {
         throw err; // Re-throw unexpected errors
       }
@@ -76,7 +79,7 @@ const main = async (): Promise<void> => {
 
   if (DEBUG_MODE) {
     console.info(
-      `${LOG_PREFIX.google} Per-URL Indexing-API submission disabled – sitemap ping only`,
+      `${LOG_PREFIX.google} Per-URL Indexing-API submission disabled – sitemap submission only`,
     );
   }
 
@@ -94,6 +97,12 @@ const main = async (): Promise<void> => {
     ? submissionSiteUrl
     : `${submissionSiteUrl}/`;
   const sitemapUrl = `${siteUrlCanonical}sitemap.xml`;
+
+  if (DRY_RUN && !SKIP_GOOGLE) {
+    console.info(
+      `${LOG_PREFIX.google} Dry run: selected 1 sitemap for ${new URL(siteUrlCanonical).host}.`,
+    );
+  }
 
   // Submit to Google (only if auth client was successfully initialized)
   if (authClient) {
@@ -123,6 +132,7 @@ const main = async (): Promise<void> => {
       INDEXNOW_KEY_FILE,
       isLocalhost,
       DEBUG_MODE,
+      DRY_RUN,
     );
   else if (DEBUG_MODE) console.info(`${LOG_PREFIX.indexNow} Skipped due to CLI flag.`);
 };
@@ -133,8 +143,15 @@ try {
   // Explicitly exit to avoid hanging event-loop handles (e.g. open keep-alive
   // sockets inside google-auth-library / gaxios). Only run after successful
   // completion; failures are handled in the catch below.
-  process.exit(0);
+  process.exit(process.exitCode ?? 0);
 } catch (err) {
-  console.error("An unexpected error occurred in the main process:", err);
+  if (err instanceof IndexNowSubmissionError) {
+    console.error(`${LOG_PREFIX.indexNow} ${err.message}`);
+  } else {
+    console.error(
+      "Sitemap submission failed with an unexpected runtime or configuration error:",
+      err,
+    );
+  }
   process.exit(1);
 }

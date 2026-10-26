@@ -71,17 +71,81 @@ describe("validateChecksumAndGetCached", () => {
     vi.clearAllMocks();
   });
 
-  it("returns the cached dataset when the raw checksum matches the persisted index checksum", async () => {
+  it.each([false, true])(
+    "reuses enriched source members with retained history: %s",
+    async (retainHistory) => {
+      const raw = [buildRaw("a"), buildRaw("b")];
+      const selected = [
+        buildCached("b", {
+          summary: "Persisted summary",
+          ogImage: "https://example.com/image.png",
+        }),
+        buildCached("a"),
+      ];
+      const cached = retainHistory ? [...selected, buildCached("c", { slug: "" })] : selected;
+      mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+        buildIndex(raw.length, calculateBookmarksChecksum(selected)),
+      );
+      mockGetAllBookmarks.mockResolvedValue(cached);
+
+      const result = await validateChecksumAndGetCached(raw, false);
+
+      expect(result.cached).toEqual(selected);
+      expect(result.cached?.[0]).toMatchObject({
+        id: "b",
+        summary: "Persisted summary",
+        ogImage: "https://example.com/image.png",
+      });
+      expect(cached.map((bookmark) => bookmark.id)).toEqual(
+        retainHistory ? ["b", "a", "c"] : ["b", "a"],
+      );
+    },
+  );
+
+  it.each([
+    {
+      reason: "a source ID is missing despite equal durable counts",
+      ids: ["a", "c"],
+      stale: false,
+      indexCount: 2,
+    },
+    {
+      reason: "cached modification differs from the matching index",
+      ids: ["a", "b"],
+      stale: true,
+      indexCount: 2,
+    },
+    {
+      reason: "the index count differs from the source",
+      ids: ["a", "b"],
+      stale: false,
+      indexCount: 3,
+    },
+  ])("rejects cache when $reason", async ({ ids, stale, indexCount }) => {
     const raw = [buildRaw("a"), buildRaw("b")];
+    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+      buildIndex(indexCount, calculateBookmarksChecksum([buildCached("a"), buildCached("b")])),
+    );
+    mockGetAllBookmarks.mockResolvedValue(
+      ids.map((id) => buildCached(id, stale && id === "b" ? { modifiedAt: CREATED_AT } : {})),
+    );
+
+    const result = await validateChecksumAndGetCached(raw, false);
+
+    expect(result.cached).toBeNull();
+  });
+
+  it("rejects duplicate source IDs despite matching index and durable counts", async () => {
+    const raw = [buildRaw("a"), buildRaw("a")];
     const cached = [buildCached("a"), buildCached("b")];
     mockGetBookmarksIndexFromDatabase.mockResolvedValue(
-      buildIndex(cached.length, calculateBookmarksChecksum(cached)),
+      buildIndex(raw.length, calculateBookmarksChecksum([buildCached("a"), buildCached("a")])),
     );
     mockGetAllBookmarks.mockResolvedValue(cached);
 
     const result = await validateChecksumAndGetCached(raw, false);
 
-    expect(result.cached).toEqual(cached);
+    expect(result.cached).toBeNull();
   });
 
   it("returns null cache when a bookmark's modifiedAt changed upstream", async () => {
@@ -104,38 +168,45 @@ describe("validateChecksumAndGetCached", () => {
     expect(mockGetBookmarksIndexFromDatabase).not.toHaveBeenCalled();
   });
 
-  it("bypasses cache in updater mode while Karakeep proxy images need S3 upgrades", async () => {
-    const previousUpdater = process.env.IS_DATA_UPDATER;
-    process.env.IS_DATA_UPDATER = "true";
-    const cached = [
-      buildCached("a", {
-        content: {
-          type: "link",
-          url: "https://example.com/a",
-          title: "Bookmark a",
-          description: null,
-          imageAssetId: "asset-1",
-        },
-        ogImage: "/api/assets/asset-1",
-        ogImageExternal: "/api/assets/asset-1",
-      }),
-    ];
-    mockGetBookmarksIndexFromDatabase.mockResolvedValue(
-      buildIndex(cached.length, calculateBookmarksChecksum(cached)),
-    );
-    mockGetAllBookmarks.mockResolvedValue(cached);
+  it.each([true, false])(
+    "checks source images only (asset in source: %s)",
+    async (assetInSource) => {
+      const previousUpdater = process.env.IS_DATA_UPDATER;
+      process.env.IS_DATA_UPDATER = "true";
+      const withoutAsset = buildCached("b");
+      const cached = [
+        withoutAsset,
+        buildCached("a", {
+          content: {
+            type: "link",
+            url: "https://example.com/a",
+            title: "Bookmark a",
+            description: null,
+            imageAssetId: "asset-1",
+          },
+          ogImage: "/api/assets/asset-1",
+          ogImageExternal: "/api/assets/asset-1",
+        }),
+      ];
+      const selected = assetInSource ? cached : [withoutAsset];
+      const raw = assetInSource ? [buildRaw("a"), buildRaw("b")] : [buildRaw("b")];
+      mockGetBookmarksIndexFromDatabase.mockResolvedValue(
+        buildIndex(raw.length, calculateBookmarksChecksum(selected)),
+      );
+      mockGetAllBookmarks.mockResolvedValue(cached);
 
-    try {
-      const result = await validateChecksumAndGetCached([buildRaw("a")], false);
+      try {
+        const result = await validateChecksumAndGetCached(raw, false);
 
-      expect(result.cached).toBeNull();
-      expect(mockGetAllBookmarks).toHaveBeenCalled();
-    } finally {
-      if (previousUpdater === undefined) {
-        delete process.env.IS_DATA_UPDATER;
-      } else {
-        process.env.IS_DATA_UPDATER = previousUpdater;
+        expect(result.cached).toEqual(assetInSource ? null : selected);
+        expect(mockGetAllBookmarks).toHaveBeenCalled();
+      } finally {
+        if (previousUpdater === undefined) {
+          delete process.env.IS_DATA_UPDATER;
+        } else {
+          process.env.IS_DATA_UPDATER = previousUpdater;
+        }
       }
-    }
-  });
+    },
+  );
 });
