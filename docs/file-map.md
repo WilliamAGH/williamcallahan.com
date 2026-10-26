@@ -763,6 +763,9 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
 
 ## Tests Directory
 
+- `scheduler/lib/bookmark-tag-task.ts`: tag child process lifecycle and terminal-cause propagation.
+- `__tests__/scripts/bookmark-tag-task.test.ts`: real child argument-failure result without database writes.
+
 - `__tests__/scripts/cloudflare-cache-rules.test.ts`: deployed API-object Vary schema and optimizer negotiation policy.
 - `__tests__/scripts/indexnow-submit.test.ts`: native submission outcomes, independent configuration and no-write dry-run.
 - `__tests__/components/seo-window-headings.test.tsx`: real server-rendered contact and reading-list heading boundaries.

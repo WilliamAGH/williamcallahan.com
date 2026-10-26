@@ -3,7 +3,7 @@
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import logger from "@/lib/utils/logger";
 import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
-import { spawn } from "node:child_process";
+import { runBookmarkTagTask } from "./lib/bookmark-tag-task";
 import { existsSync } from "node:fs";
 import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -68,38 +68,13 @@ async function runTagIngestionTask(
   testLimit?: number,
 ): Promise<DataFetchOperationSummary> {
   const operation = mode === "retrofit" ? "bookmark-tags-retrofit" : "bookmark-tags";
-  const startedAt = Date.now();
   const scriptArgs = buildTagScriptArgs(sourceArgs, mode, testLimit);
 
   logger.info(
     `[DataUpdaterCLI] Starting ${operation} with args: ${scriptArgs.length > 0 ? scriptArgs.join(" ") : "(none)"}`,
   );
 
-  return new Promise((resolve) => {
-    const child = spawn("node", ["scripts/ingest-bookmark-tag-aliases.node.mjs", ...scriptArgs], {
-      env: process.env,
-      stdio: "inherit",
-      detached: false,
-    });
-
-    child.once("error", (error) => {
-      resolve({
-        success: false,
-        operation,
-        error: error instanceof Error ? error.message : String(error),
-        duration: (Date.now() - startedAt) / 1000,
-      });
-    });
-
-    child.once("close", (code) => {
-      resolve({
-        success: code === 0,
-        operation,
-        error: code === 0 ? undefined : `Tag ingestion exited with code ${code ?? -1}`,
-        duration: (Date.now() - startedAt) / 1000,
-      });
-    });
-  });
+  return runBookmarkTagTask(operation, scriptArgs);
 }
 
 async function checkRecentRun(): Promise<boolean> {
@@ -143,7 +118,13 @@ async function checkRecentRun(): Promise<boolean> {
 async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<void> {
   if (process.env.NODE_ENV === "development") {
     try {
-      await writeFile(LAST_RUN_SUCCESS_FILE, new Date().toISOString());
+      if (
+        results.every(
+          (result) => result.success && !("degraded" in result && result.degraded === true),
+        )
+      ) {
+        await writeFile(LAST_RUN_SUCCESS_FILE, new Date().toISOString());
+      }
       const details = {
         lastRun: new Date().toISOString(),
         results: results.reduce(
@@ -153,6 +134,15 @@ async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<vo
               itemsProcessed: result.itemsProcessed || 0,
               error: result.error,
               duration: result.duration,
+              ...("degraded" in result && result.degraded === true
+                ? {
+                    degraded: true,
+                    reason:
+                      "reason" in result && typeof result.reason === "string"
+                        ? result.reason
+                        : "retained prior data",
+                  }
+                : {}),
             };
             return acc;
           },
@@ -304,7 +294,13 @@ if (testLimit !== undefined) {
     logger.info("[DataUpdaterCLI] All tasks complete.");
 
     results.forEach((result) => {
-      if (result.success) {
+      if (result.success && "degraded" in result && result.degraded === true) {
+        const reason =
+          "reason" in result && typeof result.reason === "string"
+            ? result.reason
+            : "retained prior data";
+        logger.warn(`  - ${result.operation}: Degraded (${reason}, duration: ${result.duration}s)`);
+      } else if (result.success) {
         logger.info(
           `  - ${result.operation}: Success (${result.itemsProcessed} items, duration: ${result.duration}s)`,
         );

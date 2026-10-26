@@ -78,10 +78,11 @@ does not declare a `deploymentId` configuration property. Next derives its confi
 deployment ID from that environment value, while `generateBuildId` returns the same release
 identity. The Docker source-selection and exact-revision proof contract is owned by
 [`docs/ops/deployment.md`](../ops/deployment.md#web-release-identity). Docker exports the selected
-build identity as `GIT_HASH`, but that variable is not the configuration identity owner. Next 16.1.6 reloads `next.config.ts` for
-`PHASE_PRODUCTION_SERVER` in `node_modules/next/dist/server/next.js`; when neither the
-environment nor Git supplies an identity, production startup reads `.next/RELEASE_ID`, which
-the image build writes from the commit it built. `.next/BUILD_ID` is not that identity and must
+build identity as `GIT_HASH`, but that variable is not the configuration identity owner. Next 16.4.2 reloads `next.config.ts` for
+`PHASE_PRODUCTION_SERVER` in `node_modules/next/dist/server/next.js`; after the explicit environment
+override, production startup reads `.next/RELEASE_ID` before considering a local Git fallback.
+The image build writes that file from its source commit, so supported runtime startup needs no Git.
+`.next/BUILD_ID` is not that identity and must
 not be used as one. Follow the recovery procedure in
 `docs/ops/deployment.md`.
 
