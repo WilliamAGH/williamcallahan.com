@@ -17,9 +17,9 @@ concurrency:
   group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
-env:
-  REGISTRY: registry.haiku.host
-
+# Registry hostnames are Infisical keys (project williamcallahan-com, envs dev and prod):
+# IMAGE_REGISTRY receives the published images and BASE_REGISTRY mirrors base images.
+# Each job reads them over OIDC with the identity bound to its GitHub environment.
 jobs:
   build:
     name: Build ${{ matrix.image }} (${{ matrix.platform }})
@@ -27,7 +27,7 @@ jobs:
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 60
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
-    # id-token lets the production web leg authenticate to Infisical over OIDC.
+    # id-token lets every leg authenticate to Infisical over OIDC.
     permissions:
       contents: read
       id-token: write
@@ -37,38 +37,35 @@ jobs:
         image: ${{ fromJSON(github.ref_name == 'main' && '["web","scheduler"]' || '["web"]') }}
         platform: [linux/amd64, linux/arm64]
     env:
-      IMAGE: registry.haiku.host/williamcallahan/williamcallahan-com-${{ matrix.image }}
       DOCKERFILE: ${{ matrix.image == 'web' && 'Dockerfile' || 'scheduler/Dockerfile' }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      # Production build secrets are Dokploy references to Infisical project
-      # williamcallahan-com/prod. The OIDC identity, bound to this repository's
-      # production environment, reads them with no stored credential.
-      - name: Load Infisical production secrets
-        if: matrix.image == 'web' && github.ref_name == 'main'
+      # Build secrets and registry hostnames are Dokploy references to Infisical
+      # project williamcallahan-com (prod for main, dev for dev). Each OIDC identity
+      # is bound to one GitHub environment of this repository and needs no stored credential.
+      - name: Load Infisical secrets
         uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         with:
           method: oidc
-          identity-id: 5816c153-bc1f-4b51-a879-995bffba176b
+          identity-id: ${{ github.ref_name == 'main' && '5816c153-bc1f-4b51-a879-995bffba176b' || 'ff932f6a-e086-443f-b27f-f884c91f37a7' }}
           domain: https://infisical.haiku.host
           project-slug: williamcallahan-com-zo0a
-          env-slug: prod
+          env-slug: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
 
-      # The web build reads the build arguments and BuildKit secrets stored on the
-      # Dokploy application it deploys to, the same values Dokploy's native
-      # build used. BASE_REGISTRY is skipped: the Dockerfile default is the CI
-      # base registry. An infisical-wc-prod reference resolves from the step
-      # above; any other vault reference fails the build.
+      # Each build reads the build arguments and BuildKit secrets stored on the
+      # Dokploy application it deploys to, BASE_REGISTRY included, so Dokploy stays
+      # their owner. A reference to this environment's Infisical provider resolves
+      # from the step above; any other vault reference fails the build.
       - name: Read build configuration from Dokploy
         id: build_config
-        if: matrix.image == 'web'
         env:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          DOKPLOY_APPLICATION_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
+          DOKPLOY_APPLICATION_ID: ${{ matrix.image == 'web' && vars.DOKPLOY_APPLICATION_ID || vars.DOKPLOY_SCHEDULER_APPLICATION_ID }}
+          VAULT_PROVIDER: ${{ github.ref_name == 'main' && 'infisical-wc-prod' || 'infisical-wc-dev' }}
         run: |
           application="$(curl -fsS --connect-timeout 10 --max-time 30 -H "x-api-key: ${DOKPLOY_API_KEY}" \
             "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}")"
@@ -76,13 +73,13 @@ jobs:
           mkdir -p "${secret_dir}"
           build_args=""
           secret_files=""
+          vault_reference='^\$\{\{vault\.'"${VAULT_PROVIDER}"'\.([A-Za-z0-9_]+)\}\}$'
           config_lines="$(jq -er '("buildArgs", "buildSecrets") as $kind | (.[$kind] // "") | split("\n")[] | "\($kind)\t\(.)"' <<<"${application}")"
           while IFS=$'\t' read -r kind line; do
             [[ -z "${line}" || "${line}" == \#* ]] && continue
             key="${line%%=*}"
             value="${line#*=}"
-            [[ "${key}" == BASE_REGISTRY ]] && continue
-            if [[ "${value}" =~ ^\$\{\{vault\.infisical-wc-prod\.([A-Za-z0-9_]+)\}\}$ ]]; then
+            if [[ "${value}" =~ ${vault_reference} ]]; then
               vault_key="${BASH_REMATCH[1]}"
               if [[ -z "${!vault_key+set}" ]]; then
                 echo "::error::${kind} ${key} references ${vault_key}, which Infisical did not provide"
@@ -121,22 +118,25 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
-      # dockerhub.haiku.host serves the Dockerfile syntax and base images.
+      # IMAGE_REGISTRY receives the pushed images; BASE_REGISTRY serves the base images.
       - uses: docker/login-action@v4
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
       - uses: docker/login-action@v4
         with:
-          registry: dockerhub.haiku.host
+          registry: ${{ env.BASE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Name the platform
-        run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "${GITHUB_ENV}"
+      - name: Name the platform and image
+        run: |
+          echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "${GITHUB_ENV}"
+          echo "IMAGE=${IMAGE_REGISTRY}/williamcallahan/williamcallahan-com-${IMAGE_NAME}" >> "${GITHUB_ENV}"
         env:
           PLATFORM: ${{ matrix.platform }}
+          IMAGE_NAME: ${{ matrix.image }}
 
       # A path context keeps .git, which the web Dockerfile reads for the release id.
       - name: Build and push by digest
@@ -177,16 +177,32 @@ jobs:
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || 'development' }}
       url: ${{ github.ref_name == 'main' && 'https://williamcallahan.com' || 'https://dev.williamcallahan.com' }}
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
         image: ${{ fromJSON(github.ref_name == 'main' && '["web","scheduler"]' || '["web"]') }}
-    env:
-      IMAGE: registry.haiku.host/williamcallahan/williamcallahan-com-${{ matrix.image }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      - name: Load the image registry from Infisical
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
+        with:
+          method: oidc
+          identity-id: ${{ github.ref_name == 'main' && '5816c153-bc1f-4b51-a879-995bffba176b' || 'ff932f6a-e086-443f-b27f-f884c91f37a7' }}
+          domain: https://infisical.haiku.host
+          project-slug: williamcallahan-com-zo0a
+          env-slug: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+          secret-name: IMAGE_REGISTRY
+
+      - name: Name the image
+        run: echo "IMAGE=${IMAGE_REGISTRY}/williamcallahan/williamcallahan-com-${IMAGE_NAME}" >> "${GITHUB_ENV}"
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
 
       - uses: actions/download-artifact@v8
         with:
@@ -198,7 +214,7 @@ jobs:
 
       - uses: docker/login-action@v4
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
