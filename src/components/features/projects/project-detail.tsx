@@ -155,6 +155,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
                     alt={`Screenshot of ${project.name}`}
                     preload
                     fit="contain"
+                    sizes="(max-width: 1023px) 100vw, 600px"
                     className="!transition-none"
                   />
                   {/* Hover overlay */}

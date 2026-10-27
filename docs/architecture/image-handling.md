@@ -14,6 +14,11 @@ Social branding fills its auto-fit card, not the viewport. Its responsive size u
 single-column width and a conservative 512px desktop slot, including the maximized window's
 330px-minimum auto-fit columns. Fixed profile avatars retain their independent 64px sizing.
 
+Project cards stack a full-width `3:2` media frame across mobile and tablet viewports (`<1024px`)
+before switching to a two-column split at `lg+`, supplying `(max-width: 1023px) 100vw, 50vw` so
+both normal (`max-w-5xl`) and maximized windows receive full-density `srcset` candidates. Project
+detail heroes remain single-column below `1024px` and cap at `600px` in their two-thirds desktop column.
+
 Deliver every logo, OpenGraph card, bookmark preview, profile photo, and social asset with consistent validation, deterministic storage, CDN-ready URLs, and bounded-resource handling. This domain begins when a feature needs an image (component/server fetch) and ends when the asset is persisted, cached, and rendered through Next.js or a raw HTTP response.
 
 ## Domain Scope & Non-Goals
