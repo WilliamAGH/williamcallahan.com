@@ -43,9 +43,9 @@ jobs:
         with:
           persist-credentials: false
 
-      # Build secrets and registry hostnames are Dokploy references to Infisical
-      # project williamcallahan-com (prod for main, dev for dev). Each OIDC identity
-      # is bound to one GitHub environment of this repository and needs no stored credential.
+      # Loads Infisical project williamcallahan-com (prod for main, dev for dev): the
+      # registry hostnames and every value the Dokploy build references name. Each OIDC
+      # identity is bound to one GitHub environment of this repository and needs no stored credential.
       - name: Load Infisical secrets
         uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         with:

@@ -1,6 +1,7 @@
 # Local Docker Compose definition for the scheduler resource budget.
-# Production uses a native Dokploy GitHub application with scheduler/Dockerfile;
-# it does not import this Compose file. Run from the repository root with
+# Production runs the image .github/workflows/deploy.yml publishes; it does not import
+# this Compose file. BASE_REGISTRY (Infisical key of the same name) must be set in the
+# environment that runs Compose. Run from the repository root with
 # --project-directory . when using this definition so build context "." is the root.
 # Copy the web app's environment variables to this service (same Doppler/env set);
 # it reuses DATABASE_URL, S3_*, BOOKMARK_*/GITHUB_* secrets, and Google sitemap creds.
@@ -13,6 +14,8 @@ services:
     build:
       context: .
       dockerfile: scheduler/Dockerfile
+      args:
+        - BASE_REGISTRY
     restart: unless-stopped
     deploy:
       resources:
