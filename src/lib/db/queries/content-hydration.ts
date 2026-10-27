@@ -5,9 +5,10 @@ import { inArray, eq, and } from "drizzle-orm";
 import { bookmarks } from "@/lib/db/schema/bookmarks";
 import { blogPosts } from "@/lib/db/schema/blog-posts";
 import { investments } from "@/lib/db/schema/investments";
-import { projects } from "@/lib/db/schema/projects";
 import { booksIndividual } from "@/lib/db/schema/books-individual";
 import { thoughts } from "@/lib/db/schema/thoughts";
+import { projects as staticProjects } from "@/data/projects";
+import { generateProjectSlug } from "@/lib/projects/slug-helpers";
 import { resolveImageUrl } from "@/lib/seo/url-utils";
 import {
   buildCdnUrl,
@@ -187,38 +188,33 @@ async function hydrateInvestments(entries: HydrationEntry[]): Promise<RelatedCon
   );
 }
 
+const STATIC_PROJECTS_BY_ID = new Map(staticProjects.map((project) => [project.id, project]));
+
 async function hydrateProjects(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
-  const ids = entries.map((e) => e.entityId);
-  const rows = await db
-    .select({
-      id: projects.id,
-      name: projects.name,
-      slug: projects.slug,
-      description: projects.description,
-      shortSummary: projects.shortSummary,
-      imageKey: projects.imageKey,
-      tags: projects.tags,
-    })
-    .from(projects)
-    .where(inArray(projects.id, ids));
+  const scoreMap = new Map(entries.map((entry) => [entry.entityId, entry.score]));
+  const cdnConfig = getCdnConfigFromEnv();
+  const suggestions: RelatedContentSuggestion[] = [];
 
-  const scoreMap = new Map(entries.map((e) => [e.entityId, e.score]));
+  for (const [entityId, score] of scoreMap) {
+    const project = STATIC_PROJECTS_BY_ID.get(entityId);
+    if (!project) continue;
 
-  return rows.map((r) => {
     const metadata: RelatedContentMetadata = {
-      tags: (r.tags as string[]) ?? [],
-      imageUrl: r.imageKey ? buildCdnUrl(r.imageKey, getCdnConfigFromEnv()) : undefined,
+      tags: project.tags ?? [],
+      imageUrl: project.imageKey ? buildCdnUrl(project.imageKey, cdnConfig) : undefined,
     };
-    return {
-      type: "project" as const,
-      id: r.id,
-      title: r.name,
-      description: r.shortSummary || (r.description ?? ""),
-      url: `/projects/${r.slug}`,
-      score: scoreMap.get(r.id) ?? 0,
+    suggestions.push({
+      type: "project",
+      id: project.id,
+      title: project.name,
+      description: project.shortSummary || project.description,
+      url: `/projects/${generateProjectSlug(project.name)}`,
+      score,
       metadata,
-    };
-  });
+    });
+  }
+
+  return suggestions;
 }
 
 async function hydrateBooks(entries: HydrationEntry[]): Promise<RelatedContentSuggestion[]> {
