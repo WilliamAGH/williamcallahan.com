@@ -1,7 +1,7 @@
 import type { Project } from "@/types/project";
 
 // Remember to update this date whenever the projects data or the Projects page design changes
-export const updatedAt = "2026-07-30";
+export const updatedAt = "2026-10-26";
 
 export const projects: Project[] = [
   {
@@ -48,7 +48,7 @@ export const projects: Project[] = [
       "Web app that merges search with an AI chat assistant: select results, then ask GPT/Groq/Gemini using that grounded context. Built with Next.js, TypeScript, Convex Database, and Vercel AI SDK, with heavy server-side scraping/parsing to filter only relevant context.",
     shortSummary: "AI-powered web search with a contextual chat assistant",
     url: "https://researchly.chat",
-    imageKey: "images/other/projects/researchly-macos-app.png",
+    imageKey: "images/other/projects/researchly-research-draft-fc716b09.png",
     tags: [
       "AI",
       "Web Search",

@@ -1,16 +1,15 @@
-# syntax=dockerhub.haiku.host/docker/dockerfile:1
 ##
 ## Multi-stage build for the Next.js application (pnpm on Node)
 ## Note: Requires BuildKit (DOCKER_BUILDKIT=1) for secret mount support
-## Base registry can be overridden via --build-arg BASE_REGISTRY=<your-registry>
+## BASE_REGISTRY is required: --build-arg BASE_REGISTRY=<registry>. CI and Dokploy
+## read it from the Infisical key BASE_REGISTRY (docs/ops/deployment.md).
 ## The value must include any publisher/namespace prefix so that
 ## ${BASE_REGISTRY}/debian:bookworm-slim resolves to a valid image.
 ## Examples:
 ##   - public.ecr.aws/debian  (ECR Public — publisher namespace required)
-##   - dockerhub.haiku.host    (Docker Hub mirror)
-##   - your.mirror.example     (private mirror — flat namespace)
+##   - your.mirror.example     (Docker Hub mirror — flat namespace)
 ##
-ARG BASE_REGISTRY=dockerhub.haiku.host
+ARG BASE_REGISTRY
 
 # Using Debian instead of Alpine because @chroma-core/default-embed uses ONNX runtime
 # which requires glibc (Alpine uses musl libc which is incompatible).

@@ -23,18 +23,23 @@ type FromStep = () => { where: WhereStep };
 type SelectStep = () => { from: FromStep };
 
 // Hoist mocks so factory closures can reference them before module initialization
-const { mockDbRows, mockSelectBestImage } = vi.hoisted(() => {
+const { mockDbRows, mockDbSelect, mockSelectBestImage } = vi.hoisted(() => {
   const hoistedDbRows: HydrationDbRow[] = [];
-  return { mockDbRows: hoistedDbRows, mockSelectBestImage: vi.fn<typeof selectBestImage>() };
+  const hoistedDbSelect = vi.fn<SelectStep>(() => ({
+    from: vi.fn<FromStep>(() => ({
+      where: vi.fn<WhereStep>(() => Promise.resolve(hoistedDbRows)),
+    })),
+  }));
+  return {
+    mockDbRows: hoistedDbRows,
+    mockDbSelect: hoistedDbSelect,
+    mockSelectBestImage: vi.fn<typeof selectBestImage>(),
+  };
 });
 
 vi.mock("@/lib/db/connection", () => ({
   db: {
-    select: vi.fn<SelectStep>(() => ({
-      from: vi.fn<FromStep>(() => ({
-        where: vi.fn<WhereStep>(() => Promise.resolve(mockDbRows)),
-      })),
-    })),
+    select: mockDbSelect,
   },
 }));
 
@@ -97,7 +102,6 @@ vi.mock("@/lib/db/schema/blog-posts", () => ({
   },
 }));
 vi.mock("@/lib/db/schema/investments", () => ({ investments: {} }));
-vi.mock("@/lib/db/schema/projects", () => ({ projects: {} }));
 vi.mock("@/lib/db/schema/books-individual", () => ({ booksIndividual: {} }));
 vi.mock("@/lib/db/schema/thoughts", () => ({ thoughts: {} }));
 vi.mock("drizzle-orm", () => ({
@@ -186,5 +190,33 @@ describe("hydrateBookmarks image resolution", () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it("hydrates project candidates from canonical data/projects.ts without querying PostgreSQL", async () => {
+    const hydrated = await hydrateRelatedContent([
+      {
+        domain: "project",
+        entityId: "Researchly",
+        title: "Researchly",
+        similarity: 0.91,
+        contentDate: null,
+        score: 0.91,
+      },
+    ]);
+
+    expect(mockDbSelect).not.toHaveBeenCalled();
+    expect(hydrated).toEqual([
+      expect.objectContaining({
+        type: "project",
+        id: "Researchly",
+        title: "Researchly",
+        url: "/projects/researchly",
+        score: 0.91,
+        metadata: expect.objectContaining({
+          imageUrl:
+            "https://s3-storage.callahan.cloud/images/other/projects/researchly-research-draft-fc716b09.png",
+        }),
+      }),
+    ]);
   });
 });

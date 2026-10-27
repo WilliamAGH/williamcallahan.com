@@ -52,8 +52,8 @@ SHA-256 in Node's
 unsupported architectures. Do not replace that stage with a floating NodeSource
 `node_*.x` channel or application-level compatibility code.
 
-Production Dokploy builds resolve `infisical-wc-prod` vault references into BuildKit
-secrets. The web Dockerfile mounts public build configuration as canonical files under
+Production builds in `.github/workflows/deploy.yml` resolve `infisical-wc-prod` vault
+references into BuildKit secrets. The web Dockerfile mounts public build configuration as canonical files under
 `/run/secrets/build`, then promotes only present values before `pnpm run build`. This
 preserves ordinary `--build-arg` values when the corresponding optional secret is absent.
 
@@ -156,11 +156,14 @@ For a runtime update, change `package.json`'s version and both architecture chec
 together from the matching official release manifest, then verify each projected stage
 before deploying:
 
+Both Dockerfiles require `BASE_REGISTRY`, the Infisical key of the same name in project
+`williamcallahan-com`; run these inside `infisical run --projectId <project id> --env prod -- bash` so it is set:
+
 ```bash
-docker buildx build --target node --build-arg BASE_REGISTRY=dockerhub.haiku.host --load \
+docker buildx build --target node --build-arg BASE_REGISTRY="${BASE_REGISTRY:?}" --load \
   -t williamcallahan-com-node-runtime-check:24.22.1 .
 docker run --rm williamcallahan-com-node-runtime-check:24.22.1 node --version
-docker buildx build --target node --build-arg BASE_REGISTRY=dockerhub.haiku.host --load \
+docker buildx build --target node --build-arg BASE_REGISTRY="${BASE_REGISTRY:?}" --load \
   -f scheduler/Dockerfile -t williamcallahan-scheduler-node-runtime-check:24.22.1 .
 docker run --rm williamcallahan-scheduler-node-runtime-check:24.22.1 node --version
 ```
@@ -168,7 +171,7 @@ docker run --rm williamcallahan-scheduler-node-runtime-check:24.22.1 node --vers
 ## Multi-platform image pipeline
 
 `.github/workflows/deploy.yml` publishes one `linux/amd64` + `linux/arm64` image index per
-deployable to `registry.haiku.host/williamcallahan/williamcallahan-com-{web,scheduler}` and
+deployable to `<IMAGE_REGISTRY>/williamcallahan/williamcallahan-com-{web,scheduler}` and
 deploys it to Dokploy by digest. Dokploy's native Dockerfile build emits a single-platform
 image, so ARM64 hosts need this publisher.
 
@@ -180,9 +183,18 @@ image, so ARM64 hosts need this publisher.
 - A push to `dev` deploys the web image to the GitHub `development` environment; a push to
   `main` deploys web and scheduler to `production`. `DOKPLOY_APPLICATION_ID` (and, in
   production, `DOKPLOY_SCHEDULER_APPLICATION_ID`) are GitHub environment variables.
-- The web build reads `buildArgs` and `buildSecrets` from the Dokploy application it deploys
-  to, so Dokploy stays their owner. Production web builds resolve Infisical vault references
-  through the workflow's OIDC step; plaintext build-secret copies are not stored in GitHub.
+- Registry hostnames live only in Infisical project `williamcallahan-com`: `IMAGE_REGISTRY`
+  receives the pushed images and `BASE_REGISTRY` serves the base images, in both `dev` and
+  `prod`. No repository file, GitHub secret, or GitHub variable holds a registry hostname.
+- Every job reads Infisical over GitHub OIDC with the identity bound to its GitHub environment:
+  `github-actions-williamcallahan-com-production` (`5816c153-bc1f-4b51-a879-995bffba176b`)
+  reads `prod` for `production`, and `github-actions-williamcallahan-com-development`
+  (`ff932f6a-e086-443f-b27f-f884c91f37a7`) reads `dev` for `development`.
+- Each build reads `buildArgs` and `buildSecrets` from the Dokploy application it deploys
+  to, so Dokploy stays their owner. A `${{vault.infisical-wc-prod.KEY}}` (main) or
+  `${{vault.infisical-wc-dev.KEY}}` (dev) reference, `BASE_REGISTRY` included, resolves from
+  the job's Infisical step; any other vault reference fails the build. Plaintext
+  build-secret copies are not stored in GitHub.
 - `scripts/dokploy-deploy-image.sh` switches the application to `sourceType: docker` with the
   exact `<tag>@<digest>` reference, deploys it, waits for the deployment row, then waits until
   consecutive uncached requests all advertise `dpl=<short sha>`.
@@ -240,10 +252,11 @@ pnpm run docker:prefetch
 
 ## Quick Start
 
-Run the web container locally:
+Run the web container locally with `BASE_REGISTRY` set (Infisical key of the same name; the
+`docker:build` scripts and the scheduler Compose file read it from the environment too):
 
 ```bash
-docker build -t williamcallahan-com .
+docker build --build-arg BASE_REGISTRY -t williamcallahan-com .
 docker run -d -p 3000:3000 --name williamcallahan-com williamcallahan-com
 ```
 

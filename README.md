@@ -19,7 +19,7 @@ pnpm dev
 ### Docker Deployment
 
 ```bash
-docker build -t williamcallahan-com .
+docker build --build-arg BASE_REGISTRY=public.ecr.aws/debian -t williamcallahan-com .
 docker run -d -p 3000:3000 williamcallahan-com
 ```
 

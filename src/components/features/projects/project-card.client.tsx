@@ -48,26 +48,27 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
   ).slice(0, MAX_DISPLAY_TECH_ITEMS);
 
   return (
-    // Redesigned card for horizontal layout on medium screens and up
+    // Stack full-width 3:2 media through tablet; switch to two-column split at lg+
     <div
       id={projectSlug || undefined}
       tabIndex={projectSlug ? -1 : undefined}
-      className="group rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 hover:border-blue-400/50 dark:hover:border-blue-500/50 opacity-0 animate-fade-in-up md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      className="group rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 hover:border-blue-400/50 dark:hover:border-blue-500/50 opacity-0 animate-fade-in-up flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
     >
-      {/* Image Section (Left on desktop, top on mobile) */}
-      <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 min-h-[140px] md:min-h-[180px]">
+      {/* Image Section (Left on desktop, top on mobile/tablet) */}
+      <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
         <Link
           href={detailPageUrl}
           prefetch={false}
           title={`View ${name} details`}
           className="block w-full h-full"
         >
-          <div className="relative w-full h-full min-h-[180px] md:min-h-[220px]">
+          <div className="relative w-full aspect-[3/2] lg:aspect-auto lg:h-full lg:min-h-[240px]">
             <OptimizedCardImage
               src={cdnImageUrl}
               alt={`${name} screenshot`}
               preload={preload}
               fit="contain"
+              sizes="(max-width: 1023px) 100vw, 50vw"
               className="rounded-md transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
             />
           </div>
