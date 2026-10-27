@@ -6,6 +6,7 @@
  * and that hydrateBlogPosts uses canonical CDN resolution.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { projects } from "@/data/projects";
 import type { and, eq, inArray } from "drizzle-orm";
 import type { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type {
@@ -193,6 +194,9 @@ describe("hydrateBookmarks image resolution", () => {
   });
 
   it("hydrates project candidates from canonical data/projects.ts without querying PostgreSQL", async () => {
+    const researchlyProject = projects.find((project) => project.id === "Researchly");
+    expect(researchlyProject?.imageKey).toBeDefined();
+
     const hydrated = await hydrateRelatedContent([
       {
         domain: "project",
@@ -213,8 +217,7 @@ describe("hydrateBookmarks image resolution", () => {
         url: "/projects/researchly",
         score: 0.91,
         metadata: expect.objectContaining({
-          imageUrl:
-            "https://s3-storage.callahan.cloud/images/other/projects/researchly-research-draft-fc716b09.png",
+          imageUrl: `https://s3-storage.callahan.cloud/${researchlyProject?.imageKey}`,
         }),
       }),
     ]);
