@@ -52,8 +52,8 @@ SHA-256 in Node's
 unsupported architectures. Do not replace that stage with a floating NodeSource
 `node_*.x` channel or application-level compatibility code.
 
-Production Dokploy builds resolve `infisical-wc-prod` vault references into BuildKit
-secrets. The web Dockerfile mounts public build configuration as canonical files under
+Production builds in `.github/workflows/deploy.yml` resolve `infisical-wc-prod` vault
+references into BuildKit secrets. The web Dockerfile mounts public build configuration as canonical files under
 `/run/secrets/build`, then promotes only present values before `pnpm run build`. This
 preserves ordinary `--build-arg` values when the corresponding optional secret is absent.
 
@@ -252,10 +252,11 @@ pnpm run docker:prefetch
 
 ## Quick Start
 
-Run the web container locally:
+Run the web container locally with `BASE_REGISTRY` set (Infisical key of the same name; the
+`docker:build` scripts and the scheduler Compose file read it from the environment too):
 
 ```bash
-docker build -t williamcallahan-com .
+docker build --build-arg BASE_REGISTRY -t williamcallahan-com .
 docker run -d -p 3000:3000 --name williamcallahan-com williamcallahan-com
 ```
 
