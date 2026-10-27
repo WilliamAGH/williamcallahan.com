@@ -1,15 +1,15 @@
-# syntax=dockerhub.haiku.host/docker/dockerfile:1
 ##
 ## Scheduler container image (cron jobs, data updater, sitemap submission).
 ## No Next.js build — tsx runs TypeScript directly against src/lib, so this
 ## image builds in minutes and its deploys never compete with the web build.
 ##
 ## Build from the REPOSITORY ROOT context:
-##   docker build -f scheduler/Dockerfile -t williamcallahan-scheduler:latest .
-## Production uses this Dockerfile in Dokploy's native GitHub application with
-## the repository root as its build context.
+##   docker build -f scheduler/Dockerfile --build-arg BASE_REGISTRY=<registry> \
+##     -t williamcallahan-scheduler:latest .
+## BASE_REGISTRY is required; .github/workflows/deploy.yml reads it from the
+## Infisical key BASE_REGISTRY and builds this image from the repository root.
 ##
-ARG BASE_REGISTRY=dockerhub.haiku.host
+ARG BASE_REGISTRY
 
 # ---------- Node stage ----------
 # Install the package.json-declared official Node.js release once for both dependency and runtime stages.
