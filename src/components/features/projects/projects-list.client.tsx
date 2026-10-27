@@ -33,8 +33,8 @@ function ProjectsList() {
         <h1 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Projects</h1>
         <div className="prose dark:prose-invert max-w-none mb-8 text-sm sm:text-base">
           <p>
-            This is some software projects and other related code and engineering and UX/design work
-            I&apos;ve done.
+            These are some software projects and other related code and engineering and UX/design
+            work I&apos;ve done.
           </p>
         </div>
 
