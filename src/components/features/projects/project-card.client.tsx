@@ -128,10 +128,15 @@ export function ProjectCard({ project, preload = false }: ProjectCardProps): JSX
                 )}
               </div>
             </div>
-            {/* Code Snippet */}
-            <pre className="bg-gray-900 dark:bg-gray-950 text-green-400 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap leading-relaxed border border-gray-800">
-              <code>{`// ${project.shortSummary}`}</code>
-            </pre>
+            {/* Summary comment */}
+            {project.shortSummary && (
+              <p className="flex items-baseline gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 font-mono text-sm leading-relaxed text-gray-900 dark:border-gray-800 dark:bg-black dark:text-white">
+                <span aria-hidden="true" className="shrink-0 select-none text-gray-400">
+                  {"//"}
+                </span>
+                <span className="min-w-0 break-words text-pretty">{project.shortSummary}</span>
+              </p>
+            )}
             {/* Description */}
             {description && (
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">
