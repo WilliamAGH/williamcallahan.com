@@ -13,7 +13,7 @@ export const BLOG_RENDER_CANARIES = [
       },
       {
         section: "ending",
-        text: "You can start with one service and migrate to another as your needs change, often with minimal code changes.",
+        text: "S3-compatible APIs make basic object operations portable between AWS S3, Hetzner, and DigitalOcean Spaces, though supported features differ.",
       },
     ],
     interactions: [],
