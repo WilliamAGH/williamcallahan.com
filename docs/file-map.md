@@ -101,7 +101,7 @@ File/Path Functionality Description
     - [x] `profile-image.tsx` `home` - Profile image display
   - [x] **investments/**
     - [x] `index.ts` `investments` - Removed; import `investments.server.tsx` directly
-    - [x] `investment-card.{client,server}.tsx` `investments` - ind card for each investment made
+    - [x] `investment-card.{client,server}.tsx` `investments` - Resolved investment cards with native text/values and optional streamed logo leaves
     - [x] `investments.{client,server}.tsx` `investments` - list investments
   - [x] **projects/**
     - [x] `index.ts` `projects` - Removed; import projects components from concrete files

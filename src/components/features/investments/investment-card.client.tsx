@@ -23,7 +23,7 @@ import type { InvestmentCardExtendedProps } from "@/types/features/investments";
 import Image from "next/image";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
-import type { JSX } from "react";
+import { Suspense, type JSX } from "react";
 
 /**
  * Investment Card Client Component
@@ -84,14 +84,26 @@ export function InvestmentCardClient({
           <div className="flex items-start gap-5">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <div className="w-12 h-12 relative flex-shrink-0">
-                {website ? (
-                  <ExternalLink
-                    href={website}
-                    title={name}
-                    rawTitle={true}
-                    showIcon={false}
-                    className="block"
-                  >
+                {/* Partition repeated image markup, not the native company text or financial values. */}
+                <Suspense fallback={null}>
+                  {website ? (
+                    <ExternalLink
+                      href={website}
+                      title={name}
+                      rawTitle={true}
+                      showIcon={false}
+                      className="block"
+                    >
+                      <LogoImage
+                        src={logoData.url}
+                        width={48}
+                        height={48}
+                        className="object-contain"
+                        alt={name}
+                        needsInversion={logoData.needsInversion}
+                      />
+                    </ExternalLink>
+                  ) : (
                     <LogoImage
                       src={logoData.url}
                       width={48}
@@ -100,17 +112,8 @@ export function InvestmentCardClient({
                       alt={name}
                       needsInversion={logoData.needsInversion}
                     />
-                  </ExternalLink>
-                ) : (
-                  <LogoImage
-                    src={logoData.url}
-                    width={48}
-                    height={48}
-                    className="object-contain"
-                    alt={name}
-                    needsInversion={logoData.needsInversion}
-                  />
-                )}
+                  )}
+                </Suspense>
               </div>
               <div>
                 <div className="flex items-center gap-1">

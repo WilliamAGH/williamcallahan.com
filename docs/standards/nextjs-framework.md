@@ -140,6 +140,8 @@ stages through `app-render-scheduling.js` (`createAtomicTimerGroup`).
 old route-config workflow: cache explicitly with `'use cache'`; do not use old
 page/layout `dynamic` exports or `unstable_noStore()` to force rendering behavior.
 
+For `/investments`, keep every company's semantic content outside Suspense and partition only optional logo leaves. Installed Next 16.4.2's vendored `react-dom-experimental/cjs/react-dom-server.node.production.js` warns when root-owned bytes exceed `40 * progressiveChunkSize` (512,000 bytes at the default). Large completed boundaries can be outlined into hidden segments, so wrapping an entire card/list would sacrifice native content. Logo-only boundaries retain native portfolio text and values while reserving the existing image geometry; non-JavaScript clients may omit outlined logos.
+
 - Use `cacheLife` and `cacheTag` from `next/cache` for cacheable data and preserve the
   existing tag owner. Do not add local tag catalogs or unstable aliases.
 - Coordinate a backend read's cache owner, invalidation event, and revalidation tag
