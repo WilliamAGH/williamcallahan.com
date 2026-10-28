@@ -3,7 +3,7 @@ title: "Building an Interactive Terminal in Next.js"
 slug: "building-interactive-terminal-nextjs"
 excerpt: "Building a simulated terminal UI with macOS-like window controls in Next.js, focusing on global state management and hydration patterns."
 publishedAt: "2025-04-07"
-updatedAt: "2025-04-15"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags:
   [
@@ -134,21 +134,22 @@ export default function RootLayout({ children }) {
 
 ## 3: Server/Client Data Flow
 
-Passing non-serializable data (like JSX elements or functions) directly from Server Components to Client Components causes errors in Next.js.
+Props passed from Server Components to Client Components must be serializable by React, which is broader than JSON serialization. JSX elements are supported, including server-rendered content passed as `children`; ordinary functions are not.
 
 <BackgroundInfo title="Problem: Non-Serializable Data Across Boundaries">
-  Data crossing the Server-Client boundary must be JSON-serializable. Complex objects, functions, or
-  modules required on the server (like `fs`) cannot be passed directly, leading to client-side
-  errors or broken Hot Module Replacement (HMR).
+  React supports JSX elements and other serializable values across the Server-Client boundary,
+  but not arbitrary class instances or ordinary function props. Server-only modules such as `fs`
+  must stay out of the client module graph.
 </BackgroundInfo>
 
 <CollapseDropdown summary="Solution: Keep Server Logic Server-Side">
   The reliable pattern involves strict separation: 1. **Isolate Server Logic**: Create utility
-  functions marked with `"use server"` or using `import "server-only"`. These handle server-specific
-  tasks (DB access, API calls, file reads) and process data into simple, serializable formats (plain
-  objects/arrays). 2. **Orchestrate in Server Component**: The main Server Component (e.g., a page)
+  modules using `import "server-only"` to reject imports into the client module graph. These handle
+  server-specific tasks (DB access, API calls, file reads). `"use server"` has a different contract:
+  it marks async Server Functions that clients can invoke through server references; it is not a
+  server-only import guard. 2. **Orchestrate in Server Component**: The main Server Component (e.g., a page)
   calls these utilities, gathers the necessary data, and ensures it's fully processed into a
-  serializable structure. 3. **Pass Clean Data**: Pass only the processed, serializable data as
+  React-serializable structure. 3. **Pass Clean Data**: Pass the processed, React-serializable values as
   props to the top-level Client Component wrapper for the feature. 4. **Render on Client**: The
   Client Component receives the clean data and uses it to render its UI sub-components. This
   prevents server-only code or non-serializable data from attempting to run on or be sent to the
@@ -290,7 +291,7 @@ Using Tailwind's `@apply` directive in global CSS caused linting errors. Replace
   registration hook (like `useRegisteredWindowState`) combined with an `isRegistered` flag helps
   safely manage client-side state dependent on context, preventing hydration errors. - **Data
   Flow**: Maintain strict separation between server-side data fetching/processing and client-side
-  rendering. Pass only serializable data from Server to Client Components. - **Syntax
+  rendering. Pass React-serializable props (including JSX elements) from Server to Client Components. - **Syntax
   Highlighting**: When integrating libraries like PrismJS, focus on simplifying DOM structure and
   providing explicit theme overrides for dark mode compatibility. - **CSS Complexity**: Use
   `!important` flags judiciously when working with third-party CSS that conflicts with your theme.

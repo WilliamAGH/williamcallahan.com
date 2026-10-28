@@ -3,7 +3,7 @@ title: "How to setup the Java SDK and use JavaFX with macOS/Windows"
 slug: "how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows"
 excerpt: "A modern guide to setting up Java development with JavaFX on macOS and Windows using IntelliJ IDEA or VS Code. While setting `JAVA_HOME` is still useful for some tools like Maven and Gradle, many modern Java environments have reduced reliance on it. This guide includes integration with Scene Builder and modern IDEs."
 publishedAt: "2025-04-08"
-updatedAt: "2025-05-01"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags: ["macos", "java", "zsh", "intellij", "environment variables", "javafx", "scene builder"]
 coverImage: "/images/posts/JavaFX-logo.png"
@@ -58,13 +58,13 @@ This section assumes your JDK is installed and `JAVA_HOME` is configured as per 
 </CollapseDropdown>
 
 <BackgroundInfo title="Version Compatibility for JavaFX">
-  <div>Use the latest Long-Term Support (LTS) versions consistently. For example:</div>
+  <div>For this walkthrough, pair JDK 21 with JavaFX 21. Newer JavaFX releases have different minimum JDK requirements; check compatibility before upgrading.</div>
   <ul>
     <li>
       <strong>JDK 21</strong>
     </li>
     <li>
-      <strong>JavaFX 21</strong> (or a version compatible with your JDK, such as JavaFX 22+ for JDK 21+)
+      <strong>JavaFX 21</strong> (21.0.2 in the example below)
     </li>
     <li>
       <strong>Scene Builder 23</strong> (or the latest corresponding LTS)
@@ -245,13 +245,13 @@ Once your project is open and Scene Builder path is configured (Part 2), edit FX
 <a id="javafx-jdk-compatibility"></a>
 <CollapseDropdown summary="5.1: JavaFX & JDK Version Compatibility">
   - **Issue**: Errors like "package does not exist", "cannot find symbol", or runtime linkage errors with JavaFX components.
-  - **Fix**: Ensure your JavaFX version (in `pom.xml` or `build.gradle`) is compatible with your project's JDK. For JDK 21, use JavaFX 21+.
+  - **Fix**: Ensure your JavaFX version (in `pom.xml` or `build.gradle`) is compatible with your project's JDK. Use JDK 21 with JavaFX 21 (21.0.2 below); do not assume all newer JavaFX releases support JDK 21.
     ```xml
     <!-- Maven pom.xml example for JavaFX 21 with JDK 21 -->
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release> <!-- Corresponds to JDK version -->
-        <javafx.version>21.0.2</javafx.version> <!-- Or latest compatible JavaFX 21+ version -->
+        <javafx.version>21.0.2</javafx.version> <!-- Or a compatible JavaFX 21 maintenance update -->
     </properties>
 
     <dependencies>
@@ -330,8 +330,8 @@ Once your project is open and Scene Builder path is configured (Part 2), edit FX
         ```xml
         <VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.yourproject.PrimaryController">...</VBox>
         ```
-    2.  **Controller Constructor**: Must have a no-argument constructor.
-    3.  **`@FXML` Annotations**: UI elements in FXML with `fx:id` need corresponding `@FXML` annotated fields in the controller.
+    2.  **Controller Constructor**: The default `FXMLLoader` controller creation requires a public no-argument constructor.
+    3.  **`@FXML` Annotations**: Add matching fields only for `fx:id` elements the controller needs to access; annotate non-public injected fields with `@FXML`.
         ```java
         // PrimaryController.java
         public class PrimaryController {
@@ -345,6 +345,10 @@ Once your project is open and Scene Builder path is configured (Part 2), edit FX
         // Or: FXMLLoader.load(getClass().getResource("/com/example/yourproject/primary.fxml")); // Absolute from classpath root
         ```
     5.  **Build System**: Ensure Maven/Gradle includes resources.
+    6.  **Module Access**: For a modular project, open the controller package to `javafx.fxml` in `module-info.java` so it can access `@FXML` members:
+        ```java
+        opens com.example.yourproject to javafx.fxml;
+        ```
 </CollapseDropdown>
 
 <BackgroundInfo title="General Troubleshooting">

@@ -3,7 +3,7 @@ title: "Java, Maven, & Gradle: OS Setup & Project-Level Usage"
 slug: "project-level-java-maven-gradle-versioning"
 excerpt: "Install Java, Maven, Gradle at OS & project levels. Learn common commands for consistent builds & development workflows."
 publishedAt: "2025-05-17"
-updatedAt: "2025-11-01"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags:
   [
@@ -46,13 +46,13 @@ For project setups, you'll need a Java Development Kit (JDK) installed on your s
           <pre>
             <code className="language-bash">
               {[
-                "# Install the latest LTS version (e.g., OpenJDK 21)",
+                "# Install OpenJDK 21 (LTS)",
                 "brew install openjdk@21",
                 "",
                 "# For ARM-based Macs (M1/M2/M3), Homebrew installs to /opt/homebrew.",
                 "# For Intel-based Macs, it's /usr/local.",
                 "# To make this JDK the default, symlink it:",
-                "sudo ln -sfn /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-21.jdk",
+                'sudo ln -sfn "$(brew --prefix openjdk@21)/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk-21.jdk',
                 "",
                 "# Set JAVA_HOME in your shell profile (e.g., ~/.zshrc)",
                 "echo 'export JAVA_HOME=$(/usr/libexec/java_home -v 21)' >> ~/.zshrc",
@@ -96,7 +96,7 @@ For project setups, you'll need a Java Development Kit (JDK) installed on your s
       <pre>
         <code className="language-bash">
           {[
-            "# Install latest LTS (e.g., OpenJDK 21)",
+            "# Install OpenJDK 21 (LTS)",
             "sudo apt update",
             "sudo apt install openjdk-21-jdk",
             "",
@@ -149,12 +149,12 @@ For project setups, you'll need a Java Development Kit (JDK) installed on your s
           </ul>
         </li>
         <li>
-          Open a new Command Prompt or PowerShell and verify:
+          Open a new PowerShell and verify (in Command Prompt, use <code>echo %JAVA_HOME%</code> instead):
           <pre>
             <code className="language-powershell">
               {"java -version"}
               {"\n"}
-              {"echo %JAVA_HOME%"}
+              {"echo $env:JAVA_HOME"}
             </code>
           </pre>
         </li>
@@ -268,6 +268,7 @@ Ensure different projects can use different Java versions without conflict.
                 "# Example: Point to a JDK 21 installation",
                 "export JAVA_HOME=$(/usr/libexec/java_home -v 21)",
                 "# Or directly: export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home",
+                'export PATH="$JAVA_HOME/bin:$PATH"',
                 "java -version",
               ].join("\n")}
             </code>
@@ -277,7 +278,7 @@ Ensure different projects can use different Java versions without conflict.
           <div>`set_java_env.sh`:</div>
           <pre>
             <code className="language-bash">
-              {["#!/bin/bash", "export JAVA_HOME=$(/usr/libexec/java_home -v 17) # Or project's JDK path"].join("\n")}
+              {["#!/bin/bash", "export JAVA_HOME=$(/usr/libexec/java_home -v 17) # Or project's JDK path", 'export PATH="$JAVA_HOME/bin:$PATH"'].join("\n")}
             </code>
           </pre>
           <div>Source it: `source ./set_java_env.sh`.</div>
@@ -286,7 +287,7 @@ Ensure different projects can use different Java versions without conflict.
           <div>Install <ExternalLink href="https://direnv.net/">direnv</ExternalLink>. Create `.envrc` in project root:</div>
           <pre>
             <code className="language-bash">
-              {["# .envrc", "export JAVA_HOME=$(/usr/libexec/java_home -v 17) # Or specific path"].join("\n")}
+              {["# .envrc", "export JAVA_HOME=$(/usr/libexec/java_home -v 17) # Or specific path", 'export PATH="$JAVA_HOME/bin:$PATH"'].join("\n")}
             </code>
           </pre>
           <div>Run `direnv allow`. `JAVA_HOME` auto-sets on `cd`.</div>
@@ -324,9 +325,16 @@ Ensure different projects can use different Java versions without conflict.
     <CollapseDropdown summary="Project Pinning (.sdkmanrc)">
       <div>In project directory:</div>
       <pre>
-        <code className="language-bash">{"sdk env init java 11.0.22-tem # Creates .sdkmanrc"}</code>
+        <code className="language-bash">
+          {[
+            "sdk install java 11.0.22-tem # If not already installed",
+            "sdk use java 11.0.22-tem # Select the version to pin",
+            "sdk env init # Creates .sdkmanrc from the active SDK versions",
+            "sdk env # Apply .sdkmanrc in this shell",
+          ].join("\n")}
+        </code>
       </pre>
-      <div>SDKMAN! auto-switches Java version when entering the directory (after initial trust).</div>
+      <div>Run `sdk env` when entering the project, or set `sdkman_auto_env=true` in `~/.sdkman/etc/config` to switch automatically.</div>
       <pre>
         <code className="language-bash">
           {["java -version # Shows .sdkmanrc version", "javac -version"].join("\n")}
@@ -344,7 +352,10 @@ Ensure different projects can use different Java versions without conflict.
             'echo \'export PATH="$HOME/.jenv/bin:$PATH"\' >> ~/.zshrc',
             `echo 'eval "$(jenv init -)"' >> ~/.zshrc`,
             "source ~/.zshrc",
-            "jenv add /opt/homebrew/opt/openjdk@11 # Add installed JDK",
+            "jenv enable-plugin export # Keep JAVA_HOME in sync for Maven and other tools",
+            'exec "$SHELL" -l # Restart your shell to activate the export plugin',
+            'jenv add "$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home" # JDK installed in Part 1',
+            "jenv versions # List registered versions and aliases",
           ].join("\n")}
         </code>
       </pre>
@@ -352,9 +363,9 @@ Ensure different projects can use different Java versions without conflict.
     <CollapseDropdown summary="Project Pinning (.java-version)">
       <div>In project directory:</div>
       <pre>
-        <code className="language-bash">{"jenv local 17.0 # Creates .java-version"}</code>
+        <code className="language-bash">{"jenv local 21 # Registered JDK 21 alias; creates .java-version"}</code>
       </pre>
-      <div>`jenv` auto-switches Java version.</div>
+      <div>`jenv` auto-switches Java version; with the export plugin enabled, `JAVA_HOME` follows too.</div>
       <pre>
         <code className="language-bash">{"java -version # Shows .java-version version"}</code>
       </pre>
@@ -443,25 +454,27 @@ distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-mav
               ].join("\n")}
             </code>
           </pre>
-          <pre>
-            <code className="language-xml">{`&lt;!-- pom.xml --&gt;
+
+```xml
+<!-- pom.xml -->
 <dependencies>
     <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-web</artifactId>
-        &lt;!-- Version might be managed by a parent POM or bom --&gt;
+        <!-- Version might be managed by a parent POM or bom -->
     </dependency>
-</dependencies>`}</code>
-          </pre>
+</dependencies>
+```
+
           <div>After adding, refresh project in IDE or run `./mvnw clean install`.</div>
         </InstructionTab>
         <InstructionTab label="Running Specific Goals">
-          <div>You can run specific plugin goals directly.</div>
+          <div>To run and verify a specific integration test, bind Failsafe's `integration-test` and `verify` goals to the Maven lifecycle in `pom.xml`, then run:</div>
           <pre>
             <code className="language-bash">
               {[
-                "# Example: Run a specific integration test with Failsafe plugin",
-                "./mvnw failsafe:integration-test -Dit.test=MyIntegrationTest",
+                "# With lifecycle-bound Failsafe, run setup, tests, teardown, and verification",
+                "./mvnw verify -Dit.test=MyIntegrationTest",
               ].join("\n")}
             </code>
           </pre>
@@ -470,14 +483,16 @@ distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-mav
     </CollapseDropdown>
     <CollapseDropdown summary="Maven Wrapper & Java Version">
       <div>The `pom.xml` defines Java compatibility for compilation:</div>
-      <pre>
-        <code className="language-xml">{`&lt;!-- pom.xml --&gt;
+
+```xml
+<!-- pom.xml -->
 <properties>
     <java.version>17</java.version>
-    <maven.compiler.source>\${java.version}</maven.compiler.source>
-    <maven.compiler.target>\${java.version}</maven.compiler.target>
-</properties>`}</code>
-      </pre>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+</properties>
+```
+
       <div>Ensure the active `JAVA_HOME` (ideally set per-project) is compatible with these settings.</div>
     </CollapseDropdown>
 
@@ -540,9 +555,11 @@ distributionUrl=https://services.gradle.org/distributions/gradle-8.7-bin.zip
                 "# Build without running tests",
                 "./gradlew build -x test",
                 "",
-                "# Run application (common for Spring Boot or other executable JARs)",
-                "# Requires application plugin and mainClassName configured in build.gradle",
+                "# Run an application configured with the application plugin and application.mainClass",
                 "./gradlew run",
+                "",
+                "# Run a Spring Boot application (requires the Spring Boot plugin)",
+                "./gradlew bootRun",
                 "",
                 "# List all available tasks for the project",
                 "./gradlew tasks",

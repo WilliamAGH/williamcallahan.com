@@ -3,7 +3,7 @@ title: "Make a DigitalOcean Space Public by Default (ACLs and Bucket Policies)"
 slug: "set-digitalocean-s3-bucket-public-by-default-the-right-way"
 excerpt: "If your Spaces policy or access-log commands return 403, you’re probably using a limited (per-bucket) key. Use a full-access key, then choose ACLs or a bucket policy for public reads."
 publishedAt: "2025-07-20"
-updatedAt: "2026-02-05"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags:
   [
@@ -52,7 +52,7 @@ Spaces access keys come in two scopes: full access and limited (per-bucket) acce
 
 Two practical implications:
 
-- Limited keys are currently incompatible with bucket policies ([bucket policy docs](https://docs.digitalocean.com/products/spaces/how-to/manage-access/#bucket-policies)).
+- Limited keys are currently incompatible with bucket policies ([access-key docs](https://docs.digitalocean.com/products/spaces/how-to/manage-access/)). Existing limited-access grants on the target bucket can block `PutBucketPolicy` even when the request is signed with a full-access key.
 - Bucket-level features like access logs require bucket-level permissions; use a full-access key to configure them.
 
 If you only need object uploads/downloads and you’re keeping things private, limited keys are still useful. For the rest of this post, assume you’re using a full-access key.
@@ -72,6 +72,8 @@ sudo apt-get install s3cmd
 ```
 
 Run `s3cmd --configure` and enter your Spaces key + secret. When it asks for the endpoint, use `YOUR_REGION.digitaloceanspaces.com` (for example, `sfo3.digitaloceanspaces.com`).
+
+For the DNS-style bucket hostname template (`host_bucket`), use `%(bucket)s.REGION.digitaloceanspaces.com`, replacing `REGION` with your bucket's region (for example, `%(bucket)s.sfo3.digitaloceanspaces.com`). Keep `%(bucket)s` literal; `s3cmd` substitutes the bucket name.
 
 ### a. (Optional) Enable public directory listings
 
@@ -126,7 +128,7 @@ aws --endpoint-url https://YOUR_REGION.digitaloceanspaces.com \
   --policy file://public-policy.json
 ```
 
-If you see `403 Forbidden` here, double-check that you’re using a full-access key (not limited/per-bucket).
+If you see `403 Forbidden` here, double-check that you’re using a full-access key (not limited/per-bucket) and that the target bucket has no existing limited-access grants. A full-access signer alone does not resolve that bucket-policy incompatibility.
 
 ## 4. (Optional) Configure Spaces Access Logs
 

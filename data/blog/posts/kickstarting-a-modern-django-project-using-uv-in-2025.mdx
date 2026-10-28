@@ -3,7 +3,7 @@ title: "Kickstarting a Modern Django Project (using UV) in 2025"
 slug: "kickstarting-a-modern-django-project-using-uv-in-2025"
 excerpt: "How to start a Django project with modern templates, SaaS core features, SQL database integration, and popular IDE tooling."
 publishedAt: "2025-05-07"
-updatedAt: "2025-11-01"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags:
   [
@@ -416,8 +416,14 @@ python manage.py startapp my_first_app
 <div>
   Add your new app to <code>INSTALLED_APPS</code> in your project's <code>settings.py</code> file:
 </div>
-```python INSTALLED_APPS = [ # ... other apps 'my_first_app', # Or
-'my_first_app.apps.MyFirstAppConfig' if using AppConfig # ... django apps ... ] ```
+
+```python
+INSTALLED_APPS = [
+    # ... other apps
+    'my_first_app',  # Or 'my_first_app.apps.MyFirstAppConfig' if using AppConfig
+    # ... django apps ...
+]
+```
 
 <div className="py-[6px]">
   <strong>3. Define a Simple Model:</strong>
@@ -425,16 +431,18 @@ python manage.py startapp my_first_app
 <div>
   Edit <code>my_first_app/models.py</code>:
 </div>
-```python from django.db import models
+
+```python
+from django.db import models
 
 class Greeting(models.Model):
-message = models.CharField(max_length=255)
-created_at = models.DateTimeField(auto_now_add=True)
+    message = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-      def __str__(self):
-          return self.message
+    def __str__(self):
+        return self.message
 
-````
+```
 
 <div className="py-[6px]"><strong>4. Create & Apply Migrations:</strong></div>
 <div className="instruction-tabs">
@@ -447,7 +455,7 @@ uv run manage.py makemigrations my_first_app
 
 # Apply migrations to database
 uv run manage.py migrate
-````
+```
 
       </InstructionTab>
       <InstructionTab label="pip">
@@ -469,22 +477,24 @@ python manage.py migrate
 <CollapseDropdown summary="Create views and URL configuration">
   <div><strong>1. Create a View:</strong></div>
   <div>Edit <code>my_first_app/views.py</code>:</div>
-  ```python
-  from django.http import HttpResponse
-  from .models import Greeting
+
+```python
+from django.http import HttpResponse
+from .models import Greeting
 
 def hello_world(request):
-greeting = Greeting.objects.first() # Get the first greeting, or None
-if not greeting:
-greeting_text = "No greetings yet!"
-else:
-greeting_text = greeting.message
-return HttpResponse(f"<h1>{greeting_text}</h1><p>From my_first_app!</p>")
+    greeting = Greeting.objects.first() # Get the first greeting, or None
+    if not greeting:
+        greeting_text = "No greetings yet!"
+    else:
+        greeting_text = greeting.message
+    return HttpResponse(f"<h1>{greeting_text}</h1><p>From my_first_app!</p>")
 
-````
+```
 
 <div><strong>2. Create App URLs:</strong></div>
 <div>Create <code>my_first_app/urls.py</code>:</div>
+
 ```python
 from django.urls import path
 from . import views
@@ -492,7 +502,7 @@ from . import views
 urlpatterns = [
     path('hello/', views.hello_world, name='hello_world'),
 ]
-````
+```
 
 <div>
   <strong>3. Include in Project URLs:</strong>
@@ -500,14 +510,17 @@ urlpatterns = [
 <div>
   Update your project's <code>urls.py</code> (e.g., <code>config/urls.py</code>):
 </div>
-```python from django.contrib import admin from django.urls import path, include
+
+```python
+from django.contrib import admin
+from django.urls import path, include
 
 urlpatterns = [
-path('admin/', admin.site.urls),
-path('app/', include('my_first_app.urls')), # This adds your app URLs
+    path('admin/', admin.site.urls),
+    path('app/', include('my_first_app.urls')), # This adds your app URLs
 ]
 
-````
+```
 
 <div className="py-[6px]">Now visit <code>http://127.0.0.1:8000/app/hello/</code> to see your view in action.</div>
 </CollapseDropdown>
@@ -585,7 +598,7 @@ uv add cookiecutter
 
 # Generate project from template
 uv run cookiecutter gh:cookiecutter/cookiecutter-django
-````
+```
 
             </InstructionTab>
             <InstructionTab label="pip">
@@ -834,18 +847,22 @@ DATABASES = {
 
   <BackgroundInfo title='Database Credentials Tip'>
     For production, use environment variables for database credentials, not hardcoded values:
-    ```python
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'mydatabase'),
-            'USER': os.environ.get('DB_USER', 'mydatabaseuser'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', 'mypassword'),
-            'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-        }
+
+```python
+import os
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'mydatabase'),
+        'USER': os.environ.get('DB_USER', 'mydatabaseuser'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'mypassword'),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
-    ```
+}
+```
+
   </BackgroundInfo>
 </CollapseDropdown>
 
@@ -858,14 +875,17 @@ DATABASES = {
 <div>
   In your app's <code>admin.py</code> file:
 </div>
-```python from django.contrib import admin from .models import Greeting
+
+```python
+from django.contrib import admin
+from .models import Greeting
 
 @admin.register(Greeting)
 class GreetingAdmin(admin.ModelAdmin):
-list_display = ('message', 'created_at')
-search_fields = ('message',)
+    list_display = ('message', 'created_at')
+    search_fields = ('message',)
 
-````
+```
 
 <div><strong>2. Access Admin Interface:</strong></div>
 <div>After starting the development server, visit <code>http://127.0.0.1:8000/admin/</code> and log in with superuser credentials.</div>
@@ -899,7 +919,7 @@ uv run manage.py runserver
 
 # Optional: specify port
 uv run manage.py runserver 8080
-````
+```
 
           </InstructionTab>
           <InstructionTab label="pip">
@@ -1025,7 +1045,7 @@ python manage.py test app_name.tests.test_module
 # Collect static files to STATIC_ROOT
 uv run manage.py collectstatic
 
-# Find unused static files
+# Find the first matching static file
 uv run manage.py findstatic --first filename.ext
 ```
 
@@ -1036,7 +1056,7 @@ uv run manage.py findstatic --first filename.ext
 # Collect static files to STATIC_ROOT
 python manage.py collectstatic
 
-# Find unused static files
+# Find the first matching static file
 python manage.py findstatic --first filename.ext
 ```
 
@@ -1071,13 +1091,16 @@ For more on deployment strategies and options, I made a recent post sharing my c
   <strong>Address Already in Use:</strong>
 </div>
 <div>If you see "Address already in use," find and kill the process:</div>
-```bash # Find the process using port 8000 lsof -i :8000
+
+```bash
+# Find the process using port 8000
+lsof -i :8000
 
 # Kill the process
 
 kill <PID>
 
-````
+```
 </CollapseDropdown>
 
 <CollapseDropdown summary='Migration issues'>
@@ -1128,7 +1151,7 @@ uv add <package_name>
 
 # Verify installed packages
 uv pip list
-````
+```
 
       </InstructionTab>
       <InstructionTab label="pip">
@@ -1185,7 +1208,10 @@ python manage.py shell
   </div>
 
 <div>Example shell session for debugging models:</div>
-```python # Import your model from my_first_app.models import Greeting
+
+```python
+# Import your model
+from my_first_app.models import Greeting
 
 # Query data
 
@@ -1197,4 +1223,3 @@ Greeting.objects.create(message="Hello, Django!")
 
 ```
 </CollapseDropdown>
-```

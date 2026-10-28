@@ -3,7 +3,7 @@ title: "Google's Jules AI Agent: Autonomous Coding and Environment Setup Guide"
 slug: "google-jules-ai-agent-launched-and-pnpm-bun-yarn-environment-setup"
 excerpt: "A hands-on look at Google's Jules AI coding agent, its capabilities, and how to configure your development environment for full autonomous abilities in Jules."
 publishedAt: "2025-05-21"
-updatedAt: "2025-11-01"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags: ["ai", "google", "jules", "package-managers", "pnpm", "bun", "yarn", "coding-agents"]
 coverImage: "/images/posts/jules-ai.png"
@@ -23,7 +23,7 @@ coverImage: "/images/posts/jules-ai.png"
 
 ## Feature summary
 
-- **Planning and diff output** – every run publishes the plan, intermediate reasoning, and final patch set before prompting for approval.
+- **Planning and diff output** – Jules asks you to approve the plan before making changes, logs its progress, and provides a final patch set for a separate diff review.
 - **Long-context models** – Jules uses Gemini 2.5 Pro; requested context is capped at roughly 200k tokens during the beta.
 - **Audio recap** – optional short audio summary for teams that prefer listening to changelog updates.
 - **Tool execution** – runs shell commands, package managers, and tests inside `/app`; all commands are logged in the dashboard.
@@ -34,23 +34,24 @@ Jules works like a remote engineer: it clones the repo, performs the scripted se
 
 1. Create a project in the Jules dashboard.
 2. Provide repository access, then hit **Configure** to define setup commands.
-3. Submit a natural-language task. Jules runs the plan, opens pull requests when asked, and exposes logs in the web UI.
-4. You can interrupt a run at any stage; the VM is destroyed afterward.
+3. Submit a natural-language task. Review and approve Jules's plan before it makes changes; logs are available in the web UI.
+4. Review the final diff separately after the task completes. Jules opens pull requests when asked.
+5. You can interrupt a run at any stage; the VM is destroyed afterward.
 
 The agent does not currently support self-hosted runners or on-prem repositories. All execution happens in Google's environment.
 
-## Default tools
+## Default tools at launch
 
 | Area             | Default behavior                                                                                 |
 | ---------------- | ------------------------------------------------------------------------------------------------ |
 | Runtime          | Node.js 22, Python 3.12, Java 21 images available.                                               |
-| Package managers | npm is detected automatically; pnpm, Bun, or Yarn require manual configuration.                  |
+| Package managers | npm was detected automatically; I configured alternative package managers manually at launch.    |
 | Auth             | Environment variables defined in the configuration UI are injected before the setup script runs. |
 | Output           | Each task produces a diff, plan summary, and optional audio recap.                               |
 
 ## Custom package manager setup
 
-Add a setup script under **Configuration → Environment**. Jules runs this script before executing tasks. Jules doesn't properly detect alternative package managers like pnpm and Bun automatically. You need to configure these manually using custom setup scripts in the **Configuration** tab of your Jules project:
+Add a setup script under **Configuration → Environment**. Jules runs this script before executing tasks. The scripts below reflect my launch-era setup, when I configured pnpm and Bun manually in the **Configuration** tab. Check the tools Jules already provides and choose versions that match your repository's runtime requirements, `packageManager` field, and lockfile rather than assuming these example versions are right for every project:
 
 ### pnpm
 
@@ -62,7 +63,7 @@ cd /app
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 export NVM_DIR="$HOME/.nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
-  set +e; \\. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
+  set +e; . "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
   if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
     echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
   fi
@@ -86,7 +87,7 @@ cd /app
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 export NVM_DIR="$HOME/.nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
-  set +e; \\. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
+  set +e; . "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
   if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
     echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
   fi
@@ -99,14 +100,14 @@ nvm install 22 && nvm use 22 && nvm alias default 22
 curl -fsSL https://bun.sh/install | bash
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
-bun install
+bun install --frozen-lockfile
 ```
 
 These scripts:
 
 - Install NVM (Node Version Manager)
-- Set up Node.js 22 (latest stable)
-- Install the latest version of your chosen package manager
+- Set up Node.js 22 (an LTS release)
+- Install pnpm 10 or Bun via its installer; adjust the versions to match your repository
 - Install project dependencies with frozen lockfiles
 
 <TweetEmbed url="https://x.com/leerob/status/1925228425301893481" />
@@ -129,6 +130,6 @@ Jules has been reliable for dependency upgrades, regenerating SDKs, and running 
 
 ## Beta limitations and privacy
 
-- **Usage limits** – during public beta the service is free but throttled; Google has indicated a paid tier will replace the free allowance when the beta closes.
+- **Usage limits** – the public beta launched free but throttled; pricing was not announced at launch.
 - **Data handling** – Google states that private repositories processed through Jules are not used to train models and stay within the temporary execution environment.
 - **Unsupported environments** – self-hosted Git or non-GitHub remotes are not yet available; every job clones from GitHub via the installed app.
