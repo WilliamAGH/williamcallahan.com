@@ -2,7 +2,7 @@
 title: "Setting Up a New PC / Server with Pop!_OS 22.04"
 excerpt: "A detailed checklist for setting up a PC / server with Pop!_OS 22.04, from BIOS configuration to essential tools installation"
 publishedAt: "2024-09-25"
-updatedAt: "2025-05-22"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags: ["linux", "pop-os", "server", "tutorial", "checklist"]
 coverImage: "/images/posts/terminal_pop_os.svg"
@@ -15,7 +15,7 @@ I use a lot of checklists -- here's another one of mine, this time for setting u
 
 ### 1. BIOS Configuration
 
-Most modern PCs require disabling Secure Boot and TPM/device security features to install Linux distributions. To access BIOS:
+Pop!\_OS 22.04 requires disabling Secure Boot before installation; this is not a requirement for all Linux distributions. To access BIOS:
 
 1. Power on your PC
 2. Immediately press and hold the `Delete` key
@@ -26,7 +26,6 @@ Navigate to:
 
 - Security/Boot section
 - Disable "Secure Boot"
-- Disable "TPM Security" if present
 - Save changes and exit
 
 ### 2. Boot Order Configuration
@@ -108,36 +107,49 @@ sudo hostnamectl set-hostname NEW_HOSTNAME
 ```bash
 # Install SSH server
 sudo apt install openssh-server
+```
 
-# Configure SSH
+First, set up SSH keys while logged in as your normal (non-root) server user:
+
+```bash
+# Create .ssh directory
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+# Append your client's public key without replacing existing keys
+echo "your-public-key" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+Keep your current session open. From a new terminal on your client, confirm that key-only login works before disabling passwords:
+
+```bash
+ssh -o PreferredAuthentications=publickey your-user@server-ip
+```
+
+Only after that succeeds, configure SSH on the server:
+
+```bash
 sudo nano /etc/ssh/sshd_config
 ```
 
 Add/modify these lines:
 
-```bash
+```text
 PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
 ```
 
-Set up SSH keys:
+OpenSSH generally uses the first value it reads, so earlier settings included from `/etc/ssh/sshd_config.d/*.conf` can take precedence over the main file; check the effective settings with `sudo sshd -T`.
+
+Validate the configuration, then reload only if validation succeeds:
 
 ```bash
-# Create .ssh directory
-sudo mkdir -p ~/.ssh
-sudo chmod 700 ~/.ssh
-
-# Add your public key
-echo "your-public-key" > ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-
-# For root (if needed)
-sudo mkdir -p /root/.ssh
-sudo chmod 700 /root/.ssh
-sudo cp ~/.ssh/authorized_keys /root/.ssh/
-sudo chmod 600 /root/.ssh/authorized_keys
+sudo sshd -t && sudo systemctl reload ssh
 ```
+
+Open another client terminal and repeat the key-only login check before closing your existing session.
 
 ### Docker Installation
 
@@ -174,7 +186,7 @@ EOF
 sudo apt install micro
 
 # Set as default editor
-sudo update-alternatives --install /usr/bin/editor editor /usr/local/bin/micro 100
+sudo update-alternatives --install /usr/bin/editor editor /usr/bin/micro 100
 sudo update-alternatives --config editor
 
 # Configure for git
@@ -183,7 +195,7 @@ echo 'export EDITOR=micro' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### Enable Automatic Reboot
+### Disable Sleep and Suspend
 
 ```bash
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
@@ -199,11 +211,22 @@ My list of useful tools for development:
 | [Lazygit](https://github.com/jesseduffield/lazygit)       | Git TUI              | `brew install lazygit`                                                                            |
 | [Lazydocker](https://github.com/jesseduffield/lazydocker) | Docker TUI           | `brew install jesseduffield/lazydocker/lazydocker`                                                |
 | [Node.js & npm](https://nodejs.org)                       | JavaScript runtime   | `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh \| bash`                |
-| [pnpm](https://pnpm.io)                                   | Fast package manager | `npm install -g pnpm`                                                                             |
+| [pnpm](https://pnpm.io)                                   | Fast package manager | See Node.js setup below                                                                           |
 | [Python](https://python.org)                              | Python runtime       | `sudo apt install python3 python3-pip`                                                            |
 | [pipx](https://pypa.github.io/pipx/)                      | Python app installer | `python3 -m pip install --user pipx`                                                              |
 | [uv](https://github.com/astral-sh/uv)                     | Fast Python packager | `curl -LsSf https://astral.sh/uv/install.sh \| sh`                                                |
 | [Warp](https://warp.dev)                                  | Modern terminal      | Visit [warp.dev](https://warp.dev) for installation                                               |
 | [Micro](https://micro-editor.github.io)                   | Terminal editor      | `sudo apt install micro`                                                                          |
+
+After installing Homebrew, follow its printed **Next steps** to add `brew` to your shell before running the `brew install` commands.
+
+The Node.js row installs nvm only, not Node.js or npm. After running that installer, load nvm and install Node.js (which includes npm) before installing pnpm. For the default `~/.nvm` installation:
+
+```bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+nvm install --lts
+npm install -g pnpm
+```
 
 Remember to test all services and configurations before considering the setup complete. This checklist has worked well for me across multiple server setups.

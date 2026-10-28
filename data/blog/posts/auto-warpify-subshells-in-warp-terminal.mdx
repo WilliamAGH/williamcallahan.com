@@ -3,7 +3,7 @@ title: How to automatically use Warp Terminal's Subshells with "Warpify"
 slug: "auto-warpify-subshells-in-warp-terminal"
 excerpt: "Set up automatic subshells in Warp Terminal with a custom Warpify configuration"
 publishedAt: "2024-12-31"
-updatedAt: "2025-05-22"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags: ["terminal", "CLI", "technology"]
 coverImage: "/images/posts/modern_terminal_blog.svg"
@@ -17,7 +17,7 @@ Warp subshells provide isolated environments where you can run commands without 
 
 ## How to auto Warpify Subshells
 
-Add the snippet to the appropriate RC file in the target environment. For SSH or containers, place it on the host you're
+Add the snippet at the end of the appropriate RC file in the target environment, after other shell setup. For SSH or containers, place it on the host you're
 connecting to; for local nested shells, keep it in your local RC file so those inner shells are warpified automatically.
 
 <BackgroundInfo title="Important: Configure this on the host you're connecting to">
@@ -40,6 +40,8 @@ connecting to; for local nested shells, keep it in your local RC file so those i
   </ul>
 </BackgroundInfo>
 
+Bash reads `~/.bashrc` for interactive non-login shells; login shells read a login profile such as `~/.bash_profile` or `~/.profile`. If your login profile already sources `~/.bashrc`, keep the hook there rather than duplicating it.
+
 ### Local nested shells: examples
 
 “Local nested shells” are interactive shells that you launch inside the current Warp session on the same machine (not SSH,
@@ -54,7 +56,6 @@ not a container). If you want these inner shells to be warpified without a promp
 - Dev tools that spawn subshells
   - `poetry shell`, `pipenv shell`
   - `nix-shell`, `nix develop`
-  - `asdf shell <tool> <version>` (depending on setup)
 - Multiplexers that launch a fresh shell in new panes or windows
   - `tmux new -s work`, `screen`
 
@@ -63,7 +64,7 @@ What do **not** count as local nested shells (configure the environment you jump
 - `docker exec -it <container> /bin/bash` → put the snippet in the container user's RC file.
 - `ssh user@host` (even `ssh localhost`) → put the snippet on the target machine.
 
-This protection boundary keeps the hook scoped to Warp and to interactive shells only:
+For local nested shells, this guard keeps the hook scoped to Warp and to interactive shells only. Use the remote variant below for SSH or containers:
 
 ```bash
 # zsh (~/.zshrc)
@@ -103,11 +104,13 @@ fi
 EOF
 ```
 
-For Linux hosts you're connecting to (remote server or container):
+For Linux hosts you're connecting to (remote server or container), use an interactive-only guard rather than the local `TERM_PROGRAM` check: SSH does not normally forward `TERM_PROGRAM`. Put this at the end of the remote user's `~/.bashrc` (or the login profile as described above):
 
 ```bash
-# Warpify subshells in the remote environment (add to remote ~/.bashrc)
-printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "bash" }}\x9c'
+# Warpify interactive bash subshells in the remote environment
+if [[ $- == *i* ]]; then
+  printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "bash" }}\x9c'
+fi
 ```
 
 See the official docs for further details: [Warpify Subshells](https://docs.warp.dev/terminal/warpify/subshells).

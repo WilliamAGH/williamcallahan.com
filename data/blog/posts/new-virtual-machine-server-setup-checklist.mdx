@@ -2,7 +2,7 @@
 title: "New Virtual Machine Server Setup Checklist"
 excerpt: "A detailed guide to setting up a new Linux virtual machine server, from initial updates to security hardening"
 publishedAt: "2024-08-30"
-updatedAt: "2025-05-22"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags: ["server", "linux", "docker", "security", "tutorial"]
 coverImage: "/images/posts/ssh_terminal.svg"
@@ -27,7 +27,7 @@ sudo apt upgrade
 
 ## Docker Installation
 
-Follow these steps to install Docker properly on Ubuntu:
+The Docker commands below are for Ubuntu only. For Debian, follow the separate [official Debian installation guide](https://docs.docker.com/engine/install/debian/) instead.
 
 ### 1. Remove Conflicting Packages
 
@@ -107,6 +107,8 @@ Login as your new user above first, as you can't install homebrew as root.
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
+Follow the installer's printed **Next steps** to add `brew` to your shell before continuing.
+
 ### Install [Micro Editor](https://micro-editor.github.io/)
 
 ```bash
@@ -128,24 +130,7 @@ brew install lazygit
 ssh-keygen -t ed25519 -C "your-email@example.com"
 ```
 
-### 2. Configure SSH Server
-
-Edit `/etc/ssh/sshd_config`:
-
-```bash
-sudo nano /etc/ssh/sshd_config
-```
-
-Add/modify these important settings:
-
-```
-PermitRootLogin no
-PasswordAuthentication no
-PubkeyAuthentication yes
-MaxAuthTries 10
-```
-
-### 3. Add SSH Keys
+### 2. Add SSH Keys
 
 For the new user:
 
@@ -156,26 +141,56 @@ sudo chown <<new-username>>:<<new-username>> /home/<<new-username>>/.ssh
 sudo chmod 700 /home/<<new-username>>/.ssh
 
 # Copy root's authorized_keys to new user (if exists)
-if [ -f /root/.ssh/authorized_keys ]; then
+if sudo test -f /root/.ssh/authorized_keys; then
     sudo cp /root/.ssh/authorized_keys /home/<<new-username>>/.ssh/
     sudo chown <<new-username>>:<<new-username>> /home/<<new-username>>/.ssh/authorized_keys
     sudo chmod 600 /home/<<new-username>>/.ssh/authorized_keys
 fi
 
 # Or manually add your public key if needed
-# echo "your-public-key" | sudo tee /home/<<new-username>>/.ssh/authorized_keys
+# echo "your-public-key" | sudo tee -a /home/<<new-username>>/.ssh/authorized_keys
 ```
+
+### 3. Test Key Login, Then Configure SSH Server
+
+Keep the current session open. From a new terminal on your local machine, confirm that the new user can log in using a key, without falling back to a password:
+
+```bash
+ssh -o PreferredAuthentications=publickey <<new-username>>@<<server-ip>>
+```
+
+In that new session, confirm `sudo -v` succeeds. Only then disable root/password login by editing `/etc/ssh/sshd_config`:
+
+```bash
+sudo nano /etc/ssh/sshd_config
+```
+
+Add/modify these important settings:
+
+```text
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 10
+```
+
+OpenSSH generally uses the first value it reads: settings included earlier from `/etc/ssh/sshd_config.d/*.conf` may take precedence over the main file. Check the effective settings with `sudo sshd -T` and adjust the earlier setting if needed.
 
 ### 4. Restart SSH Service
 
+Validate first, and restart only if validation succeeds:
+
 ```bash
-sudo systemctl restart ssh
+sudo sshd -t && sudo systemctl restart ssh
 ```
+
+Repeat the key-only login check in another terminal before closing the existing sessions.
 
 ## Security Recommendations
 
 - Always keep your system updated
 - Don't allow SSH logins via password
-- Consider using UFW (Uncomplicated Firewall) to manage incoming connections
+- Consider using UFW (Uncomplicated Firewall) to manage incoming connections; allow your SSH port before enabling it (`sudo ufw allow OpenSSH` for the default port, then `sudo ufw enable`)
+- Docker-published ports bypass normal UFW rules, so UFW alone does not control access to them
 
 Remember to test SSH access with your new user before closing your current session to ensure you haven't locked yourself out of the server.

@@ -3,7 +3,7 @@ title: "Adding a GitHub Contribution Graph to Next.js"
 slug: "adding-github-contribution-graph-to-nextjs"
 excerpt: "How to add a GitHub contribution graph to your Next.js site using GitHub's GraphQL API, with server-side caching."
 publishedAt: "2025-04-02"
-updatedAt: "2025-05-22"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags: ["nextjs", "github", "graphql", "api", "react", "typescript", "caching"]
 coverImage: "/images/posts/github-commit-graphic-history.png"
@@ -38,7 +38,7 @@ interface GitHubGraphQLContributionResponse {
   };
 }
 
-interface ContributionDay {
+export interface ContributionDay {
   date: string;
   count: number;
   level: number; // 0-4
@@ -126,7 +126,7 @@ This function fetches the data and transforms the `contributionLevel` strings (l
 
 ## 2: Caching the Data
 
-To avoid hitting the GitHub API on every request, cache the results server-side. An in-memory cache like `node-cache` works well for this. Set a reasonable Time-To-Live (TTL), like 24 hours. You can also add a way to manually bust the cache if needed.
+To avoid hitting the GitHub API on every request, cache the results server-side. An in-memory cache like `node-cache` works well for this. Set a reasonable Time-To-Live (TTL), like 24 hours. This example refreshes data only after the TTL expires; it does not expose a public cache-invalidation parameter.
 
 Example API route in Next.js:
 
@@ -134,7 +134,7 @@ Example API route in Next.js:
 // app/api/github-activity/route.ts (example location)
 import { NextResponse } from "next/server";
 import cache from "@/lib/cache"; // Your cache implementation
-import { fetchGitHubContributions } from "@/lib/github"; // The function from Step 1
+import { fetchGitHubContributions, type ContributionDay } from "@/lib/github"; // From Step 1
 
 interface GitHubActivityApiResponse {
   source: "graphql" | "cache";
@@ -145,16 +145,9 @@ interface GitHubActivityApiResponse {
 const GITHUB_ACTIVITY_CACHE_KEY = "github_activity_data";
 const CACHE_TTL_DAILY = 24 * 60 * 60; // 24 hours in seconds
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const refreshCache = url.searchParams.get("refresh") === "true";
-
-  if (refreshCache) {
-    cache.del(GITHUB_ACTIVITY_CACHE_KEY);
-  }
-
+export async function GET() {
   const cachedData = cache.get<GitHubActivityApiResponse>(GITHUB_ACTIVITY_CACHE_KEY);
-  if (cachedData && !refreshCache) {
+  if (cachedData) {
     // Add source indication for debugging/transparency
     return NextResponse.json({ ...cachedData, source: "cache" });
   }
@@ -178,17 +171,21 @@ export async function GET(request: Request) {
     cache.set(GITHUB_ACTIVITY_CACHE_KEY, activityData, CACHE_TTL_DAILY);
     return NextResponse.json(activityData);
   } catch (error) {
-    console.error("Error fetching GitHub contributions:", error);
+    // Octokit errors can contain request headers; log only the selected message.
+    console.error(
+      "Error fetching GitHub contributions:",
+      error instanceof Error ? error.message : "Unknown GitHub API error",
+    );
     // Return an error response or potentially stale cache data if available
     return NextResponse.json(
-      { error: "Failed to fetch GitHub activity", details: (error as Error).message },
+      { error: "Failed to fetch GitHub activity" },
       { status: 500 },
     );
   }
 }
 ```
 
-This API route first checks the cache. If data is missing or a refresh is requested, it fetches fresh data from GitHub using the function created in Step 1, caches it, and then returns it.
+This API route first checks the cache. If data is missing or has expired, it fetches fresh data from GitHub using the function created in Step 1, caches it, and then returns it.
 
 ## 3: Rendering the Graph
 
@@ -197,12 +194,7 @@ With the data fetched (likely via a client-side fetch to your API route or passe
 ```tsx
 // components/ContributionGraph.tsx (example component)
 import React from "react";
-
-interface ContributionDay {
-  date: string;
-  count: number;
-  level: number; // 0-4
-}
+import type { ContributionDay } from "@/lib/github";
 
 const getLevelColor = (level: number): string => {
   // Tailwind classes for different contribution levels
@@ -272,22 +264,12 @@ Sometimes when making components interactive, like wrapping them in links, you m
 </a>
 ```
 
-**Solution (use a clickable `div`):**
+**Solution (keep the outer link and use a noninteractive loading element):**
 
 ```jsx
-const navigateToUrl = (url: string) => {
-  window.open(url, '_blank', 'noopener,noreferrer');
-};
-
-<div
-  onClick={() => navigateToUrl(URL)}
-  className="cursor-pointer" // Make it look clickable
-  role="button"
-  tabIndex={0} // Make it focusable
-  onKeyDown={(e) => e.key === 'Enter' && navigateToUrl(URL)} // Keyboard accessible
->
+<a href="URL">
   {isLoading ? <span>Loading...</span> : content}
-</div>
+</a>
 ```
 
-Using a `div` with an `onClick` handler and proper accessibility attributes (`role`, `tabIndex`, `onKeyDown`) achieves the same result without the nesting issues.
+The real anchor preserves native keyboard navigation, link semantics, and open-in-new-tab behavior without scripted navigation. Keep `content` free of nested links or other interactive controls too.

@@ -3,7 +3,7 @@ title: "Vercel Blob vs Hetzner vs DigitalOcean vs AWS S3: Object Storage Showdow
 slug: "vercel-blob-vs-hetzner-digitalocean-aws-s3-object-storage-comparison"
 excerpt: "Comparing Vercel Blob's new general availability pricing and features against Hetzner Object Storage, DigitalOcean Spaces, and traditional AWS S3 to help you choose the right object storage solution."
 publishedAt: "2025-05-23"
-updatedAt: "2025-05-23"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags: ["vercel", "aws", "cloud", "storage", "hetzner", "digitalocean"]
 coverImage: "/images/posts/s3-object-storage-vercel-digitalocean-hetzner-aws-3rd.png"
@@ -13,7 +13,7 @@ Vercel just announced that [Vercel Blob](https://vercel.com/docs/vercel-blob) is
 
 ## The Elephant in the Room: S3 Compatibility
 
-Something often overlooked: most modern object storage solutions are S3-compatible, meaning you can use the AWS SDK to interact with them directly from any programming language. You're not locked into AWS's ecosystem—just point your S3 client to a different endpoint and use alternative services with minimal code changes.
+Something often overlooked: many modern object storage solutions are S3-compatible, meaning you can use the AWS SDK to interact with them directly from many programming languages. Hetzner Object Storage and DigitalOcean Spaces expose S3-compatible endpoints, so basic object operations can often move between them and AWS S3 with small configuration changes. Vercel Blob is backed by S3, but does not expose a customer-facing S3 endpoint; use its own SDK or API instead.
 
 <TweetEmbed url="https://x.com/vercel/status/1925632672488968683" />
 
@@ -24,7 +24,7 @@ Feature comparison:
 | Feature               | Vercel Blob                                         | Hetzner Object Storage          | DigitalOcean Spaces         | AWS S3                                                   |
 | --------------------- | --------------------------------------------------- | ------------------------------- | --------------------------- | -------------------------------------------------------- |
 | Underlying Technology | AWS S3 backend                                      | Ceph clusters                   | Proprietary (S3-compatible) | Native AWS infrastructure                                |
-| S3 API Compatibility  | Partial (proxied to S3)                             | Yes (S3-compatible)             | Yes (S3-compatible)         | Native                                                   |
+| S3 API Compatibility  | No customer-facing S3 endpoint; Blob SDK/API         | Yes (S3-compatible)             | Yes (S3-compatible)         | Native                                                   |
 | Durability            | 11 nines (via S3)                                   | Not explicitly stated           | Not explicitly stated       | 11 nines                                                 |
 | Global CDN            | Yes (Vercel Edge Network)                           | No built-in CDN                 | Yes (built-in, 25+ PoPs)    | Optional (CloudFront)                                    |
 | Data Center Locations | AWS regions, global cache                           | Germany, Finland                | 5 regions (US, EU, Asia)    | Dozens globally                                          |
@@ -33,11 +33,11 @@ Feature comparison:
 
 ## Pricing Comparison
 
-Pricing comparison:
+The pricing figures below are a May 2025 snapshot, not a current quote.
 
 | Provider               | Storage Price (per GB/month) | Data Transfer Out (per GB) | Minimum Monthly Price | Free Tier                                                               |
 | ---------------------- | ---------------------------- | -------------------------- | --------------------- | ----------------------------------------------------------------------- |
-| Vercel Blob            | $0.023                       | $0.05 (regional)           | $0 (with Hobby plan)  | 1GB storage & 10GB transfer (Hobby), 5GB storage & 100GB transfer (Pro) |
+| Vercel Blob            | $0.023                       | $0.05 (regional)           | $0 within Hobby limits; paid plan for overages | 1GB storage & 10GB transfer (Hobby), 5GB storage & 100GB transfer (Pro) |
 | Hetzner Object Storage | ~$0.0064 (1TB for $5.99)     | $0.0013 ($1.20/TB)         | $5.99                 | 1TB storage & 1TB transfer included in base price                       |
 | DigitalOcean Spaces    | $0.02                        | $0.01                      | $5                    | 250GB storage & 1,024GB transfer included in base price                 |
 | AWS S3 (Standard)      | $0.023 (first 50TB)          | $0.09                      | $0 (pay as you go)    | 5GB storage & 100GB transfer (AWS Free Tier, 12 months)                 |
@@ -48,12 +48,14 @@ Cost comparison for different storage volumes:
 
 | Provider               | Price for 250GB        | Price for 1TB           | Price for 5TB            |
 | ---------------------- | ---------------------- | ----------------------- | ------------------------ |
-| Vercel Blob            | ~$5.75 (Hobby + extra) | ~$23.00 (Hobby + extra) | ~$115.00 (Hobby + extra) |
+| Vercel Blob            | ~$5.75 (storage only) | ~$23.00 (storage only) | ~$115.00 (storage only) |
 | Hetzner Object Storage | $5.99 (for 1TB)        | $5.99                   | ~$29.95 (5TB)            |
 | DigitalOcean Spaces    | $5.00                  | ~$20.00                 | ~$100.00                 |
 | AWS S3 (Standard)      | ~$5.75                 | ~$23.00                 | ~$115.00                 |
 
 _Note: These calculations focus on storage costs only and don't include data transfer or API operation costs, which can significantly impact your total bill depending on usage patterns._
+
+The Vercel Blob figures illustrate storage-only marginal rates, excluding an eligible paid plan's base subscription and without subtracting included allowances. They are not total monthly bills or a "Hobby + extra" option: Hobby usage is capped rather than billed as paid overage.
 
 ## Integration with Modern Programming Languages
 
@@ -75,10 +77,10 @@ All these services integrate easily with modern languages. Here are some example
       }
     });
 
-    // For Hetzner or DigitalOcean, just change the endpoint
+    // For Hetzner, set the endpoint and matching location region
     const hetznerClient = new S3Client({
-      region: "eu-central-1",
-      endpoint: "https://s3.eu-central-1.hetzner.com",
+      region: "fsn1",
+      endpoint: "https://fsn1.your-objectstorage.com",
       credentials: {
         accessKeyId: "YOUR_ACCESS_KEY",
         secretAccessKey: "YOUR_SECRET_KEY"
@@ -171,15 +173,15 @@ All these services integrate easily with modern languages. Here are some example
         )
         s3Client := s3.NewFromConfig(cfg)
 
-        // For Hetzner or DigitalOcean, add custom endpoint resolver
+        // For Hetzner, use the location endpoint and matching region
         customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
             return aws.Endpoint{
-                URL: "https://s3.eu-central-1.hetzner.com",
+                URL: "https://fsn1.your-objectstorage.com",
             }, nil
         })
 
         hetznerCfg, _ := config.LoadDefaultConfig(context.TODO(),
-            config.WithRegion("eu-central-1"),
+            config.WithRegion("fsn1"),
             config.WithEndpointResolverWithOptions(customResolver),
             config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
                 "YOUR_ACCESS_KEY", "YOUR_SECRET_KEY", "",
@@ -244,4 +246,4 @@ For pure cost efficiency, Hetzner Object Storage is hard to beat, especially for
 
 AWS S3 has the most features, but at a premium price, especially for data transfer. Its feature set and global presence suit enterprise applications with complex requirements.
 
-With S3-compatible APIs across all these services, you're not locked into any single provider. You can start with one service and migrate to another as your needs change, often with minimal code changes.
+S3-compatible APIs make basic object operations portable between AWS S3, Hetzner, and DigitalOcean Spaces, though supported features differ. Moving to or from Vercel Blob also requires adapting its SDK/API calls; its S3 backend does not make the customer-facing APIs interchangeable.

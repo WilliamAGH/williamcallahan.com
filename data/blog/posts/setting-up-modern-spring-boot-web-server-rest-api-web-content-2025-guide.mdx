@@ -3,7 +3,7 @@ title: "Setting Up a Modern Spring Boot Web Server with REST API & Web Content (
 slug: "setting-up-modern-spring-boot-web-server-rest-api-web-content-2025-guide"
 excerpt: "How to create a Spring Boot application with RESTful APIs and static web content using Maven and IntelliJ IDEA in modern Java."
 publishedAt: "2025-05-12"
-updatedAt: "2025-06-06"
+updatedAt: "2026-10-28"
 author: "william-callahan"
 tags:
   [
@@ -73,7 +73,7 @@ coverImage: "/images/posts/spring-for-java.png"
         <div>Use <code>curl</code> to fetch and unpack a new Spring Boot starter:</div>
 
 ```bash
-curl https://start.spring.io/starter.zip \
+curl https://start.spring.io/starter.tgz \
   -d dependencies=web,devtools,thymeleaf \
   -d type=maven-project \
   -d language=java \
@@ -126,7 +126,7 @@ Edit `src/main/resources/application.properties` to configure your application:
 ```properties
 # Server configuration
 server.port=8080
-server.servlet.context-path=/api
+# Leave server.servlet.context-path unset to serve /hello and / at the root
 
 # Logging configuration
 logging.level.root=INFO
@@ -184,6 +184,7 @@ api.key=${CUSTOM_API_KEY}
 
 <CollapseDropdown summary="HelloController.java">
 Create `src/main/java/com/example/myspringbootapp/HelloController.java`:
+
 ```java
 package com.example.myspringbootapp;
 
@@ -201,21 +202,23 @@ return String.format("Hello, %s!", name);
 }
 }
 
-````
+```
+
 </CollapseDropdown>
 
 <CollapseDropdown summary="Run and test">
 - **Run** in IntelliJ: click the green play icon next to `main` method
 - **CLI**:
+
   ```bash
-  mvn spring-boot:run
-````
+  ./mvnw spring-boot:run
+  ```
 
 Visit http://localhost:8080/hello and http://localhost:8080/hello?name=Spring or use:
 
 ```bash
 curl http://localhost:8080/hello
-curl http://localhost:8080/hello?name=Developer
+curl "http://localhost:8080/hello?name=Developer"
 ```
 
 </CollapseDropdown>
@@ -224,6 +227,7 @@ curl http://localhost:8080/hello?name=Developer
 
 <CollapseDropdown summary="Static index.html">
 1. Create `src/main/resources/static/index.html`:
+
    ```html
    <!DOCTYPE html>
    <html lang="en">
@@ -233,8 +237,10 @@ curl http://localhost:8080/hello?name=Developer
    </body>
    </html>
    ```
+
 2. Restart app and browse to http://localhost:8080/
 Spring Boot serves files in `static/` automatically.
+
 </CollapseDropdown>
 
 ## Part 5: Essential Maven Commands for Spring Boot
@@ -242,9 +248,10 @@ Spring Boot serves files in `static/` automatically.
 Refer to the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-3-maven-project-versioning-common-commands">Core Maven Guide</ExternalLink> for general Maven commands. Specific to Spring Boot (using the Spring Boot Maven Plugin, typically included):
 
 <CollapseDropdown summary="Spring Boot Maven Plugin Commands">
-  ```bash
-  # Run the Spring Boot application (dev mode with hot reload if DevTools is present)
-  ./mvnw spring-boot:run
+
+```bash
+# Run the Spring Boot application (DevTools restarts when compiled classpath files change)
+./mvnw spring-boot:run
 
 # Package the application into an executable JAR
 
@@ -256,7 +263,8 @@ Refer to the <ExternalLink href="/blog/project-level-java-maven-gradle-versionin
 
 ./mvnw spring-boot:build-image
 
-````
+```
+
 <div>
 Use `spring-boot:run` for development. For other standard Maven lifecycle commands like `clean`, `compile`, `test`, `install`, use them as described in the Core Maven Guide.
 </div>
@@ -265,16 +273,19 @@ Use `spring-boot:run` for development. For other standard Maven lifecycle comman
 ## Part 6: Development & Hot Reload
 
 <CollapseDropdown summary="Hot reload setup with Spring Boot DevTools">
-Spring Boot DevTools (`spring-boot-devtools` dependency) enables automatic restart/hot reload by default when files change. To optimize:
+Spring Boot DevTools (`spring-boot-devtools` dependency) enables automatic restart when compiled files on the classpath change. To optimize:
 
 1. For IntelliJ IDEA:
  - In Preferences > Build, Execution, Deployment > Compiler, enable "Build project automatically"
  - Enable advanced settings: Registry (Ctrl+Alt+Shift+/) > check "compiler.automake.allow.when.app.running"
 
 2. For CLI:
+
 ```bash
-mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.enabled=true"
-````
+./mvnw spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.enabled=true"
+```
+
+After editing Java sources, run `./mvnw compile` in a second terminal to update the classpath and trigger a DevTools restart.
 
 3. To run with specific profile:
 
@@ -301,7 +312,12 @@ mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.en
 
 <CollapseDropdown summary="Port Conflict">
   If port 8080 is in use, change it in `application.properties` (e.g., `server.port=8081`) or via
-  command line: ```bash ./mvnw spring-boot:run -Dspring-boot.run.arguments="--server.port=8081" ```
+  command line:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--server.port=8081"
+```
+
 </CollapseDropdown>
 
 <CollapseDropdown summary="Maven Central Repository">
@@ -314,10 +330,11 @@ mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.en
 ## Part 8: Deployment Options
 
 <CollapseDropdown summary="Package for Production (Executable JAR)">
-  ```bash
-  # Using Maven
-  ./mvnw clean package
-  # This creates an executable JAR in target/your-app-name.jar
+
+```bash
+# Using Maven
+./mvnw clean package
+# This creates an executable JAR in target/your-app-name.jar
 
 # Using Gradle
 
@@ -325,14 +342,16 @@ mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.en
 
 # This creates an executable JAR in build/libs/your-app-name.jar
 
-````
+```
+
 <div>Run the JAR: `java -jar target/myspringbootapp-0.0.1-SNAPSHOT.jar` (adjust filename).</div>
 </CollapseDropdown>
 
 <CollapseDropdown summary="Running with Different Profiles in Production">
+
 ```bash
 java -jar target/*.jar --spring.profiles.active=prod
-````
+```
 
 When running in production, set environment variables externally:
 
@@ -346,6 +365,7 @@ java -jar target/*.jar
 
 <CollapseDropdown summary="Docker deployment">
 1. Create `Dockerfile`:
+
 ```dockerfile
 FROM eclipse-temurin:21-jre
 WORKDIR /app
