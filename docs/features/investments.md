@@ -20,6 +20,7 @@ See [Investments Architecture Diagram](./investments.mmd).
 4. **Client-Side Hydration (`InvestmentsClient`)**:
    - This component receives the resolved investment data from the server.
    - Its main responsibility is to manage the interactive "window" state (minimize, maximize, close) and display the static content and prose about the investment philosophy.
+   - It registers with the root layout's window registry, shared with floating restore buttons. A nested provider would strand minimized or closed windows outside those buttons' registry.
    - Cards render directly as `InvestmentCardClient`; their `dark:` CSS variants handle theme styling without a per-card wrapper.
 
 ## Rendering boundary
