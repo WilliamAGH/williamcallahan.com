@@ -12,17 +12,21 @@ See [Investments Architecture Diagram](./investments.mmd).
 
 1. **Data Source**: A large, static array of `Investment` objects is defined in `data/investments.ts`.
 2. **Server-Side Pre-Rendering (`Investments` server component)**:
-   - Iterates through each investment from the static data file.
-   - For each investment, it calls `InvestmentCardServer` to generate a pre-rendered card.
-3. **Logo Fetching (`InvestmentCardServer`)**:
-   - For each card, this component fetches the company's logo.
+   - Resolves all entries through `resolveInvestmentCardData` with bounded concurrency of six, preserving source order.
+3. **Logo Fetching (`resolveInvestmentCardData`)**:
+   - For each card, this function resolves the company's logo.
    - Manifest hits return CDN URLs immediately; fallback now calls `getLogoCdnData()` which talks to `UnifiedImageService` directly (no `/api/logo` proxy) before falling back to the placeholder SVG.
-   - The fetched logo (or placeholder) is converted into a `base64` data URL.
-   - It then renders an `InvestmentCardClient` component, passing the investment data and the logo data URL as props.
+   - Resolved investment fields and logo metadata are passed to the client window; the resolver does not render cards or embed fetched logos as data URLs.
 4. **Client-Side Hydration (`InvestmentsClient`)**:
-   - This component receives the array of fully pre-rendered investment cards from the server.
+   - This component receives the resolved investment data from the server.
    - Its main responsibility is to manage the interactive "window" state (minimize, maximize, close) and display the static content and prose about the investment philosophy.
    - Cards render directly as `InvestmentCardClient`; their `dark:` CSS variants handle theme styling without a per-card wrapper.
+
+## Rendering boundary
+
+Only the optional company-logo leaf is inside Suspense. Its repeated image markup (blur placeholder and responsive sources) must not inflate the blocking document shell. The fixed 48×48 container remains outside the boundary. Company headings, descriptions, destination links, dates, financial values and anchor IDs remain native HTML for every entry; do not wrap the whole page, list or card in Suspense. Without JavaScript, outlined logos may stay hidden, but portfolio content remains readable. Logo resolution, image optimization and cache policy are unchanged.
+
+Verify the served native HTML includes every entry and remains below the renderer's blocking-shell budget. Also check hydrated logos, window interactions and the framework diagnostic. The isolated E2E environment has no usable logo database; its timeout before rendering cannot establish this budget. A smaller native shell does not imply fewer total response bytes or a measured paint improvement.
 
 ## Key Files & Components
 
