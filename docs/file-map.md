@@ -715,7 +715,7 @@ File/Path Functionality Description
 
 ## Scheduler Directory
 
-Standalone scheduler container source (`scheduler/Dockerfile` builds without `next build`; deployed as a native Dokploy GitHub application).
+Standalone scheduler container source (`scheduler/Dockerfile` builds without `next build`; production runs the image `.github/workflows/deploy.yml` publishes).
 
 - [x] `scheduler.ts` `batch-fetch-update` - Cron scheduler for automated data updates, including bookmark tag-alias ingestion/retrofit jobs
 - [x] `data-updater.ts` `batch-fetch-update` - Unified CLI for all data operations, including bookmark tag alias ingestion (`--bookmark-tags`, `--bookmark-tags-retrofit`)
