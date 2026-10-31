@@ -8,9 +8,7 @@ set -euo pipefail
 source /app/scripts/entrypoint-db-gate.sh
 
 rewrite_database_url_for_internal_service
-if is_canonical_production_runtime; then
-    wait_for_database_readiness
-fi
+wait_for_database_readiness
 
 echo "🔑 [Entrypoint] Ensuring cache directory exists..."
 mkdir -p /app/cache/s3_data
