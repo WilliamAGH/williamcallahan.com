@@ -14,67 +14,9 @@ import { PRODUCTION_HOSTNAME, SUBDOMAIN_PATTERN } from "@/lib/config/site-identi
 
 const DEFAULT_DATABASE_POOL_MAX = 5;
 const PRODUCTION_ENVIRONMENT = "production";
-const EXTERNAL_PRODUCTION_DB_HOST = "167.234.219.57";
-const EXTERNAL_PRODUCTION_DB_PORT = "5438";
-const DEFAULT_POSTGRES_PORT = "5432";
-const UNPARSEABLE_DATABASE_URL_TARGET = "<unparseable-database-url>";
-
-const getRedactedDatabaseUrlTarget = (rawUrl: string): string => {
-  try {
-    const parsed = new URL(rawUrl);
-    return `${parsed.protocol}//${parsed.hostname}:${parsed.port || DEFAULT_POSTGRES_PORT}`;
-  } catch {
-    return UNPARSEABLE_DATABASE_URL_TARGET;
-  }
-};
-
-const rewriteDatabaseUrlForProductionSite = (rawUrl: string | undefined): string | undefined => {
-  if (!rawUrl) return rawUrl;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!siteUrl) return rawUrl;
-  try {
-    if (new URL(siteUrl).hostname !== PRODUCTION_HOSTNAME) return rawUrl;
-  } catch (error) {
-    console.warn(
-      `[db/connection] Invalid NEXT_PUBLIC_SITE_URL "${siteUrl}" during DATABASE_URL rewrite; skipping rewrite.`,
-      error instanceof Error ? error.message : String(error),
-    );
-    return rawUrl;
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(rawUrl);
-  } catch (error) {
-    console.warn(
-      "[db/connection] Failed to parse DATABASE_URL for internal rewrite:",
-      getRedactedDatabaseUrlTarget(rawUrl),
-      error instanceof Error ? error.message : String(error),
-    );
-    return rawUrl;
-  }
-
-  if (
-    parsed.hostname !== EXTERNAL_PRODUCTION_DB_HOST ||
-    parsed.port !== EXTERNAL_PRODUCTION_DB_PORT
-  ) {
-    return rawUrl;
-  }
-
-  const internalHost = process.env.INTERNAL_DATABASE_HOST?.trim();
-  const internalPort = process.env.INTERNAL_DATABASE_PORT?.trim();
-  if (!internalHost || !internalPort) {
-    throw new Error(
-      "INTERNAL_DATABASE_HOST and INTERNAL_DATABASE_PORT are required for the production database route.",
-    );
-  }
-
-  parsed.hostname = internalHost;
-  parsed.port = internalPort;
-  return parsed.toString();
-};
-
-const databaseUrl = rewriteDatabaseUrlForProductionSite(process.env.DATABASE_URL?.trim());
+// Container entrypoints (scripts/entrypoint-db-gate.sh) route DATABASE_URL off the public
+// proxy listener before Node starts; this module reads the resolved value as given.
+const databaseUrl = process.env.DATABASE_URL?.trim();
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL environment variable is required for PostgreSQL access.");

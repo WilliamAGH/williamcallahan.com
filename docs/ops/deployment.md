@@ -264,14 +264,17 @@ docker run -d -p 3000:3000 --name williamcallahan-com williamcallahan-com
 
 - **Application Health**: `curl http://localhost:3000/api/health`
 
-## Production Database Startup Safeguards
+## Database Startup Safeguards
 
-When `NEXT_PUBLIC_SITE_URL=https://williamcallahan.com`, startup applies two safeguards:
+Every web and scheduler runtime (production, development, preview) applies two safeguards at startup:
 
 1. `DATABASE_URL` is rewritten from the public proxy endpoint to the
-   `INTERNAL_DATABASE_HOST` and `INTERNAL_DATABASE_PORT` supplied by
-   `infisical-wc-prod`.
+   `INTERNAL_DATABASE_HOST` and `INTERNAL_DATABASE_PORT` tailnet route supplied by the
+   environment's Infisical provider (`infisical-wc-prod` or `infisical-wc-dev`). A runtime whose
+   `DATABASE_URL` names the public proxy without those two values exits at startup. Only
+   off-tailnet GitHub-hosted builds use the public listener (`.github/workflows/deploy.yml`).
 2. The app startup is gated until the resolved database endpoint is reachable.
 
-The stopped rollback records retain their former service-name default. Dokploy production must
-keep the explicit direct-tailnet host and port references.
+The stopped rollback records retain their former service-name default. Every Dokploy web and
+scheduler application must keep the explicit direct-tailnet host and port references in its
+runtime env; builds need no stored value because the workflow derives them from `DATABASE_URL`.
