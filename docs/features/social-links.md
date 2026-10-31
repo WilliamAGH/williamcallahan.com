@@ -28,7 +28,6 @@ graph TD
 - **Purpose**: Manages the window state (normal, minimized, maximized, closed) for the Social feature, rendering content within a desktop-like UI.
 - **Key Features**:
   - Utilizes `useRegisteredWindowState` for global window state management.
-  - Implements hydration safety with delayed mounting.
   - Dynamically imports content to prevent server-side rendering issues.
   - Provides window controls for user interaction (close, minimize, maximize).
 
