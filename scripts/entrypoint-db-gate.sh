@@ -4,16 +4,14 @@
 #   rewrite_database_url_for_internal_service
 #   wait_for_database_readiness   (gate startup until the DB endpoint accepts TCP)
 
-CANONICAL_PRODUCTION_SITE_URL="https://williamcallahan.com"
+# Every runtime (production, development, preview) reaches the one shared database
+# through the internal tailnet route; only off-tailnet GitHub-hosted builds use the
+# public listener, and their workflow points INTERNAL_DATABASE_* at it.
 EXTERNAL_PRODUCTION_DB_HOST="167.234.219.57"
 EXTERNAL_PRODUCTION_DB_PORT="5438"
 
-is_canonical_production_runtime() {
-    [ "${NEXT_PUBLIC_SITE_URL:-}" = "${CANONICAL_PRODUCTION_SITE_URL}" ]
-}
-
 rewrite_database_url_for_internal_service() {
-    if ! is_canonical_production_runtime || [ -z "${DATABASE_URL:-}" ]; then
+    if [ -z "${DATABASE_URL:-}" ]; then
         return 0
     fi
 
@@ -44,7 +42,7 @@ try {
   const targetHost = process.env.INTERNAL_DB_HOST;
   const targetPort = process.env.INTERNAL_DB_PORT;
   if (!targetHost || !targetPort) {
-    console.error("[Entrypoint] INTERNAL_DATABASE_HOST and INTERNAL_DATABASE_PORT are required for the production database route.");
+    console.error("[Entrypoint] INTERNAL_DATABASE_HOST and INTERNAL_DATABASE_PORT are required to route DATABASE_URL off the public proxy listener.");
     process.exit(1);
   }
   const targetChanged = parsed.hostname !== targetHost || currentPort !== targetPort;
@@ -64,7 +62,7 @@ NODE
 
     if [ -n "$rewritten_url" ]; then
         export DATABASE_URL="$rewritten_url"
-        echo "✅ [Entrypoint] Rewrote DATABASE_URL to internal DB service (${internal_host}:${internal_port}) for canonical production runtime"
+        echo "✅ [Entrypoint] Rewrote DATABASE_URL to internal DB service (${internal_host}:${internal_port})"
     fi
 }
 

@@ -193,7 +193,7 @@ describe("Scheduler and data-updater flag consistency", () => {
     expect(dockerfile).toContain("rewrite_database_url_for_internal_service");
   });
 
-  it("rewrites the production database proxy route to the explicit target", () => {
+  it("rewrites the database proxy route to the explicit target outside production too", () => {
     const databaseUrl = "postgresql://user:password@167.234.219.57:5438/database?sslmode=require";
     const result = spawnSync(
       "bash",
@@ -211,7 +211,7 @@ describe("Scheduler and data-updater flag consistency", () => {
           DATABASE_URL: databaseUrl,
           INTERNAL_DATABASE_HOST: "100.64.0.10",
           INTERNAL_DATABASE_PORT: "6432",
-          NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
+          NEXT_PUBLIC_SITE_URL: "https://dev.williamcallahan.com",
         },
       },
     );
@@ -225,11 +225,11 @@ describe("Scheduler and data-updater flag consistency", () => {
     expect(rewritten.searchParams.get("sslmode")).toBe("require");
   });
 
-  it("rejects a production database proxy route without an explicit target", () => {
+  it("rejects a development database proxy route without an explicit target", () => {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       DATABASE_URL: "postgresql://user:password@167.234.219.57:5438/database?sslmode=require",
-      NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
+      NEXT_PUBLIC_SITE_URL: "https://dev.williamcallahan.com",
     };
     delete env.INTERNAL_DATABASE_HOST;
     delete env.INTERNAL_DATABASE_PORT;

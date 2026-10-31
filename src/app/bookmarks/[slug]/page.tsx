@@ -7,7 +7,6 @@
  */
 
 import { Suspense } from "react";
-import * as Sentry from "@sentry/nextjs";
 import { BookmarkDetail } from "@/components/features/bookmarks/bookmark-detail";
 import { getBookmarkById } from "@/lib/bookmarks/service.server";
 import { TIME_CONSTANTS } from "@/lib/constants";
@@ -71,43 +70,36 @@ async function resolveBookmarkBySlug(slug: string): Promise<UnifiedBookmark | nu
     { category: "BookmarkPage" },
   );
 
-  try {
-    envLogger.log("Resolving slug via cached mapping", undefined, { category: "BookmarkPage" });
-    const bookmarkId = await resolveBookmarkIdFromSlug(slug);
+  envLogger.log("Resolving slug via cached mapping", undefined, { category: "BookmarkPage" });
+  const bookmarkId = await resolveBookmarkIdFromSlug(slug);
 
-    if (!bookmarkId) {
-      envLogger.log(`Slug not found in mappings`, { slug }, { category: "BookmarkPage" });
-      return null;
-    }
+  if (!bookmarkId) {
+    envLogger.log(`Slug not found in mappings`, { slug }, { category: "BookmarkPage" });
+    return null;
+  }
 
-    envLogger.log(`Slug mapped to ID`, { slug, bookmarkId }, { category: "BookmarkPage" });
+  envLogger.log(`Slug mapped to ID`, { slug, bookmarkId }, { category: "BookmarkPage" });
 
-    const bookmark = await getBookmarkById(bookmarkId, {
-      includeImageData: true,
-    });
+  const bookmark = await getBookmarkById(bookmarkId, {
+    includeImageData: true,
+  });
 
-    if (bookmark) {
-      envLogger.log(
-        `Bookmark lookup result`,
-        { bookmarkId, found: true },
-        { category: "BookmarkPage" },
-      );
-      return bookmark;
-    }
-
+  if (bookmark) {
     envLogger.log(
-      "Per-ID bookmark JSON missing; returning null instead of scanning full dataset",
-      { bookmarkId },
+      `Bookmark lookup result`,
+      { bookmarkId, found: true },
       { category: "BookmarkPage" },
     );
-
-    return null;
-  } catch (error: unknown) {
-    const capturedError = error instanceof Error ? error : new Error(String(error));
-    console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, capturedError);
-    Sentry.captureException(capturedError, { extra: { slug } });
-    throw capturedError;
+    return bookmark;
   }
+
+  envLogger.log(
+    "Per-ID bookmark JSON missing; returning null instead of scanning full dataset",
+    { bookmarkId },
+    { category: "BookmarkPage" },
+  );
+
+  return null;
 }
 
 async function findBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
