@@ -275,5 +275,6 @@ Every web and scheduler runtime (production, development, preview) applies two s
    off-tailnet GitHub-hosted builds use the public listener (`.github/workflows/deploy.yml`).
 2. The app startup is gated until the resolved database endpoint is reachable.
 
-The stopped rollback records retain their former service-name default. Dokploy production must
-keep the explicit direct-tailnet host and port references.
+The stopped rollback records retain their former service-name default. Every Dokploy web and
+scheduler application must keep the explicit direct-tailnet host and port references in its
+runtime env; builds need no stored value because the workflow derives them from `DATABASE_URL`.
