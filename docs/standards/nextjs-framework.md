@@ -69,7 +69,7 @@ Installed-source evidence: `node_modules/next/dist/server/config.js:330-331` rej
 The Next 16 transform rejects route segment configurations while Cache Components are
 enabled. Verify this against the installed version before changing a segment.
 
-Installed Next 16.1.6 reads `NEXT_DEPLOYMENT_ID` in
+Installed Next 16.4.2 reads `NEXT_DEPLOYMENT_ID` in
 `node_modules/next/dist/server/config.js` and appends it through
 `node_modules/next/dist/shared/lib/deployment-id.js`. `generateBuildId` is separate and
 does not version static asset URLs by itself. `NEXT_DEPLOYMENT_ID` is the canonical input:
