@@ -38,6 +38,8 @@ jobs:
           tar --extract --gzip --file "$RUNNER_TEMP/$archive" --directory "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/ripgrep-14.1.0-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/ripgrep-14.1.0-x86_64-unknown-linux-musl/rg" --version
+      - name: Trust the mounted checkout for Git hooks
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - run: pnpm install --frozen-lockfile
       - run: pnpm run verify:browser
       - name: Upload Playwright artifacts
