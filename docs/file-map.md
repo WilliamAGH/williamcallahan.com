@@ -554,7 +554,7 @@ File/Path Functionality Description
 - [x] `.env-example` `config` - Example environment variables
 - [x] `.gitignore` `config` - Git ignore file
 - [x] `.oxlintrc.json` `linting-formatting` - Oxlint (linter) configuration; lives at the root because Oxlint resolves `ignorePatterns` and override globs relative to the config file
-- [x] `.github/workflows/verification.yml` `testing-config` - GitHub PR-to-main verification gate; installs Chromium, runs `pnpm run verify:browser`, and uploads failed Playwright artifacts
+- [x] `.github/workflows/verification.yml` `testing-config` - GitHub PR-to-main verification gate; uses the version-matched Playwright image without Ubuntu package installation, runs `pnpm run verify:browser`, and uploads failed artifacts
 - [x] `pnpm-lock.yaml` `deps` - pnpm lockfile
 - [x] `pnpm-workspace.yaml` `deps` - pnpm settings: allowed install scripts, overrides, package extensions
 - [x] `components.json` `config` - ShadCN UI component configuration

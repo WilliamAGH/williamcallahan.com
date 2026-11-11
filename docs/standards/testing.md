@@ -115,8 +115,13 @@ pnpm run verify
 ```
 
 The automated GitHub gate in `.github/workflows/verification.yml` runs for pull
-requests targeting `main` (with `workflow_dispatch` reserved for manual runs), installs
-Chromium, and invokes `pnpm run verify:browser`, which adds the blog E2E test after the
+requests targeting `main` (with `workflow_dispatch` reserved for manual runs). It uses
+Playwright's version-matched Noble image, which already contains the browsers and
+system dependencies, and installs pinned ripgrep and jq from their checksum-verified
+official releases for the existing script tests. The job does not fetch Ubuntu
+packages. Keep the image version paired with
+`@playwright/test`; mismatched versions cannot locate the expected browser binaries.
+It invokes `pnpm run verify:browser`, which adds the blog E2E test after the
 browser-free gate. The pre-push hook in `.config/lefthook.yml` runs the production build
 and then the browser-free `pnpm run verify` gate for every branch push; a push that only
 updates `refs/wip/*` skips both.

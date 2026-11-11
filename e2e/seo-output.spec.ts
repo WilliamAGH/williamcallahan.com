@@ -5,7 +5,7 @@ test.describe("blog tag SEO", () => {
   // "symlink" occurs only on the existing draft post, including in dev mode.
   for (const tagSlug of ["source-audit-nonexistent-20261025", "symlink", "__placeholder__"]) {
     test(`does not index missing or unpublished tag ${tagSlug}`, async ({ page }) => {
-      await page.goto(`/blog/tags/${tagSlug}`, { waitUntil: "domcontentloaded" });
+      await page.goto(`/blog/tags/${tagSlug}`);
 
       await expect(page.getByRole("heading", { level: 1, name: "404", exact: true })).toBeVisible();
       await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();

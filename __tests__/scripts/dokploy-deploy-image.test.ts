@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { strict as assert } from "node:assert";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -64,8 +65,12 @@ it("reuses unchanged desired deployments but submits a new identity after runtim
       },
       stdio: ["ignore", "ignore", "pipe"],
     });
-    const [code] = await once(child, "exit");
-    expect(code).toBe(0);
+    let stderr = "";
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    const [code] = await once(child, "close");
+    assert.equal(code, 0, stderr);
   };
   try {
     await run();

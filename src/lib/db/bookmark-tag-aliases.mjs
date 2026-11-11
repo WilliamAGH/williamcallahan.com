@@ -3,6 +3,8 @@
  * Walk only the alias graph, stopping at a terminal or a repeated vertex.
  * A corrupt cycle keeps the established primary identity, then the most-used
  * member, then the oldest identity (slug breaks exact ties). No tag is dropped.
+ * Materialize cycle usage once; folding it into each endpoint's correlated
+ * winner query repeats aggregation and can trigger costly JIT on small graphs.
  */
 export const BOOKMARK_TAG_ALIAS_CTE = `
 WITH RECURSIVE alias_edges AS (
@@ -28,7 +30,7 @@ WITH RECURSIVE alias_edges AS (
   WHERE edge.source_tag_slug IS NULL OR edge.target_tag_slug = ANY(walk.path)
 ), cycle_members AS (
   SELECT DISTINCT unnest(cycle_slugs) AS tag_slug FROM alias_endpoints
-), cycle_usage AS (
+), cycle_usage AS MATERIALIZED (
   SELECT member.tag_slug, count(link.bookmark_id) AS member_count
   FROM cycle_members AS member
   LEFT JOIN bookmark_tag_links AS link ON link.tag_slug = member.tag_slug
