@@ -13,8 +13,8 @@ Graduation admits two kinds of substantive pages:
 
 | Page                            | Required gates                                                                                                                                         | Search presentation                                                                                   |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| Practitioner-annotated bookmark | Trimmed note has at least 100 characters and 15 words; combined note, summary, and description have at least 250 characters; source is not unavailable | `index, follow`, a Field Notes title, and a note-led description of at most 160 characters            |
-| Canonical topic hub             | Canonical tag, page one, and at least 12 resources                                                                                                     | `index, follow`, resource and annotation counts, leading domains, and server-rendered topic synthesis |
+| Practitioner-annotated bookmark | Public, non-archived bookmark; trimmed note has at least 100 characters and 15 words; combined note, summary, and description have at least 250 characters; source is not unavailable | `index, follow`, a Field Notes title, and a note-led description of at most 160 characters            |
+| Canonical topic hub             | Canonical tag, page one, and at least 12 public, non-archived resources                                                                                                     | `index, follow`, resource and annotation counts, leading domains, and server-rendered topic synthesis |
 
 A long summary or publisher description cannot compensate for a missing or short
 practitioner note. A blocked recapture without a retrieved source body does not
