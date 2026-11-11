@@ -555,7 +555,7 @@ pnpm run build
 curl http://localhost:3000/sitemap.xml
 
 # Test submission (dry run)
-NODE_ENV=development pnpm run submit-sitemap -- --debug
+NODE_ENV=development pnpm run submit-sitemap -- --dry-run
 
 # Force production submission (use with caution)
 FORCE_SITEMAP_SUBMIT=true NODE_ENV=production NEXT_PUBLIC_SITE_URL=https://williamcallahan.com pnpm run submit-sitemap
