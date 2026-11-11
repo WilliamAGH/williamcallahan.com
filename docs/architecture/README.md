@@ -191,7 +191,7 @@ TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for re
 | `state-theme-window-providers` | Provide centralized provider composition for application-wide state, including theme, terminal, and window management.                                     | [state-management.md](state-management.md)              | [Diagram](state-management.mmd)              |
 | `string-manipulation`          | Contain generic utilities for formatting and converting strings (e.g., `kebabCase`).                                                                       | [utils.md](utils.md)                                    |                                              |
 | `terminal`                     | Encompass components and utilities that manage the display, interaction, and state of the application's terminal interface.                                | [terminal.md](../features/terminal.md)                  | [Diagram](../features/terminal.mmd)          |
-| `testing-config`               | Configure and set up the testing environment for Vitest, including mocks, jsdom setup, and type definitions.                                               | [testing.md](../standards/testing.md)                   | [Diagram](../standards/testing.mmd)          |
+| `testing-config`               | Configure Vitest mocks, jsdom, and type definitions plus the version-matched Playwright CI environment.                                                    | [testing.md](../standards/testing.md)                   | [Diagram](../standards/testing.mmd)          |
 
 ### Provider Localization Note
 

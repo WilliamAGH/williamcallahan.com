@@ -17,6 +17,9 @@ jobs:
   verification:
     name: Verification gate
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+      options: --ipc=host
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
@@ -27,11 +30,15 @@ jobs:
       - run: corepack enable
       - name: Install ripgrep
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends ripgrep=14.1.0-1
-          rg --version
+          archive=ripgrep-14.1.0-x86_64-unknown-linux-musl.tar.gz
+          curl --fail --silent --show-error --location --connect-timeout 10 --max-time 60 \
+            "https://github.com/BurntSushi/ripgrep/releases/download/14.1.0/$archive" \
+            --output "$RUNNER_TEMP/$archive"
+          echo "f84757b07f425fe5cf11d87df6644691c644a5cd2348a2c670894272999d3ba7  $RUNNER_TEMP/$archive" | sha256sum --check
+          tar --extract --gzip --file "$RUNNER_TEMP/$archive" --directory "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/ripgrep-14.1.0-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/ripgrep-14.1.0-x86_64-unknown-linux-musl/rg" --version
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run verify:browser
       - name: Upload Playwright artifacts
         if: failure()
