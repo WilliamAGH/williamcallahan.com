@@ -153,7 +153,39 @@ describe("node instrumentation register", () => {
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
     globalThis.INSTRUMENTATION_NODE_INSTALLED = undefined;
+    vi.doUnmock("@/lib/bookmarks/refresh-logic.server");
     vi.restoreAllMocks();
+  });
+
+  describe.runIf(process.platform === "linux")("development memory sampling", () => {
+    it.each([
+      { deployment: "development", phase: "", samples: 1 },
+      { deployment: "production", phase: "", samples: 0 },
+      { deployment: "", phase: "", samples: 0 },
+      { deployment: "development", phase: "phase-production-build", samples: 0 },
+    ])(
+      "emits $samples startup samples for '$deployment' with phase '$phase'",
+      async ({ deployment, phase, samples }) => {
+        process.env.DEPLOYMENT_ENV = deployment;
+        process.env.NEXT_PHASE = phase;
+        vi.doMock("@/lib/bookmarks/refresh-logic.server", () => ({
+          initializeBookmarksDataAccess: () => {},
+        }));
+        const stdout = vi.spyOn(console, "log").mockImplementation(() => {});
+        const { register } = await import("@/instrumentation-node");
+
+        await register();
+        await register();
+
+        const startupSamples = stdout.mock.calls.filter(
+          ([line]) =>
+            typeof line === "string" &&
+            line.includes('"type":"server_memory_sample"') &&
+            line.includes('"majorGcDelayMs":null'),
+        );
+        expect(startupSamples).toHaveLength(samples);
+      },
+    );
   });
 
   it("leaves unhandled promise rejection capture to Sentry defaults", async () => {

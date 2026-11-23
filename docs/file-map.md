@@ -417,6 +417,7 @@ File/Path Functionality Description
 - [x] **server/**
   - [x] `bookmarks-preloader.ts` `bookmarks` - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts` `batch-fetch-update` - Centralized data fetching orchestrator with CLI handler
+  - [x] `development-memory-sampler.ts` `instrumentation-monitoring` - Bounded Node memory and garbage collection diagnostics
   - [x] `github-activity-refresh.ts` `batch-fetch-update` - Write-gated GitHub refresh operation and Sentry boundary
 - [ ] **services/**
   - [x] `image-streaming.ts` `image-handling` - Error-propagating streaming pipeline for image uploads
