@@ -181,13 +181,25 @@ describe("node instrumentation register", () => {
         const stdout = vi.spyOn(console, "log").mockImplementation(() => {});
         const { register } = await import("@/instrumentation-node");
 
-        await register();
-        await register();
+        vi.useFakeTimers({ toFake: ["setInterval", "setTimeout"] });
+        const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+        try {
+          await register();
+          await register();
 
-        const startupSamples = stdout.mock.calls.filter(
-          ([line]) => typeof line === "string" && line.includes('"type":"server_memory_sample"'),
-        );
-        expect(startupSamples).toHaveLength(samples);
+          const memorySamples = stdout.mock.calls.filter(
+            ([line]) => typeof line === "string" && line.includes('"type":"server_memory_sample"'),
+          );
+          const startupSamples = memorySamples.filter(
+            ([line]) => typeof line === "string" && line.includes('"majorGcDelayMs":null'),
+          );
+          expect(samples === 0 ? memorySamples : startupSamples).toHaveLength(samples);
+        } finally {
+          const dayMs = 24 * 60 * 60_000;
+          clock.mockReturnValue(dayMs);
+          vi.advanceTimersByTime(dayMs);
+          vi.useRealTimers();
+        }
       },
     );
 
