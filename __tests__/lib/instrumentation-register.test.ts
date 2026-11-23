@@ -159,14 +159,21 @@ describe("node instrumentation register", () => {
 
   describe.runIf(process.platform === "linux")("development memory sampling", () => {
     it.each([
-      { deployment: "development", phase: "", samples: 1 },
-      { deployment: "production", phase: "", samples: 0 },
-      { deployment: "", phase: "", samples: 0 },
-      { deployment: "development", phase: "phase-production-build", samples: 0 },
+      { host: "dev.williamcallahan.com", docker: "true", phase: "", samples: 1 },
+      { host: "williamcallahan.com", docker: "true", phase: "", samples: 0 },
+      { host: "dev.williamcallahan.com", docker: "", phase: "", samples: 0 },
+      {
+        host: "dev.williamcallahan.com",
+        docker: "true",
+        phase: "phase-production-build",
+        samples: 0,
+      },
     ])(
-      "emits $samples startup samples for '$deployment' with phase '$phase'",
-      async ({ deployment, phase, samples }) => {
-        process.env.DEPLOYMENT_ENV = deployment;
+      "emits $samples startup samples for '$host' with container '$docker' and phase '$phase'",
+      async ({ host, docker, phase, samples }) => {
+        process.env.DEPLOYMENT_ENV = "development";
+        process.env.NEXT_PUBLIC_SITE_URL = `https://${host}`;
+        process.env.RUNNING_IN_DOCKER = docker;
         process.env.NEXT_PHASE = phase;
         vi.doMock("@/lib/bookmarks/refresh-logic.server", () => ({
           initializeBookmarksDataAccess: () => {},
@@ -178,14 +185,30 @@ describe("node instrumentation register", () => {
         await register();
 
         const startupSamples = stdout.mock.calls.filter(
-          ([line]) =>
-            typeof line === "string" &&
-            line.includes('"type":"server_memory_sample"') &&
-            line.includes('"majorGcDelayMs":null'),
+          ([line]) => typeof line === "string" && line.includes('"type":"server_memory_sample"'),
         );
         expect(startupSamples).toHaveLength(samples);
       },
     );
+
+    it("does not emit a delayed sample after the observation deadline", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "setTimeout"] });
+      try {
+        const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+        const stdout = vi.spyOn(console, "log").mockImplementation(() => {});
+        const { startDevelopmentMemorySampler } =
+          await import("@/lib/server/development-memory-sampler");
+
+        startDevelopmentMemorySampler();
+        clock.mockReturnValue(24 * 60 * 60_000 + 1);
+        vi.advanceTimersByTime(60_000);
+
+        expect(stdout.mock.calls).toHaveLength(1);
+        vi.advanceTimersByTime(24 * 60 * 60_000);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   it("leaves unhandled promise rejection capture to Sentry defaults", async () => {

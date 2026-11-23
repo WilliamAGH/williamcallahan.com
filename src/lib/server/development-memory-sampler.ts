@@ -18,9 +18,11 @@ function readSwapBytes(): number | null {
 
 export function startDevelopmentMemorySampler(): void {
   if (process.platform !== "linux") return;
+  const stopAt = performance.now() + OBSERVATION_WINDOW_MS;
 
   function sample(majorGcEndedAt: number | null): void {
     const sampledAt = performance.now();
+    if (sampledAt >= stopAt) return;
     console.log(
       JSON.stringify({
         type: "server_memory_sample",

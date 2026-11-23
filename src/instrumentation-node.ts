@@ -103,7 +103,10 @@ export async function register(): Promise<void> {
 
   if (process.env.NODE_ENV !== "production") return;
 
-  if (process.env.DEPLOYMENT_ENV === "development") {
+  if (
+    process.env.RUNNING_IN_DOCKER === "true" &&
+    URL.parse(process.env.NEXT_PUBLIC_SITE_URL ?? "")?.origin === "https://dev.williamcallahan.com"
+  ) {
     const { startDevelopmentMemorySampler } =
       await import("@/lib/server/development-memory-sampler");
     startDevelopmentMemorySampler();
