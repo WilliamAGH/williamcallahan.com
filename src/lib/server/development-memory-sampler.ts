@@ -5,15 +5,15 @@ const SAMPLE_INTERVAL_MS = 60_000;
 const OBSERVATION_WINDOW_MS = 24 * 60 * SAMPLE_INTERVAL_MS;
 
 function readSwapBytes(): number | null {
+  let swapKiB: string | undefined;
   try {
     const status = readFileSync("/proc/self/status", "utf8");
-    const swapKiB = /^VmSwap:\s+(\d+)\s+kB$/m.exec(status)?.[1];
-    return swapKiB === undefined ? null : Number(swapKiB) * 1024;
+    swapKiB = /^VmSwap:\s+(\d+)\s+kB$/m.exec(status)?.[1];
   } catch (error) {
     // Missing swap telemetry is not zero and must not interrupt the web process.
     console.warn("[Memory sampler] Could not read process swap:", error);
-    return null;
   }
+  return swapKiB === undefined ? null : Number(swapKiB) * 1024;
 }
 
 export function startDevelopmentMemorySampler(): void {
