@@ -9,8 +9,10 @@
  * header is diagnostic, so an unusable value never fails a request. Plain `.mjs` so the Node
  * scripts and the TypeScript app share this one owner.
  */
+import { Buffer } from "node:buffer";
 import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
 import { hostname } from "node:os";
+import { env, stderr } from "node:process";
 import { z } from "zod/v4";
 
 export const CLIENT_HOST_HEADER = "X-LGW-Client-Host";
@@ -98,8 +100,8 @@ export function gatewayClientHostHeaders() {
     clientHost: resolveGatewayClientHost({
       platformHostName: hostname,
       readMarker: readBoundedMarker,
-      containerized: process.env.RUNNING_IN_DOCKER === "true",
-      report: (message) => console.error(message),
+      containerized: env.RUNNING_IN_DOCKER === "true",
+      report: (message) => stderr.write(`${message}\n`),
     }),
   };
   return processReading.clientHost ? { [CLIENT_HOST_HEADER]: processReading.clientHost } : {};
