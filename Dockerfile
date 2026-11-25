@@ -286,6 +286,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/generated ./generated
 #    Ensure local S3 cache path exists at runtime with proper ownership
 RUN mkdir -p ./.next/cache/local-s3 && chown -R nextjs:nodejs ./.next/cache
 
+# Return freed sharp/libvips multi-chunk buffers to the OS instead of retaining anonymous arenas (infra#1348).
+ENV MALLOC_MMAP_THRESHOLD_=131072 \
+    MALLOC_TRIM_THRESHOLD_=131072
+
 # 10. Finalize permissions and switch to non-root user
 USER nextjs
 
