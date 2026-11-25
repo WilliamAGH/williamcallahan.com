@@ -101,18 +101,24 @@ export async function register(): Promise<void> {
     };
   }
 
-  /** Schedule bookmark preloads (production runtime only, skip during phase-production-build) **/
-  const isProductionRuntime =
-    process.env.NODE_ENV === "production" && process.env[phaseKey] !== "phase-production-build";
-  if (isProductionRuntime) {
-    try {
-      const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
-      bookmarksModule.initializeBookmarksDataAccess?.();
-    } catch {
-      /* ignore bookmark preload failure */
-    }
-  } else if (process.env.NODE_ENV === "production") {
-    console.info("[Instrumentation] Skipping bookmarks preload during build phase.");
+  if (process.env.NODE_ENV !== "production") return;
+
+  // Read the runtime origin; Next.js inlines direct NEXT_PUBLIC_ references at build time.
+  const { NEXT_PUBLIC_SITE_URL: siteUrl } = process.env;
+  if (
+    process.env.RUNNING_IN_DOCKER === "true" &&
+    URL.parse(siteUrl ?? "")?.origin === "https://dev.williamcallahan.com"
+  ) {
+    const { startDevelopmentMemorySampler } =
+      await import("@/lib/server/development-memory-sampler");
+    startDevelopmentMemorySampler();
+  }
+
+  try {
+    const bookmarksModule = await import("@/lib/bookmarks/refresh-logic.server");
+    bookmarksModule.initializeBookmarksDataAccess?.();
+  } catch {
+    /* ignore bookmark preload failure */
   }
 }
 

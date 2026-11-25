@@ -153,7 +153,74 @@ describe("node instrumentation register", () => {
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
     globalThis.INSTRUMENTATION_NODE_INSTALLED = undefined;
+    vi.doUnmock("@/lib/bookmarks/refresh-logic.server");
     vi.restoreAllMocks();
+  });
+
+  describe.runIf(process.platform === "linux")("development memory sampling", () => {
+    it.each([
+      { host: "dev.williamcallahan.com", docker: "true", phase: "", samples: 1 },
+      { host: "williamcallahan.com", docker: "true", phase: "", samples: 0 },
+      { host: "dev.williamcallahan.com", docker: "", phase: "", samples: 0 },
+      {
+        host: "dev.williamcallahan.com",
+        docker: "true",
+        phase: "phase-production-build",
+        samples: 0,
+      },
+    ])(
+      "emits $samples startup samples for '$host' with container '$docker' and phase '$phase'",
+      async ({ host, docker, phase, samples }) => {
+        process.env.DEPLOYMENT_ENV = "development";
+        process.env.NEXT_PUBLIC_SITE_URL = `https://${host}`;
+        process.env.RUNNING_IN_DOCKER = docker;
+        process.env.NEXT_PHASE = phase;
+        vi.doMock("@/lib/bookmarks/refresh-logic.server", () => ({
+          initializeBookmarksDataAccess: () => {},
+        }));
+        const stdout = vi.spyOn(console, "log").mockImplementation(() => {});
+        const { register } = await import("@/instrumentation-node");
+
+        vi.useFakeTimers({ toFake: ["setInterval", "setTimeout"] });
+        const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+        try {
+          await register();
+          await register();
+
+          const memorySamples = stdout.mock.calls.filter(
+            ([line]) => typeof line === "string" && line.includes('"type":"server_memory_sample"'),
+          );
+          const startupSamples = memorySamples.filter(
+            ([line]) => typeof line === "string" && line.includes('"majorGcDelayMs":null'),
+          );
+          expect(samples === 0 ? memorySamples : startupSamples).toHaveLength(samples);
+        } finally {
+          const dayMs = 24 * 60 * 60_000;
+          clock.mockReturnValue(dayMs);
+          vi.advanceTimersByTime(dayMs);
+          vi.useRealTimers();
+        }
+      },
+    );
+
+    it("does not emit a delayed sample after the observation deadline", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "setTimeout"] });
+      try {
+        const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+        const stdout = vi.spyOn(console, "log").mockImplementation(() => {});
+        const { startDevelopmentMemorySampler } =
+          await import("@/lib/server/development-memory-sampler");
+
+        startDevelopmentMemorySampler();
+        clock.mockReturnValue(24 * 60 * 60_000 + 1);
+        vi.advanceTimersByTime(60_000);
+
+        expect(stdout.mock.calls).toHaveLength(1);
+        vi.advanceTimersByTime(24 * 60 * 60_000);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   it("leaves unhandled promise rejection capture to Sentry defaults", async () => {

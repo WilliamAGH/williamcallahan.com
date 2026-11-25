@@ -7,6 +7,7 @@ import type {
   ResponseCreateParamsNonStreaming,
   ResponseCreateParamsStreaming,
 } from "openai/resources/responses/responses";
+import { gatewayClientHostHeaders } from "@/lib/ai/openai-compatible/gateway-client-host.mjs";
 
 type FakeChatCompletion = {
   id: string;
@@ -142,7 +143,13 @@ describe("OpenAI-compatible client request policy", () => {
       onDelta: streamedResponseContent,
     });
 
-    expect(constructorOptions).toEqual([{ apiKey: "test-key", baseURL: "https://example.com/v1" }]);
+    expect(constructorOptions).toEqual([
+      {
+        apiKey: "test-key",
+        baseURL: "https://example.com/v1",
+        defaultHeaders: gatewayClientHostHeaders(),
+      },
+    ]);
     expect(mockCreate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ timeout: 30_000, maxRetries: 1 }),

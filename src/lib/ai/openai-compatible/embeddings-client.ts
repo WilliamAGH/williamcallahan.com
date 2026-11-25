@@ -3,6 +3,7 @@ import {
   endpointCompatibleEmbeddingsResponseSchema,
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
+import { gatewayClientHostHeaders } from "@/lib/ai/openai-compatible/gateway-client-host.mjs";
 import { retryWithThrow } from "@/lib/utils/retry";
 import type {
   EndpointCompatibleEmbeddingConfig,
@@ -229,6 +230,7 @@ export async function embedTextsWithEndpointCompatibleModel(args: {
         "Content-Type": "application/json",
         "X-Tier": args.tier,
         "X-User-ID": args.workload,
+        ...gatewayClientHostHeaders(),
       },
       body: JSON.stringify(request),
       signal: requestSignal,

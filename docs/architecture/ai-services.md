@@ -114,6 +114,13 @@ domain search from indexing; shared site-wide search and RAG retain their own
 purposes. The bookmark alias job uses `bookmarkTagAliases`. Background jobs use
 the `batch` suffix, while user-facing generation and search embeddings use `live`.
 
+Every gateway request also names its sending machine in `X-LGW-Client-Host`
+(`src/lib/ai/openai-compatible/gateway-client-host.mjs`, read once per process).
+A native run sends its short host name. Inside the web or scheduler image the
+container's host name is its container id, so the value comes only from the
+`/run/aventure/node-name` bind mount; without a valid mount the header is
+omitted and one error is logged. The header never fails a request.
+
 - Dependency: `openai@6.18.0` from npm.
 - SDK base URL is normalized to include `/v1`, so both OpenAI and OpenAI-compatible providers (including LM Studio) can be configured with or without a trailing `/v1`.
 - If no API key is configured, the server fails before constructing the SDK client; set `AI_DEFAULT_OPENAI_API_KEY` or a feature-specific key.
