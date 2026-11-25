@@ -29,6 +29,7 @@ import {
   responsesOutputMessageItemSchema,
 } from "@/types/schemas/ai-openai-compatible";
 import { buildOpenAiApiBaseUrl } from "@/lib/ai/openai-compatible/feature-config";
+import { gatewayClientHostHeaders } from "@/lib/ai/openai-compatible/gateway-client-host.mjs";
 import {
   toChatRequest,
   toRequestOptions,
@@ -60,6 +61,7 @@ function resolveClient(args: { baseUrl: string; apiKey?: string }): OpenAIClient
   const client = new OpenAIClient({
     apiKey,
     baseURL: apiBaseUrl,
+    defaultHeaders: gatewayClientHostHeaders(),
   });
 
   clientByConfig.set(clientKey, client);

@@ -22,6 +22,7 @@
  */
 
 import postgres from "postgres";
+import { gatewayClientHostHeaders } from "../src/lib/ai/openai-compatible/gateway-client-host.mjs";
 import {
   buildAiAnalysisText,
   buildOgText,
@@ -80,6 +81,7 @@ async function embedTexts(apiBaseUrl, apiKey, model, input, timeoutMs, domain) {
       "Content-Type": "application/json",
       "X-Tier": "batch",
       "X-User-ID": `williamcallahan.com:${domain}IndexEmbedding:batch`,
+      ...gatewayClientHostHeaders(),
     },
     body: JSON.stringify({ model, input }),
     signal: AbortSignal.timeout(timeoutMs),

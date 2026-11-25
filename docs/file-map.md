@@ -194,6 +194,7 @@ File/Path Functionality Description
   - [x] **openai-compatible/**
     - [x] `feature-config.ts` `ai-shared-services` - Per-feature env resolution, preferred-model resolution, and shared upstream queue-key builder
     - [x] `embeddings-client.ts` `ai-shared-services` - Endpoint-compatible `/v1/embeddings` client for chunk-safe batch embedding generation
+    - [x] `gateway-client-host.mjs` `ai-shared-services` - `X-LGW-Client-Host` sending-machine header shared by the app, scheduler, and Node scripts
     - [x] `gate-token.ts` `ai-shared-services` - HMAC-signed short-lived token helpers plus shared request origin/cookie/auth extraction helpers
     - [x] `browser-client.ts` `ai-shared-services` - Browser helper to mint token + call AI chat route with SSE-only consumption
     - [x] `openai-compatible-client.ts` `ai-shared-services` - Native OpenAI SDK transport for `chat.completions` and `responses`
@@ -856,6 +857,7 @@ Standalone scheduler container source (`scheduler/Dockerfile` builds without `ne
     - [x] `api-sanitization.test.ts` `rate-limit-and-sanitize` - API sanitization tests
     - [x] `ai-harmony-sanitizer.test.ts` `ai-shared-services` - Marker-based Harmony channel-control sanitation coverage
     - [x] `ai-openai-compatible-client-timeout.test.ts` `ai-shared-services` - Cached-client request-policy coverage for non-stream, Chat stream, and Responses stream calls
+    - [x] `ai/gateway-client-host.test.ts` `ai-shared-services` - Native host name, mounted node name, and omitted-header cases for `X-LGW-Client-Host`
     - [x] **og-image/**
       - [x] `security.test.ts` `opengraph` - OG image SSRF protection tests (private hosts, protocol restrictions)
     - [x] `blog.test.ts` `blog` - Blog utility tests

@@ -5,6 +5,10 @@ import {
 } from "@/lib/ai/openai-compatible/embeddings-client";
 import { resolveDefaultEndpointCompatibleEmbeddingConfig } from "@/lib/ai/openai-compatible/feature-config";
 import {
+  CLIENT_HOST_HEADER,
+  gatewayClientHostHeaders,
+} from "@/lib/ai/openai-compatible/gateway-client-host.mjs";
+import {
   endpointCompatibleEmbeddingsRequestSchema,
   openAiCompatibleWorkloadSchema,
   queryEmbeddingPurposeSchema,
@@ -135,6 +139,9 @@ describe("embedTextsWithEndpointCompatibleModel", () => {
       const headers = new Headers(init?.headers);
       expect(headers.get("X-Tier")).toBe("batch");
       expect(headers.get("X-User-ID")).toBe("williamcallahan.com:bookmarkIndexEmbedding:batch");
+      expect(headers.get(CLIENT_HOST_HEADER)).toBe(
+        gatewayClientHostHeaders()[CLIENT_HOST_HEADER] ?? null,
+      );
       const request = readEmbeddingRequest(init);
       requests.push(request);
       const data = request.input

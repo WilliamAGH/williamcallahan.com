@@ -9,6 +9,7 @@ import {
   repairAliasCycles,
 } from "./lib/bookmark-tag-alias-plan.mjs";
 import { BOOKMARK_TAG_ALIAS_CTE } from "../src/lib/db/bookmark-tag-aliases.mjs";
+import { gatewayClientHostHeaders } from "../src/lib/ai/openai-compatible/gateway-client-host.mjs";
 
 const DEFAULT_LIMIT = 1;
 const DEFAULT_RELATED_LIMIT = 8;
@@ -408,6 +409,7 @@ async function main() {
       baseURL: modelConfig.baseUrl,
       defaultHeaders: {
         "X-User-ID": "williamcallahan.com:bookmarkTagAliases:batch",
+        ...gatewayClientHostHeaders(),
       },
       timeout: DEFAULT_TIMEOUT_MS,
       maxRetries: 1,
