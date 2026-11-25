@@ -8,18 +8,6 @@
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
 
 /**
- * Represents an image caption with metadata
- */
-export interface ImageCaption {
-  /** Main caption text */
-  text: string;
-  /** Photographer or image credit (optional) */
-  photographer?: string;
-  /** Date the photo was taken (optional) */
-  date?: string;
-}
-
-/**
  * Represents a blog post with its complete content and metadata
  */
 export interface BlogPost {
@@ -80,20 +68,6 @@ export interface Author {
   bio?: AuthorBioSegment[];
   /** URL to author's profile or website (optional) */
   url?: string;
-}
-
-/**
- * Represents a blog tag with metadata
- */
-export interface BlogTag {
-  /** Unique identifier for the tag */
-  id: string;
-  /** Display name of the tag */
-  name: string;
-  /** URL-friendly slug */
-  slug: string;
-  /** Number of posts using this tag */
-  count: number;
 }
 
 export interface BlogPostPageProps {
