@@ -5,20 +5,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Minimal bookmark record structure used by scripts that manipulate the JSON payload
- * written to S3/CDN. Kept intentionally loose to avoid assumptions about enrichment.
- */
-export interface BookmarkS3Entry extends Record<string, unknown> {
-  id?: string;
-  slug?: string;
-  tags?: unknown;
-}
-
-export type BookmarksResponse = import("./lib").PaginatedResponse<
-  import("./schemas/bookmark").UnifiedBookmark
->;
-
-/**
  * Lightweight bookmark type that excludes heavy image data for performance in lists.
  *
  * This type preserves essential fields needed for UI rendering while omitting large
@@ -47,17 +33,11 @@ export type LightweightBookmark = Omit<
   >;
 };
 
-/** Union returned by bookmark loaders depending on includeImageData mode. */
-export type AnyBookmark = import("./schemas/bookmark").UnifiedBookmark | LightweightBookmark;
-
 export interface BookmarkLoadOptions {
   includeImageData?: boolean;
   skipExternalFetch?: boolean;
   force?: boolean;
 }
-
-// BookmarkSlugMapping is now derived from bookmarkSlugMappingSchema via z.infer<>
-// and re-exported from ./schemas/bookmark above.
 
 /** Validated API configuration for bookmark fetching */
 export interface BookmarksApiContext {
