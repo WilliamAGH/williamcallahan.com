@@ -31,6 +31,8 @@ packageExtensions:
   "@react-pdf/renderer": { peerDependencies: { "@types/react": "*" } }
   "@testing-library/jest-dom": { peerDependencies: { vitest: "*" } }
   lucide-react: { peerDependencies: { "@types/react": "*" } }
-  next: { peerDependencies: { "@types/react": "*", "@types/react-dom": "*" } }
+  # `experimental.optimizeCss` makes next's own server require("critters") when it renders a
+  # Pages-router page (the dev and default error pages included); a peer links the project's copy.
+  next: { peerDependencies: { "@types/react": "*", "@types/react-dom": "*", critters: "*" } }
   next-themes: { peerDependencies: { "@types/react": "*", "@types/react-dom": "*" } }
   eslint-plugin-oxlint: { peerDependencies: { eslint: "*" } }
