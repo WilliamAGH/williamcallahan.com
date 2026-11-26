@@ -13,7 +13,7 @@ application behavior; do not infer behavior from a major-version label.
 
 | Concern                 | Canonical evidence                                     | Current contract |
 | ----------------------- | ------------------------------------------------------ | ---------------- |
-| Next.js                 | `package.json`, `node_modules/next/package.json`       | 16.4.2           |
+| Next.js                 | `package.json`, `node_modules/next/package.json`       | 16.4.6           |
 | React                   | `package.json`, `node_modules/react/package.json`      | 19.2.4           |
 | Vitest                  | `package.json`, `node_modules/vitest/package.json`     | 4.1.2            |
 | next-mdx-remote         | `package.json`, `node_modules/next-mdx-remote`         | 6.0.0            |
@@ -78,7 +78,7 @@ does not declare a `deploymentId` configuration property. Next derives its confi
 deployment ID from that environment value, while `generateBuildId` returns the same release
 identity. The Docker source-selection and exact-revision proof contract is owned by
 [`docs/ops/deployment.md`](../ops/deployment.md#web-release-identity). Docker exports the selected
-build identity as `GIT_HASH`, but that variable is not the configuration identity owner. Next 16.4.2 reloads `next.config.ts` for
+build identity as `GIT_HASH`, but that variable is not the configuration identity owner. Next 16.4.6 reloads `next.config.ts` for
 `PHASE_PRODUCTION_SERVER` in `node_modules/next/dist/server/next.js`; after the explicit environment
 override, production startup reads `.next/RELEASE_ID` before considering a local Git fallback.
 The image build writes that file from its source commit, so supported runtime startup needs no Git.
@@ -100,7 +100,7 @@ not be used as one. Follow the recovery procedure in
 ### Cache Components and Rendering
 
 The existing application explicitly retains `partialPrefetching: false` while adopting
-Next.js 16.4.2. This matches the previously unset option's behavior, without its startup
+Next.js 16.4.6. This matches the previously unset option's behavior, without its startup
 warning; enabling Partial Prefetching changes existing full-prefetch semantics and is a
 separate migration. Evidence: installed `next/dist/server/config.js:449-458` and the
 official `partialPrefetching`/adoption guides retrieved through Context7 on 2026-10-25.
@@ -140,7 +140,7 @@ stages through `app-render-scheduling.js` (`createAtomicTimerGroup`).
 old route-config workflow: cache explicitly with `'use cache'`; do not use old
 page/layout `dynamic` exports or `unstable_noStore()` to force rendering behavior.
 
-For `/investments`, keep every company's semantic content outside Suspense and partition only optional logo leaves. Installed Next 16.4.2's vendored `react-dom-experimental/cjs/react-dom-server.node.production.js` warns when root-owned bytes exceed `40 * progressiveChunkSize` (512,000 bytes at the default). Large completed boundaries can be outlined into hidden segments, so wrapping an entire card/list would sacrifice native content. Logo-only boundaries retain native portfolio text and values while reserving the existing image geometry; non-JavaScript clients may omit outlined logos.
+For `/investments`, keep every company's semantic content outside Suspense and partition only optional logo leaves. Installed Next 16.4.6's vendored `react-dom-experimental/cjs/react-dom-server.node.production.js` warns when root-owned bytes exceed `40 * progressiveChunkSize` (512,000 bytes at the default). Large completed boundaries can be outlined into hidden segments, so wrapping an entire card/list would sacrifice native content. Logo-only boundaries retain native portfolio text and values while reserving the existing image geometry; non-JavaScript clients may omit outlined logos.
 
 - Use `cacheLife` and `cacheTag` from `next/cache` for cacheable data and preserve the
   existing tag owner. Do not add local tag catalogs or unstable aliases.
